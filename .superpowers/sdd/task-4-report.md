@@ -73,3 +73,45 @@ rg -n 'speechSynthesis|SpeechSynthesisUtterance|\bmarimba\b|\bglide\b|\bblockCli
 - `index.html` is intentionally silent between this commit and Task 5: all legacy audio calls were removed so there is no browser-TTS fallback or undefined legacy function, but the new module is not imported yet.
 - Task 5 must instantiate and wire `AudioManager` from a module script, connect prompts/answers/retries/SFX, expose mute UI state, and call `cancel()` on navigation/problem changes.
 - Browser autoplay policy still requires Task 5 to make the first AudioContext/audio use from a user gesture.
+
+## Review fixes — unavailable browser audio/storage APIs
+
+Task review found that unavailable Web Audio nodes and blocked browser storage
+could still throw into game input handling. Seven regression tests were added
+before the production fix.
+
+```text
+node --test --test-name-pattern='AudioContext 생성 실패|SFX 노드 생성 실패|SFX 예약 실패|저장소 읽기 실패|저장소 쓰기 실패|중단된 AudioContext|AudioContext 재개 거절' tests/audio-manager.test.mjs
+```
+
+- RED: 7 failing, 0 passing.
+  - AudioContext factory, oscillator creation, oscillator scheduling,
+    `storage.getItem`, and `storage.setItem` errors escaped.
+  - Suspended contexts were not resumed.
+  - Resume rejection had no handled warning path.
+- GREEN: 7 passing, 0 failing.
+
+The fix:
+
+- defaults to unmuted if storage acquisition or `getItem()` fails;
+- keeps the new in-memory mute value if `setItem()` fails;
+- retries AudioContext creation on later SFX calls while warning only once for
+  the context failure source;
+- contains node/envelope/scheduling errors and warns once per SFX source;
+- resumes a suspended context without awaiting it, handles both synchronous
+  resume errors and asynchronous rejection, and continues SFX scheduling.
+
+Fresh review-fix verification:
+
+```text
+node --test tests/audio-manager.test.mjs
+npm test
+git diff --check
+node -e '<compile extracted inline script with new Function>'
+rg -n 'speechSynthesis|SpeechSynthesisUtterance|\bmarimba\b|\bglide\b|\bblockClick\b|\bNUMBER_NOTES\b|\bsfx\b|\bsayAnswer\b|\bsay\(' index.html
+```
+
+- Focused audio tests: 18 passing, 0 failing.
+- Full suite: 24 passing, 0 failing.
+- Diff check and inline syntax compilation: clean.
+- Legacy audio reference search: no matches.

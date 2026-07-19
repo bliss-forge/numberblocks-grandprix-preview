@@ -232,3 +232,193 @@ test("음소거 중에는 AudioContext를 만들지 않는다", () => {
 
   assert.equal(contextsCreated, 0);
 });
+
+test("AudioContext 생성 실패는 호출자에게 전파하지 않고 한 번만 경고한다", () => {
+  const warnings = [];
+  const manager = new AudioManager({
+    audioContextFactory() {
+      throw new Error("context unavailable");
+    },
+    storage: { getItem: () => null, setItem() {} },
+    logger: { warn: (...args) => warnings.push(args) }
+  });
+
+  assert.doesNotThrow(() => manager.playSfx("key"));
+  assert.doesNotThrow(() => manager.playSfx("key"));
+
+  assert.equal(warnings.length, 1);
+});
+
+test("SFX 노드 생성 실패는 호출자에게 전파하지 않고 소스별 한 번만 경고한다", () => {
+  const warnings = [];
+  const manager = new AudioManager({
+    audioContextFactory: () => ({
+      currentTime: 0,
+      destination: {},
+      createOscillator() {
+        throw new Error("oscillator unavailable");
+      },
+      createGain() {
+        throw new Error("gain unavailable");
+      }
+    }),
+    storage: { getItem: () => null, setItem() {} },
+    logger: { warn: (...args) => warnings.push(args) }
+  });
+
+  assert.doesNotThrow(() => manager.playSfx("pop"));
+  assert.doesNotThrow(() => manager.playSfx("pop"));
+
+  assert.equal(warnings.length, 1);
+});
+
+test("SFX 예약 실패는 호출자에게 전파하지 않고 소스별 한 번만 경고한다", () => {
+  const warnings = [];
+  const manager = new AudioManager({
+    audioContextFactory: () => ({
+      currentTime: 0,
+      destination: {},
+      createOscillator: () => ({
+        type: "",
+        frequency: { setValueAtTime() {} },
+        connect() {},
+        start() {
+          throw new Error("schedule failed");
+        },
+        stop() {}
+      }),
+      createGain: () => ({
+        gain: {
+          setValueAtTime() {},
+          exponentialRampToValueAtTime() {}
+        },
+        connect() {}
+      })
+    }),
+    storage: { getItem: () => null, setItem() {} },
+    logger: { warn: (...args) => warnings.push(args) }
+  });
+
+  assert.doesNotThrow(() => manager.playSfx("win"));
+  assert.doesNotThrow(() => manager.playSfx("win"));
+
+  assert.equal(warnings.length, 1);
+});
+
+test("저장소 읽기 실패는 생성을 막지 않고 기본 음소거 해제를 유지한다", () => {
+  const warnings = [];
+  let manager;
+
+  assert.doesNotThrow(() => {
+    manager = new AudioManager({
+      storage: {
+        getItem() {
+          throw new Error("storage blocked");
+        },
+        setItem() {}
+      },
+      logger: { warn: (...args) => warnings.push(args) }
+    });
+  });
+
+  assert.equal(manager.muted, false);
+  assert.equal(warnings.length, 1);
+});
+
+test("저장소 쓰기 실패에도 인메모리 음소거 상태는 정상 전환된다", () => {
+  const warnings = [];
+  const manager = new AudioManager({
+    storage: {
+      getItem: () => null,
+      setItem() {
+        throw new Error("storage blocked");
+      }
+    },
+    logger: { warn: (...args) => warnings.push(args) }
+  });
+
+  assert.doesNotThrow(() => assert.equal(manager.toggleMuted(), true));
+  assert.equal(manager.muted, true);
+  assert.doesNotThrow(() => assert.equal(manager.toggleMuted(), false));
+  assert.equal(manager.muted, false);
+  assert.equal(warnings.length, 1);
+});
+
+test("중단된 AudioContext는 재개 결과를 기다리지 않고 SFX를 예약한다", () => {
+  let resumeCalls = 0;
+  let startCalls = 0;
+  const manager = new AudioManager({
+    audioContextFactory: () => ({
+      state: "suspended",
+      currentTime: 0,
+      destination: {},
+      resume() {
+        resumeCalls += 1;
+        return new Promise(() => {});
+      },
+      createOscillator: () => ({
+        type: "",
+        frequency: { setValueAtTime() {} },
+        connect() {},
+        start() {
+          startCalls += 1;
+        },
+        stop() {}
+      }),
+      createGain: () => ({
+        gain: {
+          setValueAtTime() {},
+          exponentialRampToValueAtTime() {}
+        },
+        connect() {}
+      })
+    }),
+    storage: { getItem: () => null, setItem() {} }
+  });
+
+  manager.playSfx("key");
+
+  assert.equal(resumeCalls, 1);
+  assert.equal(startCalls, 1);
+});
+
+test("AudioContext 재개 거절은 처리되어 SFX와 후속 호출을 막지 않는다", async () => {
+  const warnings = [];
+  let startCalls = 0;
+  const context = {
+    state: "suspended",
+    currentTime: 0,
+    destination: {},
+    resume: async () => {
+      throw new Error("resume blocked");
+    },
+    createOscillator: () => ({
+      type: "",
+      frequency: { setValueAtTime() {} },
+      connect() {},
+      start() {
+        startCalls += 1;
+      },
+      stop() {}
+    }),
+    createGain: () => ({
+      gain: {
+        setValueAtTime() {},
+        exponentialRampToValueAtTime() {}
+      },
+      connect() {}
+    })
+  };
+  const manager = new AudioManager({
+    audioContextFactory: () => context,
+    storage: { getItem: () => null, setItem() {} },
+    logger: { warn: (...args) => warnings.push(args) }
+  });
+
+  assert.doesNotThrow(() => manager.playSfx("key"));
+  assert.doesNotThrow(() => manager.playSfx("key"));
+  await new Promise(resolve => setImmediate(resolve));
+
+  assert.equal(startCalls, 2);
+  assert.equal(warnings.length, 1);
+});

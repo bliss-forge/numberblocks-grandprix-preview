@@ -25,21 +25,29 @@ const SFX = Object.freeze({
 export class AudioManager {
   constructor({
     createAudio = src => new Audio(src),
-    storage = globalThis.localStorage,
+    storage,
     audioContextFactory = () =>
       new (window.AudioContext || window.webkitAudioContext)(),
     logger = console
   } = {}) {
     this.createAudio = createAudio;
-    this.storage = storage;
     this.audioContextFactory = audioContextFactory;
     this.logger = logger;
     this.context = null;
-    this.muted = storage?.getItem("numberblocks-muted") === "true";
     this.epoch = 0;
     this.current = null;
     this.voicePlaying = false;
     this.warned = new Set();
+    this.muted = false;
+
+    try {
+      this.storage = storage === undefined ? globalThis.localStorage : storage;
+      this.muted =
+        this.storage?.getItem("numberblocks-muted") === "true";
+    } catch (error) {
+      this.storage = storage ?? null;
+      this.warnOnce("storage:get", error);
+    }
   }
 
   warnOnce(src, error) {
@@ -132,37 +140,69 @@ export class AudioManager {
     const preset = SFX[name];
     if (this.muted || !preset) return;
 
-    this.context ??= this.audioContextFactory();
-    const now = this.context.currentTime;
-    const ducking = this.voicePlaying ? 0.55 : 1;
+    if (!this.context) {
+      try {
+        this.context = this.audioContextFactory();
+        if (!this.context) throw new Error("AudioContext unavailable");
+      } catch (error) {
+        this.context = null;
+        this.warnOnce("sfx:context", error);
+        return;
+      }
+    }
 
-    preset.notes.forEach((frequency, index) => {
-      const start = now + index * 0.08;
-      const oscillator = this.context.createOscillator();
-      const gain = this.context.createGain();
+    try {
+      if (
+        this.context.state === "suspended" &&
+        typeof this.context.resume === "function"
+      ) {
+        try {
+          const resumeResult = this.context.resume();
+          Promise.resolve(resumeResult).catch(error => {
+            this.warnOnce("sfx:resume", error);
+          });
+        } catch (error) {
+          this.warnOnce("sfx:resume", error);
+        }
+      }
 
-      oscillator.type = preset.wave;
-      oscillator.frequency.setValueAtTime(frequency, start);
-      gain.gain.setValueAtTime(0.0001, start);
-      gain.gain.exponentialRampToValueAtTime(
-        preset.gain * ducking,
-        start + 0.005
-      );
-      gain.gain.exponentialRampToValueAtTime(
-        0.0001,
-        start + preset.duration
-      );
-      oscillator.connect(gain);
-      gain.connect(this.context.destination);
-      oscillator.start(start);
-      oscillator.stop(start + preset.duration + 0.02);
-    });
+      const now = this.context.currentTime;
+      const ducking = this.voicePlaying ? 0.55 : 1;
+
+      preset.notes.forEach((frequency, index) => {
+        const start = now + index * 0.08;
+        const oscillator = this.context.createOscillator();
+        const gain = this.context.createGain();
+
+        oscillator.type = preset.wave;
+        oscillator.frequency.setValueAtTime(frequency, start);
+        gain.gain.setValueAtTime(0.0001, start);
+        gain.gain.exponentialRampToValueAtTime(
+          preset.gain * ducking,
+          start + 0.005
+        );
+        gain.gain.exponentialRampToValueAtTime(
+          0.0001,
+          start + preset.duration
+        );
+        oscillator.connect(gain);
+        gain.connect(this.context.destination);
+        oscillator.start(start);
+        oscillator.stop(start + preset.duration + 0.02);
+      });
+    } catch (error) {
+      this.warnOnce(`sfx:${name}`, error);
+    }
   }
 
   toggleMuted() {
     this.muted = !this.muted;
     if (this.muted) this.cancel();
-    this.storage?.setItem("numberblocks-muted", String(this.muted));
+    try {
+      this.storage?.setItem("numberblocks-muted", String(this.muted));
+    } catch (error) {
+      this.warnOnce("storage:set", error);
+    }
     return this.muted;
   }
 }
