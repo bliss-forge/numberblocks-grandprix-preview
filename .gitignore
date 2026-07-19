@@ -3,4 +3,5 @@
 .superpowers/
 .worktrees/
 tmp/imagegen/
+.venv-voice/
 .DS_Store
