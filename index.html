@@ -139,18 +139,25 @@
   }
 
   /* ---------- numberblock character ---------- */
-  .nb { display: flex; flex-direction: column-reverse; align-items: center; position: relative; }
+  .nb {
+    display: grid; position: relative; align-items: center; justify-items: center;
+    gap: 2px; z-index: 0;
+  }
   .nb .block {
     width: var(--bs); height: var(--bs);
     border-radius: calc(var(--bs) * .14);
-    margin-top: 2px; position: relative;
+    position: relative;
     box-shadow: inset 0 calc(var(--bs) * -.12) 0 rgba(0,0,0,.15),
                 inset 0 calc(var(--bs) * .08) 0 rgba(255,255,255,.35),
                 0 4px 10px rgba(43,43,74,.18);
   }
   .nb .face {
-    position: absolute; inset: 0; display: flex; flex-direction: column;
+    position: absolute; top: calc(var(--bs) * .08); left: 50%;
+    width: var(--bs); height: calc(var(--bs) * .82);
+    transform: translateX(-50%);
+    display: flex; flex-direction: column;
     align-items: center; justify-content: center; gap: calc(var(--bs) * .08);
+    z-index: 4;
   }
   .nb .eyes { display: flex; gap: calc(var(--bs) * .18); }
   .nb .eye {
@@ -168,8 +175,82 @@
     border: calc(var(--bs) * .05) solid #222; border-top: none;
     border-radius: 0 0 999px 999px;
   }
+  .nb .glasses {
+    position: absolute; top: calc(var(--bs) * .2); left: 50%; z-index: 5;
+    width: calc(var(--bs) * .86); height: calc(var(--bs) * .32);
+    transform: translateX(-50%);
+    border-top: calc(var(--bs) * .045) solid #5b3434;
+  }
+  .nb .glasses::before, .nb .glasses::after {
+    content: ""; position: absolute; top: calc(var(--bs) * -.09);
+    width: calc(var(--bs) * .34); height: calc(var(--bs) * .34);
+    border: calc(var(--bs) * .045) solid #5b3434; border-radius: 50%;
+  }
+  .nb .glasses::before { left: 0; }
+  .nb .glasses::after { right: 0; }
+  .nb .crown {
+    position: absolute; top: calc(var(--bs) * -.42); left: 50%; z-index: 3;
+    width: calc(var(--bs) * .9); height: calc(var(--bs) * .42);
+    transform: translateX(-50%);
+    background: #ef4d4d;
+    clip-path: polygon(0 100%, 0 48%, 15% 0, 35% 52%, 50% 0, 65% 52%, 85% 0, 100% 48%, 100% 100%);
+  }
+  .nb .button {
+    position: absolute; left: 50%; width: calc(var(--bs) * .14); height: calc(var(--bs) * .14);
+    transform: translateX(-50%); border-radius: 50%; background: #ef4d4d;
+    box-shadow: inset 0 2px 0 rgba(255,255,255,.45); z-index: 3;
+  }
+  .nb .dice-dot {
+    position: absolute; width: calc(var(--bs) * .13); height: calc(var(--bs) * .13);
+    border-radius: 50%; background: rgba(55,35,95,.72); z-index: 2;
+  }
+  .nb .lashes {
+    position: absolute; top: calc(var(--bs) * .1); left: 50%; z-index: 6;
+    width: calc(var(--bs) * .72); height: calc(var(--bs) * .18);
+    transform: translateX(-50%);
+    border-top: calc(var(--bs) * .035) solid #33224d;
+    border-radius: 50%;
+  }
+  .nb .lashes::before, .nb .lashes::after {
+    content: ""; position: absolute; top: calc(var(--bs) * -.08);
+    width: calc(var(--bs) * .18); height: calc(var(--bs) * .12);
+    border-top: calc(var(--bs) * .035) solid #33224d;
+  }
+  .nb .lashes::before { left: 0; transform: rotate(-28deg); }
+  .nb .lashes::after { right: 0; transform: rotate(28deg); }
+  .nb .arm, .nb .leg, .nb .tentacle {
+    position: absolute; z-index: -1; background: #493a52; border-radius: 999px;
+    transform-origin: top center;
+  }
+  .nb .arm {
+    top: 45%; width: calc(var(--bs) * .12); height: calc(var(--bs) * .7);
+  }
+  .nb .arm.left { left: calc(var(--bs) * -.26); transform: rotate(55deg); }
+  .nb .arm.right { right: calc(var(--bs) * -.26); transform: rotate(-55deg); }
+  .nb.wave .arm.right { animation: waveHand .8s ease-in-out infinite alternate; }
+  @keyframes waveHand { to { transform: rotate(-115deg); } }
+  .nb .leg {
+    bottom: calc(var(--bs) * -.48); width: calc(var(--bs) * .12); height: calc(var(--bs) * .56);
+  }
+  .nb .leg.left { left: 28%; transform: rotate(12deg); }
+  .nb .leg.right { right: 28%; transform: rotate(-12deg); }
+  .nb .star-hand {
+    position: absolute; top: 42%; z-index: 3; width: calc(var(--bs) * .48);
+    aspect-ratio: 1; background: #ffd23d;
+    clip-path: polygon(50% 0,61% 34%,98% 20%,69% 49%,100% 68%,63% 66%,62% 100%,48% 70%,20% 94%,34% 60%,0 50%,36% 43%);
+  }
+  .nb .star-hand.left { left: calc(var(--bs) * -.73); }
+  .nb .star-hand.right { right: calc(var(--bs) * -.73); }
+  .nb .tentacle {
+    bottom: calc(var(--bs) * -.58); width: calc(var(--bs) * .1);
+    height: calc(var(--bs) * .72); background: #c43a83;
+  }
+  .nb .rainbow {
+    position: absolute; top: calc(var(--bs) * -.55); left: 50%;
+    transform: translateX(-50%); font-size: calc(var(--bs) * .46); z-index: 4;
+  }
   .nb .num-badge {
-    position: absolute; top: calc(var(--bs) * -.62); left: 50%; transform: translateX(-50%);
+    position: absolute; top: calc(var(--bs) * -.72); left: 50%; transform: translateX(-50%);
     background: #fff; color: var(--ink); border-radius: 999px;
     font-size: calc(var(--bs) * .4); padding: 0 calc(var(--bs) * .25);
     box-shadow: 0 3px 8px rgba(43,43,74,.2);
@@ -308,54 +389,115 @@
   "use strict";
 
   /* ---------------- palette ---------------- */
-  var COLORS = {
-    1: ["#ff5d5d"], 2: ["#ff9a3d"], 3: ["#ffd23d"], 4: ["#58c95e"], 5: ["#4d9bff"],
-    6: ["#9b6bff"], 7: ["#ff5d5d", "#ff9a3d", "#ffd23d", "#58c95e", "#4d9bff", "#7a6bff", "#c96bff"],
-    8: ["#ff6bb5"], 9: ["#9aa3ad"], 10: ["#ff5d5d", "#ffffff"]
+  var NUMBERBLOCKS = {
+    1:  { rows: 1, cols: 1, colors: ["#ff5d5d"], features: ["one-eye", "short-limbs"] },
+    2:  { rows: 2, cols: 1, colors: ["#ff9a3d"], features: ["glasses"] },
+    3:  { rows: 3, cols: 1, colors: ["#ffd23d"], features: ["crown", "buttons"] },
+    4:  { rows: 2, cols: 2, colors: ["#58c95e"], features: ["square"] },
+    5:  { rows: 5, cols: 1, colors: ["#4d9bff"], features: ["star-hands", "wave"] },
+    6:  { rows: 3, cols: 2, colors: ["#9b6bff"], features: ["dice", "lashes"] },
+    7:  { rows: 7, cols: 1, colors: ["#ff5d5d", "#ff9a3d", "#ffd23d", "#58c95e", "#4d9bff", "#526bd8", "#a95bd5"], features: ["rainbow"] },
+    8:  { rows: 4, cols: 2, colors: ["#ff6bb5"], features: ["tentacles"] },
+    9:  { rows: 3, cols: 3, colors: ["#9aa3ad"], features: ["square"] },
+    10: { rows: 5, cols: 2, colors: ["#ffffff", "#ff5d5d"], features: ["ten-frame", "star-hands"] }
   };
   function blockColors(n) {
-    var base = COLORS[n] || ["#4d9bff"], out = [], i;
+    var base = NUMBERBLOCKS[n] ? NUMBERBLOCKS[n].colors : ["#4d9bff"], out = [], i;
     for (i = 0; i < n; i++) out.push(base[i % base.length]);
     return out;
   }
 
   var KOR_NATIVE = ["", "하나", "둘", "셋", "넷", "다섯", "여섯", "일곱", "여덟", "아홉", "열"];
+  var KOR_COUNTER = ["", "한", "두", "세", "네", "다섯", "여섯", "일곱", "여덟", "아홉", "열"];
   var KOR_SINO   = ["", "일", "이", "삼", "사", "오", "육", "칠", "팔", "구", "십"];
   var ENG        = ["", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine", "Ten"];
 
+  function hasFinalConsonant(word) {
+    if (!word) return false;
+    var code = word.charCodeAt(word.length - 1);
+    return code >= 0xAC00 && code <= 0xD7A3 && (code - 0xAC00) % 28 !== 0;
+  }
+  function josaEunNeun(word) { return word + (hasFinalConsonant(word) ? "은" : "는"); }
+  function counterWord(n) { return KOR_COUNTER[n] + " 개"; }
+  function additionPrompt(a, b) { return KOR_SINO[a] + " 더하기 " + josaEunNeun(KOR_SINO[b]) + "?"; }
+  function multiplicationPrompt(a, b) { return KOR_SINO[a] + " 곱하기 " + josaEunNeun(KOR_SINO[b]) + "?"; }
+
   /* ---------------- sound ---------------- */
-  var audioCtx = null;
+  var audioCtx = null, masterGain = null;
+  /* Pentatonic-flavoured rising notes: each character keeps one distinct pitch. */
+  var NUMBER_NOTES = [0, 261.63, 293.66, 329.63, 392.00, 440.00, 523.25, 587.33, 659.25, 783.99, 1046.50];
   function ctx() {
     if (!audioCtx) {
       var AC = window.AudioContext || window.webkitAudioContext;
       if (!AC) return null;
       audioCtx = new AC();
+      masterGain = audioCtx.createGain();
+      masterGain.gain.value = 0.38;
+      masterGain.connect(audioCtx.destination);
     }
     if (audioCtx.state === "suspended") audioCtx.resume();
     return audioCtx;
   }
-  function tone(freq, start, dur, type, vol) {
+  function marimba(freq, start, dur, vol) {
     var c = ctx(); if (!c) return;
-    var o = c.createOscillator(), g = c.createGain();
-    o.type = type || "triangle"; o.frequency.value = freq;
-    g.gain.setValueAtTime(0.0001, c.currentTime + start);
-    g.gain.exponentialRampToValueAtTime(vol || 0.25, c.currentTime + start + 0.02);
-    g.gain.exponentialRampToValueAtTime(0.0001, c.currentTime + start + dur);
-    o.connect(g); g.connect(c.destination);
-    o.start(c.currentTime + start); o.stop(c.currentTime + start + dur + 0.05);
+    var when = c.currentTime + start;
+    [[1, 1], [2, 0.24], [3, 0.08]].forEach(function (layer) {
+      var o = c.createOscillator(), g = c.createGain();
+      o.type = layer[0] === 1 ? "sine" : "triangle";
+      o.frequency.value = freq * layer[0];
+      g.gain.setValueAtTime(0.0001, when);
+      g.gain.exponentialRampToValueAtTime((vol || 0.18) * layer[1], when + 0.008);
+      g.gain.exponentialRampToValueAtTime(0.0001, when + dur / layer[0]);
+      o.connect(g); g.connect(masterGain);
+      o.start(when); o.stop(when + dur + 0.03);
+    });
+  }
+  function blockClick(start) {
+    var c = ctx(); if (!c) return;
+    var length = Math.max(1, Math.floor(c.sampleRate * 0.045));
+    var buffer = c.createBuffer(1, length, c.sampleRate);
+    var data = buffer.getChannelData(0);
+    for (var i = 0; i < length; i++) data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / length, 4);
+    var source = c.createBufferSource(), filter = c.createBiquadFilter(), gain = c.createGain();
+    var when = c.currentTime + (start || 0);
+    source.buffer = buffer;
+    filter.type = "bandpass"; filter.frequency.value = 1450; filter.Q.value = 1.1;
+    gain.gain.setValueAtTime(0.11, when);
+    gain.gain.exponentialRampToValueAtTime(0.0001, when + 0.05);
+    source.connect(filter); filter.connect(gain); gain.connect(masterGain);
+    source.start(when);
+  }
+  function glide(from, to, start, dur, vol) {
+    var c = ctx(); if (!c) return;
+    var o = c.createOscillator(), g = c.createGain(), when = c.currentTime + start;
+    o.type = "sine";
+    o.frequency.setValueAtTime(from, when);
+    o.frequency.exponentialRampToValueAtTime(to, when + dur);
+    g.gain.setValueAtTime(0.0001, when);
+    g.gain.exponentialRampToValueAtTime(vol, when + 0.025);
+    g.gain.exponentialRampToValueAtTime(0.0001, when + dur);
+    o.connect(g); g.connect(masterGain);
+    o.start(when); o.stop(when + dur + 0.03);
   }
   var sfx = {
-    pop: function () { tone(660, 0, 0.12, "sine", 0.2); tone(990, 0.02, 0.1, "sine", 0.12); },
-    key: function () { tone(520, 0, 0.08, "square", 0.06); },
-    win: function () {
-      [523, 659, 784, 1047].forEach(function (f, i) { tone(f, i * 0.12, 0.28, "triangle", 0.22); });
-      tone(1319, 0.5, 0.4, "triangle", 0.18);
+    note: function (n, delay) { marimba(NUMBER_NOTES[n] || NUMBER_NOTES[1], delay || 0, 0.42, 0.2); },
+    pop: function () { blockClick(0); marimba(880, 0.015, 0.12, 0.09); },
+    key: function () { marimba(659.25, 0, 0.09, 0.055); },
+    merge: function (a, b, sum) {
+      marimba(NUMBER_NOTES[a], 0, 0.32, 0.16);
+      marimba(NUMBER_NOTES[b], 0.18, 0.32, 0.16);
+      blockClick(0.38);
+      marimba(NUMBER_NOTES[sum], 0.4, 0.58, 0.22);
     },
-    oops: function () { tone(220, 0, 0.2, "sine", 0.15); tone(180, 0.18, 0.28, "sine", 0.15); }
+    win: function () {
+      [523.25, 659.25, 783.99, 1046.50].forEach(function (f, i) { marimba(f, i * 0.085, 0.3, 0.15); });
+      marimba(1567.98, 0.36, 0.5, 0.1);
+    },
+    oops: function () { glide(493.88, 392.00, 0, 0.42, 0.105); }
   };
 
   /* ---------------- speech ---------------- */
-  var koVoice = null, enVoice = null;
+  var koVoice = null, enVoice = null, speechEpoch = 0;
   function pickVoices() {
     if (!window.speechSynthesis) return;
     var vs = speechSynthesis.getVoices();
@@ -368,21 +510,45 @@
     pickVoices();
     speechSynthesis.onvoiceschanged = pickVoices;
   }
-  function say(text, lang, rate) {
-    if (!window.speechSynthesis || !text) return;
+  function say(text, lang, rate, onDone) {
+    if (!window.speechSynthesis || !window.SpeechSynthesisUtterance || !text) {
+      if (onDone) onDone();
+      return null;
+    }
     var u = new SpeechSynthesisUtterance(text);
     u.lang = lang || "ko-KR";
-    u.rate = rate || 0.9;
-    u.pitch = 1.25;
-    var v = lang && lang.indexOf("en") === 0 ? enVoice : koVoice;
+    var isEnglish = u.lang.indexOf("en") === 0;
+    u.rate = rate || (isEnglish ? 0.98 : 0.96);
+    u.pitch = isEnglish ? 1.04 : 1.08;
+    var v = isEnglish ? enVoice : koVoice;
     if (v) u.voice = v;
+    if (onDone) {
+      var finished = false;
+      var finish = function () {
+        if (finished) return;
+        finished = true;
+        clearTimeout(safety);
+        onDone();
+      };
+      var safety = setTimeout(finish, 3000);
+      u.onend = finish;
+      u.onerror = finish;
+    }
     speechSynthesis.speak(u);
+    return u;
   }
-  function sayAnswer(n) {
+  function sayAnswer(n, isCountMode) {
     if (!window.speechSynthesis) return;
+    var epoch = ++speechEpoch;
     speechSynthesis.cancel();
-    say(KOR_NATIVE[n] + "!", "ko-KR");
-    setTimeout(function () { say(ENG[n] + "!", "en-US", 0.85); }, 900);
+    var korean = isCountMode ? counterWord(n) : KOR_NATIVE[n];
+    say(korean + "!", "ko-KR", null, function () {
+      if (epoch !== speechEpoch) return;
+      say(ENG[n] + "!", "en-US", null, function () {
+        if (epoch !== speechEpoch) return;
+        say("딩동댕!", "ko-KR");
+      });
+    });
   }
 
   /* ---------------- dom helpers ---------------- */
@@ -399,29 +565,76 @@
   var starCount = document.getElementById("star-count");
   var eqSign = document.getElementById("eq-sign");
 
-  function blockSizeFor(n) {
+  function blockSizeFor(n, widthShare) {
+    var model = NUMBERBLOCKS[n] || { rows: n, cols: 1 };
     var maxH = window.innerHeight * 0.5;
-    var s = Math.floor(maxH / Math.max(n, 3)) - 4;
+    var maxW = window.innerWidth * (widthShare || 0.48);
+    var s = Math.min(Math.floor(maxH / model.rows) - 4, Math.floor(maxW / model.cols) - 4);
     return Math.max(30, Math.min(s, 88));
+  }
+
+  function addCharacterFeatures(nb, model, size) {
+    var features = model.features;
+    function has(name) { return features.indexOf(name) !== -1; }
+    var leftArm = el("div", "arm left", nb), rightArm = el("div", "arm right", nb);
+    if (has("short-limbs")) {
+      leftArm.style.height = rightArm.style.height = (size * 0.42) + "px";
+    }
+    if (!has("tentacles")) {
+      el("div", "leg left", nb); el("div", "leg right", nb);
+    }
+    if (has("glasses")) el("div", "glasses", nb);
+    if (has("crown")) el("div", "crown", nb);
+    if (has("buttons")) {
+      for (var i = 0; i < 2; i++) {
+        var button = el("div", "button", nb);
+        button.style.top = (size * (1.45 + i)) + "px";
+      }
+    }
+    if (has("lashes")) el("div", "lashes", nb);
+    if (has("star-hands")) {
+      el("div", "star-hand left", nb); el("div", "star-hand right", nb);
+    }
+    if (has("wave")) nb.classList.add("wave");
+    if (has("rainbow")) {
+      var rainbow = el("div", "rainbow", nb); rainbow.textContent = "🌈";
+    }
+    if (has("tentacles")) {
+      for (var t = 0; t < 8; t++) {
+        var tentacle = el("div", "tentacle", nb);
+        tentacle.style.left = (7 + t * 12) + "%";
+        tentacle.style.transform = "rotate(" + ((t - 3.5) * 6) + "deg)";
+      }
+    }
   }
 
   function renderNumberblock(n, opts) {
     opts = opts || {};
+    var model = NUMBERBLOCKS[n] || { rows: n, cols: 1, colors: ["#4d9bff"], features: [] };
     var nb = el("div", "nb enter idle");
     var size = opts.size || blockSizeFor(n);
     nb.style.setProperty("--bs", size + "px");
+    nb.style.gridTemplateColumns = "repeat(" + model.cols + ", " + size + "px)";
+    nb.dataset.number = n;
+    nb.dataset.rows = model.rows;
+    nb.dataset.cols = model.cols;
     var colors = blockColors(n);
     for (var i = 0; i < n; i++) {
       var b = el("div", "block", nb);
       b.style.background = colors[i];
       if (colors[i] === "#ffffff") b.style.border = "3px solid #ff5d5d";
-      if (i === n - 1) {
-        var face = el("div", "face", b);
-        var eyes = el("div", "eyes", face);
-        el("div", "eye", eyes); el("div", "eye", eyes);
-        el("div", "mouth", face);
+      if (model.features.indexOf("dice") !== -1) {
+        var dot = el("div", "dice-dot", b);
+        dot.style.left = (i % 2 ? "68%" : "18%");
+        dot.style.top = (i % 3 === 1 ? "68%" : "18%");
       }
     }
+    var face = el("div", "face", nb);
+    var eyes = el("div", "eyes", face);
+    el("div", "eye", eyes);
+    if (model.features.indexOf("one-eye") === -1) el("div", "eye", eyes);
+    el("div", "mouth", face);
+    addCharacterFeatures(nb, model, size);
     var badge = el("div", "num-badge", nb);
     badge.textContent = n;
     return nb;
@@ -467,8 +680,10 @@
   var stars = 0;
   var streak = { count: 0, add: 0, mul: 0 };
   var wrongCount = 0;
+  var addends = [0, 0];
 
-  var CHEERS = ["🎉 참 잘했어요!", "🌟 딩동댕!", "👏 대단해요!", "💮 최고예요!", "🎈 정답이에요!"];
+  var CHEERS = ["🎉 참 잘했어요!", "👏 대단해요!", "💮 최고예요!", "🎈 정답이에요!"];
+  var TRY_AGAIN = ["괜찮아, 다시!", "음… 다시 해볼까?", "조금만 더 생각해 볼까?"];
 
   function rnd(min, max) { return min + Math.floor(Math.random() * (max - min + 1)); }
 
@@ -514,8 +729,9 @@
       var maxSum = streak.add >= 4 ? 10 : 5;
       var a = rnd(1, maxSum - 1);
       var b = rnd(1, maxSum - a);
+      addends = [a, b];
       answer = a + b;
-      var size = blockSizeFor(Math.max(a, b, 4));
+      var size = Math.min(blockSizeFor(a, 0.2), blockSizeFor(b, 0.2));
       var left = renderNumberblock(a, { size: size });
       var right = renderNumberblock(b, { size: size });
       left.classList.add("show-num"); right.classList.add("show-num");
@@ -524,7 +740,7 @@
       var plus = el("div", "op", stage); plus.textContent = "+";
       stage.appendChild(right);
       eqSign.textContent = "=";
-      say(KOR_SINO[a] + " 더하기 " + KOR_SINO[b] + "는?", "ko-KR");
+      say(additionPrompt(a, b), "ko-KR");
     } else if (mode === "mul") {
       var pairsEasy = [[2, 2], [2, 3], [3, 2], [2, 4]];
       var pairsAll  = pairsEasy.concat([[4, 2], [2, 5], [5, 2], [3, 3], [1, 6], [1, 8]]);
@@ -533,7 +749,7 @@
       answer = p[0] * p[1];
       stage.appendChild(renderGrid(p[0], p[1], answer));
       eqSign.textContent = "=";
-      say(KOR_SINO[p[0]] + " 곱하기 " + KOR_SINO[p[1]] + "은?", "ko-KR");
+      say(multiplicationPrompt(p[0], p[1]), "ko-KR");
     }
   }
 
@@ -563,9 +779,10 @@
     starCount.classList.add("pop");
 
     answerBox.classList.add("good");
-    sfx.win();
+    if (mode === "add") sfx.merge(addends[0], addends[1], answer);
+    else sfx.win();
     confetti();
-    sayAnswer(answer);
+    sayAnswer(answer, mode === "count");
 
     bigCheer.textContent = CHEERS[rnd(0, CHEERS.length - 1)];
     bigCheer.classList.remove("show");
@@ -585,7 +802,7 @@
           merged.classList.remove("idle");
           merged.classList.add("dance");
           stage.appendChild(merged);
-          sfx.pop();
+          blockClick(0);
         }, 620);
       }
     } else {
@@ -611,7 +828,7 @@
     answerBox.classList.add("bad");
     var nb = stage.querySelector(".nb");
     if (nb) { nb.classList.remove("no"); void nb.offsetWidth; nb.classList.add("no"); }
-    say("음… 다시 해볼까?", "ko-KR");
+    say(TRY_AGAIN[rnd(0, TRY_AGAIN.length - 1)], "ko-KR");
 
     if (wrongCount >= 2) countHint();
   }
@@ -624,9 +841,9 @@
         b.classList.remove("sparkle");
         void b.offsetWidth;
         b.classList.add("sparkle");
-        sfx.pop();
+        sfx.note(i + 1);
         if (window.speechSynthesis && i < KOR_NATIVE.length - 1) {
-          say(KOR_NATIVE[i + 1], "ko-KR", 1.05);
+          say(KOR_NATIVE[i + 1], "ko-KR", 0.98);
         }
       }, i * 700);
     });
@@ -645,6 +862,7 @@
     mode = null;
     buffer = "";
     clearTimeout(nextTimer);
+    speechEpoch++;
     if (window.speechSynthesis) speechSynthesis.cancel();
     setScreen("home");
   }
@@ -672,6 +890,16 @@
   window.addEventListener("resize", function () {
     if (state === "playing") newProblem();
   });
+
+  /* Small deterministic hook for offline/browser acceptance checks. */
+  window.__nbTest = {
+    josaEunNeun: josaEunNeun,
+    counterWord: counterWord,
+    additionPrompt: additionPrompt,
+    multiplicationPrompt: multiplicationPrompt,
+    layouts: NUMBERBLOCKS,
+    notes: NUMBER_NOTES.slice(1)
+  };
 })();
 </script>
 </body>
