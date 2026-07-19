@@ -1,4 +1,5 @@
 .gstack/
 .orc/
 .superpowers/
+.worktrees/
 .DS_Store
