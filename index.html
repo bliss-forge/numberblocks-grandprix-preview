@@ -427,135 +427,6 @@
   function additionPrompt(a, b) { return KOR_SINO[a] + " 더하기 " + josaEunNeun(KOR_SINO[b]) + "?"; }
   function multiplicationPrompt(a, b) { return KOR_SINO[a] + " 곱하기 " + josaEunNeun(KOR_SINO[b]) + "?"; }
 
-  /* ---------------- sound ---------------- */
-  var audioCtx = null, masterGain = null;
-  /* Pentatonic-flavoured rising notes: each character keeps one distinct pitch. */
-  var NUMBER_NOTES = [0, 261.63, 293.66, 329.63, 392.00, 440.00, 523.25, 587.33, 659.25, 783.99, 1046.50];
-  function ctx() {
-    if (!audioCtx) {
-      var AC = window.AudioContext || window.webkitAudioContext;
-      if (!AC) return null;
-      audioCtx = new AC();
-      masterGain = audioCtx.createGain();
-      masterGain.gain.value = 0.38;
-      masterGain.connect(audioCtx.destination);
-    }
-    if (audioCtx.state === "suspended") audioCtx.resume();
-    return audioCtx;
-  }
-  function marimba(freq, start, dur, vol) {
-    var c = ctx(); if (!c) return;
-    var when = c.currentTime + start;
-    [[1, 1], [2, 0.24], [3, 0.08]].forEach(function (layer) {
-      var o = c.createOscillator(), g = c.createGain();
-      o.type = layer[0] === 1 ? "sine" : "triangle";
-      o.frequency.value = freq * layer[0];
-      g.gain.setValueAtTime(0.0001, when);
-      g.gain.exponentialRampToValueAtTime((vol || 0.18) * layer[1], when + 0.008);
-      g.gain.exponentialRampToValueAtTime(0.0001, when + dur / layer[0]);
-      o.connect(g); g.connect(masterGain);
-      o.start(when); o.stop(when + dur + 0.03);
-    });
-  }
-  function blockClick(start) {
-    var c = ctx(); if (!c) return;
-    var length = Math.max(1, Math.floor(c.sampleRate * 0.045));
-    var buffer = c.createBuffer(1, length, c.sampleRate);
-    var data = buffer.getChannelData(0);
-    for (var i = 0; i < length; i++) data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / length, 4);
-    var source = c.createBufferSource(), filter = c.createBiquadFilter(), gain = c.createGain();
-    var when = c.currentTime + (start || 0);
-    source.buffer = buffer;
-    filter.type = "bandpass"; filter.frequency.value = 1450; filter.Q.value = 1.1;
-    gain.gain.setValueAtTime(0.11, when);
-    gain.gain.exponentialRampToValueAtTime(0.0001, when + 0.05);
-    source.connect(filter); filter.connect(gain); gain.connect(masterGain);
-    source.start(when);
-  }
-  function glide(from, to, start, dur, vol) {
-    var c = ctx(); if (!c) return;
-    var o = c.createOscillator(), g = c.createGain(), when = c.currentTime + start;
-    o.type = "sine";
-    o.frequency.setValueAtTime(from, when);
-    o.frequency.exponentialRampToValueAtTime(to, when + dur);
-    g.gain.setValueAtTime(0.0001, when);
-    g.gain.exponentialRampToValueAtTime(vol, when + 0.025);
-    g.gain.exponentialRampToValueAtTime(0.0001, when + dur);
-    o.connect(g); g.connect(masterGain);
-    o.start(when); o.stop(when + dur + 0.03);
-  }
-  var sfx = {
-    note: function (n, delay) { marimba(NUMBER_NOTES[n] || NUMBER_NOTES[1], delay || 0, 0.42, 0.2); },
-    pop: function () { blockClick(0); marimba(880, 0.015, 0.12, 0.09); },
-    key: function () { marimba(659.25, 0, 0.09, 0.055); },
-    merge: function (a, b, sum) {
-      marimba(NUMBER_NOTES[a], 0, 0.32, 0.16);
-      marimba(NUMBER_NOTES[b], 0.18, 0.32, 0.16);
-      blockClick(0.38);
-      marimba(NUMBER_NOTES[sum], 0.4, 0.58, 0.22);
-    },
-    win: function () {
-      [523.25, 659.25, 783.99, 1046.50].forEach(function (f, i) { marimba(f, i * 0.085, 0.3, 0.15); });
-      marimba(1567.98, 0.36, 0.5, 0.1);
-    },
-    oops: function () { glide(493.88, 392.00, 0, 0.42, 0.105); }
-  };
-
-  /* ---------------- speech ---------------- */
-  var koVoice = null, enVoice = null, speechEpoch = 0;
-  function pickVoices() {
-    if (!window.speechSynthesis) return;
-    var vs = speechSynthesis.getVoices();
-    vs.forEach(function (v) {
-      if (!koVoice && v.lang.indexOf("ko") === 0) koVoice = v;
-      if (!enVoice && v.lang.indexOf("en") === 0) enVoice = v;
-    });
-  }
-  if (window.speechSynthesis) {
-    pickVoices();
-    speechSynthesis.onvoiceschanged = pickVoices;
-  }
-  function say(text, lang, rate, onDone) {
-    if (!window.speechSynthesis || !window.SpeechSynthesisUtterance || !text) {
-      if (onDone) onDone();
-      return null;
-    }
-    var u = new SpeechSynthesisUtterance(text);
-    u.lang = lang || "ko-KR";
-    var isEnglish = u.lang.indexOf("en") === 0;
-    u.rate = rate || (isEnglish ? 0.98 : 0.96);
-    u.pitch = isEnglish ? 1.04 : 1.08;
-    var v = isEnglish ? enVoice : koVoice;
-    if (v) u.voice = v;
-    if (onDone) {
-      var finished = false;
-      var finish = function () {
-        if (finished) return;
-        finished = true;
-        clearTimeout(safety);
-        onDone();
-      };
-      var safety = setTimeout(finish, 3000);
-      u.onend = finish;
-      u.onerror = finish;
-    }
-    speechSynthesis.speak(u);
-    return u;
-  }
-  function sayAnswer(n, isCountMode) {
-    if (!window.speechSynthesis) return;
-    var epoch = ++speechEpoch;
-    speechSynthesis.cancel();
-    var korean = isCountMode ? counterWord(n) : KOR_NATIVE[n];
-    say(korean + "!", "ko-KR", null, function () {
-      if (epoch !== speechEpoch) return;
-      say(ENG[n] + "!", "en-US", null, function () {
-        if (epoch !== speechEpoch) return;
-        say("딩동댕!", "ko-KR");
-      });
-    });
-  }
-
   /* ---------------- dom helpers ---------------- */
   function el(tag, cls, parent) {
     var e = document.createElement(tag);
@@ -737,7 +608,6 @@
       answer = rnd(1, max);
       stage.appendChild(renderNumberblock(answer));
       eqSign.textContent = "=";
-      say("몇 개일까요?", "ko-KR");
     } else if (mode === "add") {
       var maxSum = streak.add >= 4 ? 10 : 5;
       var a = rnd(1, maxSum - 1);
@@ -753,7 +623,6 @@
       var plus = el("div", "op", stage); plus.textContent = "+";
       stage.appendChild(right);
       eqSign.textContent = "=";
-      say(additionPrompt(a, b), "ko-KR");
     } else if (mode === "mul") {
       var pairsEasy = [[2, 2], [2, 3], [3, 2], [2, 4]];
       var pairsAll  = pairsEasy.concat([[4, 2], [2, 5], [5, 2], [3, 3], [1, 6], [1, 8]]);
@@ -762,14 +631,12 @@
       answer = p[0] * p[1];
       stage.appendChild(renderGrid(p[0], p[1], answer));
       eqSign.textContent = "=";
-      say(multiplicationPrompt(p[0], p[1]), "ko-KR");
     }
   }
 
   /* ---------------- answer handling ---------------- */
   function onDigit(d) {
     if (state !== "playing") return;
-    sfx.key();
     buffer += d;
     showBuffer();
     var target = String(answer);
@@ -792,10 +659,7 @@
     starCount.classList.add("pop");
 
     answerBox.classList.add("good");
-    if (mode === "add") sfx.merge(addends[0], addends[1], answer);
-    else sfx.win();
     confetti();
-    sayAnswer(answer, mode === "count");
 
     bigCheer.textContent = CHEERS[rnd(0, CHEERS.length - 1)];
     bigCheer.classList.remove("show");
@@ -815,7 +679,6 @@
           merged.classList.remove("idle");
           merged.classList.add("dance");
           stage.appendChild(merged);
-          blockClick(0);
         }, 620);
       }
     } else {
@@ -835,13 +698,11 @@
     buffer = "";
     wrongCount++;
     showBuffer();
-    sfx.oops();
     answerBox.classList.remove("bad");
     void answerBox.offsetWidth;
     answerBox.classList.add("bad");
     var nb = stage.querySelector(".nb");
     if (nb) { nb.classList.remove("no"); void nb.offsetWidth; nb.classList.add("no"); }
-    say(TRY_AGAIN[rnd(0, TRY_AGAIN.length - 1)], "ko-KR");
 
     if (wrongCount >= 2) countHint();
   }
@@ -854,10 +715,6 @@
         b.classList.remove("sparkle");
         void b.offsetWidth;
         b.classList.add("sparkle");
-        sfx.note(i + 1);
-        if (window.speechSynthesis && i < KOR_NATIVE.length - 1) {
-          say(KOR_NATIVE[i + 1], "ko-KR", 0.98);
-        }
       }, i * 700);
     });
     hint("블록을 같이 세어 볼까요?");
@@ -865,7 +722,6 @@
 
   /* ---------------- navigation ---------------- */
   function startMode(m) {
-    ctx(); /* unlock audio on user gesture */
     mode = m;
     setScreen("game");
     newProblem();
@@ -875,8 +731,6 @@
     mode = null;
     buffer = "";
     clearTimeout(nextTimer);
-    speechEpoch++;
-    if (window.speechSynthesis) speechSynthesis.cancel();
     setScreen("home");
   }
 
@@ -891,7 +745,6 @@
     if (e.key >= "0" && e.key <= "9") d = e.key;
     if (e.code && e.code.indexOf("Numpad") === 0 && e.key >= "0" && e.key <= "9") d = e.key;
     if (state === "home") {
-      ctx();
       if (d === "1") startMode("count");
       else if (d === "2") startMode("add");
       else if (d === "3") startMode("mul");
@@ -911,8 +764,7 @@
     counterWord: counterWord,
     additionPrompt: additionPrompt,
     multiplicationPrompt: multiplicationPrompt,
-    layouts: NUMBERBLOCKS,
-    notes: NUMBER_NOTES.slice(1)
+    layouts: NUMBERBLOCKS
   };
 })();
 </script>
