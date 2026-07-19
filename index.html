@@ -141,7 +141,7 @@
   /* ---------- numberblock character ---------- */
   .nb {
     display: grid; position: relative; align-items: center; justify-items: center;
-    gap: 2px; z-index: 0;
+    gap: var(--block-gap, 2px); z-index: 0;
   }
   .nb .block {
     width: var(--bs); height: var(--bs);
@@ -223,24 +223,29 @@
     transform-origin: top center;
   }
   .nb .arm {
-    top: 45%; width: calc(var(--bs) * .12); height: calc(var(--bs) * .7);
+    top: var(--arm-y); width: calc(var(--bs) * .12); height: calc(var(--bs) * .7);
   }
-  .nb .arm.left { left: calc(var(--bs) * -.26); transform: rotate(55deg); }
-  .nb .arm.right { right: calc(var(--bs) * -.26); transform: rotate(-55deg); }
+  .nb .arm.left {
+    left: calc(var(--bs) * -.06);
+    transform: rotate(55deg);
+  }
+  .nb .arm.right {
+    left: calc(var(--body-w) - var(--bs) * .06);
+    transform: rotate(-55deg);
+  }
   .nb.wave .arm.right { animation: waveHand .8s ease-in-out infinite alternate; }
   @keyframes waveHand { to { transform: rotate(-115deg); } }
   .nb .leg {
-    bottom: calc(var(--bs) * -.48); width: calc(var(--bs) * .12); height: calc(var(--bs) * .56);
+    top: var(--body-h); width: calc(var(--bs) * .12); height: calc(var(--bs) * .56);
   }
-  .nb .leg.left { left: 28%; transform: rotate(12deg); }
-  .nb .leg.right { right: 28%; transform: rotate(-12deg); }
+  .nb .leg.left { left: calc(28% - var(--bs) * .06); transform: rotate(12deg); }
+  .nb .leg.right { right: calc(28% - var(--bs) * .06); transform: rotate(-12deg); }
   .nb .star-hand {
-    position: absolute; top: 42%; z-index: 3; width: calc(var(--bs) * .48);
+    position: absolute; top: 100%; left: 50%; z-index: 3; width: calc(var(--bs) * .5);
     aspect-ratio: 1; background: #ffd23d;
+    transform: translate(-50%, -50%);
     clip-path: polygon(50% 0,61% 34%,98% 20%,69% 49%,100% 68%,63% 66%,62% 100%,48% 70%,20% 94%,34% 60%,0 50%,36% 43%);
   }
-  .nb .star-hand.left { left: calc(var(--bs) * -.73); }
-  .nb .star-hand.right { right: calc(var(--bs) * -.73); }
   .nb .tentacle {
     bottom: calc(var(--bs) * -.58); width: calc(var(--bs) * .1);
     height: calc(var(--bs) * .72); background: #c43a83;
@@ -399,7 +404,7 @@
     7:  { rows: 7, cols: 1, colors: ["#ff5d5d", "#ff9a3d", "#ffd23d", "#58c95e", "#4d9bff", "#526bd8", "#a95bd5"], features: ["rainbow"] },
     8:  { rows: 4, cols: 2, colors: ["#ff6bb5"], features: ["tentacles"] },
     9:  { rows: 3, cols: 3, colors: ["#9aa3ad"], features: ["square"] },
-    10: { rows: 5, cols: 2, colors: ["#ffffff", "#ff5d5d"], features: ["ten-frame", "star-hands"] }
+    10: { rows: 5, cols: 2, colors: ["#ffffff"], features: ["ten-frame", "star-hands"] }
   };
   function blockColors(n) {
     var base = NUMBERBLOCKS[n] ? NUMBERBLOCKS[n].colors : ["#4d9bff"], out = [], i;
@@ -593,7 +598,7 @@
     }
     if (has("lashes")) el("div", "lashes", nb);
     if (has("star-hands")) {
-      el("div", "star-hand left", nb); el("div", "star-hand right", nb);
+      el("div", "star-hand left", leftArm); el("div", "star-hand right", rightArm);
     }
     if (has("wave")) nb.classList.add("wave");
     if (has("rainbow")) {
@@ -613,7 +618,15 @@
     var model = NUMBERBLOCKS[n] || { rows: n, cols: 1, colors: ["#4d9bff"], features: [] };
     var nb = el("div", "nb enter idle");
     var size = opts.size || blockSizeFor(n);
+    var blockGap = 2;
+    var bodyWidth = model.cols * size + (model.cols - 1) * blockGap;
+    var bodyHeight = model.rows * size + (model.rows - 1) * blockGap;
     nb.style.setProperty("--bs", size + "px");
+    nb.style.setProperty("--block-gap", blockGap + "px");
+    /* Bound: layout is rectangular. If irregular bodies are added, attach limbs to edge blocks instead. */
+    nb.style.setProperty("--body-w", bodyWidth + "px");
+    nb.style.setProperty("--body-h", bodyHeight + "px");
+    nb.style.setProperty("--arm-y", (bodyHeight * 0.45) + "px");
     nb.style.gridTemplateColumns = "repeat(" + model.cols + ", " + size + "px)";
     nb.dataset.number = n;
     nb.dataset.rows = model.rows;
@@ -893,6 +906,7 @@
 
   /* Small deterministic hook for offline/browser acceptance checks. */
   window.__nbTest = {
+    render: renderNumberblock,
     josaEunNeun: josaEunNeun,
     counterWord: counterWord,
     additionPrompt: additionPrompt,
