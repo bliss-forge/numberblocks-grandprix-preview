@@ -1,5 +1,5 @@
 const numbers = Object.fromEntries(
-  Array.from({ length: 10 }, (_, index) => {
+  Array.from({ length: 100 }, (_, index) => {
     const number = index + 1;
     return [
       `number-${number}`,

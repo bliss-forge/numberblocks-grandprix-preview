@@ -647,3 +647,14 @@ test("AudioContext 재개 거절은 처리되어 SFX와 후속 호출을 막지 
   assert.equal(startCalls, 2);
   assert.equal(warnings.length, 1);
 });
+
+test("100 정답도 한국어 뒤 영어 음성을 재생한다", async () => {
+  const { manager, played } = harness();
+
+  await manager.playAnswer(100);
+
+  assert.deepEqual(played, [
+    "assets/audio/voice/ko/number-100.mp3",
+    "assets/audio/voice/en/number-100.mp3"
+  ]);
+});

@@ -13,11 +13,46 @@ KO_PROMPTS = {
     "prompt-add": "두 친구가 합치면 몇이 될까요?",
     "prompt-mul": "블록판에는 모두 몇 개가 있을까요?",
 }
+KO_ONES = ["", "일", "이", "삼", "사", "오", "육", "칠", "팔", "구"]
+EN_ONES = [
+    "", "one", "two", "three", "four", "five", "six", "seven",
+    "eight", "nine", "ten", "eleven", "twelve", "thirteen",
+    "fourteen", "fifteen", "sixteen", "seventeen", "eighteen",
+    "nineteen",
+]
+EN_TENS = [
+    "", "", "twenty", "thirty", "forty", "fifty", "sixty",
+    "seventy", "eighty", "ninety",
+]
+
+
+def korean_number(number):
+    if number == 100:
+        return "백!"
+    tens, ones = divmod(number, 10)
+    if tens == 0:
+        return f"{KO_ONES[ones]}!"
+    prefix = "" if tens == 1 else KO_ONES[tens]
+    return f"{prefix}십{KO_ONES[ones]}!"
+
+
+def english_number(number):
+    if number == 100:
+        return "One hundred!"
+    if number < 20:
+        return f"{EN_ONES[number].capitalize()}!"
+    tens, ones = divmod(number, 10)
+    phrase = (
+        EN_TENS[tens]
+        if ones == 0
+        else f"{EN_TENS[tens]}-{EN_ONES[ones]}"
+    )
+    return f"{phrase.capitalize()}!"
+
+
 KO_NUMBERS = {
-    "number-1": "하나!", "number-2": "둘!", "number-3": "셋!",
-    "number-4": "넷!", "number-5": "다섯!", "number-6": "여섯!",
-    "number-7": "일곱!", "number-8": "여덟!", "number-9": "아홉!",
-    "number-10": "열!",
+    f"number-{number}": korean_number(number)
+    for number in range(1, 101)
 }
 KO_CHEERS = {
     "cheer-1": "참 잘했어요!", "cheer-2": "대단해요!",
@@ -29,10 +64,8 @@ KO_RETRIES = {
     "retry-3": "블록을 같이 세어 봐요.",
 }
 EN = {
-    "number-1": "One!", "number-2": "Two!", "number-3": "Three!",
-    "number-4": "Four!", "number-5": "Five!", "number-6": "Six!",
-    "number-7": "Seven!", "number-8": "Eight!", "number-9": "Nine!",
-    "number-10": "Ten!",
+    f"number-{number}": english_number(number)
+    for number in range(1, 101)
 }
 
 
@@ -41,6 +74,9 @@ async def render_pack(lang, lines, voice, rate, pitch):
     output.mkdir(parents=True, exist_ok=True)
     for name, text in lines.items():
         target = output / f"{name}.mp3"
+        if target.exists() and target.stat().st_size > 1024:
+            print(f"skip {target.relative_to(ROOT.parent)}")
+            continue
         communicate = edge_tts.Communicate(text, voice, rate=rate, pitch=pitch)
         await communicate.save(str(target))
         print(target.relative_to(ROOT.parent))
