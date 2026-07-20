@@ -16,6 +16,11 @@ export function retireAnimationClass(node, className) {
   );
 }
 
+export function focusPhase(phase, { game, homeControl }) {
+  const target = phase === "home" ? homeControl : game;
+  target?.focus({ preventScroll: true });
+}
+
 export function formatProblemText(problem) {
   if (problem.mode === "count") return "블록이 몇 개일까요?";
   const [left, right] = problem.operands;

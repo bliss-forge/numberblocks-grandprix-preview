@@ -2,6 +2,43 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { AudioManager } from "../src/audio-manager.mjs";
 
+function fakeTimers() {
+  let nextId = 1;
+  const scheduled = new Map();
+
+  return {
+    setTimer(callback, delay) {
+      const id = nextId;
+      nextId += 1;
+      scheduled.set(id, { callback, delay });
+      return id;
+    },
+    clearTimer(id) {
+      scheduled.delete(id);
+    },
+    size() {
+      return scheduled.size;
+    },
+    next() {
+      return scheduled.values().next().value;
+    },
+    runNext() {
+      const entry = scheduled.entries().next().value;
+      if (!entry) return false;
+      const [id, { callback }] = entry;
+      scheduled.delete(id);
+      callback();
+      return true;
+    }
+  };
+}
+
+async function flushMicrotasks() {
+  await Promise.resolve();
+  await Promise.resolve();
+  await Promise.resolve();
+}
+
 function harness({ autoEnd = true } = {}) {
   const played = [];
   const audios = [];
@@ -32,6 +69,194 @@ function harness({ autoEnd = true } = {}) {
   });
   return { manager, played, audios, storage };
 }
+
+test("play Promise가 멈춘 한국어 음성은 시간 제한 뒤 영어 큐를 계속한다", async () => {
+  const timers = fakeTimers();
+  const warnings = [];
+  const played = [];
+  const audios = [];
+  const manager = new AudioManager({
+    createAudio(src) {
+      const audio = {
+        src,
+        volume: 1,
+        pauseCalled: false,
+        onended: null,
+        onerror: null,
+        play() {
+          played.push(src);
+          if (src.includes("/ko/")) return new Promise(() => {});
+          queueMicrotask(() => audio.onended?.());
+          return Promise.resolve();
+        },
+        pause() {
+          audio.pauseCalled = true;
+        }
+      };
+      audios.push(audio);
+      return audio;
+    },
+    storage: { getItem: () => null, setItem() {} },
+    logger: { warn: (...args) => warnings.push(args) },
+    setTimer: timers.setTimer,
+    clearTimer: timers.clearTimer,
+    voiceTimeoutMs: 1234
+  });
+
+  const pending = manager.playAnswer(4);
+  assert.equal(timers.size(), 1);
+  assert.equal(timers.next().delay, 1234);
+
+  timers.runNext();
+  await flushMicrotasks();
+  await pending;
+
+  assert.deepEqual(played, [
+    "assets/audio/voice/ko/number-4.mp3",
+    "assets/audio/voice/en/number-4.mp3"
+  ]);
+  assert.equal(audios[0].pauseCalled, true);
+  assert.equal(warnings.length, 1);
+  assert.equal(timers.size(), 0);
+  assert.equal(manager.current, null);
+  assert.equal(manager.voicePlaying, false);
+});
+
+test("종료 이벤트가 없는 영어 음성도 시간 제한 뒤 정답 큐를 끝낸다", async () => {
+  const timers = fakeTimers();
+  const warnings = [];
+  const audios = [];
+  const manager = new AudioManager({
+    createAudio(src) {
+      const audio = {
+        src,
+        volume: 1,
+        pauseCalled: false,
+        onended: null,
+        onerror: null,
+        play() {
+          if (src.includes("/ko/")) queueMicrotask(() => audio.onended?.());
+          return Promise.resolve();
+        },
+        pause() {
+          audio.pauseCalled = true;
+        }
+      };
+      audios.push(audio);
+      return audio;
+    },
+    storage: { getItem: () => null, setItem() {} },
+    logger: { warn: (...args) => warnings.push(args) },
+    setTimer: timers.setTimer,
+    clearTimer: timers.clearTimer,
+    voiceTimeoutMs: 1234
+  });
+
+  const pending = manager.playAnswer(5);
+  await flushMicrotasks();
+  assert.equal(audios.length, 2);
+  assert.equal(timers.size(), 1);
+
+  timers.runNext();
+  await pending;
+
+  assert.equal(audios[1].pauseCalled, true);
+  assert.equal(warnings.length, 1);
+  assert.equal(timers.size(), 0);
+  assert.equal(manager.current, null);
+  assert.equal(manager.voicePlaying, false);
+});
+
+test("정상 종료와 cancel은 감시 타이머를 지워 늦은 콜백이 다음 음성에 영향 주지 않는다", async () => {
+  const timers = fakeTimers();
+  const warnings = [];
+  const audios = [];
+  const manager = new AudioManager({
+    createAudio(src) {
+      const audio = {
+        src,
+        volume: 1,
+        pauseCalled: false,
+        onended: null,
+        onerror: null,
+        play: () => Promise.resolve(),
+        pause() {
+          audio.pauseCalled = true;
+        }
+      };
+      audios.push(audio);
+      return audio;
+    },
+    storage: { getItem: () => null, setItem() {} },
+    logger: { warn: (...args) => warnings.push(args) },
+    setTimer: timers.setTimer,
+    clearTimer: timers.clearTimer
+  });
+
+  const normallyFinished = manager.playVoice("prompt-count");
+  assert.equal(timers.size(), 1);
+  audios[0].onended();
+  await normallyFinished;
+  assert.equal(timers.size(), 0);
+
+  const cancelled = manager.playVoice("prompt-add");
+  const cancelledWatchdog = timers.next().callback;
+  manager.cancel();
+  await cancelled;
+  assert.equal(timers.size(), 0);
+
+  const current = manager.playVoice("prompt-mul");
+  cancelledWatchdog();
+  assert.equal(manager.current.audio, audios[2]);
+  assert.equal(audios[2].pauseCalled, false);
+  assert.equal(warnings.length, 0);
+
+  audios[2].onended();
+  await current;
+  assert.equal(timers.size(), 0);
+});
+
+test("시간 제한 뒤 늦게 거절된 play Promise도 처리하고 같은 파일은 한 번만 경고한다", async () => {
+  const timers = fakeTimers();
+  const warnings = [];
+  const unhandled = [];
+  let rejectPlay;
+  const onUnhandled = error => unhandled.push(error);
+  process.on("unhandledRejection", onUnhandled);
+
+  try {
+    const manager = new AudioManager({
+      createAudio: src => ({
+        src,
+        volume: 1,
+        onended: null,
+        onerror: null,
+        play: () =>
+          new Promise((resolve, reject) => {
+            rejectPlay = reject;
+          }),
+        pause() {}
+      }),
+      storage: { getItem: () => null, setItem() {} },
+      logger: { warn: (...args) => warnings.push(args) },
+      setTimer: timers.setTimer,
+      clearTimer: timers.clearTimer
+    });
+
+    const pending = manager.playVoice("prompt-count");
+    assert.equal(timers.size(), 1);
+    timers.runNext();
+    await pending;
+
+    rejectPlay(new Error("late autoplay rejection"));
+    await flushMicrotasks();
+
+    assert.equal(warnings.length, 1);
+    assert.deepEqual(unhandled, []);
+  } finally {
+    process.off("unhandledRejection", onUnhandled);
+  }
+});
 
 test("정답은 한국어 다음 영국 영어 순서로 재생한다", async () => {
   const { manager, played } = harness();

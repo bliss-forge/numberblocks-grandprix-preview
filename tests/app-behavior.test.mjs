@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { AudioManager } from "../src/audio-manager.mjs";
 import {
   formatProblemText,
+  focusPhase,
   playPromptCue,
   playRetryCue,
   retireAnimationClass
@@ -48,6 +49,34 @@ function audioHarness() {
   });
   return { manager, audios, ramps };
 }
+
+test("게임으로 전환하면 숨김이 해제된 게임 화면으로 포커스를 옮긴다", () => {
+  const calls = [];
+  const game = { focus: options => calls.push({ target: "game", options }) };
+  const homeControl = {
+    focus: options => calls.push({ target: "home", options })
+  };
+
+  focusPhase("playing", { game, homeControl });
+
+  assert.deepEqual(calls, [
+    { target: "game", options: { preventScroll: true } }
+  ]);
+});
+
+test("홈으로 돌아오면 모드 선택 컨트롤로 포커스를 복원한다", () => {
+  const calls = [];
+  const game = { focus: options => calls.push({ target: "game", options }) };
+  const homeControl = {
+    focus: options => calls.push({ target: "home", options })
+  };
+
+  focusPhase("home", { game, homeControl });
+
+  assert.deepEqual(calls, [
+    { target: "home", options: { preventScroll: true } }
+  ]);
+});
 
 test("문제 음성을 시작한 뒤 pop 효과음을 예약해 실제 덕킹을 적용한다", async () => {
   const { manager, audios, ramps } = audioHarness();

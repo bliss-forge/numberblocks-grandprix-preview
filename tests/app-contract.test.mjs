@@ -22,6 +22,13 @@ test("홈, 게임, HUD, 음소거 컨트롤이 존재한다", () => {
   }
 });
 
+test("게임 화면은 화면 전환 뒤 프로그램 방식으로 포커스를 받을 수 있다", () => {
+  assert.match(
+    html,
+    /<section id="game"[^>]*tabindex="-1"[^>]*aria-hidden="true">/
+  );
+});
+
 test("모드 버튼은 키와 캐릭터 이미지를 제공한다", () => {
   assert.equal((html.match(/class="mode-card"/g) ?? []).length, 3);
   assert.match(html, /assets\/characters\/one\.png/);

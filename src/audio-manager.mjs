@@ -22,17 +22,25 @@ const SFX = Object.freeze({
   }
 });
 
+const DEFAULT_VOICE_TIMEOUT_MS = 12_000;
+
 export class AudioManager {
   constructor({
     createAudio = src => new Audio(src),
     storage,
     audioContextFactory = () =>
       new (window.AudioContext || window.webkitAudioContext)(),
-    logger = console
+    logger = console,
+    setTimer = (callback, delay) => setTimeout(callback, delay),
+    clearTimer = timer => clearTimeout(timer),
+    voiceTimeoutMs = DEFAULT_VOICE_TIMEOUT_MS
   } = {}) {
     this.createAudio = createAudio;
     this.audioContextFactory = audioContextFactory;
     this.logger = logger;
+    this.setTimer = setTimer;
+    this.clearTimer = clearTimer;
+    this.voiceTimeoutMs = voiceTimeoutMs;
     this.context = null;
     this.epoch = 0;
     this.current = null;
@@ -70,11 +78,16 @@ export class AudioManager {
       }
 
       let finished = false;
+      let watchdog = null;
       const playback = {
         audio,
         finish: () => {
           if (finished) return;
           finished = true;
+          if (watchdog !== null) {
+            this.clearTimer(watchdog);
+            watchdog = null;
+          }
           audio.onended = null;
           audio.onerror = null;
           if (this.current === playback) {
@@ -93,6 +106,17 @@ export class AudioManager {
         this.warnOnce(src, error);
         playback.finish();
       };
+      watchdog = this.setTimer(() => {
+        if (finished) return;
+        this.warnOnce(src, new Error("Voice playback timed out"));
+        try {
+          audio.pause();
+        } catch (error) {
+          this.warnOnce(src, error);
+        } finally {
+          playback.finish();
+        }
+      }, this.voiceTimeoutMs);
 
       let playResult;
       try {

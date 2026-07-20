@@ -2,6 +2,7 @@ import { NUMBERBLOCKS, createProblem, applyDigit } from "./game-model.mjs";
 import { AudioManager } from "./audio-manager.mjs";
 import {
   formatProblemText,
+  focusPhase,
   playPromptCue,
   playRetryCue,
   retireAnimationClass
@@ -9,6 +10,7 @@ import {
 
 const audio = new AudioManager();
 const $ = id => document.getElementById(id);
+const modeControls = [...document.querySelectorAll(".mode-card")];
 
 const dom = {
   home: $("home"),
@@ -256,6 +258,10 @@ function onDigit(digit) {
 function startMode(mode) {
   setMode(mode);
   newProblem();
+  focusPhase(state.phase, {
+    game: dom.game,
+    homeControl: modeControls[0]
+  });
 }
 
 function goHome() {
@@ -270,6 +276,10 @@ function goHome() {
   dom.hint.textContent = "";
   dom.cheer.textContent = "";
   setPhase("home");
+  focusPhase(state.phase, {
+    game: dom.game,
+    homeControl: modeControls[0]
+  });
 }
 
 function syncMuteButton() {
@@ -278,7 +288,7 @@ function syncMuteButton() {
   dom.muteIcon.textContent = audio.muted ? "×" : "♪";
 }
 
-document.querySelectorAll(".mode-card").forEach(button => {
+modeControls.forEach(button => {
   button.addEventListener("click", () => startMode(button.dataset.mode));
 });
 
