@@ -580,3 +580,44 @@ Save desktop subtraction, mobile keypad, count 13, count 20, and 150 celebration
 git add docs/superpowers/plans/2026-07-20-numberblocks-subtraction-150-expansion.md
 git commit -m "docs: 뺄셈과 150 확장 검증 완료"
 ```
+
+## Execution Record
+
+**Completed:** 2026-07-20
+**Verified revision:** `4b6a21f`
+**Result:** PASS
+
+- Automated verification: `node --test tests/*.test.mjs` passed **93/93** tests,
+  with 0 failures, 0 skipped, and 0 cancelled.
+- Diff verification: `git diff --check` passed with no output.
+- 1280×720: four home cards fit with zero overlap; key `9` plus key `3` opens
+  subtraction with two characters and `−`; key `4` opens multiplication; number
+  115 renders in the `large` size band at 396 px versus a 330 px base character,
+  with visible overflow and no clipping.
+- 390×844: all four cards are reachable; touch input, `⌫`, two-digit and
+  three-digit answers pass; count 13 shows 10+3 in equal visual slots without an
+  equation; count 20 shows two 10 characters; the answer dock and keypad have an
+  8 px gap; gameplay hides the creator credit, leaving **0 px** footer/keypad
+  overlap.
+- 640×360: all four home cards fit fully inside the viewport; count 20 shows two
+  complete number-10 characters. Each character is 44.78×64 px at
+  y=117.75–181.75, fully inside the stage at y=104.5–197 and fully inside the
+  viewport.
+- Application console errors: **0**. Three raw console errors came only from an
+  installed Chrome extension and had `chrome-extension://` source URLs.
+- Missing assets: **0**. Final observed asset verification downloaded **11/11**
+  images/stylesheets with 0 failures, and all visible images had non-zero natural
+  dimensions.
+
+QA artifacts:
+
+- `.superpowers/sdd/subtraction-150-artifacts/desktop-subtraction-1280x720.png`
+- `.superpowers/sdd/subtraction-150-artifacts/desktop-high-result-121-1280x720.png`
+- `.superpowers/sdd/subtraction-150-artifacts/celebration-150-1280x720.png`
+- `.superpowers/sdd/subtraction-150-artifacts/mobile-keypad-two-digit-390x844.png`
+- `.superpowers/sdd/subtraction-150-artifacts/mobile-three-digit-121-390x844.png`
+- `.superpowers/sdd/subtraction-150-artifacts/count-13-390x844.png`
+- `.superpowers/sdd/subtraction-150-artifacts/count-20-390x844.png`
+- `.superpowers/sdd/subtraction-150-artifacts/final-mobile-game-390x844.png`
+- `.superpowers/sdd/subtraction-150-artifacts/final-home-640x360.png`
+- `.superpowers/sdd/subtraction-150-artifacts/final-count20-640x360.png`
