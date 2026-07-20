@@ -4,9 +4,9 @@
 
 **Goal:** Replace every result character from 1 through 100 with a cohesive, high-resolution transparent PNG while preserving the approved audio and game mechanics.
 
-**Architecture:** A deterministic character specification module owns each number's exact block geometry, decade palette, pose, and asset name. A dependency-free Node renderer converts those specifications into shaded SVG scenes and uses the already-installed `ffmpeg` binary to rasterize transparent PNGs; the app lazily loads the matching result character and falls back to the existing result board on image failure.
+**Architecture:** A deterministic character specification module owns each number's exact block geometry, decade palette, pose, and asset name. A dependency-free Node renderer converts those specifications into shaded SVG scenes and uses the built-in macOS `sips` rasterizer to create transparent PNGs; the app lazily loads the matching result character and falls back to the existing result board on image failure.
 
-**Tech Stack:** Browser-native ES modules, Node.js test runner, SVG, PNG, installed `ffmpeg`, HTML/CSS.
+**Tech Stack:** Browser-native ES modules, Node.js test runner, SVG, PNG, macOS `sips`, HTML/CSS.
 
 ## Global Constraints
 
@@ -215,14 +215,13 @@ export function renderCharacterSvg(spec) {
 }
 ```
 
-The CLI must parse `--from` and `--to`, write SVG to a temporary directory, and invoke the installed binary without a shell:
+The CLI must parse `--from` and `--to`, write SVG to a temporary directory, and invoke the built-in rasterizer without a shell:
 
 ```js
-await execFile("ffmpeg", [
-  "-loglevel", "error", "-y",
-  "-i", svgPath,
-  "-vf", "scale=1024:1536:flags=lanczos",
-  outputPath
+await execFile("sips", [
+  "-s", "format", "png",
+  svgPath,
+  "--out", outputPath
 ]);
 ```
 
