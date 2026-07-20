@@ -1,3 +1,5 @@
+import { referenceDesign } from "./character-designs.mjs";
+
 const DIGIT_PALETTES = Object.freeze([
   ["#f06461", "#b92e31"],
   ["#ef373b", "#a91424"],
@@ -96,6 +98,22 @@ function accentFor(number) {
   return DIGIT_PALETTES[digit === 0 ? 1 : digit][0];
 }
 
+function cellsFromRows(rows) {
+  return rows.flatMap(({ width, offset }, y) =>
+    Array.from({ length: width }, (_, index) => ({
+      x: offset + index,
+      y
+    }))
+  );
+}
+
+function boundsFor(cells) {
+  return {
+    cols: Math.max(...cells.map(cell => cell.x)) + 1,
+    rows: Math.max(...cells.map(cell => cell.y)) + 1
+  };
+}
+
 export function characterAsset(number) {
   assertNumber(number);
   if (number <= 10) return LEGACY_ASSETS[number];
@@ -104,21 +122,48 @@ export function characterAsset(number) {
 
 export function buildCharacterSpec(number) {
   assertNumber(number);
-  const [cols, rows] = closestGrid(number);
-  const cells = Array.from({ length: number }, (_, index) => ({
-    x: index % cols,
-    y: Math.floor(index / cols)
-  }));
+
+  if (number <= 10) {
+    const [cols, rowCount] = closestGrid(number);
+    const cells = Array.from({ length: number }, (_, index) => ({
+      x: index % cols,
+      y: Math.floor(index / cols)
+    }));
+
+    return Object.freeze({
+      number,
+      source: "legacy",
+      cells: Object.freeze(cells),
+      regions: Object.freeze([]),
+      face: null,
+      accessory: null,
+      palette: Object.freeze(paletteFor(number)),
+      accent: accentFor(number),
+      pose: number % 4,
+      canvas: Object.freeze({
+        grid: Object.freeze([cols, rowCount]),
+        width: 1024,
+        height: 1536
+      })
+    });
+  }
+
+  const design = referenceDesign(number);
+  const cells = cellsFromRows(design.rows);
+  const bounds = boundsFor(cells);
 
   return Object.freeze({
     number,
+    source: "reference",
     cells: Object.freeze(cells),
+    regions: design.regions,
+    face: design.face,
+    accessory: design.accessory,
     palette: Object.freeze(paletteFor(number)),
     accent: accentFor(number),
     pose: number % 4,
-    accessory: number % 10,
     canvas: Object.freeze({
-      grid: Object.freeze([cols, rows]),
+      grid: Object.freeze([bounds.cols, bounds.rows]),
       width: 1024,
       height: 1536
     })
