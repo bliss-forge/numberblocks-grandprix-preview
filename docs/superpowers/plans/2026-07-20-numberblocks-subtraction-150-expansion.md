@@ -621,3 +621,9 @@ QA artifacts:
 - `.superpowers/sdd/subtraction-150-artifacts/final-mobile-game-390x844.png`
 - `.superpowers/sdd/subtraction-150-artifacts/final-home-640x360.png`
 - `.superpowers/sdd/subtraction-150-artifacts/final-count20-640x360.png`
+- Supplemental `e06941f` verification at 844×390: home keeps the creator credit
+  visible and all four cards reachable; gameplay hides the credit, shows two complete
+  keypad rows at y=295 and y=343, keeps every key within y≤387, and has 0 px footer
+  overlap. Fresh verification remained 93/93 with a clean diff check. Evidence:
+  `.superpowers/sdd/subtraction-150-artifacts/landscape-home-844x390.png` and
+  `.superpowers/sdd/subtraction-150-artifacts/landscape-game-844x390.png`.
