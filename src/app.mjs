@@ -20,7 +20,11 @@ import {
   quantityParts,
   retireAnimationClass
 } from "./app-behavior.mjs";
-import { countCharacterValues, operandScene } from "./problem-scene.mjs";
+import {
+  countCharacterValues,
+  operandScene,
+  operatorFor
+} from "./problem-scene.mjs";
 
 const audio = new AudioManager();
 const $ = id => document.getElementById(id);
@@ -133,7 +137,7 @@ function resultBoard(problem) {
   if (problem.mode === "count") {
     formula.textContent = `${problem.answer}개!`;
   } else {
-    const operator = problem.mode === "mul" ? "×" : "+";
+    const operator = operatorFor(problem.mode);
     formula.textContent =
       `${problem.operands[0]} ${operator} ${problem.operands[1]} = ${problem.answer}`;
   }

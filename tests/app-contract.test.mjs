@@ -4,6 +4,7 @@ import { readFile } from "node:fs/promises";
 
 const html = await readFile(new URL("../index.html", import.meta.url), "utf8");
 const css = await readFile(new URL("../styles.css", import.meta.url), "utf8");
+const app = await readFile(new URL("../src/app.mjs", import.meta.url), "utf8");
 
 test("정적 셸이 스타일과 앱 모듈을 로드한다", () => {
   assert.match(html, /<link rel="stylesheet" href="styles\.css(?:\?[^"]+)?">/);
@@ -64,6 +65,32 @@ test("피연산자 장면은 두 개의 같은 크기 슬롯과 식을 사용한
   assert.match(
     css,
     /@media\s*\(max-width:\s*900px\)\s*\{[\s\S]*?\.operand-character\s*\{[^}]*height:/
+  );
+});
+
+test("세기 친구 장면은 같은 크기의 두 칸과 보이는 힌트 상태를 제공한다", () => {
+  assert.match(
+    css,
+    /\.count-friends\s*\{[^}]*display:\s*grid;[^}]*grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\);/s
+  );
+  assert.match(
+    css,
+    /\.count-friends\s+\.count-character\s*\{[^}]*max-width:\s*100%;[^}]*max-height:\s*100%;/s
+  );
+  assert.match(
+    css,
+    /\.count-friends\.hint-groups\s*\{[^}]*border-color:/s
+  );
+});
+
+test("결과 팻말은 공유 연산자로 뺄셈 기호를 고른다", () => {
+  assert.match(
+    app,
+    /import\s*\{[^}]*operatorFor[^}]*\}\s*from "\.\/problem-scene\.mjs";/s
+  );
+  assert.match(
+    app,
+    /function resultBoard\(problem\)\s*\{[\s\S]*?const operator = operatorFor\(problem\.mode\);/s
   );
 });
 
