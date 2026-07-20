@@ -21,6 +21,12 @@ export function focusPhase(phase, { game, homeControl }) {
   target?.focus({ preventScroll: true });
 }
 
+export function characterSizeBand(number) {
+  if (number > 100) return "large";
+  if (number > 50) return "medium";
+  return "base";
+}
+
 export function formatProblemText(problem) {
   if (problem.mode === "count") return "블록이 몇 개일까요?";
   const [left, right] = problem.operands;

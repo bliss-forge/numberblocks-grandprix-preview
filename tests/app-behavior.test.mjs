@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { AudioManager } from "../src/audio-manager.mjs";
 import {
   celebrationView,
+  characterSizeBand,
   formatCountHint,
   formatProblemText,
   focusPhase,
@@ -150,4 +151,12 @@ test("모든 게임은 1~100 정답 캐릭터를 선택한다", () => {
     }
   }
   assert.equal(celebrationView("add", 101), "result-board");
+});
+
+test("캐릭터 숫자를 50과 100 경계의 크기 단계로 나눈다", () => {
+  assert.equal(characterSizeBand(50), "base");
+  assert.equal(characterSizeBand(51), "medium");
+  assert.equal(characterSizeBand(100), "medium");
+  assert.equal(characterSizeBand(101), "large");
+  assert.equal(characterSizeBand(150), "large");
 });

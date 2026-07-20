@@ -117,6 +117,17 @@ test("세기 친구 장면은 같은 크기의 두 칸과 보이는 힌트 상�
   );
 });
 
+test("모든 캐릭터 이미지에 숫자 크기 단계를 표시한다", () => {
+  assert.match(
+    app,
+    /import\s*\{[^}]*characterSizeBand[^}]*\}\s*from "\.\/app-behavior\.mjs";/s
+  );
+  assert.match(
+    app,
+    /image\.dataset\.sizeBand\s*=\s*characterSizeBand\(number\);/
+  );
+});
+
 test("결과 팻말은 공유 연산자로 뺄셈 기호를 고른다", () => {
   assert.match(
     app,
@@ -131,7 +142,7 @@ test("결과 팻말은 공유 연산자로 뺄셈 기호를 고른다", () => {
 test("오른쪽 아래에 bliss 제작자 서명을 표시한다", () => {
   assert.match(
     html,
-    /<link rel="stylesheet" href="styles\.css\?v=20260720-credit">/
+    /<link rel="stylesheet" href="styles\.css\?v=20260720-responsive">/
   );
   assert.match(
     html,

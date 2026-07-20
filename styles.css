@@ -758,13 +758,23 @@ body[data-state="home"] .star-pill {
 }
 
 .character {
+  --number-scale: 1;
   display: block;
   width: auto;
   max-width: min(34vw, 350px);
   max-height: min(49vh, 430px);
   object-fit: contain;
   filter: drop-shadow(0 13px 9px rgba(37, 52, 93, .22));
+  scale: var(--number-scale);
   transform-origin: 50% 90%;
+}
+
+.character[data-size-band="medium"] {
+  --number-scale: 1.1;
+}
+
+.character[data-size-band="large"] {
+  --number-scale: 1.2;
 }
 
 .character.enter {
@@ -788,6 +798,11 @@ body[data-state="celebrating"] .character[data-shape="balanced"] {
 body[data-state="celebrating"] .character[data-shape="tall"] {
   max-width: min(30vw, 320px);
   max-height: min(51vh, 450px);
+}
+
+.operand-slot,
+.count-friends {
+  overflow: visible;
 }
 
 .count-friends {
@@ -894,7 +909,7 @@ body[data-state="celebrating"] .character[data-shape="tall"] {
 }
 
 .operand-character {
-  width: min(100%, 330px);
+  width: min(90%, 330px);
   height: min(42vh, 330px);
   max-height: 100%;
   object-fit: contain;
@@ -1225,6 +1240,12 @@ body[data-state="celebrating"] .answer-box {
 }
 
 @media (max-width: 640px) {
+  #game {
+    grid-template-rows: auto minmax(0, 1fr) auto auto auto;
+    gap: clamp(4px, 1vh, 8px);
+    padding: 70px 10px 8px;
+  }
+
   .mode-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 8px;
@@ -1246,6 +1267,79 @@ body[data-state="celebrating"] .answer-box {
 
   .card-copy small {
     font-size: 11px;
+  }
+
+  .problem-pill {
+    padding: 7px 16px 9px;
+    font-size: clamp(18px, 5.4vw, 24px);
+  }
+
+  .stage-frame {
+    width: min(94vw, 1050px);
+    border-width: 5px;
+    border-radius: 28px 28px 24px 24px;
+  }
+
+  .stage {
+    gap: clamp(6px, 2vw, 12px);
+    padding: 4px clamp(8px, 3vw, 16px) 8px;
+  }
+
+  .character {
+    max-width: min(64vw, 280px);
+    max-height: min(25vh, 260px);
+  }
+
+  .character[data-size-band="medium"] {
+    --number-scale: 1.05;
+  }
+
+  .character[data-size-band="large"] {
+    --number-scale: 1.1;
+  }
+
+  .count-friends {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: clamp(6px, 2vw, 12px);
+    width: 100%;
+    height: 100%;
+    padding: 4px;
+  }
+
+  .count-friends .count-character {
+    width: 90%;
+  }
+
+  .operand-scene {
+    width: 100%;
+  }
+
+  .operand-friends {
+    gap: 4px;
+  }
+
+  .operand-character {
+    height: min(20vh, 180px);
+  }
+
+  .operand-friends .operator {
+    width: clamp(36px, 11vw, 46px);
+    border-width: 4px;
+    font-size: clamp(30px, 10vw, 40px);
+  }
+
+  .equation-label {
+    font-size: clamp(28px, 9vw, 40px);
+  }
+
+  .answer-dock {
+    padding: 5px 8px 8px 14px;
+  }
+
+  .answer-box {
+    min-width: 78px;
+    height: 58px;
+    padding-inline: 12px;
   }
 
   .number-pad {
@@ -1270,6 +1364,10 @@ body[data-state="celebrating"] .answer-box {
   .number-pad button:active {
     transform: translateY(3px);
     box-shadow: 0 1px 0 rgba(37, 52, 93, .16);
+  }
+
+  .game-keyboard-note {
+    display: none;
   }
 }
 

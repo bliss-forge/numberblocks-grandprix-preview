@@ -13,6 +13,7 @@ import {
 } from "./difficulty-preference.mjs";
 import {
   celebrationView,
+  characterSizeBand,
   formatCountHint,
   formatProblemText,
   focusPhase,
@@ -80,6 +81,7 @@ function character(number, className = "") {
   image.src = `assets/characters/${NUMBERBLOCKS[number].asset}`;
   image.alt = `숫자 ${number} 블록 캐릭터`;
   image.dataset.number = String(number);
+  image.dataset.sizeBand = characterSizeBand(number);
   image.dataset.shape =
     NUMBERBLOCKS[number].cols > NUMBERBLOCKS[number].rows
       ? "wide"
