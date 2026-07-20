@@ -1,5 +1,11 @@
 import { NUMBERBLOCKS, createProblem, applyDigit } from "./game-model.mjs";
 import { AudioManager } from "./audio-manager.mjs";
+import {
+  formatProblemText,
+  playPromptCue,
+  playRetryCue,
+  retireAnimationClass
+} from "./app-behavior.mjs";
 
 const audio = new AudioManager();
 const $ = id => document.getElementById(id);
@@ -44,6 +50,7 @@ function character(number, className = "") {
   image.src = `assets/characters/${NUMBERBLOCKS[number].asset}`;
   image.alt = `숫자 ${number} 블록 캐릭터`;
   image.dataset.number = String(number);
+  retireAnimationClass(image, "enter");
   return image;
 }
 
@@ -95,14 +102,13 @@ function renderProblem(problem) {
   dom.answer.textContent = "?";
 
   if (problem.mode === "count") {
-    dom.problem.textContent = "블록이 몇 개일까요?";
+    dom.problem.textContent = formatProblemText(problem);
     dom.stage.append(character(problem.answer));
     return;
   }
 
   if (problem.mode === "add") {
-    dom.problem.textContent =
-      `${problem.operands[0]} 더하기 ${problem.operands[1]}! 답은 얼마일까요?`;
+    dom.problem.textContent = formatProblemText(problem);
     const plus = document.createElement("span");
     plus.className = "operator";
     plus.textContent = "+";
@@ -115,8 +121,7 @@ function renderProblem(problem) {
     return;
   }
 
-  dom.problem.textContent =
-    `${problem.operands[0]} 곱하기 ${problem.operands[1]}! 답은 얼마일까요?`;
+  dom.problem.textContent = formatProblemText(problem);
   const scene = document.createElement("div");
   scene.className = "multiplication-scene";
 
@@ -153,8 +158,7 @@ function newProblem() {
   dom.hint.textContent = "";
   setPhase("playing");
   renderProblem(state.problem);
-  audio.playSfx("pop");
-  void audio.playVoice(state.problem.promptKey);
+  playPromptCue(audio, state.problem.promptKey);
 }
 
 function showHint(message) {
@@ -231,8 +235,7 @@ function wrongAnswer() {
     .forEach(node => replayClass(node, "wrong"));
   replayClass(dom.answer, "wrong");
   showHint("괜찮아요! 천천히 다시 눌러 봐요.");
-  audio.playSfx("wrong");
-  void audio.playVoice(`retry-${Math.min(state.wrongCount, 3)}`);
+  playRetryCue(audio, `retry-${Math.min(state.wrongCount, 3)}`);
 }
 
 function onDigit(digit) {

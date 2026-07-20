@@ -176,3 +176,78 @@ node -e "<import game-model, audio-manager, and audio-manifest>"
 - Audio sequence and cancellation are covered by the existing focused unit tests and
   by successful MP3 requests during browser QA. Automated browser audio-quality
   judgment is out of scope; the user already approved the generated sample voices.
+
+## Review-finding fixes
+
+All Task 5 review findings were addressed without changing PNG, MP3, the voice
+generator, or voice requirements.
+
+### TDD RED
+
+Added `tests/app-behavior.test.mjs` before production changes, covering the actual
+app cue helpers with a real `AudioManager`, transient entrance-class cleanup, and
+the dynamic Korean problem copy.
+
+```text
+node --test tests/app-behavior.test.mjs
+```
+
+- Exit code: 1.
+- `ERR_MODULE_NOT_FOUND` for the deliberately absent `src/app-behavior.mjs`.
+- 1 test file failed, proving the new application behavior did not yet exist.
+
+### TDD GREEN
+
+```text
+node --test tests/app-behavior.test.mjs
+```
+
+- 4 tests passed, 0 failed.
+- Prompt voice begins synchronously before `pop`; the observed first ramp was
+  `0.06 * 0.55` while `voicePlaying` was true.
+- Retry voice begins synchronously before `wrong`; the observed first ramp was
+  `0.04 * 0.55` while `voicePlaying` was true.
+- `.enter` is removed exactly once on the first `animationend`.
+- Add/multiply copy is exactly `A 더하기 B의 답은 얼마일까요?` and
+  `A 곱하기 B의 답은 얼마일까요?`.
+
+`src/app.mjs` now uses these tested helpers directly. Neither voice call is awaited
+or deferred, so playback and `AudioContext` work remain inside the initiating click
+or key event. Character creation registers entrance cleanup before any retry class
+can be applied, preventing `.wrong` removal from exposing `.enter` again.
+
+### Full verification after review fixes
+
+```text
+npm test
+node --check src/app.mjs
+node --check src/app-behavior.mjs
+node --check src/game-model.mjs
+node --check src/audio-manager.mjs
+node --check src/audio-manifest.mjs
+node -e "Promise.all([import('./src/game-model.mjs'), import('./src/audio-manager.mjs'), import('./src/audio-manifest.mjs'), import('./src/app-behavior.mjs')]).then(() => console.log('module imports ok'))"
+git diff --check
+rg -n 'speechSynthesis|SpeechSynthesisUtterance|https?://|@import|<style' \
+  index.html styles.css src/app.mjs src/app-behavior.mjs
+git status --short -- assets scripts requirements-voice.txt
+```
+
+- Full suite: 31 passed, 0 failed.
+- All syntax and runtime import checks passed.
+- `git diff --check` passed.
+- Legacy browser TTS, inline style, and remote-resource scan returned no matches.
+- Character/audio assets, generator scripts, and `requirements-voice.txt` remained
+  unchanged.
+
+### Browser smoke after review fixes
+
+Reloaded the already-running local app at `127.0.0.1:4173` through the connected
+browser and exercised the production UI:
+
+- Add mode rendered `1 더하기 2의 답은 얼마일까요?`.
+- Both character `.enter` classes naturally reached zero after 700 ms.
+- Entering wrong answer `9`, then waiting through the retry animation, left
+  `.character.enter` at zero, `.character.wrong` at zero, reset the answer to `?`,
+  kept state `playing`, and showed the gentle retry message.
+- Multiply mode rendered `3 곱하기 2의 답은 얼마일까요?`.
+- App-origin browser warnings/errors: `[]`.
