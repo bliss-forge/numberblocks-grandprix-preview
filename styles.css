@@ -1527,9 +1527,10 @@ body[data-state="celebrating"] .answer-box {
 
   .count-friends .count-character {
     width: auto;
-    height: calc(100% - 8px);
+    height: min(18vh, 64px);
     max-width: 90%;
-    max-height: calc(100% - 8px);
+    max-height: min(18vh, 64px);
+    object-fit: contain;
   }
 
   .operand-scene {

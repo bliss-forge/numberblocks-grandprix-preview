@@ -131,6 +131,10 @@ test("낮은 세기 무대는 친구 캐릭터 전체 높이를 슬롯 안에 �
 
   assert.match(
     shortHeightCss,
-    /\.count-friends\s+\.count-character\s*\{[^}]*height:\s*calc\(100%\s*-\s*8px\);[^}]*max-height:\s*calc\(100%\s*-\s*8px\);/s
+    /\.count-friends\s+\.count-character\s*\{[^}]*height:\s*min\(18vh,\s*64px\);[^}]*max-height:\s*min\(18vh,\s*64px\);[^}]*object-fit:\s*contain;/s
+  );
+  assert.doesNotMatch(
+    shortHeightCss,
+    /\.count-friends\s+\.count-character\s*\{[^}]*calc\(100%/s
   );
 });
