@@ -16,8 +16,8 @@ test("1~10 기존 캐릭터 PNG가 존재한다", async () => {
   }
 });
 
-test("11~100 연결형 캐릭터 PNG가 고해상도 RGBA로 존재한다", async () => {
-  for (let number = 11; number <= 100; number += 1) {
+test("11~150 연결형 캐릭터 PNG가 고해상도 RGBA로 존재한다", async () => {
+  for (let number = 11; number <= 150; number += 1) {
     const asset = characterAsset(number);
     const png = await readFile(
       new URL(`../assets/characters/${asset}`, import.meta.url)
@@ -29,11 +29,11 @@ test("11~100 연결형 캐릭터 PNG가 고해상도 RGBA로 존재한다", asyn
   }
 });
 
-test("11~100의 전체 보이는 실루엣이 공통 안전 영역에 정규화된다", async () => {
+test("11~150의 전체 보이는 실루엣이 공통 안전 영역에 정규화된다", async () => {
   const safeWidth = SAFE.right - SAFE.left;
   const safeHeight = SAFE.bottom - SAFE.top;
 
-  for (let number = 11; number <= 100; number += 1) {
+  for (let number = 11; number <= 150; number += 1) {
     const asset = characterAsset(number);
     const png = await readFile(
       new URL(`../assets/characters/${asset}`, import.meta.url)
