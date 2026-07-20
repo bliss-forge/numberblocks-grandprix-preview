@@ -11,27 +11,106 @@ export const NUMBERBLOCKS = Object.freeze({
   10: { rows: 5, cols: 2, asset: "ten.png" }
 });
 
-const MUL_EASY = [[2,2],[2,3],[3,2],[2,4]];
-const MUL_ALL = [...MUL_EASY,[4,2],[2,5],[5,2],[3,3],[1,6],[1,8]];
-const pick = (items, rng) => items[Math.min(items.length - 1, Math.floor(rng() * items.length))];
-const int = (min, max, rng) => min + Math.min(max - min, Math.floor(rng() * (max - min + 1)));
+export const DIFFICULTY_LIMITS = Object.freeze({
+  easy: Object.freeze({ count: 10, add: 10, mul: 10 }),
+  steady: Object.freeze({ count: 20, add: 50, mul: 50 }),
+  challenge: Object.freeze({ count: null, add: 100, mul: 100 })
+});
 
-export function createProblem(mode, streak, rng = Math.random) {
+const pick = (items, rng) =>
+  items[Math.min(items.length - 1, Math.floor(rng() * items.length))];
+
+export function normalizeDifficulty(value) {
+  return Object.hasOwn(DIFFICULTY_LIMITS, value) ? value : "steady";
+}
+
+export function isModeAvailable(mode, difficulty) {
+  const normalized = normalizeDifficulty(difficulty);
+  return mode !== "count" || DIFFICULTY_LIMITS[normalized].count !== null;
+}
+
+export function problemKey(problem) {
+  if (problem.mode === "count") return `count:${problem.answer}`;
+  const [left, right] = problem.operands;
+  const [first, second] = [left, right].sort((a, b) => a - b);
+  return `${problem.mode}:${first}:${second}`;
+}
+
+function pickFresh(candidates, recentKeys, rng) {
+  const recent = new Set(recentKeys);
+  const fresh = candidates.filter(problem => !recent.has(problemKey(problem)));
+  return pick(fresh.length > 0 ? fresh : candidates, rng);
+}
+
+function countProblems(maxAnswer) {
+  return Array.from({ length: maxAnswer }, (_, index) => {
+    const answer = index + 1;
+    return {
+      mode: "count",
+      answer,
+      characters: [answer],
+      promptKey: "prompt-count"
+    };
+  });
+}
+
+function additionProblems(maxAnswer) {
+  const problems = [];
+  for (let left = 1; left < maxAnswer; left += 1) {
+    for (let right = 1; right <= maxAnswer - left; right += 1) {
+      problems.push({
+        mode: "add",
+        answer: left + right,
+        characters: [left, right],
+        operands: [left, right],
+        promptKey: "prompt-add"
+      });
+    }
+  }
+  return problems;
+}
+
+function multiplicationProblems(maxAnswer) {
+  const problems = [];
+  for (let left = 1; left <= 10; left += 1) {
+    for (let right = 1; right <= 10; right += 1) {
+      if (left * right > maxAnswer) continue;
+      problems.push({
+        mode: "mul",
+        answer: left * right,
+        characters: [],
+        operands: [left, right],
+        promptKey: "prompt-mul"
+      });
+    }
+  }
+  return problems;
+}
+
+export function createProblem(
+  mode,
+  difficulty,
+  rng = Math.random,
+  recentKeys = []
+) {
+  const normalized = normalizeDifficulty(difficulty);
+  const limits = DIFFICULTY_LIMITS[normalized];
+
   if (mode === "count") {
-    const max = streak.count >= 6 ? 10 : streak.count >= 3 ? 5 : 3;
-    const answer = int(1, max, rng);
-    return { mode, answer, characters: [answer], promptKey: "prompt-count" };
+    if (limits.count === null) {
+      throw new RangeError("count mode is unavailable for challenge");
+    }
+    return pickFresh(countProblems(limits.count), recentKeys, rng);
   }
+
   if (mode === "add") {
-    const max = streak.add >= 4 ? 10 : 5;
-    const a = int(1, max - 1, rng);
-    const b = int(1, max - a, rng);
-    return { mode, answer: a + b, characters: [a, b], operands: [a, b], promptKey: "prompt-add" };
+    return pickFresh(additionProblems(limits.add), recentKeys, rng);
   }
+
   if (mode === "mul") {
-    const [a, b] = pick(streak.mul >= 4 ? MUL_ALL : MUL_EASY, rng);
-    return { mode, answer: a * b, characters: [], operands: [a, b], promptKey: "prompt-mul" };
+    return pickFresh(multiplicationProblems(limits.mul), recentKeys, rng);
   }
+
   throw new TypeError(`Unknown mode: ${mode}`);
 }
 
