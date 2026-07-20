@@ -1,5 +1,15 @@
-import { NUMBERBLOCKS, createProblem, applyDigit } from "./game-model.mjs";
+import {
+  NUMBERBLOCKS,
+  applyDigit,
+  createProblem,
+  isModeAvailable,
+  problemKey
+} from "./game-model.mjs";
 import { AudioManager } from "./audio-manager.mjs";
+import {
+  loadDifficulty,
+  saveDifficulty
+} from "./difficulty-preference.mjs";
 import {
   formatProblemText,
   focusPhase,
@@ -11,6 +21,11 @@ import {
 const audio = new AudioManager();
 const $ = id => document.getElementById(id);
 const modeControls = [...document.querySelectorAll(".mode-card")];
+const difficultyControls = [
+  ...document.querySelectorAll(".difficulty-button")
+];
+const countControl = document.querySelector('[data-mode="count"]');
+const countUnavailable = $("count-unavailable");
 
 const dom = {
   home: $("home"),
@@ -29,6 +44,7 @@ const dom = {
 const state = {
   phase: "home",
   mode: null,
+  difficulty: loadDifficulty(),
   problem: null,
   buffer: "",
   stars: 0,
@@ -36,7 +52,8 @@ const state = {
   wrongCount: 0,
   round: 0,
   hintTimer: 0,
-  timers: new Map()
+  timers: new Map(),
+  recentProblemKeys: []
 };
 
 function preloadCharacters() {
@@ -98,6 +115,29 @@ function setMode(mode) {
   document.body.dataset.mode = mode ?? "";
 }
 
+function syncDifficulty() {
+  difficultyControls.forEach(button => {
+    const selected = button.dataset.difficulty === state.difficulty;
+    button.classList.toggle("selected", selected);
+    button.setAttribute("aria-pressed", String(selected));
+  });
+
+  const countAvailable = isModeAvailable("count", state.difficulty);
+  countControl.disabled = !countAvailable;
+  countControl.setAttribute("aria-disabled", String(!countAvailable));
+  countUnavailable.hidden = countAvailable;
+}
+
+function setDifficulty(value) {
+  state.difficulty = saveDifficulty(globalThis.localStorage, value);
+  state.recentProblemKeys = [];
+  syncDifficulty();
+}
+
+function availableHomeControl() {
+  return modeControls.find(control => !control.disabled) ?? difficultyControls[0];
+}
+
 function renderProblem(problem) {
   dom.stage.replaceChildren();
   dom.answer.className = "answer-box";
@@ -154,7 +194,16 @@ function newProblem() {
   state.round += 1;
   state.buffer = "";
   state.wrongCount = 0;
-  state.problem = createProblem(state.mode, state.streak);
+  state.problem = createProblem(
+    state.mode,
+    state.difficulty,
+    Math.random,
+    state.recentProblemKeys
+  );
+  state.recentProblemKeys = [
+    ...state.recentProblemKeys,
+    problemKey(state.problem)
+  ].slice(-4);
   dom.cheer.classList.remove("show");
   dom.hint.className = "toast";
   dom.hint.textContent = "";
@@ -256,11 +305,15 @@ function onDigit(digit) {
 }
 
 function startMode(mode) {
+  if (!isModeAvailable(mode, state.difficulty)) {
+    showHint("도전에서는 더하기와 곱하기를 해요.");
+    return;
+  }
   setMode(mode);
   newProblem();
   focusPhase(state.phase, {
     game: dom.game,
-    homeControl: modeControls[0]
+    homeControl: availableHomeControl()
   });
 }
 
@@ -278,7 +331,7 @@ function goHome() {
   setPhase("home");
   focusPhase(state.phase, {
     game: dom.game,
-    homeControl: modeControls[0]
+    homeControl: availableHomeControl()
   });
 }
 
@@ -290,6 +343,13 @@ function syncMuteButton() {
 
 modeControls.forEach(button => {
   button.addEventListener("click", () => startMode(button.dataset.mode));
+});
+
+difficultyControls.forEach(button => {
+  button.addEventListener("click", () => {
+    audio.playSfx("key");
+    setDifficulty(button.dataset.difficulty);
+  });
 });
 
 dom.homeButton.addEventListener("click", goHome);
@@ -305,10 +365,33 @@ document.addEventListener("keydown", event => {
     return;
   }
 
+  if (
+    state.phase === "home" &&
+    ["ArrowLeft", "ArrowRight"].includes(event.key) &&
+    difficultyControls.includes(document.activeElement)
+  ) {
+    event.preventDefault();
+    const current = difficultyControls.indexOf(document.activeElement);
+    const offset = event.key === "ArrowRight" ? 1 : -1;
+    const next =
+      (current + offset + difficultyControls.length) %
+      difficultyControls.length;
+    difficultyControls[next].focus();
+    return;
+  }
+
   const digit = /^[0-9]$/.test(event.key) ? event.key : null;
   if (digit === null || event.repeat) return;
 
   if (state.phase === "home") {
+    const difficulties = { 4: "easy", 5: "steady", 6: "challenge" };
+    if (difficulties[digit]) {
+      event.preventDefault();
+      audio.playSfx("key");
+      setDifficulty(difficulties[digit]);
+      return;
+    }
+
     const modes = { 1: "count", 2: "add", 3: "mul" };
     if (modes[digit]) {
       event.preventDefault();
@@ -324,4 +407,5 @@ document.addEventListener("keydown", event => {
 });
 
 syncMuteButton();
+syncDifficulty();
 preloadCharacters();

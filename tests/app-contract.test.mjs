@@ -35,3 +35,12 @@ test("모드 버튼은 키와 캐릭터 이미지를 제공한다", () => {
   assert.match(html, /assets\/characters\/three\.png/);
   assert.match(html, /assets\/characters\/four\.png/);
 });
+
+test("홈에는 세 난이도 버튼과 도전 세기 안내가 있다", () => {
+  assert.match(html, /id="difficulty-picker"/);
+  assert.equal((html.match(/class="difficulty-button"/g) ?? []).length, 3);
+  assert.match(html, /data-difficulty="easy"/);
+  assert.match(html, /data-difficulty="steady"/);
+  assert.match(html, /data-difficulty="challenge"/);
+  assert.match(html, /id="count-unavailable"/);
+});

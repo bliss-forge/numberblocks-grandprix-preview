@@ -51,6 +51,19 @@
         <p class="lead"><kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd> 중 하나를 눌러 시작해요!</p>
       </div>
 
+      <div id="difficulty-picker" class="difficulty-picker" role="group" aria-label="난이도 선택">
+        <span class="difficulty-label">난이도</span>
+        <button class="difficulty-button" type="button" data-difficulty="easy" aria-keyshortcuts="4">
+          쉬움 <kbd>4</kbd>
+        </button>
+        <button class="difficulty-button" type="button" data-difficulty="steady" aria-keyshortcuts="5">
+          차근차근 <kbd>5</kbd>
+        </button>
+        <button class="difficulty-button" type="button" data-difficulty="challenge" aria-keyshortcuts="6">
+          도전 <kbd>6</kbd>
+        </button>
+      </div>
+
       <div class="mode-grid" aria-label="놀이 선택">
         <button class="mode-card" type="button" data-mode="count" aria-keyshortcuts="1">
           <span class="card-number">1</span>
@@ -58,6 +71,9 @@
           <span class="card-copy">
             <strong>몇 개일까?</strong>
             <small>보고 세어 봐요</small>
+          </span>
+          <span id="count-unavailable" class="mode-unavailable" hidden>
+            도전에서는 더하기와 곱하기를 해요
           </span>
         </button>
         <button class="mode-card" type="button" data-mode="add" aria-keyshortcuts="2">
