@@ -1400,6 +1400,10 @@ body[data-state="celebrating"] .answer-box {
     font-size: 18px;
   }
 
+  body:not([data-state="home"]) .creator-credit {
+    display: none;
+  }
+
   body[data-state="home"] .creator-credit {
     left: 8px;
     right: auto;

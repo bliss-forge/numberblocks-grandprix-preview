@@ -99,9 +99,13 @@ test("좁은 게임 화면에서만 제작자 서명을 숨기고 홈에서는 �
     mobileCss,
     /body:not\(\[data-state="home"\]\)\s+\.creator-credit\s*\{[^}]*display:\s*none;/s
   );
+  assert.match(
+    shortHeightCss,
+    /body:not\(\[data-state="home"\]\)\s+\.creator-credit\s*\{[^}]*display:\s*none;/s
+  );
   assert.doesNotMatch(
     shortHeightCss,
-    /(?:^|\s)\.creator-credit\s*\{[^}]*display:\s*none;/s
+    /^\s*\.creator-credit\s*\{[^}]*display:\s*none;/m
   );
   assert.match(
     shortHeightCss,
