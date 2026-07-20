@@ -1,253 +1,191 @@
-# Task 5 — Color Block Studio UI and app integration
+# Task 5 report — browser QA and final regression verification
 
-## Contract and scope
+## Status
 
-- Replaced the legacy inline-CSS/inline-JavaScript page with an accessible static
-  shell in `index.html`, a dedicated `styles.css`, and `src/app.mjs`.
-- Integrated `createProblem`, `applyDigit`, `NUMBERBLOCKS`, and `AudioManager`.
-- Kept the approved PNG and MP3 assets and the voice generator unchanged.
-- Added no runtime dependency, remote font, CDN, or network request.
+DONE_WITH_CONCERNS. The connected-character redesign passes 69 automated tests and the required desktop/mobile browser scenarios. Browser QA found two responsive layout defects, captured both in failing regression tests, and verified minimal CSS fixes.
 
-## TDD evidence
+## Browser setup and URLs
 
-`tests/app-contract.test.mjs` was added before the production files were changed.
+- Worktree server: `http://127.0.0.1:4174/`
+- Deterministic addition harness:
+  `http://127.0.0.1:4174/.superpowers/sdd/task-5-artifacts/qa-harness.html?rng=0.10555555555555556`
+- Deterministic multiplication harness:
+  `http://127.0.0.1:4174/.superpowers/sdd/task-5-artifacts/qa-harness.html?rng=0.575`
+- Safe image-error harness: addition URL plus `&break=38`; it substitutes an invalid data-image URL after the operand listener is installed, so no production code or asset is changed and no network 404 is created.
+- Representative-answer harnesses used deterministic challenge-addition RNG values for answers 10, 11, 20, 38, 50, 72, 99, and 100.
+- Viewports: 1280×720 and 390×844.
+- Browser surface: Chrome extension backend through the Browser plugin/browser-client. Standalone Playwright was not used.
+
+The harness fetches the production `index.html`, adds a root `<base>`, installs only the requested deterministic RNG or image-error hook, then imports the production `src/app.mjs`. It lives only in the ignored QA artifact directory and is not production code.
+
+## Scenario outcomes
+
+### Addition: 6 + 38
+
+- PASS: left operand is `assets/characters/six.png`.
+- PASS: right operand is `assets/characters/number-038.png`.
+- PASS: both slots are equal at 1280×720 (371.20 px each) and rendered operands occupy equal 330 px boxes.
+- PASS: at 390×844 both rendered operand boxes are equal (112.13 px wide).
+- PASS: 38 visibly has a 3-wide pink cap, 5-wide yellow body, pink belt, and low face.
+- PASS: 38 has comparable visual presence to 6 at both sizes.
+- PASS: the operator is centered, `6 + 38` is visible below, and old quantity cards are absent.
+- PASS after fix: document bounds equal the viewport at both sizes with no horizontal overflow.
+
+Evidence:
+
+- `.superpowers/sdd/task-5-artifacts/add-6-plus-38-1280x720-after.png`
+- `.superpowers/sdd/task-5-artifacts/add-6-plus-38-390x844.png`
+- Before-fix evidence:
+  `.superpowers/sdd/task-5-artifacts/add-6-plus-38-1280x720.png` and
+  `.superpowers/sdd/task-5-artifacts/add-6-plus-38-mobile-before.png`
+
+### Multiplication: 6 × 8
+
+- PASS: both operands are legacy character images, `six.png` and `eight.png`.
+- PASS: `6 × 8` is visible below the characters.
+- PASS: `.multiplication-grid`, `.multiplication-scene`, and quantity visuals are absent.
+- PASS: keyboard `9` triggers retry, resets the answer to `?`, marks both characters wrong, and shows `괜찮아요! 천천히 다시 눌러 봐요.`
+- PASS: keyboard `4` preserves the prefix, then `8` enters the correct answer 48.
+- PASS: correct-answer celebration displays `number-048.png`, increments stars, and shows the cheer.
+- PASS: server logs show Korean retry audio plus Korean and English number-48 audio requests returning 200.
+- PASS: the same two-character layout remains unclipped at 390×844.
+
+Evidence:
+
+- `.superpowers/sdd/task-5-artifacts/mul-6-times-8-1280x720.png`
+- `.superpowers/sdd/task-5-artifacts/mul-6-times-8-390x844.png`
+- `.superpowers/sdd/task-5-artifacts/mul-48-correct.png`
+
+### Representative correct-answer celebrations
+
+All required answers entered the `celebrating` phase, showed the exact answer in the answer box, incremented the star count, and loaded the expected asset:
+
+| Answer | Asset |
+| --- | --- |
+| 10 | `ten.png` |
+| 11 | `number-011.png` |
+| 20 | `number-020.png` |
+| 38 | `number-038.png` |
+| 50 | `number-050.png` |
+| 72 | `number-072.png` |
+| 99 | `number-099.png` |
+| 100 | `number-100.png` |
+
+Visual review found no clipped bodies or faces. Shape differences remain intentional: tall characters stay tall, while wide characters keep their proportions. The set does not show a jarring scale discontinuity between legacy 10 and connected 11.
+
+Evidence:
+
+- `.superpowers/sdd/task-5-artifacts/representative-celebrations-contact-sheet.png`
+- Individual files:
+  `.superpowers/sdd/task-5-artifacts/celebration-{10,11,20,38,50,72,99,100}-1280x720.png`
+
+### Image-error fallback
+
+- PASS: the injected 38 image error replaces only the right operand with `<strong class="operand-fallback">38</strong>`.
+- PASS: the 6 image, equation, active playing phase, and answer input remain intact.
+- PASS: the invalid data-image injection creates no missing server request.
+
+Evidence: `.superpowers/sdd/task-5-artifacts/operand-fallback-38.png`
+
+## Console and network
+
+- Final fresh browser tab, application-origin console errors: 0.
+- Final fresh browser tab, application warnings: 0.
+- Raw console errors: 3, all from the installed PDF extension
+  (`chrome-extension://efaidnbmnnnibpcajpcglclefindmkaj`), with no application stack.
+- Missing character asset requests: 0.
+- Character-asset 404 responses: 0.
+- Application resource/network errors: 0.
+- Chrome still requested `/favicon.ico` once and received 404 despite the production data-URL favicon. This is isolated from character/application resources.
+- Required prompt, retry, Korean answer, English answer, and character requests observed during the scenarios returned 200 or 304.
+
+## Bugs found and RED/GREEN evidence
+
+### QA-001: equation clipped below the stage
+
+At 1280×720, `6 + 38` had a DOM box ending at y=630 while the clipped stage frame ended at y=537. At 390×844, the equation ended at y=689 while the stage ended at y=676, leaving only the top of the text visible.
+
+Regression test created before the production fix:
 
 ```text
-node --test tests/app-contract.test.mjs
+node --test tests/task-5-browser-regression.test.mjs
 ```
 
-RED:
+RED: 0 passed, 2 failed. The operand scene had a fixed 560 px height, the character had no container max-height, the equation allowed wrapping, and the narrow rule forced a 560 px minimum page width.
 
-- 3 tests failed, 0 passed.
-- The failures specifically reported the missing `styles.css` link, missing
-  `mute-btn`, and zero `.mode-card` elements.
+Minimal fix in `styles.css`:
 
-GREEN after implementation:
+- fit `.operand-scene` to the actual stage with `height: 100%` and `min-height: 0`;
+- cap `.operand-character` at the available row height;
+- keep `.equation-label` on one line;
+- remove the 560 px document-width floor.
 
-- 3 tests passed, 0 failed.
-
-Final full suite:
+Focused GREEN:
 
 ```text
-npm test
+node --test tests/task-5-browser-regression.test.mjs tests/app-contract.test.mjs
 ```
 
-- 27 tests passed, 0 failed.
+Result: 9 passed, 0 failed.
 
-## Implementation
+### QA-002: third home mode card clipped at 390 px
 
-### Static shell and visual system
+After removing the legacy page-width floor, the third card ended at x=511.67 in a 390 px viewport because the three grid tracks still had 155 px minimum widths.
 
-- The home screen uses the approved One, Three, and Four sprites as the three
-  primary mode illustrations, with visible keyboard badges.
-- The world is a layered broadcast-storybook set: paper-cut clouds, sun rays,
-  rolling grass, small flowers, and red stage curtains.
-- Controls use opaque warm paper, crisp white borders, and press-depth shadows,
-  with no glass cards or purple-gradient styling.
-- The game screen preserves a strict prompt → character/stage → answer hierarchy.
-- The local font stack favors rounded Korean display faces when installed and
-  falls back to platform Korean fonts; there is no font download.
-- Motion is limited to entrance, answer input, retry shake, and celebration.
-  `prefers-reduced-motion` collapses those transitions.
+Regression test created before the production fix:
 
-### App behavior
+```text
+node --test --test-name-pattern='세 놀이 카드' tests/task-5-browser-regression.test.mjs
+```
 
-- `body[data-state]` is kept at `home`, `playing`, or `celebrating`, and
-  `body[data-mode]` tracks `count`, `add`, or `mul`.
-- `event.key` handles both top-row and numpad digits. `Escape` always returns home.
-- Input is accepted only in `playing`, so celebration locks duplicate answers.
-- A cancellable timer registry and `AudioManager.cancel()` stop pending visual and
-  audio work on home navigation and new problems.
-- New problems play a gentle pop and Korean prompt. Correct answers play the win
-  cue, then the manifest-backed Korean → British English number queue.
-- Wrong answers clear the buffer, play a soft retry, and force animation reflow so
-  the shake visibly restarts on repeated attempts.
-- The mute control keeps an accessible label and `aria-pressed`, is available on
-  the home screen, and restores its persisted state on reload.
-- Missing or rejected audio remains non-blocking through `AudioManager`.
-- Dynamic Korean copy was changed from awkward particle combinations such as
-  `1 더하기 1는?` to `1 더하기 1! 답은 얼마일까요?`.
+RED: 0 passed, 1 failed.
 
-## Browser QA evidence
+Minimal fix: at 640 px and narrower, allow all three grid tracks to shrink with `minmax(0, 1fr)`, reduce the gap/padding, and use compact card copy. Browser recheck placed the third card at x=262.24–385.27 inside the 390 px viewport.
 
-The app was served locally at `127.0.0.1:4173` and tested through the connected
-Chrome browser. No browser tooling or package was installed.
+Focused GREEN:
 
-### 1280 × 720 viewport
+```text
+node --test tests/task-5-browser-regression.test.mjs tests/app-contract.test.mjs
+```
 
-- DOM viewport reported exactly `1280 × 720`; document overflow was also
-  `1280 × 720`.
-- All three home cards were in the viewport, with overlap areas `[0, 0]`.
-- All three home sprite images decoded successfully.
-- Key `1` entered count mode. The observed problem used answer `3`.
-- Prompt, stage, answer dock, and character were all inside the viewport.
-- Prompt/stage, stage/answer, and character/answer overlap areas were all `0`.
-- Two consecutive wrong `9` presses both restored `.wrong` on the character and
-  answer box, kept the game in `playing`, and showed the gentle retry message.
-- Correct `3` changed state to `celebrating`, showed the numeric answer, incremented
-  the star, and applied the character celebration class.
-- A separate immediate post-correct check confirmed a further digit did not alter
-  the celebrating state, answer, or star count.
-- `Escape` returned to `home`, cleared `data-mode`, and hid the game region.
-- Mode `2` rendered two character images and a plus operator.
-- Mode `3` rendered the multiplication grid with the exact row, column, and total
-  block counts.
-
-### Mute persistence
-
-- Clicking the unique `소리 끄기` button changed `aria-pressed` to `true` and the
-  label to `소리 켜기`.
-- The state remained muted in add mode, after returning home, and after a full
-  browser reload.
-
-### 1440 × 900 viewport
-
-- DOM viewport and document overflow both reported exactly `1440 × 900`.
-- All three home cards remained inside the viewport with no overlap.
-- In add mode, both characters, prompt, stage, and answer dock remained inside the
-  viewport.
-- Character/character, prompt/stage, and stage/answer overlap areas were all `0`.
-- All rendered images decoded successfully.
-
-### Console and resource evidence
-
-- App-origin console errors filtered to `127.0.0.1:4173`: `[]`.
-- Chrome itself emitted unrelated `chrome-extension://...` errors; none originated
-  from the app.
-- Server evidence showed HTTP 200 for the page, CSS, all app modules, all ten
-  character sprites, Korean prompt/retry files, and Korean/English answer files.
-- The first pass requested a missing default favicon. A local data favicon was
-  added, so the finished shell no longer causes that request.
-
-Screenshots:
-
-- `/tmp/numberblocks-task5-qa/home-1280x720.png`
-- `/tmp/numberblocks-task5-qa/count-1280x720.png`
-- `/tmp/numberblocks-task5-qa/home-1440x900.png`
-- `/tmp/numberblocks-task5-qa/add-1440x900.png`
-
-The 1440 captures are exactly 1440 × 900. The Chrome capture surface returned the
-1280 screenshots as 1280 × 694 even though browser-side `innerWidth/innerHeight`
-and all layout checks reported 1280 × 720; the exact 720-height validation therefore
-uses the recorded DOM rectangles rather than screenshot pixels.
+Result: 10 passed, 0 failed.
 
 ## Final verification
 
 ```text
-node --test tests/app-contract.test.mjs
-node --check src/app.mjs
-node --check src/game-model.mjs
-node --check src/audio-manager.mjs
-node --check src/audio-manifest.mjs
 npm test
 git diff --check
-rg -n 'speechSynthesis|SpeechSynthesisUtterance|https?://|@import|<style' \
-  index.html styles.css src/app.mjs
-git status --short -- assets scripts requirements-voice.txt
-node -e "<import game-model, audio-manager, and audio-manifest>"
 ```
 
-- Focused contract tests: 3 passing, 0 failing.
-- Full suite: 27 passing, 0 failing.
-- JavaScript syntax checks: clean.
-- Runtime module imports: clean.
-- Whitespace check: clean.
-- Legacy browser TTS, inline style, and remote-resource scan: no matches.
-- Approved character/audio assets and voice generator: unchanged.
+- `npm test`: 69 passed, 0 failed, 0 skipped.
+- `git diff --check`: exit 0, no whitespace errors.
 
-## Visual self-review
+## Files
 
-- The sprites are the clearest focal point on both the home cards and stage.
-- The red curtains and paper-set landscape make the experience feel like a small
-  preschool broadcast rather than a generic web dashboard.
-- Card colors distinguish the three modes without competing with character colors.
-- The 1280 × 720 layout intentionally removes the optional eyebrow line and reduces
-  sprite/card height, while preserving faces, labels, and answer controls.
-- The 1440 × 900 layout adds breathing room and larger hero characters without
-  changing the interaction hierarchy.
-- Focus rings, visible keyboard guidance, semantic regions, live answer/status text,
-  and persistent mute state keep the keyboard-first flow understandable without
-  audio.
+Production/spec/test changes:
 
-## Concerns and handoff
+- `styles.css`
+- `tests/task-5-browser-regression.test.mjs`
+- `docs/superpowers/specs/2026-07-20-numberblocks-connected-character-redesign-design.md`
 
-- The browser screenshot API's 1280-height discrepancy is a capture-surface issue,
-  not a DOM overflow; exact rectangle checks passed at the requested viewport.
-- Audio sequence and cancellation are covered by the existing focused unit tests and
-  by successful MP3 requests during browser QA. Automated browser audio-quality
-  judgment is out of scope; the user already approved the generated sample voices.
+QA-only ignored artifacts:
 
-## Review-finding fixes
+- `.superpowers/sdd/task-5-report.md`
+- `.superpowers/sdd/task-5-artifacts/qa-harness.html`
+- `.superpowers/sdd/task-5-artifacts/*.png`
 
-All Task 5 review findings were addressed without changing PNG, MP3, the voice
-generator, or voice requirements.
+No character catalog, renderer, PNG, `src/app.mjs`, audio, difficulty, count, or input logic change was needed.
 
-### TDD RED
+## Self-review
 
-Added `tests/app-behavior.test.mjs` before production changes, covering the actual
-app cue helpers with a real `AudioManager`, transient entrance-class cleanup, and
-the dynamic Korean problem copy.
+- Both fixes are limited to evidence-backed scene/responsive CSS and one new regression file.
+- The scene fix uses the parent’s actual available height, so it covers both target sizes without another hard-coded viewport height.
+- Equal operand slots, intrinsic image proportions, and the connected-character asset catalog remain unchanged.
+- The representative screenshots visually confirm faces, accessories, belts, and bodies rather than relying only on DOM presence.
+- The deterministic hook is outside production code and was not staged.
+- The pre-existing modification to `.superpowers/sdd/task-4-report.md` was preserved and excluded from Task 5.
 
-```text
-node --test tests/app-behavior.test.mjs
-```
+## Concerns
 
-- Exit code: 1.
-- `ERR_MODULE_NOT_FOUND` for the deliberately absent `src/app-behavior.mjs`.
-- 1 test file failed, proving the new application behavior did not yet exist.
-
-### TDD GREEN
-
-```text
-node --test tests/app-behavior.test.mjs
-```
-
-- 4 tests passed, 0 failed.
-- Prompt voice begins synchronously before `pop`; the observed first ramp was
-  `0.06 * 0.55` while `voicePlaying` was true.
-- Retry voice begins synchronously before `wrong`; the observed first ramp was
-  `0.04 * 0.55` while `voicePlaying` was true.
-- `.enter` is removed exactly once on the first `animationend`.
-- Add/multiply copy is exactly `A 더하기 B의 답은 얼마일까요?` and
-  `A 곱하기 B의 답은 얼마일까요?`.
-
-`src/app.mjs` now uses these tested helpers directly. Neither voice call is awaited
-or deferred, so playback and `AudioContext` work remain inside the initiating click
-or key event. Character creation registers entrance cleanup before any retry class
-can be applied, preventing `.wrong` removal from exposing `.enter` again.
-
-### Full verification after review fixes
-
-```text
-npm test
-node --check src/app.mjs
-node --check src/app-behavior.mjs
-node --check src/game-model.mjs
-node --check src/audio-manager.mjs
-node --check src/audio-manifest.mjs
-node -e "Promise.all([import('./src/game-model.mjs'), import('./src/audio-manager.mjs'), import('./src/audio-manifest.mjs'), import('./src/app-behavior.mjs')]).then(() => console.log('module imports ok'))"
-git diff --check
-rg -n 'speechSynthesis|SpeechSynthesisUtterance|https?://|@import|<style' \
-  index.html styles.css src/app.mjs src/app-behavior.mjs
-git status --short -- assets scripts requirements-voice.txt
-```
-
-- Full suite: 31 passed, 0 failed.
-- All syntax and runtime import checks passed.
-- `git diff --check` passed.
-- Legacy browser TTS, inline style, and remote-resource scan returned no matches.
-- Character/audio assets, generator scripts, and `requirements-voice.txt` remained
-  unchanged.
-
-### Browser smoke after review fixes
-
-Reloaded the already-running local app at `127.0.0.1:4173` through the connected
-browser and exercised the production UI:
-
-- Add mode rendered `1 더하기 2의 답은 얼마일까요?`.
-- Both character `.enter` classes naturally reached zero after 700 ms.
-- Entering wrong answer `9`, then waiting through the retry animation, left
-  `.character.enter` at zero, `.character.wrong` at zero, reset the answer to `?`,
-  kept state `playing`, and showed the gentle retry message.
-- Multiply mode rendered `3 곱하기 2의 답은 얼마일까요?`.
-- App-origin browser warnings/errors: `[]`.
+- The connected Chrome profile injects a PDF extension that logs three errors on every navigation. Application-origin error count remains zero, but the raw browser console cannot be literally empty in this profile.
+- Chrome’s automatic `/favicon.ico` request produces one non-application 404 even though `index.html` declares a data-URL favicon. No character or application resource is missing.
