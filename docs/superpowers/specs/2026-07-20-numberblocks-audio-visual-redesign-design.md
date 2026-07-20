@@ -94,19 +94,31 @@
 
 ```text
 index.html
+styles.css
+package.json
+requirements-voice.txt            # edge-tts==7.2.8 (제작 시점 전용)
 assets/
   characters/
     one.png ... ten.png
   audio/
     voice/
-      ko/
-      en/
-    sfx/
+      ko/                         # prompt, number-1...10, cheer, retry MP3
+      en/                         # number-1...10 MP3
+src/
+  app.mjs
+  app-behavior.mjs
+  audio-manager.mjs
+  audio-manifest.mjs
+  game-model.mjs
 scripts/
-  generate-voice-pack.py
+  generate_voice_pack.py
 tests/
-  game.test.js
-  assets.test.js
+  app-behavior.test.mjs
+  app-contract.test.mjs
+  audio-manager.test.mjs
+  character-assets.test.mjs
+  game-model.test.mjs
+  voice-assets.test.mjs
 ```
 
 ## 6. 데이터 흐름
