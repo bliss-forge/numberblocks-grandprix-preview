@@ -16,9 +16,9 @@ export const NUMBERBLOCKS = Object.freeze(Object.fromEntries(
 ));
 
 export const DIFFICULTY_LIMITS = Object.freeze({
-  easy: Object.freeze({ count: 10, add: 10, mul: 10 }),
-  steady: Object.freeze({ count: 20, add: 50, mul: 50 }),
-  challenge: Object.freeze({ count: null, add: 100, mul: 100 })
+  easy: Object.freeze({ count: 10, add: 10, sub: 10, mul: 10 }),
+  steady: Object.freeze({ count: 20, add: 50, sub: 20, mul: 50 }),
+  challenge: Object.freeze({ count: null, add: 150, sub: 50, mul: 150 })
 });
 
 const pick = (items, rng) =>
@@ -36,6 +36,7 @@ export function isModeAvailable(mode, difficulty) {
 export function problemKey(problem) {
   if (problem.mode === "count") return `count:${problem.answer}`;
   const [left, right] = problem.operands;
+  if (problem.mode === "sub") return `sub:${left}:${right}`;
   const [first, second] = [left, right].sort((a, b) => a - b);
   return `${problem.mode}:${first}:${second}`;
 }
@@ -74,10 +75,26 @@ function additionProblems(maxAnswer) {
   return problems;
 }
 
-function multiplicationProblems(maxAnswer) {
+function subtractionProblems(maxAnswer) {
+  const problems = [];
+  for (let left = 2; left <= maxAnswer; left += 1) {
+    for (let right = 1; right < left; right += 1) {
+      problems.push({
+        mode: "sub",
+        answer: left - right,
+        characters: [left, right],
+        operands: [left, right],
+        promptKey: "prompt-sub"
+      });
+    }
+  }
+  return problems;
+}
+
+function multiplicationProblems(maxAnswer, rightMax) {
   const problems = [];
   for (let left = 1; left <= 10; left += 1) {
-    for (let right = 1; right <= 10; right += 1) {
+    for (let right = 1; right <= rightMax; right += 1) {
       if (left * right > maxAnswer) continue;
       problems.push({
         mode: "mul",
@@ -111,8 +128,13 @@ export function createProblem(
     return pickFresh(additionProblems(limits.add), recentKeys, rng);
   }
 
+  if (mode === "sub") {
+    return pickFresh(subtractionProblems(limits.sub), recentKeys, rng);
+  }
+
   if (mode === "mul") {
-    return pickFresh(multiplicationProblems(limits.mul), recentKeys, rng);
+    const rightMax = normalized === "challenge" ? 15 : 10;
+    return pickFresh(multiplicationProblems(limits.mul, rightMax), recentKeys, rng);
   }
 
   throw new TypeError(`Unknown mode: ${mode}`);
@@ -124,4 +146,8 @@ export function applyDigit(buffer, digit, answer) {
   if (next === target) return { buffer: next, status: "correct" };
   if (target.startsWith(next)) return { buffer: next, status: "prefix" };
   return { buffer: "", status: "wrong" };
+}
+
+export function deleteLastDigit(buffer) {
+  return String(buffer).slice(0, -1);
 }
