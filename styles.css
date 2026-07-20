@@ -773,6 +773,17 @@ body[data-state="home"] .star-pill {
   animation: character-no .18s ease-in-out 3;
 }
 
+body[data-state="celebrating"] .character[data-shape="wide"],
+body[data-state="celebrating"] .character[data-shape="balanced"] {
+  max-width: min(46vw, 520px);
+  max-height: min(58vh, 500px);
+}
+
+body[data-state="celebrating"] .character[data-shape="tall"] {
+  max-width: min(30vw, 320px);
+  max-height: min(51vh, 450px);
+}
+
 .operator {
   display: grid;
   place-items: center;
