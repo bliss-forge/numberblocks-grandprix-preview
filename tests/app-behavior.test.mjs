@@ -139,11 +139,11 @@ test("세기 힌트는 정답 대신 묶음 구조를 말한다", () => {
   assert.equal(formatCountHint(20), "10개 묶음이 2개예요.");
 });
 
-test("모드와 정답에 따라 정답 화면을 고른다", () => {
-  assert.equal(celebrationView("mul", 6), "number");
-  assert.equal(celebrationView("mul", 10), "multiply-helper");
-  assert.equal(celebrationView("mul", 100), "multiply-helper");
-  assert.equal(celebrationView("add", 10), "number");
-  assert.equal(celebrationView("add", 11), "result-board");
-  assert.equal(celebrationView("count", 17), "result-board");
+test("모든 게임은 1~100 정답 캐릭터를 선택한다", () => {
+  for (const mode of ["count", "add", "mul"]) {
+    for (const answer of [1, 10, 11, 20, 50, 100]) {
+      assert.equal(celebrationView(mode, answer), "number");
+    }
+  }
+  assert.equal(celebrationView("add", 101), "result-board");
 });

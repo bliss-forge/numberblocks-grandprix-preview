@@ -42,7 +42,8 @@ export function formatCountHint(number) {
   return `10개 묶음 ${tens}개와 낱개 ${ones}개예요.`;
 }
 
-export function celebrationView(mode, answer) {
-  if (mode === "mul") return answer <= 9 ? "number" : "multiply-helper";
-  return answer <= 10 ? "number" : "result-board";
+export function celebrationView(_mode, answer) {
+  return Number.isInteger(answer) && answer >= 1 && answer <= 100
+    ? "number"
+    : "result-board";
 }

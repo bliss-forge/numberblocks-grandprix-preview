@@ -1,15 +1,19 @@
-export const NUMBERBLOCKS = Object.freeze({
-  1: { rows: 1, cols: 1, asset: "one.png" },
-  2: { rows: 2, cols: 1, asset: "two.png" },
-  3: { rows: 3, cols: 1, asset: "three.png" },
-  4: { rows: 2, cols: 2, asset: "four.png" },
-  5: { rows: 5, cols: 1, asset: "five.png" },
-  6: { rows: 3, cols: 2, asset: "six.png" },
-  7: { rows: 7, cols: 1, asset: "seven.png" },
-  8: { rows: 4, cols: 2, asset: "eight.png" },
-  9: { rows: 3, cols: 3, asset: "nine.png" },
-  10: { rows: 5, cols: 2, asset: "ten.png" }
-});
+import {
+  buildCharacterSpec,
+  characterAsset
+} from "./character-spec.mjs";
+
+export const NUMBERBLOCKS = Object.freeze(Object.fromEntries(
+  Array.from({ length: 100 }, (_, index) => {
+    const number = index + 1;
+    const spec = buildCharacterSpec(number);
+    return [number, Object.freeze({
+      rows: spec.canvas.grid[1],
+      cols: spec.canvas.grid[0],
+      asset: characterAsset(number)
+    })];
+  })
+));
 
 export const DIFFICULTY_LIMITS = Object.freeze({
   easy: Object.freeze({ count: 10, add: 10, mul: 10 }),

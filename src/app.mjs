@@ -60,12 +60,10 @@ const state = {
 };
 
 function preloadCharacters() {
-  Object.values(NUMBERBLOCKS).forEach(({ asset }) => {
+  Object.values(NUMBERBLOCKS).slice(0, 10).forEach(({ asset }) => {
     const image = new Image();
     image.src = `assets/characters/${asset}`;
   });
-  const helper = new Image();
-  helper.src = "assets/characters/multiply-helper.png";
 }
 
 function character(number, className = "") {
@@ -74,6 +72,12 @@ function character(number, className = "") {
   image.src = `assets/characters/${NUMBERBLOCKS[number].asset}`;
   image.alt = `숫자 ${number} 블록 캐릭터`;
   image.dataset.number = String(number);
+  image.dataset.shape =
+    NUMBERBLOCKS[number].cols > NUMBERBLOCKS[number].rows
+      ? "wide"
+      : NUMBERBLOCKS[number].rows > NUMBERBLOCKS[number].cols * 2
+        ? "tall"
+        : "balanced";
   retireAnimationClass(image, "enter");
   return image;
 }
@@ -137,30 +141,16 @@ function resultBoard(problem) {
   return board;
 }
 
-function multiplicationHelper(problem) {
-  const scene = document.createElement("div");
-  scene.className = "multiplication-result";
-
-  const image = document.createElement("img");
-  image.className = "multiply-helper";
-  image.src = "assets/characters/multiply-helper.png";
-  image.alt = "곱셈 정답을 축하하는 보라색 곱셈 도우미";
-
-  const sign = document.createElement("strong");
-  sign.className = "result-sign";
-  sign.textContent =
-    `${problem.operands[0]} × ${problem.operands[1]} = ${problem.answer}`;
-
-  scene.append(image, sign);
-  return scene;
-}
-
 function renderCelebration(problem) {
   const view = celebrationView(problem.mode, problem.answer);
   if (view === "number") {
-    dom.stage.replaceChildren(character(problem.answer, "correct"));
-  } else if (view === "multiply-helper") {
-    dom.stage.replaceChildren(multiplicationHelper(problem));
+    const image = character(problem.answer, "correct");
+    image.addEventListener("error", () => {
+      if (state.problem === problem) {
+        dom.stage.replaceChildren(resultBoard(problem));
+      }
+    }, { once: true });
+    dom.stage.replaceChildren(image);
   } else {
     dom.stage.replaceChildren(resultBoard(problem));
   }

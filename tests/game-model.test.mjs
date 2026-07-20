@@ -8,12 +8,16 @@ import {
   normalizeDifficulty,
   problemKey
 } from "../src/game-model.mjs";
+import { characterAsset } from "../src/character-spec.mjs";
 
-test("1~10 캐릭터 메타데이터가 모두 존재한다", () => {
+test("1~100 캐릭터 메타데이터가 모두 존재한다", () => {
   assert.deepEqual(
     Object.keys(NUMBERBLOCKS).map(Number),
-    [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+    Array.from({ length: 100 }, (_, index) => index + 1)
   );
+  for (let number = 1; number <= 100; number += 1) {
+    assert.equal(NUMBERBLOCKS[number].asset, characterAsset(number));
+  }
 });
 
 test("잘못된 난이도는 차근차근으로 정규화한다", () => {
