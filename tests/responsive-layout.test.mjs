@@ -3,6 +3,15 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
 const css = await readFile(new URL("../styles.css", import.meta.url), "utf8");
+const shortHeightMarker =
+  "@media (max-width: 900px) and (max-height: 500px)";
+
+function mediaBlock(marker) {
+  const start = css.indexOf(marker);
+  assert.notEqual(start, -1);
+  const nextMedia = css.indexOf("@media", start + marker.length);
+  return css.slice(start, nextMedia === -1 ? css.length : nextMedia);
+}
 
 test("캐릭터 크기 단계는 애니메이션 transform과 독립된 scale을 사용한다", () => {
   assert.match(
@@ -58,14 +67,7 @@ test("모바일은 크기 확대를 낮추고 숫자판과 무대 공간을 따�
 });
 
 test("낮은 모바일 화면은 두 줄 숫자판과 최소 무대 높이를 보장한다", () => {
-  const marker = "@media (max-width: 900px) and (max-height: 500px)";
-  const start = css.indexOf(marker);
-  assert.notEqual(start, -1);
-  const nextMedia = css.indexOf("@media", start + marker.length);
-  const shortHeightCss = css.slice(
-    start,
-    nextMedia === -1 ? css.length : nextMedia
-  );
+  const shortHeightCss = mediaBlock(shortHeightMarker);
 
   assert.match(
     shortHeightCss,
@@ -86,5 +88,49 @@ test("낮은 모바일 화면은 두 줄 숫자판과 최소 무대 높이를 �
   assert.match(
     shortHeightCss,
     /\.game-keyboard-note\s*\{[^}]*display:\s*none;/s
+  );
+});
+
+test("좁은 게임 화면에서만 제작자 서명을 숨기고 홈에서는 유지한다", () => {
+  const mobileCss = mediaBlock("@media (max-width: 640px)");
+  const shortHeightCss = mediaBlock(shortHeightMarker);
+
+  assert.match(
+    mobileCss,
+    /body:not\(\[data-state="home"\]\)\s+\.creator-credit\s*\{[^}]*display:\s*none;/s
+  );
+  assert.doesNotMatch(
+    shortHeightCss,
+    /(?:^|\s)\.creator-credit\s*\{[^}]*display:\s*none;/s
+  );
+  assert.match(
+    shortHeightCss,
+    /body\[data-state="home"\]\s+\.creator-credit\s*\{[^}]*left:\s*8px;[^}]*right:\s*auto;[^}]*top:\s*6px;[^}]*bottom:\s*auto;/s
+  );
+});
+
+test("낮은 홈 화면은 네 모드 카드를 한 줄에 모두 표시한다", () => {
+  const shortHeightCss = mediaBlock(shortHeightMarker);
+
+  assert.match(
+    shortHeightCss,
+    /\.mode-grid\s*\{[^}]*grid-template-columns:\s*repeat\(4,\s*minmax\(0,\s*1fr\)\);/s
+  );
+  assert.match(
+    shortHeightCss,
+    /\.mode-card\s*\{[^}]*min-height:\s*0;/s
+  );
+  assert.match(
+    shortHeightCss,
+    /\.mode-card:nth-child\(4\)\s*\{[^}]*grid-column:\s*auto;/s
+  );
+});
+
+test("낮은 세기 무대는 친구 캐릭터 전체 높이를 슬롯 안에 맞춘다", () => {
+  const shortHeightCss = mediaBlock(shortHeightMarker);
+
+  assert.match(
+    shortHeightCss,
+    /\.count-friends\s+\.count-character\s*\{[^}]*height:\s*calc\(100%\s*-\s*8px\);[^}]*max-height:\s*calc\(100%\s*-\s*8px\);/s
   );
 });
