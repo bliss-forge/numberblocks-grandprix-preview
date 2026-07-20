@@ -2,10 +2,13 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { AudioManager } from "../src/audio-manager.mjs";
 import {
+  celebrationView,
+  formatCountHint,
   formatProblemText,
   focusPhase,
   playPromptCue,
   playRetryCue,
+  quantityParts,
   retireAnimationClass
 } from "../src/app-behavior.mjs";
 
@@ -121,4 +124,25 @@ test("더하기와 곱하기 문제 문구는 자연스러운 한국어 조사�
     formatProblemText({ mode: "mul", operands: [3, 4] }),
     "3 곱하기 4의 답은 얼마일까요?"
   );
+});
+
+test("큰 수를 십 묶음과 낱개로 나눈다", () => {
+  assert.deepEqual(quantityParts(7), { tens: 0, ones: 7 });
+  assert.deepEqual(quantityParts(17), { tens: 1, ones: 7 });
+  assert.deepEqual(quantityParts(50), { tens: 5, ones: 0 });
+  assert.deepEqual(quantityParts(100), { tens: 10, ones: 0 });
+});
+
+test("세기 힌트는 정답 대신 묶음 구조를 말한다", () => {
+  assert.equal(formatCountHint(7), "블록을 하나씩 짚어 보세요.");
+  assert.equal(formatCountHint(17), "10개 묶음 1개와 낱개 7개예요.");
+  assert.equal(formatCountHint(20), "10개 묶음이 2개예요.");
+});
+
+test("모드와 정답에 따라 정답 화면을 고른다", () => {
+  assert.equal(celebrationView("mul", 6), "number");
+  assert.equal(celebrationView("mul", 10), "multiply-helper");
+  assert.equal(celebrationView("mul", 100), "multiply-helper");
+  assert.equal(celebrationView("add", 10), "number");
+  assert.equal(celebrationView("add", 11), "result-board");
 });

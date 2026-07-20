@@ -11,10 +11,12 @@ import {
   saveDifficulty
 } from "./difficulty-preference.mjs";
 import {
+  formatCountHint,
   formatProblemText,
   focusPhase,
   playPromptCue,
   playRetryCue,
+  quantityParts,
   retireAnimationClass
 } from "./app-behavior.mjs";
 
@@ -71,6 +73,48 @@ function character(number, className = "") {
   image.dataset.number = String(number);
   retireAnimationClass(image, "enter");
   return image;
+}
+
+function quantityVisual(number, { countable = false } = {}) {
+  const visual = document.createElement("div");
+  visual.className = `quantity-visual${countable ? " countable" : ""}`;
+  visual.dataset.value = String(number);
+  visual.setAttribute("aria-label", `${number}개`);
+
+  const { tens, ones } = quantityParts(number);
+  for (let groupIndex = 0; groupIndex < tens; groupIndex += 1) {
+    const group = document.createElement("span");
+    group.className = "ten-group";
+    for (let index = 0; index < 10; index += 1) {
+      const block = document.createElement("i");
+      block.setAttribute("aria-hidden", "true");
+      group.append(block);
+    }
+    visual.append(group);
+  }
+
+  if (ones > 0) {
+    const group = document.createElement("span");
+    group.className = "ones-group";
+    for (let index = 0; index < ones; index += 1) {
+      const block = document.createElement("i");
+      block.setAttribute("aria-hidden", "true");
+      group.append(block);
+    }
+    visual.append(group);
+  }
+
+  return visual;
+}
+
+function operandVisual(number) {
+  if (number <= 10) return character(number);
+  const card = document.createElement("div");
+  card.className = "operand-card";
+  const label = document.createElement("strong");
+  label.textContent = String(number);
+  card.append(label, quantityVisual(number));
+  return card;
 }
 
 function clearTimers() {
@@ -145,7 +189,12 @@ function renderProblem(problem) {
 
   if (problem.mode === "count") {
     dom.problem.textContent = formatProblemText(problem);
-    dom.stage.append(character(problem.answer));
+    if (problem.answer <= 10) {
+      dom.stage.append(character(problem.answer));
+    } else {
+      dom.stage.append(quantityVisual(problem.answer, { countable: true }));
+      scheduleCountHint(problem.answer);
+    }
     return;
   }
 
@@ -156,9 +205,9 @@ function renderProblem(problem) {
     plus.textContent = "+";
     plus.setAttribute("aria-hidden", "true");
     dom.stage.append(
-      character(problem.operands[0]),
+      operandVisual(problem.operands[0]),
       plus,
-      character(problem.operands[1])
+      operandVisual(problem.operands[1])
     );
     return;
   }
@@ -177,6 +226,10 @@ function renderProblem(problem) {
   );
   for (let index = 0; index < problem.answer; index += 1) {
     const block = document.createElement("i");
+    const row = Math.floor(index / problem.operands[1]);
+    const column = index % problem.operands[1];
+    block.classList.toggle("row-shade", row % 2 === 1);
+    block.classList.toggle("column-marker", (column + 1) % 5 === 0);
     block.setAttribute("aria-hidden", "true");
     grid.append(block);
   }
@@ -225,6 +278,14 @@ function showHint(message) {
     state.hintTimer = 0;
     dom.hint.classList.remove("show");
   }, 1300);
+}
+
+function scheduleCountHint(answer) {
+  schedule(() => {
+    if (state.phase !== "playing" || state.problem?.answer !== answer) return;
+    dom.stage.querySelector(".quantity-visual")?.classList.add("hint-groups");
+    showHint(formatCountHint(answer));
+  }, 4500);
 }
 
 function replayClass(node, className) {
@@ -285,7 +346,14 @@ function wrongAnswer() {
     .querySelectorAll(".character")
     .forEach(node => replayClass(node, "wrong"));
   replayClass(dom.answer, "wrong");
-  showHint("괜찮아요! 천천히 다시 눌러 봐요.");
+  const retryMessage =
+    state.mode === "count" && state.wrongCount >= 2
+      ? formatCountHint(state.problem.answer)
+      : "괜찮아요! 천천히 다시 눌러 봐요.";
+  if (state.mode === "count" && state.wrongCount >= 2) {
+    dom.stage.querySelector(".quantity-visual")?.classList.add("hint-groups");
+  }
+  showHint(retryMessage);
   playRetryCue(audio, `retry-${Math.min(state.wrongCount, 3)}`);
 }
 
