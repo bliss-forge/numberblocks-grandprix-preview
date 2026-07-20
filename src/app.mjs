@@ -11,6 +11,7 @@ import {
   saveDifficulty
 } from "./difficulty-preference.mjs";
 import {
+  celebrationView,
   formatCountHint,
   formatProblemText,
   focusPhase,
@@ -63,6 +64,8 @@ function preloadCharacters() {
     const image = new Image();
     image.src = `assets/characters/${asset}`;
   });
+  const helper = new Image();
+  helper.src = "assets/characters/multiply-helper.png";
 }
 
 function character(number, className = "") {
@@ -115,6 +118,52 @@ function operandVisual(number) {
   label.textContent = String(number);
   card.append(label, quantityVisual(number));
   return card;
+}
+
+function resultBoard(problem) {
+  const board = document.createElement("div");
+  board.className = "result-board";
+  const formula = document.createElement("strong");
+
+  if (problem.mode === "count") {
+    formula.textContent = `${problem.answer}개!`;
+  } else {
+    const operator = problem.mode === "mul" ? "×" : "+";
+    formula.textContent =
+      `${problem.operands[0]} ${operator} ${problem.operands[1]} = ${problem.answer}`;
+  }
+
+  board.append(formula, quantityVisual(problem.answer));
+  return board;
+}
+
+function multiplicationHelper(problem) {
+  const scene = document.createElement("div");
+  scene.className = "multiplication-result";
+
+  const image = document.createElement("img");
+  image.className = "multiply-helper";
+  image.src = "assets/characters/multiply-helper.png";
+  image.alt = "곱셈 정답을 축하하는 보라색 곱셈 도우미";
+
+  const sign = document.createElement("strong");
+  sign.className = "result-sign";
+  sign.textContent =
+    `${problem.operands[0]} × ${problem.operands[1]} = ${problem.answer}`;
+
+  scene.append(image, sign);
+  return scene;
+}
+
+function renderCelebration(problem) {
+  const view = celebrationView(problem.mode, problem.answer);
+  if (view === "number") {
+    dom.stage.replaceChildren(character(problem.answer, "correct"));
+  } else if (view === "multiply-helper") {
+    dom.stage.replaceChildren(multiplicationHelper(problem));
+  } else {
+    dom.stage.replaceChildren(resultBoard(problem));
+  }
 }
 
 function clearTimers() {
@@ -325,9 +374,7 @@ async function celebrate() {
   if (!(await wait(480))) return;
   if (state.phase !== "celebrating" || state.round !== round) return;
 
-  if (state.mode === "add") {
-    dom.stage.replaceChildren(character(state.problem.answer, "correct"));
-  }
+  renderCelebration(state.problem);
 
   await audio.playAnswer(state.problem.answer);
   if (state.phase !== "celebrating" || state.round !== round) return;

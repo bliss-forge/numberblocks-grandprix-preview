@@ -145,4 +145,5 @@ test("모드와 정답에 따라 정답 화면을 고른다", () => {
   assert.equal(celebrationView("mul", 100), "multiply-helper");
   assert.equal(celebrationView("add", 10), "number");
   assert.equal(celebrationView("add", 11), "result-board");
+  assert.equal(celebrationView("count", 17), "result-board");
 });

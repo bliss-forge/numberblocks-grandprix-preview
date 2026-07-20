@@ -44,6 +44,5 @@ export function formatCountHint(number) {
 
 export function celebrationView(mode, answer) {
   if (mode === "mul") return answer <= 9 ? "number" : "multiply-helper";
-  if (mode === "add") return answer <= 10 ? "number" : "result-board";
-  return "number";
+  return answer <= 10 ? "number" : "result-board";
 }
