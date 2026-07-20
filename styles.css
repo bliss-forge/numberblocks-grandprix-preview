@@ -362,9 +362,9 @@ kbd {
 
 .mode-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(190px, 270px));
+  grid-template-columns: repeat(4, minmax(170px, 245px));
   gap: clamp(16px, 2.7vw, 34px);
-  width: min(92vw, 880px);
+  width: min(94vw, 1080px);
 }
 
 .mode-card {
@@ -431,6 +431,12 @@ kbd {
   --card-color: #bdebc0;
   --card-accent: #258a3b;
   transform: rotate(1.2deg);
+}
+
+.mode-card:nth-child(4) {
+  --card-color: #c5e5ff;
+  --card-accent: #3176c8;
+  transform: translateY(-5px) rotate(-.8deg);
 }
 
 .mode-card:hover,
@@ -979,6 +985,10 @@ body[data-state="celebrating"] .character[data-shape="tall"] {
   box-shadow: 0 8px 0 rgba(37, 52, 93, .15), 0 14px 22px rgba(37, 52, 93, .12);
 }
 
+.number-pad {
+  display: none;
+}
+
 .equals {
   font-family: var(--display-font);
   font-size: clamp(34px, 5vw, 50px);
@@ -1125,8 +1135,8 @@ body[data-state="celebrating"] .answer-box {
 
 @media (max-width: 900px) {
   .mode-grid {
-    grid-template-columns: repeat(3, minmax(155px, 1fr));
-    width: 94vw;
+    grid-template-columns: repeat(4, minmax(130px, 1fr));
+    width: 96vw;
     gap: 14px;
   }
 
@@ -1222,7 +1232,12 @@ body[data-state="celebrating"] .answer-box {
 
   .mode-card {
     min-width: 0;
+    min-height: 150px;
     padding-inline: 7px;
+  }
+
+  .mode-card:nth-child(4) {
+    grid-column: 2;
   }
 
   .card-copy strong {
@@ -1231,6 +1246,30 @@ body[data-state="celebrating"] .answer-box {
 
   .card-copy small {
     font-size: 11px;
+  }
+
+  .number-pad {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(48px, 1fr));
+    gap: 8px;
+    width: min(92vw, 330px);
+  }
+
+  .number-pad button {
+    min-height: 48px;
+    border: 3px solid #fff;
+    border-radius: 14px;
+    color: var(--ink);
+    font-family: var(--display-font);
+    font-size: 25px;
+    font-weight: 900;
+    background: var(--paper);
+    box-shadow: 0 4px 0 rgba(37, 52, 93, .16);
+  }
+
+  .number-pad button:active {
+    transform: translateY(3px);
+    box-shadow: 0 1px 0 rgba(37, 52, 93, .16);
   }
 }
 

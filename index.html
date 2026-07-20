@@ -48,19 +48,19 @@
           <span class="logo-number">숫자</span><span class="logo-block">블록</span>
           <em>놀이터</em>
         </h1>
-        <p class="lead"><kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd> 중 하나를 눌러 시작해요!</p>
+        <p class="lead"><kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd> <kbd>4</kbd> 중 하나를 눌러 시작해요!</p>
       </div>
 
       <div id="difficulty-picker" class="difficulty-picker" role="group" aria-label="난이도 선택">
         <span class="difficulty-label">난이도</span>
-        <button class="difficulty-button" type="button" data-difficulty="easy" aria-keyshortcuts="4">
-          쉬움 <kbd>4</kbd>
+        <button class="difficulty-button" type="button" data-difficulty="easy" aria-keyshortcuts="7">
+          쉬움 <kbd>7</kbd>
         </button>
-        <button class="difficulty-button" type="button" data-difficulty="steady" aria-keyshortcuts="5">
-          차근차근 <kbd>5</kbd>
+        <button class="difficulty-button" type="button" data-difficulty="steady" aria-keyshortcuts="8">
+          차근차근 <kbd>8</kbd>
         </button>
-        <button class="difficulty-button" type="button" data-difficulty="challenge" aria-keyshortcuts="6">
-          도전 <kbd>6</kbd>
+        <button class="difficulty-button" type="button" data-difficulty="challenge" aria-keyshortcuts="9">
+          도전 <kbd>9</kbd>
         </button>
       </div>
 
@@ -73,7 +73,7 @@
             <small>보고 세어 봐요</small>
           </span>
           <span id="count-unavailable" class="mode-unavailable" hidden>
-            도전에서는 더하기와 곱하기를 해요
+            도전에서는 더하기, 빼기와 곱하기를 해요
           </span>
         </button>
         <button class="mode-card" type="button" data-mode="add" aria-keyshortcuts="2">
@@ -84,8 +84,16 @@
             <small>친구들을 모아요</small>
           </span>
         </button>
-        <button class="mode-card" type="button" data-mode="mul" aria-keyshortcuts="3">
+        <button class="mode-card" type="button" data-mode="sub" aria-keyshortcuts="3">
           <span class="card-number">3</span>
+          <img src="assets/characters/five.png" alt="">
+          <span class="card-copy">
+            <strong>빼기 블록</strong>
+            <small>친구를 빼어 봐요</small>
+          </span>
+        </button>
+        <button class="mode-card" type="button" data-mode="mul" aria-keyshortcuts="4">
+          <span class="card-number">4</span>
           <img src="assets/characters/four.png" alt="">
           <span class="card-copy">
             <strong>곱하기 블록</strong>
@@ -113,7 +121,20 @@
         <span class="equals" aria-hidden="true">=</span>
         <div id="answer-box" class="answer-box" aria-live="assertive">?</div>
       </div>
-      <p class="game-keyboard-note">숫자키로 답해요 · <kbd>Esc</kbd> 처음으로</p>
+      <div id="number-pad" class="number-pad" aria-label="숫자 입력">
+        <button type="button" data-digit="1">1</button>
+        <button type="button" data-digit="2">2</button>
+        <button type="button" data-digit="3">3</button>
+        <button type="button" data-digit="4">4</button>
+        <button type="button" data-digit="5">5</button>
+        <button type="button" data-digit="6">6</button>
+        <button type="button" data-digit="7">7</button>
+        <button type="button" data-digit="8">8</button>
+        <button type="button" data-digit="9">9</button>
+        <button id="number-pad-delete" type="button" aria-label="마지막 숫자 지우기">⌫</button>
+        <button type="button" data-digit="0">0</button>
+      </div>
+      <p class="game-keyboard-note">숫자키 또는 화면 숫자판으로 답해요 · <kbd>Esc</kbd> 처음으로</p>
     </section>
   </main>
 

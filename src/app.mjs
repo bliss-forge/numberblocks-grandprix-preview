@@ -2,6 +2,7 @@ import {
   NUMBERBLOCKS,
   applyDigit,
   createProblem,
+  deleteLastDigit,
   isModeAvailable,
   problemKey
 } from "./game-model.mjs";
@@ -34,6 +35,7 @@ const difficultyControls = [
 ];
 const countControl = document.querySelector('[data-mode="count"]');
 const countUnavailable = $("count-unavailable");
+const numberPadDigits = [...document.querySelectorAll("[data-digit]")];
 
 const dom = {
   home: $("home"),
@@ -46,7 +48,8 @@ const dom = {
   muteIcon: $("mute-icon"),
   homeButton: $("home-btn"),
   hint: $("hint-msg"),
-  cheer: $("big-cheer")
+  cheer: $("big-cheer"),
+  numberPadDelete: $("number-pad-delete")
 };
 
 const state = {
@@ -56,7 +59,7 @@ const state = {
   problem: null,
   buffer: "",
   stars: 0,
-  streak: { count: 0, add: 0, mul: 0 },
+  streak: { count: 0, add: 0, sub: 0, mul: 0 },
   wrongCount: 0,
   round: 0,
   hintTimer: 0,
@@ -380,9 +383,15 @@ function onDigit(digit) {
   }
 }
 
+function deleteDigit() {
+  if (state.phase !== "playing") return;
+  state.buffer = deleteLastDigit(state.buffer);
+  dom.answer.textContent = state.buffer || "?";
+}
+
 function startMode(mode) {
   if (!isModeAvailable(mode, state.difficulty)) {
-    showHint("도전에서는 더하기와 곱하기를 해요.");
+    showHint("도전에서는 더하기, 빼기와 곱하기를 해요.");
     return;
   }
   setMode(mode);
@@ -428,6 +437,12 @@ difficultyControls.forEach(button => {
   });
 });
 
+numberPadDigits.forEach(button => {
+  button.addEventListener("click", () => onDigit(button.dataset.digit));
+});
+
+dom.numberPadDelete.addEventListener("click", deleteDigit);
+
 dom.homeButton.addEventListener("click", goHome);
 dom.mute.addEventListener("click", () => {
   audio.toggleMuted();
@@ -438,6 +453,12 @@ document.addEventListener("keydown", event => {
   if (event.key === "Escape") {
     event.preventDefault();
     goHome();
+    return;
+  }
+
+  if (event.key === "Backspace" && state.phase === "playing") {
+    event.preventDefault();
+    deleteDigit();
     return;
   }
 
@@ -460,7 +481,7 @@ document.addEventListener("keydown", event => {
   if (digit === null || event.repeat) return;
 
   if (state.phase === "home") {
-    const difficulties = { 4: "easy", 5: "steady", 6: "challenge" };
+    const difficulties = { 7: "easy", 8: "steady", 9: "challenge" };
     if (difficulties[digit]) {
       event.preventDefault();
       audio.playSfx("key");
@@ -468,7 +489,7 @@ document.addEventListener("keydown", event => {
       return;
     }
 
-    const modes = { 1: "count", 2: "add", 3: "mul" };
+    const modes = { 1: "count", 2: "add", 3: "sub", 4: "mul" };
     if (modes[digit]) {
       event.preventDefault();
       startMode(modes[digit]);

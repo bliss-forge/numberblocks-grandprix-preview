@@ -31,20 +31,54 @@ test("게임 화면은 화면 전환 뒤 프로그램 방식으로 포커스를 
   );
 });
 
-test("모드 버튼은 키와 캐릭터 이미지를 제공한다", () => {
-  assert.equal((html.match(/class="mode-card"/g) ?? []).length, 3);
+test("홈은 네 가지 놀이와 1~4 바로가기 키를 제공한다", () => {
+  assert.equal((html.match(/class="mode-card"/g) ?? []).length, 4);
+  for (const [mode, key] of [["count", "1"], ["add", "2"], ["sub", "3"], ["mul", "4"]]) {
+    assert.match(
+      html,
+      new RegExp(`data-mode="${mode}"[^>]*aria-keyshortcuts="${key}"`)
+    );
+  }
   assert.match(html, /assets\/characters\/one\.png/);
   assert.match(html, /assets\/characters\/three\.png/);
+  assert.match(html, /assets\/characters\/five\.png/);
   assert.match(html, /assets\/characters\/four\.png/);
 });
 
-test("홈에는 세 난이도 버튼과 도전 세기 안내가 있다", () => {
+test("홈에는 7~9 바로가기 키가 있는 세 난이도 버튼과 도전 세기 안내가 있다", () => {
   assert.match(html, /id="difficulty-picker"/);
   assert.equal((html.match(/class="difficulty-button"/g) ?? []).length, 3);
-  assert.match(html, /data-difficulty="easy"/);
-  assert.match(html, /data-difficulty="steady"/);
-  assert.match(html, /data-difficulty="challenge"/);
+  for (const [difficulty, key] of [["easy", "7"], ["steady", "8"], ["challenge", "9"]]) {
+    assert.match(
+      html,
+      new RegExp(`data-difficulty="${difficulty}"[^>]*aria-keyshortcuts="${key}"`)
+    );
+  }
   assert.match(html, /id="count-unavailable"/);
+  assert.match(app, /도전에서는 더하기, 빼기와 곱하기를 해요\./);
+});
+
+test("모바일 숫자 패드는 숫자 입력과 마지막 숫자 지우기를 제공한다", () => {
+  assert.match(html, /id="number-pad"/);
+  assert.equal((html.match(/data-digit="[0-9]"/g) ?? []).length, 10);
+  assert.match(
+    html,
+    /id="number-pad-delete"[^>]*aria-label="마지막 숫자 지우기"/
+  );
+  assert.match(css, /\.number-pad\s*\{[^}]*display:\s*none;/s);
+  assert.match(
+    css,
+    /@media\s*\(max-width:\s*640px\)[\s\S]*?\.number-pad\s*\{[^}]*display:\s*grid;/s
+  );
+});
+
+test("모바일 숫자 패드는 기존 숫자 입력 경로와 삭제 모델을 사용한다", () => {
+  assert.match(
+    app,
+    /import\s*\{[^}]*deleteLastDigit[^}]*\}\s*from "\.\/game-model\.mjs";/s
+  );
+  assert.match(app, /numberPadDigits\.forEach\([\s\S]*?onDigit\(button\.dataset\.digit\)/);
+  assert.match(app, /state\.buffer = deleteLastDigit\(state\.buffer\);/);
 });
 
 test("곱셈 결과 팻말은 긴 수식도 한 줄로 유지한다", () => {
