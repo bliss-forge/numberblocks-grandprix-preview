@@ -107,7 +107,8 @@ function centerStripeContains(spec, cell, region) {
   const bounds = rowBounds(spec, cell.y);
   if (!bounds) return false;
   const rowCenter = (bounds.left + bounds.right) / 2;
-  return Math.abs(cell.x - rowCenter) < region.cols / 2;
+  const start = Math.round(rowCenter - (region.cols - 1) / 2);
+  return cell.x >= start && cell.x < start + region.cols;
 }
 
 function facePanelContains(cell, region) {
@@ -142,8 +143,17 @@ function regionContains(spec, cell, region) {
     case "body":
       return true;
     case "cap":
-    case "top-band":
       return cell.y < region.rows;
+    case "top-band": {
+      const regionIndex = spec.regions.indexOf(region);
+      const start = spec.regions
+        .slice(0, regionIndex)
+        .filter(candidate =>
+          candidate.id === "cap" || candidate.id === "top-band"
+        )
+        .reduce((sum, candidate) => sum + candidate.rows, 0);
+      return cell.y >= start && cell.y < start + region.rows;
+    }
     case "side-stripe":
       return sideStripeContains(spec, cell, region);
     case "center-stripe":
@@ -153,7 +163,9 @@ function regionContains(spec, cell, region) {
     case "rainbow-columns":
       return true;
     case "step-motif":
-      return withinRows(cell, region);
+      return region.side
+        ? sideStripeContains(spec, cell, { ...region, cols: region.cols ?? 1 })
+        : withinRows(cell, region);
     case "face-panel":
       return facePanelContains(cell, region);
     default:
@@ -161,15 +173,7 @@ function regionContains(spec, cell, region) {
   }
 }
 
-function regionForCell(spec, cell) {
-  const region = spec.regions.find(candidate =>
-    candidate.id !== "belt" && regionContains(spec, cell, candidate)
-  );
-  return region ?? { id: "body", color: spec.palette[0] };
-}
-
-function fillForCell(spec, cell) {
-  const region = regionForCell(spec, cell);
+function fillForRegion(region, cell) {
   if (region.id === "rainbow-columns") {
     return region.colors[cell.x % region.colors.length];
   }
@@ -179,12 +183,11 @@ function fillForCell(spec, cell) {
   return region.color;
 }
 
-function blockMarkup(spec, cell, index, layout) {
+function blockMarkup(cell, index, layout, fill, dataAttribute) {
   const x = layout.left + cell.x * layout.step;
   const y = layout.top + cell.y * layout.step;
-  const fill = fillForCell(spec, cell);
   return `
-    <rect data-cell="${index + 1}" x="${x}" y="${y}"
+    <rect ${dataAttribute}="${index + 1}" x="${x}" y="${y}"
       width="${layout.cell}" height="${layout.cell}"
       fill="${fill}" stroke="#7f7832"
       stroke-width="${Math.max(2, Math.round(layout.cell * .025))}"/>`;
@@ -205,23 +208,53 @@ function beltMarkup(spec, region, layout) {
 }
 
 function bodyMarkup(spec, layout) {
-  const cellsByRegion = new Map(
-    spec.regions
-      .filter(region => region.id !== "belt")
-      .map(region => [region.id, []])
-  );
-
-  spec.cells.forEach((cell, index) => {
-    const region = regionForCell(spec, cell);
-    if (!cellsByRegion.has(region.id)) cellsByRegion.set(region.id, []);
-    cellsByRegion.get(region.id).push(blockMarkup(spec, cell, index, layout));
-  });
-
-  const cellLayers = spec.regions
-    .filter(region => region.id !== "belt")
-    .map(region => `
+  const body = spec.regions.find(region => region.id === "body") ?? {
+    id: "body",
+    color: spec.palette[0]
+  };
+  const baseLayer = `
+      <g id="region-body">
+        ${spec.cells.map((cell, index) =>
+          blockMarkup(
+            cell,
+            index,
+            layout,
+            body.color,
+            "data-cell"
+          )
+        ).join("")}
+      </g>`;
+  const priority = new Map([
+    ["step-motif", 10],
+    ["rainbow-columns", 20],
+    ["rainbow-band", 20],
+    ["cap", 30],
+    ["top-band", 30],
+    ["center-stripe", 40],
+    ["side-stripe", 40],
+    ["face-panel", 50]
+  ]);
+  const regionLayers = spec.regions
+    .filter(region => region.id !== "body" && region.id !== "belt")
+    .map((region, index) => ({ region, index }))
+    .sort((first, second) =>
+      (priority.get(first.region.id) ?? 0) -
+        (priority.get(second.region.id) ?? 0) ||
+      first.index - second.index
+    )
+    .map(({ region }) => `
       <g id="region-${escapeAttribute(region.id)}">
-        ${(cellsByRegion.get(region.id) ?? []).join("")}
+        ${spec.cells.map((cell, index) =>
+          regionContains(spec, cell, region)
+            ? blockMarkup(
+                cell,
+                index,
+                layout,
+                fillForRegion(region, cell),
+                "data-region-cell"
+              )
+            : ""
+        ).join("")}
       </g>`)
     .join("");
   const overlays = spec.regions
@@ -232,7 +265,7 @@ function bodyMarkup(spec, layout) {
       </g>`)
     .join("");
 
-  return cellLayers + overlays;
+  return baseLayer + regionLayers + overlays;
 }
 
 function bodyColor(spec) {
@@ -456,7 +489,127 @@ function hatMarkup(accessory, layout) {
         fill="${color}" stroke="#4b405a" stroke-width="6"/>
       <rect x="${512 - width / 2}" y="${layout.top - 14}" width="${width}"
         height="22" rx="10" fill="${color}" stroke="#4b405a"
-        stroke-width="6"/>`;
+      stroke-width="6"/>`;
+}
+
+function accessoryPart(name, markup) {
+  return `
+      <g data-accessory-part="${escapeAttribute(name)}">
+        ${markup}
+      </g>`;
+}
+
+function flowerShape(cx, cy, radius, color) {
+  const petals = Array.from({ length: 5 }, (_, index) => {
+    const angle = -Math.PI / 2 + index * Math.PI * 2 / 5;
+    return `
+        <circle cx="${cx + Math.cos(angle) * radius}"
+          cy="${cy + Math.sin(angle) * radius}" r="${radius * .68}"
+          fill="${color}" stroke="#4b405a" stroke-width="3"/>`;
+  }).join("");
+  return `
+        ${petals}
+        <circle cx="${cx}" cy="${cy}" r="${radius * .55}"
+          fill="#f4d84f" stroke="#4b405a" stroke-width="3"/>`;
+}
+
+function flowerMarkup(accessory, layout) {
+  const radius = Math.max(18, Math.min(34, layout.cell * .24));
+  const cx = layout.left + layout.bodyWidth * .72;
+  const cy = layout.top + Math.max(radius + 8, layout.cell * .55);
+  return flowerShape(cx, cy, radius, accessory.color);
+}
+
+function flowerBandMarkup(accessory, layout) {
+  const colors = accessory.colors;
+  const count = colors.length;
+  const radius = Math.max(15, Math.min(26, layout.cell * .19));
+  const width = Math.min(layout.bodyWidth * .72, 260);
+  const left = 512 - width / 2;
+  const cy = layout.top + radius + 9;
+  return colors.map((color, index) => flowerShape(
+    count === 1 ? 512 : left + index * width / (count - 1),
+    cy,
+    radius,
+    color
+  )).join("");
+}
+
+function pomPomMarkup(accessory, layout) {
+  const colors = accessory.colors;
+  const radius = Math.max(25, Math.min(42, layout.cell * .34));
+  const y = layout.top + Math.max(radius, layout.cell * .85);
+  const pom = (cx, color) => `
+        <circle cx="${cx}" cy="${y}" r="${radius}"
+          fill="${color}" stroke="#4b405a" stroke-width="5"/>
+        <circle cx="${cx - radius * .48}" cy="${y - radius * .3}"
+          r="${radius * .42}" fill="${color}"/>
+        <circle cx="${cx + radius * .48}" cy="${y - radius * .3}"
+          r="${radius * .42}" fill="${color}"/>`;
+  return pom(
+    Math.max(radius + 18, layout.left - radius * .85),
+    colors[0]
+  ) + pom(
+    Math.min(1024 - radius - 18, layout.left + layout.bodyWidth + radius * .85),
+    colors[1] ?? colors[0]
+  );
+}
+
+function gemMarkup(accessory, layout) {
+  const radius = Math.max(28, Math.min(52, layout.cell * .42));
+  const cy = layout.top + radius * .55;
+  return `
+        <path d="M 512 ${cy - radius}
+          L ${512 + radius * .78} ${cy}
+          L 512 ${cy + radius}
+          L ${512 - radius * .78} ${cy} Z"
+          fill="${accessory.color}" stroke="#31536a" stroke-width="6"
+          stroke-linejoin="round"/>
+        <path d="M 512 ${cy - radius}
+          L 512 ${cy + radius}
+          M ${512 - radius * .78} ${cy}
+          H ${512 + radius * .78}"
+          fill="none" stroke="#fff" stroke-opacity=".55" stroke-width="4"/>`;
+}
+
+function medallionMarkup(accessory, layout) {
+  const radius = Math.max(30, Math.min(54, layout.cell * .42));
+  const cy = layout.top + layout.bodyHeight * .66;
+  return `
+        <circle cx="512" cy="${cy}" r="${radius}"
+          fill="${accessory.color}" stroke="#74305e" stroke-width="7"/>
+        <circle cx="512" cy="${cy}" r="${radius * .58}"
+          fill="none" stroke="#f8b8dc" stroke-width="6"/>
+        <path d="M 512 ${cy - radius * .42}
+          L ${512 + radius * .13} ${cy - radius * .12}
+          L ${512 + radius * .45} ${cy - radius * .08}
+          L ${512 + radius * .2} ${cy + radius * .12}
+          L ${512 + radius * .28} ${cy + radius * .43}
+          L 512 ${cy + radius * .25}
+          L ${512 - radius * .28} ${cy + radius * .43}
+          L ${512 - radius * .2} ${cy + radius * .12}
+          L ${512 - radius * .45} ${cy - radius * .08}
+          L ${512 - radius * .13} ${cy - radius * .12} Z"
+          fill="#f8d64d"/>`;
+}
+
+function wingsMarkup(accessory, layout) {
+  const colors = accessory.colors ?? ["#fffaf2"];
+  const midY = layout.top + layout.bodyHeight * .58;
+  const reach = Math.min(110, Math.max(65, layout.left - 35));
+  return `
+        <path d="M ${layout.left + 5} ${midY}
+          Q ${layout.left - reach * .55} ${midY - 95}
+            ${layout.left - reach} ${midY - 25}
+          Q ${layout.left - reach * .55} ${midY + 70}
+            ${layout.left + 5} ${midY + 20} Z"
+          fill="${colors[1] ?? colors[0]}" stroke="#635a78" stroke-width="5"/>
+        <path d="M ${layout.left + layout.bodyWidth - 5} ${midY}
+          Q ${layout.left + layout.bodyWidth + reach * .55} ${midY - 95}
+            ${layout.left + layout.bodyWidth + reach} ${midY - 25}
+          Q ${layout.left + layout.bodyWidth + reach * .55} ${midY + 70}
+            ${layout.left + layout.bodyWidth - 5} ${midY + 20} Z"
+          fill="${colors[1] ?? colors[0]}" stroke="#635a78" stroke-width="5"/>`;
 }
 
 function accessoryMarkup(spec, layout) {
@@ -468,7 +621,34 @@ function accessoryMarkup(spec, layout) {
   const face = facePlacement(spec, layout);
   let markup;
 
-  if (type.includes("crown")) {
+  if (type === "top-hat-glasses") {
+    markup = accessoryPart(
+      "hat",
+      hatMarkup({ ...accessory, type: "top-hat" }, layout)
+    ) + accessoryPart(
+      "glasses",
+      glassesMarkup({ ...accessory, type: "square-glasses" }, spec, layout)
+    );
+  } else if (type === "crown-and-wings") {
+    markup = accessoryPart("wings", wingsMarkup(accessory, layout)) +
+      accessoryPart("crown", crownMarkup(accessory, layout));
+  } else if (type === "flower") {
+    markup = accessoryPart("flower", flowerMarkup(accessory, layout));
+  } else if (type === "flower-band") {
+    markup = accessoryPart(
+      "flower-band",
+      flowerBandMarkup(accessory, layout)
+    );
+  } else if (type === "pom-poms") {
+    markup = accessoryPart("pom-poms", pomPomMarkup(accessory, layout));
+  } else if (type === "gem") {
+    markup = accessoryPart("gem", gemMarkup(accessory, layout));
+  } else if (type === "medallion") {
+    markup = accessoryPart(
+      "medallion",
+      medallionMarkup(accessory, layout)
+    );
+  } else if (type.includes("crown")) {
     markup = crownMarkup(accessory, layout);
   } else if (type.includes("glasses") || type === "oversized-eyes") {
     markup = glassesMarkup(accessory, spec, layout);
