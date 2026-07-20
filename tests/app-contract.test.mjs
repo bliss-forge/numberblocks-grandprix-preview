@@ -142,7 +142,7 @@ test("결과 팻말은 공유 연산자로 뺄셈 기호를 고른다", () => {
 test("오른쪽 아래에 bliss 제작자 서명을 표시한다", () => {
   assert.match(
     html,
-    /<link rel="stylesheet" href="styles\.css\?v=20260720-responsive">/
+    /<link rel="stylesheet" href="styles\.css\?v=20260720-responsive-short">/
   );
   assert.match(
     html,

@@ -56,3 +56,35 @@ test("모바일은 크기 확대를 낮추고 숫자판과 무대 공간을 따�
     /@media\s*\(max-width:\s*640px\)[\s\S]*?\.count-friends\s*\{[^}]*grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\);/s
   );
 });
+
+test("낮은 모바일 화면은 두 줄 숫자판과 최소 무대 높이를 보장한다", () => {
+  const marker = "@media (max-width: 900px) and (max-height: 500px)";
+  const start = css.indexOf(marker);
+  assert.notEqual(start, -1);
+  const nextMedia = css.indexOf("@media", start + marker.length);
+  const shortHeightCss = css.slice(
+    start,
+    nextMedia === -1 ? css.length : nextMedia
+  );
+
+  assert.match(
+    shortHeightCss,
+    /#game\s*\{[^}]*grid-template-rows:\s*auto\s+minmax\(72px,\s*1fr\)\s+auto\s+auto;[^}]*padding:\s*54px\s+6px\s+3px;/s
+  );
+  assert.match(
+    shortHeightCss,
+    /\.number-pad\s*\{[^}]*display:\s*grid;[^}]*grid-template-columns:\s*repeat\(6,\s*minmax\(44px,\s*1fr\)\);[^}]*gap:\s*4px;/s
+  );
+  assert.match(
+    shortHeightCss,
+    /\.number-pad button\s*\{[^}]*min-height:\s*44px;/s
+  );
+  assert.match(
+    shortHeightCss,
+    /\.answer-box\s*\{[^}]*height:\s*44px;/s
+  );
+  assert.match(
+    shortHeightCss,
+    /\.game-keyboard-note\s*\{[^}]*display:\s*none;/s
+  );
+});

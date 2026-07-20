@@ -1371,6 +1371,143 @@ body[data-state="celebrating"] .answer-box {
   }
 }
 
+@media (max-width: 900px) and (max-height: 500px) {
+  .hud {
+    top: 4px;
+    left: 8px;
+    right: 8px;
+  }
+
+  .round-control,
+  .star-pill {
+    min-width: 44px;
+    min-height: 44px;
+    border-width: 3px;
+    border-radius: 14px;
+  }
+
+  .round-control {
+    width: 44px;
+    padding: 0;
+  }
+
+  .star-pill {
+    padding-inline: 10px;
+    font-size: 18px;
+  }
+
+  #game {
+    grid-template-rows: auto minmax(72px, 1fr) auto auto;
+    gap: 3px;
+    padding: 54px 6px 3px;
+  }
+
+  .problem-pill {
+    padding: 4px 12px 6px;
+    font-size: clamp(17px, 4.5vh, 20px);
+  }
+
+  .stage-frame {
+    width: min(96vw, 1050px);
+    min-height: 72px;
+    border-width: 4px;
+    border-radius: 22px 22px 18px 18px;
+  }
+
+  .stage {
+    gap: 4px;
+    padding: 2px 8px 4px;
+  }
+
+  .character {
+    max-width: min(48vw, 240px);
+    max-height: min(16vh, 64px);
+  }
+
+  .character[data-size-band="medium"] {
+    --number-scale: 1.05;
+  }
+
+  .character[data-size-band="large"] {
+    --number-scale: 1.1;
+  }
+
+  .count-friends {
+    gap: 4px;
+    width: 100%;
+    height: 100%;
+    padding: 2px;
+  }
+
+  .operand-scene {
+    width: 100%;
+  }
+
+  .operand-friends {
+    gap: 3px;
+  }
+
+  .operand-character {
+    height: min(14vh, 64px);
+  }
+
+  .operand-friends .operator {
+    width: clamp(30px, 9vh, 38px);
+    border-width: 3px;
+    font-size: clamp(26px, 8vh, 34px);
+  }
+
+  .equation-label {
+    font-size: clamp(22px, 6vh, 30px);
+  }
+
+  .answer-dock {
+    gap: 6px;
+    padding: 2px 6px 4px 10px;
+    border-width: 4px;
+    border-radius: 16px;
+  }
+
+  .equals {
+    font-size: 28px;
+  }
+
+  .answer-box {
+    min-width: 64px;
+    height: 44px;
+    padding-inline: 8px;
+    border-width: 3px;
+    font-size: 32px;
+  }
+
+  .number-pad {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(44px, 1fr));
+    gap: 4px;
+    width: min(96vw, 560px);
+  }
+
+  .number-pad button {
+    min-height: 44px;
+    border: 3px solid #fff;
+    border-radius: 10px;
+    color: var(--ink);
+    font-family: var(--display-font);
+    font-size: 20px;
+    font-weight: 900;
+    background: var(--paper);
+    box-shadow: 0 3px 0 rgba(37, 52, 93, .16);
+  }
+
+  .game-keyboard-note {
+    display: none;
+  }
+
+  .creator-credit {
+    display: none;
+  }
+}
+
 .creator-credit {
   position: fixed;
   right: 14px;
