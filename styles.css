@@ -1205,6 +1205,26 @@ body[data-state="celebrating"] .answer-box {
   }
 }
 
+.creator-credit {
+  position: fixed;
+  right: 14px;
+  bottom: 10px;
+  z-index: 30;
+  padding: 5px 9px;
+  border-radius: 9px;
+  color: rgba(37, 52, 93, .72);
+  font-size: clamp(10px, 1vw, 13px);
+  letter-spacing: .02em;
+  background: rgba(255, 255, 255, .58);
+  pointer-events: none;
+  backdrop-filter: blur(4px);
+}
+
+.creator-credit strong {
+  color: var(--ink);
+  font-weight: 900;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

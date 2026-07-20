@@ -6,7 +6,7 @@ const html = await readFile(new URL("../index.html", import.meta.url), "utf8");
 const css = await readFile(new URL("../styles.css", import.meta.url), "utf8");
 
 test("정적 셸이 스타일과 앱 모듈을 로드한다", () => {
-  assert.match(html, /<link rel="stylesheet" href="styles\.css">/);
+  assert.match(html, /<link rel="stylesheet" href="styles\.css(?:\?[^"]+)?">/);
   assert.match(html, /<script type="module" src="src\/app\.mjs"><\/script>/);
 });
 
@@ -64,5 +64,20 @@ test("피연산자 장면은 두 개의 같은 크기 슬롯과 식을 사용한
   assert.match(
     css,
     /@media\s*\(max-width:\s*900px\)\s*\{[\s\S]*?\.operand-character\s*\{[^}]*height:/
+  );
+});
+
+test("오른쪽 아래에 bliss 제작자 서명을 표시한다", () => {
+  assert.match(
+    html,
+    /<link rel="stylesheet" href="styles\.css\?v=20260720-credit">/
+  );
+  assert.match(
+    html,
+    /<footer class="creator-credit">crafted by <strong>bliss<\/strong> © 2026<\/footer>/
+  );
+  assert.match(
+    css,
+    /\.creator-credit\s*\{[^}]*position:\s*fixed;[^}]*right:/s
   );
 });
