@@ -124,6 +124,10 @@ test("더하기와 곱하기 문제 문구는 자연스러운 한국어 조사�
     formatProblemText({ mode: "mul", operands: [3, 4] }),
     "3 곱하기 4의 답은 얼마일까요?"
   );
+  assert.equal(
+    formatProblemText({ mode: "sub", operands: [38, 6] }),
+    "38 빼기 6의 답은 얼마일까요?"
+  );
 });
 
 test("큰 수를 십 묶음과 낱개로 나눈다", () => {

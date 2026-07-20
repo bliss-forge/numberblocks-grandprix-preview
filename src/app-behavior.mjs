@@ -24,7 +24,7 @@ export function focusPhase(phase, { game, homeControl }) {
 export function formatProblemText(problem) {
   if (problem.mode === "count") return "블록이 몇 개일까요?";
   const [left, right] = problem.operands;
-  const operation = problem.mode === "add" ? "더하기" : "곱하기";
+  const operation = { add: "더하기", sub: "빼기", mul: "곱하기" }[problem.mode];
   return `${left} ${operation} ${right}의 답은 얼마일까요?`;
 }
 

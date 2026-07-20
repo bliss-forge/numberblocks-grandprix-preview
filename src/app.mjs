@@ -20,7 +20,7 @@ import {
   quantityParts,
   retireAnimationClass
 } from "./app-behavior.mjs";
-import { operandScene } from "./problem-scene.mjs";
+import { countCharacterValues, operandScene } from "./problem-scene.mjs";
 
 const audio = new AudioManager();
 const $ = id => document.getElementById(id);
@@ -113,6 +113,16 @@ function quantityVisual(number, { countable = false } = {}) {
   }
 
   return visual;
+}
+
+function countFriends(answer) {
+  const friends = document.createElement("div");
+  friends.className = "count-friends";
+  friends.setAttribute("aria-label", `${answer}개`);
+  countCharacterValues(answer).forEach(value => {
+    friends.append(character(value, "count-character"));
+  });
+  return friends;
 }
 
 function resultBoard(problem) {
@@ -219,12 +229,8 @@ function renderProblem(problem) {
 
   if (problem.mode === "count") {
     dom.problem.textContent = formatProblemText(problem);
-    if (problem.answer <= 10) {
-      dom.stage.append(character(problem.answer));
-    } else {
-      dom.stage.append(quantityVisual(problem.answer, { countable: true }));
-      scheduleCountHint(problem.answer);
-    }
+    dom.stage.append(countFriends(problem.answer));
+    if (problem.answer > 10) scheduleCountHint(problem.answer);
     return;
   }
 
@@ -283,7 +289,7 @@ function showHint(message) {
 function scheduleCountHint(answer) {
   schedule(() => {
     if (state.phase !== "playing" || state.problem?.answer !== answer) return;
-    dom.stage.querySelector(".quantity-visual")?.classList.add("hint-groups");
+    dom.stage.querySelector(".count-friends")?.classList.add("hint-groups");
     showHint(formatCountHint(answer));
   }, 4500);
 }
@@ -349,7 +355,7 @@ function wrongAnswer() {
       ? formatCountHint(state.problem.answer)
       : "괜찮아요! 천천히 다시 눌러 봐요.";
   if (state.mode === "count" && state.wrongCount >= 2) {
-    dom.stage.querySelector(".quantity-visual")?.classList.add("hint-groups");
+    dom.stage.querySelector(".count-friends")?.classList.add("hint-groups");
   }
   showHint(retryMessage);
   playRetryCue(audio, `retry-${Math.min(state.wrongCount, 3)}`);

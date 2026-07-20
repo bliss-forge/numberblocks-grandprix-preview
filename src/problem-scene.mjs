@@ -1,10 +1,22 @@
-export function equationText(problem) {
-  if (!["add", "mul"].includes(problem.mode)) {
-    throw new TypeError("operand scene requires add or mul mode");
+export function operatorFor(mode) {
+  const operators = { add: "+", sub: "−", mul: "×" };
+  if (!operators[mode]) {
+    throw new TypeError("operand scene requires add, sub, or mul mode");
   }
+  return operators[mode];
+}
 
-  const operator = problem.mode === "mul" ? "×" : "+";
-  return `${problem.operands[0]} ${operator} ${problem.operands[1]}`;
+export function countCharacterValues(answer) {
+  if (!Number.isInteger(answer) || answer < 1 || answer > 20) {
+    throw new RangeError("count answer must be between 1 and 20");
+  }
+  if (answer <= 10) return [answer];
+  if (answer === 20) return [10, 10];
+  return [10, answer - 10];
+}
+
+export function equationText(problem) {
+  return `${problem.operands[0]} ${operatorFor(problem.mode)} ${problem.operands[1]}`;
 }
 
 export function operandScene(document, problem, createCharacter) {
@@ -20,7 +32,7 @@ export function operandScene(document, problem, createCharacter) {
 
   const operator = document.createElement("span");
   operator.className = "operator";
-  operator.textContent = problem.mode === "mul" ? "×" : "+";
+  operator.textContent = operatorFor(problem.mode);
   operator.setAttribute("aria-hidden", "true");
 
   const right = document.createElement("div");
