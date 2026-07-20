@@ -15,6 +15,42 @@ function paintedRegionCellCount(svg, id) {
   ).length;
 }
 
+function groupMarkup(svg, id) {
+  return svg.match(new RegExp(`<g id="${id}"[^>]*>([\\s\\S]*?)</g>`))?.[1] ?? "";
+}
+
+function bodyRects(svg) {
+  return [...svg.matchAll(
+    /<rect data-cell="\d+" x="([\d.-]+)" y="([\d.-]+)"\s+width="([\d.-]+)" height="([\d.-]+)"/g
+  )].map(match => ({
+    x: Number(match[1]),
+    y: Number(match[2]),
+    width: Number(match[3]),
+    height: Number(match[4])
+  }));
+}
+
+function pathStarts(markup) {
+  return [...markup.matchAll(
+    /<path d="M\s+([\d.-]+)\s+([\d.-]+)/g
+  )].map(match => ({ x: Number(match[1]), y: Number(match[2]) }));
+}
+
+function containsPoint(rect, point) {
+  return point.x >= rect.x && point.x <= rect.x + rect.width &&
+    point.y >= rect.y && point.y <= rect.y + rect.height;
+}
+
+function triangleBaseIntervals(markup) {
+  return [...markup.matchAll(
+    /<path d="M\s+([\d.-]+)\s+([\d.-]+)\s+L\s+([\d.-]+)\s+([\d.-]+)\s+L\s+([\d.-]+)\s+([\d.-]+)\s+Z"/g
+  )].map(match => ({
+    left: Math.min(Number(match[1]), Number(match[5])),
+    right: Math.max(Number(match[1]), Number(match[5])),
+    y: Number(match[2])
+  }));
+}
+
 test("연결형 렌더러는 11~100의 모든 셀을 빈틈없이 출력한다", () => {
   const svg = renderCharacterSvg(buildCharacterSpec(38));
   assert.match(svg, /viewBox="0 0 1024 1536"/);
@@ -32,10 +68,50 @@ test("38의 분홍 머리와 허리띠가 별도 레이어로 존재한다", () 
   assert.match(svg, /id="limbs"/);
 });
 
-test("서로 다른 비율도 같은 안전 영역에 맞춘다", () => {
-  for (const number of [11, 38, 50, 72, 99, 100]) {
+test("전체 캐릭터 정규화는 한 개의 균일 배율을 사용한다", () => {
+  const svg = renderCharacterSvg(buildCharacterSpec(38), {
+    normalization: { scale: .75, translateX: 12, translateY: 34 }
+  });
+  assert.match(
+    svg,
+    /<g id="character" transform="matrix\(0?\.75 0 0 0?\.75 12 34\)">/
+  );
+  assert.match(
+    svg,
+    /<g id="character"[^>]*>[\s\S]*id="limbs"[\s\S]*id="body"[\s\S]*id="face"/
+  );
+});
+
+test("계단 캐릭터의 양팔은 선택한 행의 실제 점유 셀에 이어진다", () => {
+  for (const number of [15, 45, 55, 66, 78]) {
     const svg = renderCharacterSvg(buildCharacterSpec(number));
-    assert.match(svg, /data-safe-fill="0\.(82|83|84|85|86|87|88)"/);
+    const starts = pathStarts(groupMarkup(svg, "limbs")).slice(0, 2);
+    const rects = bodyRects(svg);
+    assert.equal(starts.length, 2, `${number} arm paths`);
+    for (const [index, start] of starts.entries()) {
+      assert.ok(
+        rects.some(rect => containsPoint(rect, start)),
+        `${number} ${index === 0 ? "left" : "right"} arm starts at occupied cell`
+      );
+    }
+  }
+});
+
+test("계단 캐릭터의 고양이 귀 밑변은 실제 맨위 실루엣에 닿는다", () => {
+  for (const number of [15, 55, 66, 78]) {
+    const svg = renderCharacterSvg(buildCharacterSpec(number));
+    const rects = bodyRects(svg);
+    const topY = Math.min(...rects.map(rect => rect.y));
+    const topRects = rects.filter(rect => rect.y === topY);
+    const topLeft = Math.min(...topRects.map(rect => rect.x));
+    const topRight = Math.max(...topRects.map(rect => rect.x + rect.width));
+    const ears = triangleBaseIntervals(groupMarkup(svg, "accessory"));
+    assert.equal(ears.length, 2, `${number} ears`);
+    for (const [index, ear] of ears.entries()) {
+      const overlap = Math.min(ear.right, topRight) - Math.max(ear.left, topLeft);
+      assert.ok(overlap > 0, `${number} ${index === 0 ? "left" : "right"} ear overlap`);
+      assert.ok(ear.y >= topY && ear.y <= topY + topRects[0].height, `${number} ear y`);
+    }
   }
 });
 

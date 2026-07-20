@@ -2,6 +2,7 @@ import { execFile } from "node:child_process";
 import {
   mkdir,
   mkdtemp,
+  readFile,
   rmdir,
   unlink,
   writeFile
@@ -14,6 +15,7 @@ import {
   buildCharacterSpec,
   characterAsset
 } from "../src/character-spec.mjs";
+import { visiblePngBounds } from "./png_alpha_bounds.mjs";
 
 const execFileAsync = promisify(execFile);
 const projectRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -23,6 +25,7 @@ const SAFE = Object.freeze({
   top: 190,
   bottom: 1240
 });
+const TARGET_VISIBLE_FILL = .86;
 
 function escapeAttribute(value) {
   return String(value)
@@ -53,7 +56,6 @@ function fitGrid(spec) {
     top: Math.round(
       SAFE.top + (safeHeight - bodyHeight) / 2
     ),
-    safeFill: Math.max(bodyWidth / safeWidth, bodyHeight / safeHeight)
   };
 }
 
@@ -273,14 +275,40 @@ function bodyColor(spec) {
     spec.palette[0];
 }
 
+function rowSilhouette(spec, layout, row) {
+  const bounds = rowBounds(spec, row);
+  if (!bounds) return null;
+  return Object.freeze({
+    row,
+    left: layout.left + bounds.left * layout.cell,
+    right: layout.left + (bounds.right + 1) * layout.cell,
+    top: layout.top + row * layout.cell,
+    bottom: layout.top + (row + 1) * layout.cell,
+    center: layout.left + (bounds.left + bounds.right + 1) * layout.cell / 2,
+    width: (bounds.right - bounds.left + 1) * layout.cell
+  });
+}
+
+function topSilhouette(spec, layout) {
+  const topRow = Math.min(...spec.cells.map(cell => cell.y));
+  return rowSilhouette(spec, layout, topRow);
+}
+
 function posePoints(spec, layout) {
-  const midY = layout.top + Math.min(
+  const targetY = layout.top + Math.min(
     layout.bodyHeight * .62,
     Math.max(layout.cell * 1.4, layout.bodyHeight * .42)
   );
+  const row = Math.max(
+    0,
+    Math.min(layout.rows - 1, Math.floor((targetY - layout.top) / layout.cell))
+  );
+  const silhouette = rowSilhouette(spec, layout, row);
+  const midY = (silhouette.top + silhouette.bottom) / 2;
   const raised = spec.pose === 1 || spec.pose === 3;
   const lift = Math.max(75, Math.min(145, layout.cell * 1.2));
   return {
+    silhouette,
     midY,
     leftEndY: raised ? midY - lift : midY + lift * .55,
     rightEndY: spec.pose >= 2 ? midY - lift : midY + lift * .5
@@ -288,17 +316,21 @@ function posePoints(spec, layout) {
 }
 
 function limbMarkup(spec, layout) {
-  const { midY, leftEndY, rightEndY } = posePoints(spec, layout);
-  const leftX = layout.left;
-  const rightX = layout.left + layout.bodyWidth;
+  const { silhouette, midY, leftEndY, rightEndY } = posePoints(spec, layout);
+  const leftX = silhouette.left;
+  const rightX = silhouette.right;
   const outline = spec.palette[1];
   const body = bodyColor(spec);
   const color = body.startsWith("#fff") ? outline : body;
   const stroke = Math.max(20, Math.min(42, layout.cell * .24));
   const handRadius = Math.max(15, stroke * .62);
-  const armReach = Math.min(
+  const leftArmReach = Math.min(
     150,
-    Math.max(68, layout.left - handRadius - 24)
+    Math.max(68, leftX - handRadius - 24)
+  );
+  const rightArmReach = Math.min(
+    150,
+    Math.max(68, 1024 - rightX - handRadius - 24)
   );
   const legTop = layout.top + layout.bodyHeight - 4;
   const legLength = Math.max(95, Math.min(190, 1400 - legTop));
@@ -306,19 +338,19 @@ function limbMarkup(spec, layout) {
   return `
     <path d="M ${leftX + 5} ${midY}
       C ${leftX - 45} ${midY},
-        ${leftX - armReach + 38} ${leftEndY},
-        ${leftX - armReach} ${leftEndY}"
+        ${leftX - leftArmReach + 38} ${leftEndY},
+        ${leftX - leftArmReach} ${leftEndY}"
       fill="none" stroke="${color}" stroke-width="${stroke}"
       stroke-linecap="round"/>
     <path d="M ${rightX - 5} ${midY}
       C ${rightX + 45} ${midY},
-        ${rightX + armReach - 38} ${rightEndY},
-        ${rightX + armReach} ${rightEndY}"
+        ${rightX + rightArmReach - 38} ${rightEndY},
+        ${rightX + rightArmReach} ${rightEndY}"
       fill="none" stroke="${color}" stroke-width="${stroke}"
       stroke-linecap="round"/>
-    <circle cx="${leftX - armReach}" cy="${leftEndY}" r="${handRadius}"
+    <circle cx="${leftX - leftArmReach}" cy="${leftEndY}" r="${handRadius}"
       fill="#fffaf5" stroke="${outline}" stroke-width="5"/>
-    <circle cx="${rightX + armReach}" cy="${rightEndY}" r="${handRadius}"
+    <circle cx="${rightX + rightArmReach}" cy="${rightEndY}" r="${handRadius}"
       fill="#fffaf5" stroke="${outline}" stroke-width="5"/>
     <path d="M ${512 - legSpread} ${legTop}
       Q ${512 - legSpread - 8} ${legTop + legLength * .55}
@@ -416,18 +448,18 @@ function faceMarkup(spec, layout) {
       fill="#f36b8c"/>`;
 }
 
-function crownMarkup(accessory, layout) {
+function crownMarkup(accessory, layout, topSilhouette) {
   const colors = accessory.colors ?? [accessory.color ?? "#f2d84b"];
   const width = Math.min(260, Math.max(110, layout.bodyWidth * .55));
-  const left = 512 - width / 2;
-  const top = layout.top - Math.min(82, Math.max(48, layout.cell * .7));
+  const left = topSilhouette.center - width / 2;
+  const top = topSilhouette.top - Math.min(82, Math.max(48, layout.cell * .7));
   const count = Math.min(7, accessory.count ?? colors.length ?? 3);
   return Array.from({ length: count }, (_, index) => {
     const segment = width / count;
     return `
-      <path d="M ${left + index * segment} ${layout.top + 3}
+      <path d="M ${left + index * segment} ${topSilhouette.top + 3}
         L ${left + (index + .5) * segment} ${top - index % 2 * 10}
-        L ${left + (index + 1) * segment} ${layout.top + 3} Z"
+        L ${left + (index + 1) * segment} ${topSilhouette.top + 3} Z"
         fill="${colors[index % colors.length]}" stroke="#51465f"
         stroke-width="5" stroke-linejoin="round"/>`;
   }).join("");
@@ -468,26 +500,28 @@ function maskMarkup(accessory, spec, layout) {
         fill="${color}" fill-opacity=".88" stroke="#43364f" stroke-width="5"/>`;
 }
 
-function hatMarkup(accessory, layout) {
+function hatMarkup(accessory, layout, topSilhouette) {
   const color = accessory.color ?? "#6b5b87";
   const width = Math.min(190, Math.max(90, layout.bodyWidth * .42));
-  const top = layout.top - Math.min(88, Math.max(50, layout.cell * .8));
+  const center = topSilhouette.center;
+  const base = topSilhouette.top;
+  const top = base - Math.min(88, Math.max(50, layout.cell * .8));
   if (accessory.type.includes("cap")) {
     return `
-      <path d="M ${512 - width / 2} ${layout.top + 3}
-        Q 512 ${top - 18} ${512 + width / 2} ${layout.top + 3} Z"
+      <path d="M ${center - width / 2} ${base + 3}
+        Q ${center} ${top - 18} ${center + width / 2} ${base + 3} Z"
         fill="${color}" stroke="#4b405a" stroke-width="6"/>
-      <path d="M 512 ${layout.top}
-        Q ${512 + width * .6} ${layout.top - 12}
-          ${512 + width * .72} ${layout.top + 18}"
+      <path d="M ${center} ${base}
+        Q ${center + width * .6} ${base - 12}
+          ${center + width * .72} ${base + 18}"
         fill="none" stroke="${color}" stroke-width="16"
         stroke-linecap="round"/>`;
   }
   return `
-      <rect x="${512 - width * .28}" y="${top}" width="${width * .56}"
-        height="${layout.top - top + 4}" rx="10"
+      <rect x="${center - width * .28}" y="${top}" width="${width * .56}"
+        height="${base - top + 4}" rx="10"
         fill="${color}" stroke="#4b405a" stroke-width="6"/>
-      <rect x="${512 - width / 2}" y="${layout.top - 14}" width="${width}"
+      <rect x="${center - width / 2}" y="${base - 14}" width="${width}"
         height="22" rx="10" fill="${color}" stroke="#4b405a"
       stroke-width="6"/>`;
 }
@@ -513,32 +547,32 @@ function flowerShape(cx, cy, radius, color) {
           fill="#f4d84f" stroke="#4b405a" stroke-width="3"/>`;
 }
 
-function flowerMarkup(accessory, layout) {
+function flowerMarkup(accessory, layout, topSilhouette) {
   const radius = Math.max(18, Math.min(34, layout.cell * .24));
-  const cx = layout.left + layout.bodyWidth * .72;
-  const cy = layout.top + Math.max(radius + 8, layout.cell * .55);
+  const cx = topSilhouette.left + topSilhouette.width * .72;
+  const cy = topSilhouette.top + Math.max(radius + 8, layout.cell * .55);
   return flowerShape(cx, cy, radius, accessory.color);
 }
 
-function flowerBandMarkup(accessory, layout) {
+function flowerBandMarkup(accessory, layout, topSilhouette) {
   const colors = accessory.colors;
   const count = colors.length;
   const radius = Math.max(15, Math.min(26, layout.cell * .19));
-  const width = Math.min(layout.bodyWidth * .72, 260);
-  const left = 512 - width / 2;
-  const cy = layout.top + radius + 9;
+  const width = Math.min(topSilhouette.width * .72, 260);
+  const left = topSilhouette.center - width / 2;
+  const cy = topSilhouette.top + radius + 9;
   return colors.map((color, index) => flowerShape(
-    count === 1 ? 512 : left + index * width / (count - 1),
+    count === 1 ? topSilhouette.center : left + index * width / (count - 1),
     cy,
     radius,
     color
   )).join("");
 }
 
-function pomPomMarkup(accessory, layout) {
+function pomPomMarkup(accessory, layout, topSilhouette) {
   const colors = accessory.colors;
   const radius = Math.max(25, Math.min(42, layout.cell * .34));
-  const y = layout.top + Math.max(radius, layout.cell * .85);
+  const y = topSilhouette.top + Math.max(radius, layout.cell * .85);
   const pom = (cx, color) => `
         <circle cx="${cx}" cy="${y}" r="${radius}"
           fill="${color}" stroke="#4b405a" stroke-width="5"/>
@@ -547,28 +581,29 @@ function pomPomMarkup(accessory, layout) {
         <circle cx="${cx + radius * .48}" cy="${y - radius * .3}"
           r="${radius * .42}" fill="${color}"/>`;
   return pom(
-    Math.max(radius + 18, layout.left - radius * .85),
+    Math.max(radius + 18, topSilhouette.left - radius * .85),
     colors[0]
   ) + pom(
-    Math.min(1024 - radius - 18, layout.left + layout.bodyWidth + radius * .85),
+    Math.min(1024 - radius - 18, topSilhouette.right + radius * .85),
     colors[1] ?? colors[0]
   );
 }
 
-function gemMarkup(accessory, layout) {
+function gemMarkup(accessory, layout, topSilhouette) {
   const radius = Math.max(28, Math.min(52, layout.cell * .42));
-  const cy = layout.top + radius * .55;
+  const center = topSilhouette.center;
+  const cy = topSilhouette.top + radius * .55;
   return `
-        <path d="M 512 ${cy - radius}
-          L ${512 + radius * .78} ${cy}
-          L 512 ${cy + radius}
-          L ${512 - radius * .78} ${cy} Z"
+        <path d="M ${center} ${cy - radius}
+          L ${center + radius * .78} ${cy}
+          L ${center} ${cy + radius}
+          L ${center - radius * .78} ${cy} Z"
           fill="${accessory.color}" stroke="#31536a" stroke-width="6"
           stroke-linejoin="round"/>
-        <path d="M 512 ${cy - radius}
-          L 512 ${cy + radius}
-          M ${512 - radius * .78} ${cy}
-          H ${512 + radius * .78}"
+        <path d="M ${center} ${cy - radius}
+          L ${center} ${cy + radius}
+          M ${center - radius * .78} ${cy}
+          H ${center + radius * .78}"
           fill="none" stroke="#fff" stroke-opacity=".55" stroke-width="4"/>`;
 }
 
@@ -617,45 +652,45 @@ function accessoryMarkup(spec, layout) {
   if (!accessory) return "";
   const type = accessory.type;
   const color = accessory.color ?? accessory.colors?.[0] ?? spec.accent;
-  const top = layout.top;
+  const top = topSilhouette(spec, layout);
   const face = facePlacement(spec, layout);
   let markup;
 
   if (type === "top-hat-glasses") {
     markup = accessoryPart(
       "hat",
-      hatMarkup({ ...accessory, type: "top-hat" }, layout)
+      hatMarkup({ ...accessory, type: "top-hat" }, layout, top)
     ) + accessoryPart(
       "glasses",
       glassesMarkup({ ...accessory, type: "square-glasses" }, spec, layout)
     );
   } else if (type === "crown-and-wings") {
     markup = accessoryPart("wings", wingsMarkup(accessory, layout)) +
-      accessoryPart("crown", crownMarkup(accessory, layout));
+      accessoryPart("crown", crownMarkup(accessory, layout, top));
   } else if (type === "flower") {
-    markup = accessoryPart("flower", flowerMarkup(accessory, layout));
+    markup = accessoryPart("flower", flowerMarkup(accessory, layout, top));
   } else if (type === "flower-band") {
     markup = accessoryPart(
       "flower-band",
-      flowerBandMarkup(accessory, layout)
+      flowerBandMarkup(accessory, layout, top)
     );
   } else if (type === "pom-poms") {
-    markup = accessoryPart("pom-poms", pomPomMarkup(accessory, layout));
+    markup = accessoryPart("pom-poms", pomPomMarkup(accessory, layout, top));
   } else if (type === "gem") {
-    markup = accessoryPart("gem", gemMarkup(accessory, layout));
+    markup = accessoryPart("gem", gemMarkup(accessory, layout, top));
   } else if (type === "medallion") {
     markup = accessoryPart(
       "medallion",
       medallionMarkup(accessory, layout)
     );
   } else if (type.includes("crown")) {
-    markup = crownMarkup(accessory, layout);
+    markup = crownMarkup(accessory, layout, top);
   } else if (type.includes("glasses") || type === "oversized-eyes") {
     markup = glassesMarkup(accessory, spec, layout);
   } else if (type.includes("mask")) {
     markup = maskMarkup(accessory, spec, layout);
   } else if (type.includes("hat") || type.includes("cap")) {
-    markup = hatMarkup(accessory, layout);
+    markup = hatMarkup(accessory, layout, top);
   } else if (type === "eyepatch") {
     markup = `
       <path d="M ${face.centerX - face.eyeSpacing - face.eyeRadius}
@@ -670,32 +705,36 @@ function accessoryMarkup(spec, layout) {
         ${face.centerY - face.eyeRadius * 1.3}"
         stroke="#29384a" stroke-width="7"/>`;
   } else if (type === "cat-ears" || type === "horns") {
-    const spread = Math.min(150, Math.max(60, layout.bodyWidth * .25));
+    const halfBase = Math.min(48, Math.max(18, top.width * .28));
+    const leftCenter = top.left + top.width * .28;
+    const rightCenter = top.left + top.width * .72;
     markup = `
-      <path d="M ${512 - spread - 48} ${top + 5}
-        L ${512 - spread} ${top - 78}
-        L ${512 - spread + 48} ${top + 5} Z"
+      <path d="M ${leftCenter - halfBase} ${top.top + 5}
+        L ${leftCenter} ${top.top - 78}
+        L ${leftCenter + halfBase} ${top.top + 5} Z"
         fill="${color}" stroke="#4b405a" stroke-width="6"/>
-      <path d="M ${512 + spread - 48} ${top + 5}
-        L ${512 + spread} ${top - 78}
-        L ${512 + spread + 48} ${top + 5} Z"
+      <path d="M ${rightCenter - halfBase} ${top.top + 5}
+        L ${rightCenter} ${top.top - 78}
+        L ${rightCenter + halfBase} ${top.top + 5} Z"
         fill="${accessory.colors?.[1] ?? color}"
         stroke="#4b405a" stroke-width="6"/>`;
   } else if (type === "antennae") {
+    const leftStem = top.left + top.width * .32;
+    const rightStem = top.left + top.width * .68;
     markup = `
-      <path d="M ${512 - 55} ${top + 5} Q ${512 - 90} ${top - 80}
-        ${512 - 120} ${top - 95}
-        M ${512 + 55} ${top + 5} Q ${512 + 90} ${top - 80}
-        ${512 + 120} ${top - 95}"
+      <path d="M ${leftStem} ${top.top + 5} Q ${leftStem - 35} ${top.top - 80}
+        ${leftStem - 65} ${top.top - 95}
+        M ${rightStem} ${top.top + 5} Q ${rightStem + 35} ${top.top - 80}
+        ${rightStem + 65} ${top.top - 95}"
         fill="none" stroke="${color}" stroke-width="10"
         stroke-linecap="round"/>
-      <circle cx="${512 - 120}" cy="${top - 95}" r="16" fill="${color}"/>
-      <circle cx="${512 + 120}" cy="${top - 95}" r="16" fill="${color}"/>`;
+      <circle cx="${leftStem - 65}" cy="${top.top - 95}" r="16" fill="${color}"/>
+      <circle cx="${rightStem + 65}" cy="${top.top - 95}" r="16" fill="${color}"/>`;
   } else if (type === "plume") {
     markup = `
-      <path d="M 512 ${top + 2}
-        Q ${512 + 105} ${top - 85} ${512 + 35} ${top - 145}
-        Q ${512 - 45} ${top - 75} 512 ${top + 2} Z"
+      <path d="M ${top.center} ${top.top + 2}
+        Q ${top.center + 105} ${top.top - 85} ${top.center + 35} ${top.top - 145}
+        Q ${top.center - 45} ${top.top - 75} ${top.center} ${top.top + 2} Z"
         fill="${color}" stroke="#4b405a" stroke-width="6"/>`;
   } else if (type === "rainbow-boots") {
     const colors = accessory.colors;
@@ -722,13 +761,14 @@ function accessoryMarkup(spec, layout) {
         r="${face.eyeRadius * 1.28}" fill="none"
         stroke="${color}" stroke-width="7"/>`;
   } else {
+    const center = top.center;
     markup = `
-      <path d="M 512 ${top - 72}
-        L ${526} ${top - 28} L ${572} ${top - 28}
-        L ${535} ${top - 2} L ${548} ${top + 42}
-        L 512 ${top + 16} L ${476} ${top + 42}
-        L ${489} ${top - 2} L ${452} ${top - 28}
-        L ${498} ${top - 28} Z"
+      <path d="M ${center} ${top.top - 72}
+        L ${center + 14} ${top.top - 28} L ${center + 60} ${top.top - 28}
+        L ${center + 23} ${top.top - 2} L ${center + 36} ${top.top + 42}
+        L ${center} ${top.top + 16} L ${center - 36} ${top.top + 42}
+        L ${center - 23} ${top.top - 2} L ${center - 60} ${top.top - 28}
+        L ${center - 14} ${top.top - 28} Z"
         fill="${color}" stroke="#4b405a" stroke-width="6"
         stroke-linejoin="round"/>`;
   }
@@ -739,21 +779,70 @@ function accessoryMarkup(spec, layout) {
     </g>`;
 }
 
-export function renderCharacterSvg(spec) {
+function finiteNumber(value, name) {
+  if (!Number.isFinite(value)) throw new TypeError(`${name} must be finite`);
+  return Object.is(value, -0) ? 0 : value;
+}
+
+function compactNumber(value) {
+  return String(Number(value.toFixed(8)));
+}
+
+export function normalizationForVisibleBounds(bounds) {
+  if (!bounds || bounds.width <= 0 || bounds.height <= 0) {
+    throw new RangeError("visible bounds must be non-empty");
+  }
+  const safeWidth = SAFE.right - SAFE.left;
+  const safeHeight = SAFE.bottom - SAFE.top;
+  const scale = TARGET_VISIBLE_FILL / Math.max(
+    bounds.width / safeWidth,
+    bounds.height / safeHeight
+  );
+  const scaledWidth = bounds.width * scale;
+  const scaledHeight = bounds.height * scale;
+  const targetLeft = SAFE.left + (safeWidth - scaledWidth) / 2;
+  const targetTop = SAFE.top + (safeHeight - scaledHeight) / 2;
+  return Object.freeze({
+    scale,
+    translateX: targetLeft - bounds.left * scale,
+    translateY: targetTop - bounds.top * scale
+  });
+}
+
+export function renderCharacterSvg(spec, options = {}) {
   if (spec.number < 11 || spec.source !== "reference") {
     throw new RangeError("connected renderer only supports reference assets 11–100");
   }
   const layout = fitGrid(spec);
+  const normalization = options.normalization ?? {
+    scale: 1,
+    translateX: 0,
+    translateY: 0
+  };
+  const scale = finiteNumber(normalization.scale, "normalization.scale");
+  const translateX = finiteNumber(
+    normalization.translateX,
+    "normalization.translateX"
+  );
+  const translateY = finiteNumber(
+    normalization.translateY,
+    "normalization.translateY"
+  );
+  if (scale <= 0) throw new RangeError("normalization.scale must be positive");
+  const transform = [scale, 0, 0, scale, translateX, translateY]
+    .map(compactNumber)
+    .join(" ");
   return `<svg xmlns="http://www.w3.org/2000/svg"
     width="1024" height="1536" viewBox="0 0 1024 1536"
     role="img" aria-label="숫자 ${escapeAttribute(spec.number)} 블록 캐릭터">
     ${definitions()}
-    <g id="limbs">${limbMarkup(spec, layout)}</g>
-    <g id="body" data-cell-gap="0"
-      data-safe-fill="${layout.safeFill.toFixed(2)}"
-      filter="url(#bodyShadow)">${bodyMarkup(spec, layout)}</g>
-    <g id="face">${faceMarkup(spec, layout)}</g>
-    ${accessoryMarkup(spec, layout)}
+    <g id="character" transform="matrix(${transform})">
+      <g id="limbs">${limbMarkup(spec, layout)}</g>
+      <g id="body" data-cell-gap="0"
+        filter="url(#bodyShadow)">${bodyMarkup(spec, layout)}</g>
+      <g id="face">${faceMarkup(spec, layout)}</g>
+      ${accessoryMarkup(spec, layout)}
+    </g>
   </svg>`;
 }
 
@@ -791,10 +880,20 @@ async function runCli() {
   try {
     for (let number = from; number <= to; number += 1) {
       const svgPath = join(temporaryDirectory, `${number}.svg`);
+      const previewPath = join(temporaryDirectory, `${number}-raw.png`);
       const outputPath = join(outputDirectory, characterAsset(number));
       await writeFile(svgPath, renderCharacterSvg(buildCharacterSpec(number)), "utf8");
+      await rasterize(svgPath, previewPath);
+      const visibleBounds = visiblePngBounds(await readFile(previewPath));
+      const normalization = normalizationForVisibleBounds(visibleBounds);
+      await writeFile(
+        svgPath,
+        renderCharacterSvg(buildCharacterSpec(number), { normalization }),
+        "utf8"
+      );
       await rasterize(svgPath, outputPath);
       await unlink(svgPath);
+      await unlink(previewPath);
       process.stdout.write(`rendered ${characterAsset(number)}\n`);
     }
   } finally {

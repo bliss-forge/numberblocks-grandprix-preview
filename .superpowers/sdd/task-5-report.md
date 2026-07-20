@@ -168,9 +168,12 @@ Production/spec/test changes:
 - `tests/task-5-browser-regression.test.mjs`
 - `docs/superpowers/specs/2026-07-20-numberblocks-connected-character-redesign-design.md`
 
-QA-only ignored artifacts:
+Tracked QA report:
 
 - `.superpowers/sdd/task-5-report.md`
+
+QA-only ignored artifacts:
+
 - `.superpowers/sdd/task-5-artifacts/qa-harness.html`
 - `.superpowers/sdd/task-5-artifacts/*.png`
 
