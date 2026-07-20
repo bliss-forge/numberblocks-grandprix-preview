@@ -3,12 +3,12 @@ import assert from "node:assert/strict";
 import { stat } from "node:fs/promises";
 
 const ko = [
-  "prompt-count", "prompt-add", "prompt-mul",
-  ...Array.from({ length: 100 }, (_, i) => `number-${i + 1}`),
+  "prompt-count", "prompt-add", "prompt-sub", "prompt-mul",
+  ...Array.from({ length: 150 }, (_, i) => `number-${i + 1}`),
   "cheer-1", "cheer-2", "cheer-3", "cheer-4",
   "retry-1", "retry-2", "retry-3"
 ];
-const en = Array.from({ length: 100 }, (_, i) => `number-${i + 1}`);
+const en = Array.from({ length: 150 }, (_, i) => `number-${i + 1}`);
 
 test("필수 한국어·영어 MP3가 모두 비어 있지 않다", async () => {
   for (const [lang, names] of [["ko", ko], ["en", en]]) {

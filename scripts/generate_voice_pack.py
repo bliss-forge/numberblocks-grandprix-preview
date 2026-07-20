@@ -11,6 +11,7 @@ EN_VOICE = "en-GB-SoniaNeural"
 KO_PROMPTS = {
     "prompt-count": "블록이 몇 개일까요?",
     "prompt-add": "두 친구가 합치면 몇이 될까요?",
+    "prompt-sub": "큰 수에서 작은 수를 빼면 몇이 될까요?",
     "prompt-mul": "블록판에는 모두 몇 개가 있을까요?",
 }
 KO_ONES = ["", "일", "이", "삼", "사", "오", "육", "칠", "팔", "구"]
@@ -29,6 +30,8 @@ EN_TENS = [
 def korean_number(number):
     if number == 100:
         return "백!"
+    if number > 100:
+        return f"백{korean_number(number - 100)[:-1]}!"
     tens, ones = divmod(number, 10)
     if tens == 0:
         return f"{KO_ONES[ones]}!"
@@ -39,6 +42,8 @@ def korean_number(number):
 def english_number(number):
     if number == 100:
         return "One hundred!"
+    if number > 100:
+        return f"One hundred and {english_number(number - 100)[:-1].lower()}!"
     if number < 20:
         return f"{EN_ONES[number].capitalize()}!"
     tens, ones = divmod(number, 10)
@@ -52,7 +57,7 @@ def english_number(number):
 
 KO_NUMBERS = {
     f"number-{number}": korean_number(number)
-    for number in range(1, 101)
+    for number in range(1, 151)
 }
 KO_CHEERS = {
     "cheer-1": "참 잘했어요!", "cheer-2": "대단해요!",
@@ -65,7 +70,7 @@ KO_RETRIES = {
 }
 EN = {
     f"number-{number}": english_number(number)
-    for number in range(1, 101)
+    for number in range(1, 151)
 }
 
 

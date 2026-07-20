@@ -267,6 +267,17 @@ test("정답은 한국어 다음 영국 영어 순서로 재생한다", async ()
   assert.match(played[1], /en\/number-4\.mp3$/);
 });
 
+test("150 정답은 한국어 다음 영국 영어 순서로 재생한다", async () => {
+  const { manager, played } = harness();
+
+  await manager.playAnswer(150);
+
+  assert.deepEqual(played, [
+    "assets/audio/voice/ko/number-150.mp3",
+    "assets/audio/voice/en/number-150.mp3"
+  ]);
+});
+
 test("파일 재생 Promise는 play 호출이 아니라 onended 뒤에 끝난다", async () => {
   const { manager, audios } = harness({ autoEnd: false });
   let settled = false;

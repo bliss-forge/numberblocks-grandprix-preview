@@ -1,5 +1,5 @@
 const numbers = Object.fromEntries(
-  Array.from({ length: 100 }, (_, index) => {
+  Array.from({ length: 150 }, (_, index) => {
     const number = index + 1;
     return [
       `number-${number}`,
@@ -14,6 +14,7 @@ const numbers = Object.fromEntries(
 export const VOICE = Object.freeze({
   "prompt-count": { ko: "assets/audio/voice/ko/prompt-count.mp3" },
   "prompt-add": { ko: "assets/audio/voice/ko/prompt-add.mp3" },
+  "prompt-sub": { ko: "assets/audio/voice/ko/prompt-sub.mp3" },
   "prompt-mul": { ko: "assets/audio/voice/ko/prompt-mul.mp3" },
   ...numbers,
   ...Object.fromEntries(
