@@ -128,6 +128,22 @@ test("모든 비오버레이 카탈로그 영역은 실제 셀을 칠한다", ()
   }
 });
 
+test("대표 확장 캐릭터는 모든 영역, 몸체, 얼굴, 팔다리를 렌더링한다", () => {
+  for (const number of [101, 111, 125, 140, 150]) {
+    const spec = buildCharacterSpec(number);
+    const svg = renderCharacterSvg(spec);
+    for (const region of spec.regions.filter(item => item.id !== "belt")) {
+      assert.ok(
+        paintedRegionCellCount(svg, region.id) > 0,
+        `${number}의 ${region.id} 영역이 셀을 칠해야 한다`
+      );
+    }
+    assert.match(svg, /id="body"/, `${number} body`);
+    assert.match(svg, /id="face"/, `${number} face`);
+    assert.match(svg, /id="limbs"/, `${number} limbs`);
+  }
+});
+
 test("겹치는 영역은 24의 중앙선, 26의 윗띠, 75의 얼굴 패널을 보존한다", () => {
   assert.equal(
     paintedRegionCellCount(renderCharacterSvg(buildCharacterSpec(24)), "center-stripe"),

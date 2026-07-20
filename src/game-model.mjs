@@ -4,7 +4,7 @@ import {
 } from "./character-spec.mjs";
 
 export const NUMBERBLOCKS = Object.freeze(Object.fromEntries(
-  Array.from({ length: 100 }, (_, index) => {
+  Array.from({ length: 150 }, (_, index) => {
     const number = index + 1;
     const spec = buildCharacterSpec(number);
     return [number, Object.freeze({

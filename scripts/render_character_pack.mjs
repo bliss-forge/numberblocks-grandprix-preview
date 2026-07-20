@@ -810,8 +810,12 @@ export function normalizationForVisibleBounds(bounds) {
 }
 
 export function renderCharacterSvg(spec, options = {}) {
-  if (spec.number < 11 || spec.source !== "reference") {
-    throw new RangeError("connected renderer only supports reference assets 11–100");
+  if (
+    spec.number < 11 ||
+    spec.number > 150 ||
+    !["reference", "extension"].includes(spec.source)
+  ) {
+    throw new RangeError("connected renderer only supports catalog assets 11–150");
   }
   const layout = fitGrid(spec);
   const normalization = options.normalization ?? {
@@ -850,15 +854,15 @@ function parseRange(argv) {
   const fromIndex = argv.indexOf("--from");
   const toIndex = argv.indexOf("--to");
   const from = Number(fromIndex >= 0 ? argv[fromIndex + 1] : 11);
-  const to = Number(toIndex >= 0 ? argv[toIndex + 1] : 100);
+  const to = Number(toIndex >= 0 ? argv[toIndex + 1] : 150);
   if (
     !Number.isInteger(from) ||
     !Number.isInteger(to) ||
     from < 11 ||
-    to > 100 ||
+    to > 150 ||
     from > to
   ) {
-    throw new RangeError("render range must satisfy 11 <= from <= to <= 100");
+    throw new RangeError("render range must satisfy 11 <= from <= to <= 150");
   }
   return { from, to };
 }

@@ -23,6 +23,17 @@ function staircase(height) {
   );
 }
 
+function compactRows(number) {
+  const cols = Math.ceil(Math.sqrt(number));
+  const fullRows = Math.floor(number / cols);
+  const remainder = number % cols;
+  const output = Array.from({ length: fullRows }, () => cols);
+  if (remainder > 0) {
+    output.unshift([remainder, Math.floor((cols - remainder) / 2)]);
+  }
+  return rows(...output);
+}
+
 function frozenDetails(details) {
   return Object.fromEntries(Object.entries(details).map(([key, value]) => [
     key,
@@ -73,6 +84,11 @@ const RAINBOW = Object.freeze([
   "#45bdd4",
   "#7854c5",
   "#ed5eb2"
+]);
+const EXTENSION_PALETTES = Object.freeze([
+  Object.freeze({ base: "#6fd4e8", accent: "#286da8" }),
+  Object.freeze({ base: "#9a75d7", accent: "#5a318f" }),
+  Object.freeze({ base: "#f084b8", accent: "#a63572" })
 ]);
 
 const body = color => region("body", color);
@@ -695,28 +711,48 @@ const DESIGNS = new Map([
   )]
 ]);
 
+for (let number = 101; number <= 150; number += 1) {
+  const designRows = compactRows(number);
+  const faceRow = Math.floor(designRows.length * .6);
+  const occupiedRow = designRows[faceRow];
+  const faceColumn = occupiedRow.offset + Math.floor((occupiedRow.width - 1) / 2);
+  const palette = number < 120
+    ? EXTENSION_PALETTES[0]
+    : number < 140
+      ? EXTENSION_PALETTES[1]
+      : EXTENSION_PALETTES[2];
+  DESIGNS.set(number, design(
+    designRows,
+    regions(cap(1, palette.accent), body(palette.base)),
+    face(faceColumn, faceRow, 1),
+    number % 5 === 0
+      ? accessory("single-eye", { color: "#111111" })
+      : null
+  ));
+}
+
 function rowsOverlap(first, second) {
   const firstRight = first.offset + first.width - 1;
   const secondRight = second.offset + second.width - 1;
   return Math.max(first.offset, second.offset) <= Math.min(firstRight, secondRight);
 }
 
-if (DESIGNS.size !== 90) {
-  throw new Error(`reference design catalog must contain 90 entries, got ${DESIGNS.size}`);
+if (DESIGNS.size !== 140) {
+  throw new Error(`character design catalog must contain 140 entries, got ${DESIGNS.size}`);
 }
 
-for (let number = 11; number <= 100; number += 1) {
+for (let number = 11; number <= 150; number += 1) {
   const catalogDesign = DESIGNS.get(number);
   if (!catalogDesign) {
-    throw new Error(`reference design catalog is missing ${number}`);
+    throw new Error(`character design catalog is missing ${number}`);
   }
   const cellCount = catalogDesign.rows.reduce((sum, item) => sum + item.width, 0);
   if (cellCount !== number) {
-    throw new Error(`reference design ${number} contains ${cellCount} cells`);
+    throw new Error(`character design ${number} contains ${cellCount} cells`);
   }
   for (let index = 1; index < catalogDesign.rows.length; index += 1) {
     if (!rowsOverlap(catalogDesign.rows[index - 1], catalogDesign.rows[index])) {
-      throw new Error(`reference design ${number} disconnects at row ${index}`);
+      throw new Error(`character design ${number} disconnects at row ${index}`);
     }
   }
 }

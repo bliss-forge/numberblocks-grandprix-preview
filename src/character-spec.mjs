@@ -27,6 +27,12 @@ const DECADE_PALETTES = Object.freeze([
   ["#f06461", "#b92e31"]
 ]);
 
+const EXTENSION_PALETTES = Object.freeze([
+  ["#6fd4e8", "#286da8"],
+  ["#9a75d7", "#5a318f"],
+  ["#f084b8", "#a63572"]
+]);
+
 const LEGACY_ASSETS = Object.freeze([
   "",
   "one.png",
@@ -68,8 +74,8 @@ const GRID_PREFERENCES = new Map([
 ]);
 
 function assertNumber(number) {
-  if (!Number.isInteger(number) || number < 1 || number > 100) {
-    throw new RangeError("character number must be between 1 and 100");
+  if (!Number.isInteger(number) || number < 1 || number > 150) {
+    throw new RangeError("character number must be between 1 and 150");
   }
 }
 
@@ -90,7 +96,12 @@ function closestGrid(number) {
 
 function paletteFor(number) {
   if (number < 10) return DIGIT_PALETTES[number];
-  return DECADE_PALETTES[Math.min(10, Math.floor(number / 10))];
+  if (number <= 100) {
+    return DECADE_PALETTES[Math.min(10, Math.floor(number / 10))];
+  }
+  if (number < 120) return EXTENSION_PALETTES[0];
+  if (number < 140) return EXTENSION_PALETTES[1];
+  return EXTENSION_PALETTES[2];
 }
 
 function accentFor(number) {
@@ -154,7 +165,7 @@ export function buildCharacterSpec(number) {
 
   return Object.freeze({
     number,
-    source: "reference",
+    source: number <= 100 ? "reference" : "extension",
     cells: Object.freeze(cells),
     regions: design.regions,
     face: design.face,
