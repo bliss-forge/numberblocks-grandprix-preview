@@ -12,7 +12,7 @@ import {
   saveDifficulty
 } from "./difficulty-preference.mjs";
 import {
-  celebrationView,
+  celebrationPresentation,
   characterSizeBand,
   formatCountHint,
   formatProblemText,
@@ -152,15 +152,24 @@ function resultBoard(problem) {
 }
 
 function renderCelebration(problem) {
-  const view = celebrationView(problem.mode, problem.answer);
-  if (view === "number") {
-    const image = character(problem.answer, "correct");
+  const presentation = celebrationPresentation(problem);
+  if (presentation.view === "number") {
+    const wrapper = document.createElement("div");
+    wrapper.className = "celebration-result";
+    const image = character(presentation.characterNumber, "correct");
     image.addEventListener("error", () => {
       if (state.problem === problem) {
         dom.stage.replaceChildren(resultBoard(problem));
       }
     }, { once: true });
-    dom.stage.replaceChildren(image);
+    wrapper.append(image);
+    if (presentation.equation !== null) {
+      const equation = document.createElement("strong");
+      equation.className = "completed-equation";
+      equation.textContent = presentation.equation;
+      wrapper.append(equation);
+    }
+    dom.stage.replaceChildren(wrapper);
   } else {
     dom.stage.replaceChildren(resultBoard(problem));
   }

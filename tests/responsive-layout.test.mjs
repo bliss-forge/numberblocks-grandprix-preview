@@ -43,6 +43,25 @@ test("여러 캐릭터 장면은 같은 크기 슬롯과 확대 여유를 유지
   );
 });
 
+test("정답 캐릭터와 완성된 식은 무대 안의 반응형 결과 래퍼를 공유한다", () => {
+  assert.match(
+    css,
+    /\.celebration-result\s*\{[^}]*display:\s*grid;[^}]*grid-template-rows:\s*minmax\(0,\s*1fr\)\s+auto;[^}]*width:\s*100%;[^}]*height:\s*100%;[^}]*min-height:\s*0;/s
+  );
+  assert.match(
+    css,
+    /body\[data-state="celebrating"\]\s+\.celebration-result\s+\.character\s*\{[^}]*max-height:\s*min\(27vh,\s*195px\);/s
+  );
+  assert.match(
+    css,
+    /\.completed-equation\s*\{[^}]*white-space:\s*nowrap;/s
+  );
+  assert.match(
+    css,
+    /@media\s*\(max-width:\s*640px\)[\s\S]*?\.celebration-result\s*\{[^}]*gap:/s
+  );
+});
+
 test("모바일은 크기 확대를 낮추고 숫자판과 무대 공간을 따로 확보한다", () => {
   assert.match(
     css,

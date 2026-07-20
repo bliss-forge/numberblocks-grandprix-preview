@@ -14,6 +14,9 @@ KO_PROMPTS = {
     "prompt-sub": "큰 수에서 작은 수를 빼면 몇이 될까요?",
     "prompt-mul": "블록판에는 모두 몇 개가 있을까요?",
 }
+EN_PROMPTS = {
+    "prompt-sub": "What do you get when you take the smaller number away from the larger number?",
+}
 KO_ONES = ["", "일", "이", "삼", "사", "오", "육", "칠", "팔", "구"]
 EN_ONES = [
     "", "one", "two", "three", "four", "five", "six", "seven",
@@ -95,6 +98,7 @@ async def main():
     await render_pack("ko", KO_NUMBERS, KO_VOICE, "+5%", "+7Hz")
     await render_pack("ko", KO_CHEERS, KO_VOICE, "+3%", "+4Hz")
     await render_pack("ko", KO_RETRIES, KO_VOICE, "-8%", "-2Hz")
+    await render_pack("en", EN_PROMPTS, EN_VOICE, "-4%", "+0Hz")
     await render_pack("en", EN, EN_VOICE, "+4%", "+7Hz")
 
 

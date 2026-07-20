@@ -139,10 +139,27 @@ test("결과 팻말은 공유 연산자로 뺄셈 기호를 고른다", () => {
   );
 });
 
+test("정답 캐릭터 결과는 순수 표현값을 사용하고 이미지 오류 팻말을 유지한다", () => {
+  assert.match(
+    app,
+    /import\s*\{[^}]*celebrationPresentation[^}]*\}\s*from "\.\/app-behavior\.mjs";/s
+  );
+  assert.match(
+    app,
+    /function renderCelebration\(problem\)\s*\{[\s\S]*?const presentation = celebrationPresentation\(problem\);/s
+  );
+  assert.match(app, /wrapper\.className = "celebration-result";/);
+  assert.match(app, /equation\.className = "completed-equation";/);
+  assert.match(
+    app,
+    /image\.addEventListener\("error",[\s\S]*?dom\.stage\.replaceChildren\(resultBoard\(problem\)\)/s
+  );
+});
+
 test("오른쪽 아래에 bliss 제작자 서명을 표시한다", () => {
   assert.match(
     html,
-    /<link rel="stylesheet" href="styles\.css\?v=20260720-responsive-credit-landscape">/
+    /<link rel="stylesheet" href="styles\.css\?v=20260720-result-equation">/
   );
   assert.match(
     html,

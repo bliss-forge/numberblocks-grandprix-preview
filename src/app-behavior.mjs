@@ -1,6 +1,9 @@
+import { operatorFor } from "./problem-scene.mjs";
+
 export function playPromptCue(audio, promptKey) {
-  void audio.playVoice(promptKey);
+  const playback = audio.playPrompt(promptKey);
   audio.playSfx("pop");
+  return playback;
 }
 
 export function playRetryCue(audio, retryKey) {
@@ -49,7 +52,18 @@ export function formatCountHint(number) {
 }
 
 export function celebrationView(_mode, answer) {
-  return Number.isInteger(answer) && answer >= 1 && answer <= 100
+  return Number.isInteger(answer) && answer >= 1 && answer <= 150
     ? "number"
     : "result-board";
+}
+
+export function celebrationPresentation(problem) {
+  const view = celebrationView(problem.mode, problem.answer);
+  return {
+    view,
+    characterNumber: view === "number" ? problem.answer : null,
+    equation: problem.mode === "count"
+      ? null
+      : `${problem.operands[0]} ${operatorFor(problem.mode)} ${problem.operands[1]} = ${problem.answer}`
+  };
 }

@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { AudioManager } from "../src/audio-manager.mjs";
+import { VOICE } from "../src/audio-manifest.mjs";
 
 function fakeTimers() {
   let nextId = 1;
@@ -265,6 +266,44 @@ test("정답은 한국어 다음 영국 영어 순서로 재생한다", async ()
 
   assert.match(played[0], /ko\/number-4\.mp3$/);
   assert.match(played[1], /en\/number-4\.mp3$/);
+});
+
+test("뺄셈 문제 안내는 한국어와 영국 영어 자산을 순서대로 재생한다", async () => {
+  const { manager, played } = harness();
+
+  assert.deepEqual(VOICE["prompt-sub"], {
+    ko: "assets/audio/voice/ko/prompt-sub.mp3",
+    en: "assets/audio/voice/en/prompt-sub.mp3"
+  });
+  assert.equal(typeof manager.playPrompt, "function");
+  await manager.playPrompt("prompt-sub");
+
+  assert.deepEqual(played, [
+    "assets/audio/voice/ko/prompt-sub.mp3",
+    "assets/audio/voice/en/prompt-sub.mp3"
+  ]);
+});
+
+test("기존 문제 안내는 영어 자산이 없으면 한국어만 재생한다", async () => {
+  const { manager, played } = harness();
+
+  assert.equal(typeof manager.playPrompt, "function");
+  await manager.playPrompt("prompt-count");
+
+  assert.deepEqual(played, ["assets/audio/voice/ko/prompt-count.mp3"]);
+});
+
+test("뺄셈 한국어 안내 직후 취소하면 영어 안내는 시작하지 않는다", async () => {
+  const { manager, played, audios } = harness({ autoEnd: false });
+
+  assert.equal(typeof manager.playPrompt, "function");
+  const pending = manager.playPrompt("prompt-sub");
+  audios[0].onended();
+  manager.cancel();
+  await pending;
+
+  assert.deepEqual(played, ["assets/audio/voice/ko/prompt-sub.mp3"]);
+  assert.equal(audios.length, 1);
 });
 
 test("150 정답은 한국어 다음 영국 영어 순서로 재생한다", async () => {

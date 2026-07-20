@@ -138,6 +138,13 @@ export class AudioManager {
     await this.playFile(VOICE[key]?.[language], epoch);
   }
 
+  async playPrompt(key) {
+    const epoch = this.epoch;
+    const entry = VOICE[key];
+    await this.playFile(entry?.ko, epoch);
+    if (entry?.en) await this.playFile(entry.en, epoch);
+  }
+
   async playAnswer(number) {
     const epoch = this.epoch;
     const entry = VOICE[`number-${number}`];

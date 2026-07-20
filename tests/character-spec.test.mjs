@@ -79,6 +79,35 @@ test("101~150은 완전한 확장 디자인과 연결된 몸체를 가진다", (
   }
 });
 
+test("101~150 확장은 한 줄 캡, 정확한 색 띠, 낮은 중앙 얼굴, 매 5번째 외눈을 지킨다", () => {
+  const paletteBands = [
+    { from: 101, to: 119, colors: ["#6fd4e8", "#286da8"] },
+    { from: 120, to: 139, colors: ["#9a75d7", "#5a318f"] },
+    { from: 140, to: 150, colors: ["#f084b8", "#a63572"] }
+  ];
+
+  for (let number = 101; number <= 150; number += 1) {
+    const spec = buildCharacterSpec(number);
+    const cap = spec.regions.find(region => region.id === "cap");
+    const band = paletteBands.find(({ from, to }) => number >= from && number <= to);
+    const expectedFaceRow = Math.floor(spec.canvas.grid[1] * .6);
+    const faceRowCells = spec.cells
+      .filter(cell => cell.y === expectedFaceRow)
+      .sort((a, b) => a.x - b.x);
+    const expectedFaceX = faceRowCells[Math.floor((faceRowCells.length - 1) / 2)].x;
+
+    assert.equal(cap.rows, 1, `${number} cap is exactly one row`);
+    assert.deepEqual(spec.palette, band.colors, `${number} palette band`);
+    assert.equal(spec.face.y, expectedFaceRow, `${number} lower-middle face row`);
+    assert.equal(spec.face.x, expectedFaceX, `${number} centered face column`);
+    assert.equal(
+      spec.accessory?.type === "single-eye",
+      number % 5 === 0,
+      `${number} every-fifth single-eye rule`
+    );
+  }
+});
+
 test("38은 승인된 연결 구조와 색 영역을 사용한다", () => {
   const spec = buildCharacterSpec(38);
   const widths = Array.from(

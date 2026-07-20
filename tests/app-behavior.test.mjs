@@ -1,6 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { AudioManager } from "../src/audio-manager.mjs";
+import { createProblem } from "../src/game-model.mjs";
+import * as appBehavior from "../src/app-behavior.mjs";
 import {
   celebrationView,
   characterSizeBand,
@@ -93,6 +95,25 @@ test("문제 음성을 시작한 뒤 pop 효과음을 예약해 실제 덕킹을
   await Promise.resolve();
 });
 
+test("뺄셈 문제 음성은 한국어 다음 영국 영어로 이어지고 pop 효과음을 덕킹한다", async () => {
+  const { manager, audios, ramps } = audioHarness();
+
+  const pending = playPromptCue(manager, "prompt-sub");
+
+  assert.equal(manager.voicePlaying, true);
+  assert.equal(ramps[0].value, 0.06 * 0.55);
+  assert.match(audios[0].src, /ko\/prompt-sub\.mp3$/);
+
+  audios[0].onended();
+  await Promise.resolve();
+  await Promise.resolve();
+
+  assert.equal(audios.length, 2);
+  assert.match(audios[1].src, /en\/prompt-sub\.mp3$/);
+  audios[1].onended();
+  await pending;
+});
+
 test("재시도 음성을 시작한 뒤 wrong 효과음을 예약해 실제 덕킹을 적용한다", async () => {
   const { manager, audios, ramps } = audioHarness();
 
@@ -144,13 +165,33 @@ test("세기 힌트는 정답 대신 묶음 구조를 말한다", () => {
   assert.equal(formatCountHint(20), "10개 묶음이 2개예요.");
 });
 
-test("모든 게임은 1~100 정답 캐릭터를 선택한다", () => {
-  for (const mode of ["count", "add", "mul"]) {
-    for (const answer of [1, 10, 11, 20, 50, 100]) {
+test("모든 게임은 1~150 정답 캐릭터를 선택한다", () => {
+  for (const mode of ["count", "add", "sub", "mul"]) {
+    for (const answer of [1, 10, 11, 20, 50, 100, 101, 150]) {
       assert.equal(celebrationView(mode, answer), "number");
     }
   }
-  assert.equal(celebrationView("add", 101), "result-board");
+  assert.equal(celebrationView("add", 151), "result-board");
+});
+
+test("실제로 출제되는 뺄셈 정답은 결과 캐릭터와 완성된 식을 함께 보여 준다", () => {
+  const problem = createProblem("sub", "challenge", () => 671.5 / 1225);
+
+  assert.deepEqual(problem.operands, [38, 6]);
+  assert.equal(typeof appBehavior.celebrationPresentation, "function");
+  assert.deepEqual(appBehavior.celebrationPresentation(problem), {
+    view: "number",
+    characterNumber: 32,
+    equation: "38 − 6 = 32"
+  });
+});
+
+test("세기 결과 표현에는 식을 추가하지 않는다", () => {
+  assert.equal(typeof appBehavior.celebrationPresentation, "function");
+  assert.deepEqual(
+    appBehavior.celebrationPresentation({ mode: "count", answer: 13 }),
+    { view: "number", characterNumber: 13, equation: null }
+  );
 });
 
 test("캐릭터 숫자를 50과 100 경계의 크기 단계로 나눈다", () => {
