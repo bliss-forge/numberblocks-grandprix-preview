@@ -20,6 +20,7 @@ import {
   quantityParts,
   retireAnimationClass
 } from "./app-behavior.mjs";
+import { operandScene } from "./problem-scene.mjs";
 
 const audio = new AudioManager();
 const $ = id => document.getElementById(id);
@@ -112,16 +113,6 @@ function quantityVisual(number, { countable = false } = {}) {
   }
 
   return visual;
-}
-
-function operandVisual(number) {
-  if (number <= 10) return character(number);
-  const card = document.createElement("div");
-  card.className = "operand-card";
-  const label = document.createElement("strong");
-  label.textContent = String(number);
-  card.append(label, quantityVisual(number));
-  return card;
 }
 
 function resultBoard(problem) {
@@ -237,46 +228,16 @@ function renderProblem(problem) {
     return;
   }
 
-  if (problem.mode === "add") {
-    dom.problem.textContent = formatProblemText(problem);
-    const plus = document.createElement("span");
-    plus.className = "operator";
-    plus.textContent = "+";
-    plus.setAttribute("aria-hidden", "true");
-    dom.stage.append(
-      operandVisual(problem.operands[0]),
-      plus,
-      operandVisual(problem.operands[1])
-    );
-    return;
-  }
-
   dom.problem.textContent = formatProblemText(problem);
-  const scene = document.createElement("div");
-  scene.className = "multiplication-scene";
-
-  const grid = document.createElement("div");
-  grid.className = "multiplication-grid";
-  grid.style.setProperty("--rows", problem.operands[0]);
-  grid.style.setProperty("--cols", problem.operands[1]);
-  grid.setAttribute(
-    "aria-label",
-    `${problem.operands[0]}줄에 ${problem.operands[1]}개씩 놓인 블록`
-  );
-  for (let index = 0; index < problem.answer; index += 1) {
-    const block = document.createElement("i");
-    const row = Math.floor(index / problem.operands[1]);
-    const column = index % problem.operands[1];
-    block.classList.toggle("row-shade", row % 2 === 1);
-    block.classList.toggle("column-marker", (column + 1) % 5 === 0);
-    block.setAttribute("aria-hidden", "true");
-    grid.append(block);
-  }
-
-  const caption = document.createElement("div");
-  caption.className = "multiplication-caption";
-  caption.innerHTML = `<span>${problem.operands[0]} × ${problem.operands[1]}</span><small>모두 몇 개일까요?</small>`;
-  scene.append(grid, caption);
+  const scene = operandScene(document, problem, character);
+  scene.querySelectorAll(".operand-character").forEach(image => {
+    image.addEventListener("error", () => {
+      const fallback = document.createElement("strong");
+      fallback.className = "operand-fallback";
+      fallback.textContent = image.dataset.number;
+      image.replaceWith(fallback);
+    }, { once: true });
+  });
   dom.stage.append(scene);
 }
 

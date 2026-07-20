@@ -52,3 +52,17 @@ test("곱셈 결과 팻말은 긴 수식도 한 줄로 유지한다", () => {
     /\.result-sign\s*\{[^}]*white-space:\s*nowrap;/s
   );
 });
+
+test("피연산자 장면은 두 개의 같은 크기 슬롯과 식을 사용한다", () => {
+  assert.match(css, /\.operand-scene\s*\{/);
+  assert.match(css, /\.operand-slot\s*\{/);
+  assert.match(css, /\.equation-label\s*\{/);
+  assert.match(
+    css,
+    /grid-template-columns:\s*minmax\(0,\s*1fr\)\s+auto\s+minmax\(0,\s*1fr\)/
+  );
+  assert.match(
+    css,
+    /@media\s*\(max-width:\s*900px\)\s*\{[\s\S]*?\.operand-character\s*\{[^}]*height:/
+  );
+});
