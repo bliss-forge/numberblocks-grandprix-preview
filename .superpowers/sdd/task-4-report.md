@@ -1,117 +1,130 @@
-# Task 4 — Audio queue and soft sound effects
+# Task 4 — Character catalog and renderer through 150
 
-## Contract and scope
+## Status
 
-- Implemented only `.superpowers/sdd/task-4-brief.md`.
-- Added the build-time voice manifest and a dependency-injected runtime `AudioManager`.
-- Removed the old inline browser `speechSynthesis` fallback and the old marimba, glide, noise-click, and `sfx` implementations and call sites from `index.html`.
-- Did not wire the new manager into gameplay; Task 5 owns that integration.
-- Did not modify character sprites or voice MP3 assets.
+PASS. The connected character catalog now contains 140 designs for 11–150,
+`buildCharacterSpec()` and `characterAsset()` support every integer through
+150, the renderer accepts reference and extension specs through 150, and
+`NUMBERBLOCKS` consumes all 150 specs. No PNG files were rendered or modified.
 
-## TDD evidence
+## Commit
 
-The audio-manager test was created before either production module existed.
+- `9476e3a feat: 연결형 캐릭터 카탈로그를 150까지 확장`
 
-```text
-node --test tests/audio-manager.test.mjs
-```
+## RED evidence
 
-- RED result: exit 1 with `ERR_MODULE_NOT_FOUND` for `src/audio-manager.mjs`.
-- The first GREEN run passed 10 tests.
-
-A later cancellation-hardening test was also observed failing before its fix:
+The range, catalog, representative renderer, and game metadata tests were
+changed before production code.
 
 ```text
-node --test --test-name-pattern='pause가 예외' tests/audio-manager.test.mjs
+node --test tests/character-spec.test.mjs tests/character-renderer.test.mjs tests/game-model.test.mjs
 ```
 
-- RED result: 1 failure because `pause failed` escaped from `cancel()`.
-- GREEN result after catching and warning once: 1 passing, 0 failing.
+Result: exit 1, 26 tests, 21 passed, 5 failed.
+
+- 101 failed at the existing `character number must be between 1 and 100`
+  guard in the all-spec, extension-spec, asset, and representative-renderer
+  tests.
+- `NUMBERBLOCKS` contained only 1–100 instead of the expected 1–150.
+
+Palette coverage was tightened in a separate RED/GREEN cycle:
+
+```text
+node --test tests/character-spec.test.mjs
+```
+
+RED result: exit 1, 6 tests, 5 passed, 1 failed. Character 101 exposed the old
+100 palette instead of its extension body/cap palette.
 
 ## Implementation
 
-### Voice manifest
+- Added compact connected rows for 101–150 and validated a 140-entry catalog.
+- Added three flat extension palettes for 101–119, 120–139, and 140–150.
+- Every extension has a one-row accent cap, base body, and a face centered on
+  an occupied lower-middle cell.
+- Every fifth extension uses the already-supported `single-eye` accessory.
+- Extension specs report `source: "extension"` and use matching palette data.
+- Raised spec, renderer, CLI, package-script, and `NUMBERBLOCKS` ranges to 150.
+- Preserved all 11–100 reference design and renderer behavior.
 
-- `src/audio-manifest.mjs` exports frozen `VOICE` entries for:
-  - 3 Korean prompts
-  - 10 Korean and British-English number pairs
-  - 4 Korean cheers
-  - 3 Korean retries
+## Verification
 
-### AudioManager
-
-- `playVoice(key, language)` plays a single manifest entry.
-- `playAnswer(number)` waits for Korean `onended` before starting British English.
-- Every voice playback Promise settles on `onended`, `onerror`, rejected/thrown `play()`, or `cancel()`.
-- `cancel()` increments an epoch before stopping playback, so an already-resolved Korean step cannot continue into English after cancellation.
-- `cancel()` also settles safely when `pause()` itself throws.
-- Playback warnings are deduplicated by source.
-- Muting is restored from and persisted to `numberblocks-muted`; muting cancels current playback and skips voice/SFX creation.
-- `playSfx()` implements the `key`, `pop`, `win`, and `wrong` presets with 80 ms note spacing, 5 ms attack, exponential release, and 0.55 gain ducking while voice is active.
-
-## Verification evidence
-
-Final verification commands:
+Focused character GREEN after catalog implementation:
 
 ```text
-node --test tests/audio-manager.test.mjs
+node --test tests/character-spec.test.mjs tests/character-renderer.test.mjs
+```
+
+Result: exit 0, 16 passed, 0 failed.
+
+Focused game-model GREEN after the spec supported 150:
+
+```text
+node --test tests/game-model.test.mjs
+```
+
+Result: exit 0, 10 passed, 0 failed.
+
+Palette GREEN:
+
+```text
+node --test tests/character-spec.test.mjs
+```
+
+Result: exit 0, 6 passed, 0 failed.
+
+Fresh final focused verification:
+
+```text
+node --test tests/character-spec.test.mjs tests/character-renderer.test.mjs tests/game-model.test.mjs
+git diff --check
+```
+
+Result: exit 0, 26 passed, 0 failed; no whitespace errors.
+
+Fresh full verification:
+
+```text
 npm test
 git diff --check
-node -e '<compile extracted inline script with new Function>'
-rg -n 'speechSynthesis|SpeechSynthesisUtterance|\bmarimba\b|\bglide\b|\bblockClick\b|\bNUMBER_NOTES\b|\bsfx\b|\bsayAnswer\b|\bsay\(' index.html
 ```
 
-- Focused audio tests: 11 passing, 0 failing.
-- Full suite: 17 passing, 0 failing.
-- `git diff --check`: exit 0 with no findings.
-- Extracted inline script syntax compilation: `inline script syntax: ok`.
-- Manifest/filesystem check: `voice manifest paths: 30/30 present`.
-- Legacy reference search: no matches.
+Result: exit 0, 83 passed, 0 failed, 0 skipped; no whitespace errors.
 
-## Concerns and handoff
-
-- `index.html` is intentionally silent between this commit and Task 5: all legacy audio calls were removed so there is no browser-TTS fallback or undefined legacy function, but the new module is not imported yet.
-- Task 5 must instantiate and wire `AudioManager` from a module script, connect prompts/answers/retries/SFX, expose mute UI state, and call `cancel()` on navigation/problem changes.
-- Browser autoplay policy still requires Task 5 to make the first AudioContext/audio use from a user gesture.
-
-## Review fixes — unavailable browser audio/storage APIs
-
-Task review found that unavailable Web Audio nodes and blocked browser storage
-could still throw into game input handling. Seven regression tests were added
-before the production fix.
+Additional invariant audit:
 
 ```text
-node --test --test-name-pattern='AudioContext 생성 실패|SFX 노드 생성 실패|SFX 예약 실패|저장소 읽기 실패|저장소 쓰기 실패|중단된 AudioContext|AudioContext 재개 거절' tests/audio-manager.test.mjs
+node --input-type=module - <<'NODE'
+// Assert required cap/body regions and single-eye exactly every fifth extension.
+NODE
 ```
 
-- RED: 7 failing, 0 passing.
-  - AudioContext factory, oscillator creation, oscillator scheduling,
-    `storage.getItem`, and `storage.setItem` errors escaped.
-  - Suspended contexts were not resumed.
-  - Resume rejection had no handled warning path.
-- GREEN: 7 passing, 0 failing.
+Result: `extension invariant audit: 50/50 passed`.
 
-The fix:
+## Changed files
 
-- defaults to unmuted if storage acquisition or `getItem()` fails;
-- keeps the new in-memory mute value if `setItem()` fails;
-- retries AudioContext creation on later SFX calls while warning only once for
-  the context failure source;
-- contains node/envelope/scheduling errors and warns once per SFX source;
-- resumes a suspended context without awaiting it, handles both synchronous
-  resume errors and asynchronous rejection, and continues SFX scheduling.
+- `src/character-designs.mjs`
+- `src/character-spec.mjs`
+- `scripts/render_character_pack.mjs`
+- `src/game-model.mjs`
+- `package.json`
+- `tests/character-spec.test.mjs`
+- `tests/character-renderer.test.mjs`
+- `tests/game-model.test.mjs`
+- `.superpowers/sdd/task-4-report.md`
 
-Fresh review-fix verification:
+## Self-review
 
-```text
-node --test tests/audio-manager.test.mjs
-npm test
-git diff --check
-node -e '<compile extracted inline script with new Function>'
-rg -n 'speechSynthesis|SpeechSynthesisUtterance|\bmarimba\b|\bglide\b|\bblockClick\b|\bNUMBER_NOTES\b|\bsfx\b|\bsayAnswer\b|\bsay\(' index.html
-```
+- Verified every 1–150 spec has the exact requested number of unique,
+  four-directionally connected cells.
+- Verified all 50 extension faces land on occupied cells.
+- Verified every extension palette matches its rendered body and cap colors.
+- Verified 101, 111, 125, 140, and 150 paint every non-overlay region and
+  include body, face, and limb groups.
+- Audited all 50 accessories: only multiples of five use `single-eye`.
+- Checked the staged implementation diff contained only Task 4 files.
 
-- Focused audio tests: 18 passing, 0 failing.
-- Full suite: 24 passing, 0 failing.
-- Diff check and inline syntax compilation: clean.
-- Legacy audio reference search: no matches.
+## Concerns
+
+No known functional concerns. Character PNG generation is intentionally
+deferred to Task 5; assets 101–150 do not exist yet.
