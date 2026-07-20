@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
 const html = await readFile(new URL("../index.html", import.meta.url), "utf8");
+const css = await readFile(new URL("../styles.css", import.meta.url), "utf8");
 
 test("정적 셸이 스타일과 앱 모듈을 로드한다", () => {
   assert.match(html, /<link rel="stylesheet" href="styles\.css">/);
@@ -43,4 +44,11 @@ test("홈에는 세 난이도 버튼과 도전 세기 안내가 있다", () => {
   assert.match(html, /data-difficulty="steady"/);
   assert.match(html, /data-difficulty="challenge"/);
   assert.match(html, /id="count-unavailable"/);
+});
+
+test("곱셈 결과 팻말은 긴 수식도 한 줄로 유지한다", () => {
+  assert.match(
+    css,
+    /\.result-sign\s*\{[^}]*white-space:\s*nowrap;/s
+  );
 });

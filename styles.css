@@ -959,7 +959,8 @@ body[data-state="home"] .star-pill {
   border-radius: 28px;
   color: var(--ink);
   font-family: var(--display-font);
-  font-size: clamp(38px, 5vw, 72px);
+  font-size: clamp(32px, 4vw, 58px);
+  white-space: nowrap;
   background: #fff8c9;
   box-shadow: 0 12px 0 rgba(37, 52, 93, .16);
   transform-origin: left center;
