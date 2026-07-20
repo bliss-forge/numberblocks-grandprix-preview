@@ -54,12 +54,14 @@ function fitGrid(spec) {
 
 function definitions(spec) {
   const [base, deep] = spec.palette;
+  const isWhiteBody = base === "#fff9ef";
+  const bodyEnd = isWhiteBody ? "#e8edf2" : deep;
   return `
     <defs>
       <linearGradient id="blockFill" x1="0" y1="0" x2="1" y2="1">
         <stop offset="0" stop-color="#ffffff" stop-opacity=".72"/>
         <stop offset=".18" stop-color="${base}"/>
-        <stop offset="1" stop-color="${deep}"/>
+        <stop offset="1" stop-color="${bodyEnd}"/>
       </linearGradient>
       <linearGradient id="accentFill" x1="0" y1="0" x2=".8" y2="1">
         <stop offset="0" stop-color="#ffffff" stop-opacity=".38"/>
@@ -102,9 +104,12 @@ function blockMarkup(spec, cell, index, layout) {
   const inset = layout.gap / 2;
   const digit = spec.number % 10;
   const accentStart = digit === 0 ? Number.POSITIVE_INFINITY : spec.number - digit;
-  const fill = spec.number > 10 && index >= accentStart
-    ? "url(#accentFill)"
-    : "url(#blockFill)";
+  const rainbow = ["#ef3d42", "#f3a33e", "#f2d84b", "#57c968", "#44bdd2", "#7854c5", "#e754a3"];
+  const isAccent = spec.number > 10 && index >= accentStart;
+  const rainbowIndex = isAccent && digit === 7 ? index - accentStart : -1;
+  const fill = rainbowIndex >= 0
+    ? rainbow[rainbowIndex]
+    : isAccent ? "url(#accentFill)" : "url(#blockFill)";
   const radius = Math.max(13, Math.round(layout.cell * .1));
   const highlight = Math.max(4, Math.round(layout.cell * .035));
 
@@ -136,13 +141,16 @@ function limbMarkup(spec, layout) {
   const { midY, leftEndY, rightEndY } = posePoints(spec, layout);
   const leftX = layout.left;
   const rightX = layout.left + layout.bodyWidth;
-  const armReach = Math.max(120, Math.min(225, 510 - layout.bodyWidth / 2));
   const stroke = Math.max(28, Math.min(48, layout.cell * .28));
+  const handRadius = stroke * .62;
+  const availableReach = Math.max(
+    42,
+    layout.left - handRadius - 20
+  );
+  const armReach = Math.min(225, availableReach);
   const legTop = layout.top + layout.bodyHeight - 8;
   const legLength = Math.max(115, Math.min(220, 1390 - legTop));
   const legSpread = Math.min(layout.bodyWidth * .22, 105);
-  const handRadius = stroke * .62;
-
   return `
     <path d="M ${leftX + 8} ${midY}
       C ${leftX - 55} ${midY + 10},
@@ -308,13 +316,10 @@ function parseRange(argv) {
 }
 
 async function rasterize(svgPath, outputPath) {
-  await execFileAsync("ffmpeg", [
-    "-loglevel", "error",
-    "-y",
-    "-i", svgPath,
-    "-frames:v", "1",
-    "-vf", "scale=1024:1536:flags=lanczos,format=rgba",
-    outputPath
+  await execFileAsync("sips", [
+    "-s", "format", "png",
+    svgPath,
+    "--out", outputPath
   ]);
 }
 

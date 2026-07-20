@@ -17,6 +17,7 @@ test("1~100은 정확한 수의 겹치지 않는 블록 좌표를 가진다", ()
 });
 
 test("대표 합성수는 읽기 쉬운 직사각형 몸체를 사용한다", () => {
+  assert.deepEqual(buildCharacterSpec(11).canvas.grid, [1, 11]);
   assert.deepEqual(buildCharacterSpec(12).canvas.grid, [3, 4]);
   assert.deepEqual(buildCharacterSpec(25).canvas.grid, [5, 5]);
   assert.deepEqual(buildCharacterSpec(36).canvas.grid, [6, 6]);
