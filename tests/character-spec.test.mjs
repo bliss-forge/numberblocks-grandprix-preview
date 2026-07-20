@@ -24,8 +24,12 @@ test("대표 합성수는 읽기 쉬운 직사각형 몸체를 사용한다", ()
   assert.deepEqual(buildCharacterSpec(100).canvas.grid, [10, 10]);
 });
 
-test("캐릭터 파일 이름은 숫자 기반으로 안정적이다", () => {
-  assert.equal(characterAsset(1), "number-001.png");
+test("1~10은 기존 자산, 11~100은 숫자 자산을 사용한다", () => {
+  assert.equal(characterAsset(1), "one.png");
+  assert.equal(characterAsset(6), "six.png");
+  assert.equal(characterAsset(10), "ten.png");
+  assert.equal(characterAsset(11), "number-011.png");
+  assert.equal(characterAsset(38), "number-038.png");
   assert.equal(characterAsset(100), "number-100.png");
   assert.throws(() => characterAsset(0), RangeError);
 });

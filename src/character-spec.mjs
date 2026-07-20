@@ -25,6 +25,20 @@ const DECADE_PALETTES = Object.freeze([
   ["#f06461", "#b92e31"]
 ]);
 
+const LEGACY_ASSETS = Object.freeze([
+  "",
+  "one.png",
+  "two.png",
+  "three.png",
+  "four.png",
+  "five.png",
+  "six.png",
+  "seven.png",
+  "eight.png",
+  "nine.png",
+  "ten.png"
+]);
+
 const GRID_PREFERENCES = new Map([
   [1, [1, 1]],
   [2, [1, 2]],
@@ -84,6 +98,7 @@ function accentFor(number) {
 
 export function characterAsset(number) {
   assertNumber(number);
+  if (number <= 10) return LEGACY_ASSETS[number];
   return `number-${String(number).padStart(3, "0")}.png`;
 }
 

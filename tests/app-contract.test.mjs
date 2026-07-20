@@ -32,9 +32,9 @@ test("게임 화면은 화면 전환 뒤 프로그램 방식으로 포커스를 
 
 test("모드 버튼은 키와 캐릭터 이미지를 제공한다", () => {
   assert.equal((html.match(/class="mode-card"/g) ?? []).length, 3);
-  assert.match(html, /assets\/characters\/number-001\.png/);
-  assert.match(html, /assets\/characters\/number-003\.png/);
-  assert.match(html, /assets\/characters\/number-004\.png/);
+  assert.match(html, /assets\/characters\/one\.png/);
+  assert.match(html, /assets\/characters\/three\.png/);
+  assert.match(html, /assets\/characters\/four\.png/);
 });
 
 test("홈에는 세 난이도 버튼과 도전 세기 안내가 있다", () => {

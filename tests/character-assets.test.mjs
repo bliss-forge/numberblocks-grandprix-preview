@@ -3,8 +3,18 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { characterAsset } from "../src/character-spec.mjs";
 
-test("1~100 새 캐릭터 PNG가 고해상도 RGBA로 존재한다", async () => {
-  for (let number = 1; number <= 100; number += 1) {
+test("1~10 기존 캐릭터 PNG가 존재한다", async () => {
+  for (let number = 1; number <= 10; number += 1) {
+    const asset = characterAsset(number);
+    const png = await readFile(
+      new URL(`../assets/characters/${asset}`, import.meta.url)
+    );
+    assert.equal(png.toString("ascii", 1, 4), "PNG", asset);
+  }
+});
+
+test("11~100 연결형 캐릭터 PNG가 고해상도 RGBA로 존재한다", async () => {
+  for (let number = 11; number <= 100; number += 1) {
     const asset = characterAsset(number);
     const png = await readFile(
       new URL(`../assets/characters/${asset}`, import.meta.url)
