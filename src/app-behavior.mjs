@@ -25,8 +25,10 @@ export function focusPhase(phase, { game, homeControl }) {
 }
 
 export function characterSizeBand(number) {
-  if (number > 100) return "large";
-  if (number > 50) return "medium";
+  if (number >= 101) return "scale-180";
+  if (number >= 51) return "scale-160";
+  if (number >= 21) return "scale-140";
+  if (number >= 11) return "scale-120";
   return "base";
 }
 

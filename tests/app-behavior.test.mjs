@@ -194,10 +194,21 @@ test("세기 결과 표현에는 식을 추가하지 않는다", () => {
   );
 });
 
-test("캐릭터 숫자를 50과 100 경계의 크기 단계로 나눈다", () => {
-  assert.equal(characterSizeBand(50), "base");
-  assert.equal(characterSizeBand(51), "medium");
-  assert.equal(characterSizeBand(100), "medium");
-  assert.equal(characterSizeBand(101), "large");
-  assert.equal(characterSizeBand(150), "large");
+test("캐릭터 숫자를 지정된 다섯 배율 단계로 나눈다", () => {
+  const boundaries = [
+    [1, "base"],
+    [10, "base"],
+    [11, "scale-120"],
+    [20, "scale-120"],
+    [21, "scale-140"],
+    [50, "scale-140"],
+    [51, "scale-160"],
+    [100, "scale-160"],
+    [101, "scale-180"],
+    [150, "scale-180"]
+  ];
+
+  for (const [number, band] of boundaries) {
+    assert.equal(characterSizeBand(number), band, `number ${number}`);
+  }
 });
