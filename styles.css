@@ -760,18 +760,26 @@ body[data-state="home"] .star-pill {
 .character {
   --number-scale: 1;
   --shape-scale: 1;
+  --shape-width-scale: 1;
   --screen-scale-cap: 2.2;
+  --screen-width-scale-cap: 1.375;
+  --resolved-character-scale: min(
+    calc(var(--number-scale) * var(--shape-scale)),
+    var(--screen-scale-cap)
+  );
   display: block;
   width: auto;
   max-width: min(34vw, 350px);
   max-height: min(49vh, 430px);
   object-fit: contain;
   filter: drop-shadow(0 13px 9px rgba(37, 52, 93, .22));
-  scale: min(
-    calc(var(--number-scale) * var(--shape-scale)),
-    var(--screen-scale-cap)
-  );
-  transform-origin: 50% 90%;
+  scale:
+    calc(
+      var(--resolved-character-scale) *
+      min(var(--shape-width-scale), var(--screen-width-scale-cap))
+    )
+    var(--resolved-character-scale);
+  transform-origin: 50% 50%;
 }
 
 .character[data-size-band="scale-120"] {
@@ -1555,6 +1563,7 @@ body[data-state="celebrating"] .answer-box {
     max-width: min(48vw, 240px);
     max-height: min(16vh, 64px);
     --screen-scale-cap: 1;
+    --screen-width-scale-cap: 1;
   }
 
   .character[data-size-band="scale-120"] {

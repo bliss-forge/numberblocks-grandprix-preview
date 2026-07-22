@@ -6,6 +6,8 @@
 
 **Architecture:** Add one pure shape-compensation function beside the existing numeric band selector, attach its result as `--shape-scale` through the shared `character()` factory, and let CSS combine band and shape scales under screen-specific caps. Extend the existing PNG alpha decoder with an opaque-pixel count so tests verify the actual visible asset area rather than only CSS declarations.
 
+**Browser QA deviation:** The scalar implementation made 18 pass the area regression, but 19 still rendered about 18% smaller than 6 and its transparent canvas extended above the stage. The approved correction keeps the capped vertical scale, centers the transform origin, and adds a bounded horizontal-only scale for narrow characters.
+
 **Tech Stack:** Static HTML/CSS, browser-native ES modules, Node.js `node:test`, Node `zlib` PNG decoding, in-app browser visual QA.
 
 ## Global Constraints
@@ -18,6 +20,8 @@
 - Addition, subtraction, multiplication, count, and celebration scenes all use the shared `character()` path.
 - Character PNGs, render scripts, audio, problem rules, answer behavior, keyboard input, and mobile keypad behavior remain unchanged.
 - Every production change follows RED → GREEN → full regression test → commit.
+- Horizontal shape compensation is `1 + (shape compensation - 1) × 0.5`, bounded by the existing shape range to `1...1.375`.
+- Short landscape disables the additional horizontal widening by capping it at `1`.
 
 ---
 
@@ -412,3 +416,77 @@ git log -5 --oneline
 ```
 
 Expected: the feature worktree is clean and the three implementation commits appear above the design and plan commits.
+
+---
+
+### Task 4: Axis-Separated Correction After Browser QA
+
+**Files:**
+- Modify: `tests/app-behavior.test.mjs`
+- Modify: `tests/app-contract.test.mjs`
+- Modify: `tests/responsive-layout.test.mjs`
+- Modify: `tests/character-assets.test.mjs`
+- Modify: `src/app-behavior.mjs`
+- Modify: `src/app.mjs`
+- Modify: `styles.css`
+
+**Interfaces:**
+- Produces: `characterShapeWidthScale(number, rows, cols): number`
+- Produces DOM/CSS contract: `--shape-width-scale` controls only the horizontal axis; `--shape-scale` continues to control both axes under the vertical screen cap.
+
+- [x] **Step 1: Write failing unit, wiring, CSS, and alpha-area tests**
+
+Verify the width function returns `1` for 6, `1 + (sqrt(3) - 1) / 2` for 18, `1.375` for 19, and `1` for invalid metadata. Require the shared character factory to set `--shape-width-scale`. Require two-value CSS `scale`, centered transform origin, and a short-landscape horizontal cap of `1`. Change the alpha regression to compare both 18 and 19 against 6 using `opaquePixels × verticalScale² × widthScale`.
+
+- [x] **Step 2: Run focused tests and verify RED**
+
+Run:
+
+```bash
+node --test tests/app-behavior.test.mjs tests/app-contract.test.mjs tests/responsive-layout.test.mjs tests/character-assets.test.mjs
+```
+
+Expected: FAIL because the width function, DOM variable, and axis-separated CSS do not exist and 19 remains smaller than 6.
+
+- [x] **Step 3: Implement the bounded horizontal correction**
+
+Add `characterShapeWidthScale(number, rows, cols)` beside `characterShapeScale`. It reuses the shape scale and returns:
+
+```js
+1 + (characterShapeScale(number, rows, cols) - 1) * 0.5
+```
+
+Set the result as `--shape-width-scale` in `character()`. In CSS, introduce a resolved vertical scale and apply a second scale value for the horizontal axis:
+
+```css
+--shape-width-scale: 1;
+--screen-width-scale-cap: 1.375;
+--resolved-character-scale: min(
+  calc(var(--number-scale) * var(--shape-scale)),
+  var(--screen-scale-cap)
+);
+scale:
+  calc(
+    var(--resolved-character-scale) *
+    min(var(--shape-width-scale), var(--screen-width-scale-cap))
+  )
+  var(--resolved-character-scale);
+transform-origin: 50% 50%;
+```
+
+Inside short landscape, set `--screen-width-scale-cap: 1`.
+
+- [x] **Step 4: Verify GREEN and full regressions**
+
+Run the focused command, `git diff --check`, and `npm test`. Expected: all tests PASS.
+
+- [x] **Step 5: Commit the browser-QA correction**
+
+```bash
+git add src/app-behavior.mjs src/app.mjs styles.css tests/app-behavior.test.mjs tests/app-contract.test.mjs tests/responsive-layout.test.mjs tests/character-assets.test.mjs docs/superpowers
+git commit -m "fix: 좁은 큰 수 캐릭터 가로 면적 보정"
+```
+
+- [x] **Step 6: Verify three responsive viewports**
+
+At 1280×720 verify a 19 versus 1–10 scene: 19 has a larger visible body, stays within the stage, and does not cover the operator. At 390×844 verify the mobile keypad and answer field remain usable. At 640×360 verify horizontal widening resolves to `1` and all controls remain visible. Check the browser console at every size.

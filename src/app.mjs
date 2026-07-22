@@ -14,6 +14,7 @@ import {
 import {
   celebrationPresentation,
   characterShapeScale,
+  characterShapeWidthScale,
   characterSizeBand,
   formatCountHint,
   formatProblemText,
@@ -87,6 +88,10 @@ function character(number, className = "") {
   image.style.setProperty(
     "--shape-scale",
     String(characterShapeScale(number, rows, cols))
+  );
+  image.style.setProperty(
+    "--shape-width-scale",
+    String(characterShapeWidthScale(number, rows, cols))
   );
   image.dataset.shape =
     cols > rows

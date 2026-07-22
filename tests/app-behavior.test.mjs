@@ -6,6 +6,7 @@ import * as appBehavior from "../src/app-behavior.mjs";
 import {
   celebrationView,
   characterShapeScale,
+  characterShapeWidthScale,
   characterSizeBand,
   formatCountHint,
   formatProblemText,
@@ -241,4 +242,16 @@ test("잘못된 캐릭터 치수는 안전하게 보정 1을 사용한다", () =
   ]) {
     assert.equal(characterShapeScale(...args), 1);
   }
+});
+
+test("좁은 큰 수는 형태 보정의 절반만큼 가로축을 추가 보정한다", () => {
+  assert.equal(characterShapeWidthScale(6, 3, 2), 1);
+  assert.ok(
+    Math.abs(
+      characterShapeWidthScale(18, 9, 2) -
+      (1 + (Math.sqrt(3) - 1) * 0.5)
+    ) < 1e-12
+  );
+  assert.equal(characterShapeWidthScale(19, 10, 2), 1.375);
+  assert.equal(characterShapeWidthScale(18, 0, 2), 1);
 });

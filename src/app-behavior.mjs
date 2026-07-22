@@ -54,6 +54,11 @@ export function characterShapeScale(number, rows, cols) {
   return Math.min(MAX_SHAPE_SCALE, Math.max(1, scale));
 }
 
+export function characterShapeWidthScale(number, rows, cols) {
+  const shapeScale = characterShapeScale(number, rows, cols);
+  return 1 + (shapeScale - 1) * 0.5;
+}
+
 export function formatProblemText(problem) {
   if (problem.mode === "count") return "블록이 몇 개일까요?";
   const [left, right] = problem.operands;

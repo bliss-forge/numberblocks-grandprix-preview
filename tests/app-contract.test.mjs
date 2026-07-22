@@ -117,7 +117,7 @@ test("세기 친구 장면은 같은 크기의 두 칸과 보이는 힌트 상�
   );
 });
 
-test("모든 캐릭터 이미지에 숫자 단계와 형태 보정을 표시한다", () => {
+test("모든 캐릭터 이미지에 숫자 단계와 두 축 형태 보정을 표시한다", () => {
   assert.match(
     app,
     /import\s*\{[^}]*characterShapeScale[^}]*\}\s*from "\.\/app-behavior\.mjs";/s
@@ -129,6 +129,10 @@ test("모든 캐릭터 이미지에 숫자 단계와 형태 보정을 표시한�
   assert.match(
     app,
     /image\.style\.setProperty\(\s*"--shape-scale",\s*String\(characterShapeScale\(number,\s*rows,\s*cols\)\)\s*\);/s
+  );
+  assert.match(
+    app,
+    /image\.style\.setProperty\(\s*"--shape-width-scale",\s*String\(characterShapeWidthScale\(number,\s*rows,\s*cols\)\)\s*\);/s
   );
 });
 

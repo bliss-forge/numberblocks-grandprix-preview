@@ -13,10 +13,10 @@ function mediaBlock(marker) {
   return css.slice(start, nextMedia === -1 ? css.length : nextMedia);
 }
 
-test("캐릭터 크기 단계는 애니메이션 transform과 독립된 scale을 사용한다", () => {
+test("캐릭터 크기 단계는 세로 상한과 좁은 몸체 가로 보정을 함께 사용한다", () => {
   assert.match(
     css,
-    /\.character\s*\{[^}]*--number-scale:\s*1;[^}]*--shape-scale:\s*1;[^}]*--screen-scale-cap:\s*2\.2;[^}]*scale:\s*min\(\s*calc\(var\(--number-scale\)\s*\*\s*var\(--shape-scale\)\),\s*var\(--screen-scale-cap\)\s*\);/s
+    /\.character\s*\{[^}]*--number-scale:\s*1;[^}]*--shape-scale:\s*1;[^}]*--shape-width-scale:\s*1;[^}]*--screen-scale-cap:\s*2\.2;[^}]*--screen-width-scale-cap:\s*1\.375;[^}]*--resolved-character-scale:\s*min\([^}]*scale:\s*calc\([^}]*var\(--shape-width-scale\)[^}]*var\(--screen-width-scale-cap\)[^}]*\)\s*var\(--resolved-character-scale\);[^}]*transform-origin:\s*50%\s+50%;/s
   );
   for (const [band, scale] of [
     ["scale-120", "1.2"],
@@ -87,6 +87,10 @@ test("일반 모바일은 데스크톱과 같은 숫자 배율을 사용한다",
 
 test("높이 500px 이하 가로 화면은 확대 배율에 안전 상한을 둔다", () => {
   const shortHeightCss = mediaBlock(shortHeightMarker);
+  assert.match(
+    shortHeightCss,
+    /\.character\s*\{[^}]*--screen-scale-cap:\s*1;[^}]*--screen-width-scale-cap:\s*1;/s
+  );
   for (const [band, cap] of [
     ["base", "1"],
     ["scale-120", "1.1"],

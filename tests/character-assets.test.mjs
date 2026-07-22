@@ -1,7 +1,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
-import { characterShapeScale } from "../src/app-behavior.mjs";
+import {
+  characterShapeScale,
+  characterShapeWidthScale
+} from "../src/app-behavior.mjs";
 import { characterAsset } from "../src/character-spec.mjs";
 import { NUMBERBLOCKS } from "../src/game-model.mjs";
 import { visiblePngBounds } from "../scripts/png_alpha_bounds.mjs";
@@ -54,9 +57,9 @@ test("11~150의 전체 보이는 실루엣이 공통 안전 영역에 정규화�
   }
 });
 
-test("18의 보정된 불투명 몸체 면적은 6보다 크다", async () => {
+test("18과 19의 보정된 불투명 몸체 면적은 6보다 크다", async () => {
   const metrics = {};
-  for (const number of [6, 18]) {
+  for (const number of [6, 18, 19]) {
     const png = await readFile(
       new URL(
         `../assets/characters/${characterAsset(number)}`,
@@ -66,17 +69,24 @@ test("18의 보정된 불투명 몸체 면적은 6보다 크다", async () => {
     metrics[number] = visiblePngBounds(png);
   }
 
-  const eighteen = NUMBERBLOCKS[18];
-  const eighteenScale = Math.min(
-    2.2,
-    1.2 * characterShapeScale(18, eighteen.rows, eighteen.cols)
-  );
   const sixDisplayedArea = metrics[6].opaquePixels;
-  const eighteenDisplayedArea =
-    metrics[18].opaquePixels * (eighteenScale ** 2);
+  for (const number of [18, 19]) {
+    const spec = NUMBERBLOCKS[number];
+    const verticalScale = Math.min(
+      2.2,
+      1.2 * characterShapeScale(number, spec.rows, spec.cols)
+    );
+    const widthScale = characterShapeWidthScale(
+      number,
+      spec.rows,
+      spec.cols
+    );
+    const displayedArea =
+      metrics[number].opaquePixels * (verticalScale ** 2) * widthScale;
 
-  assert.ok(
-    eighteenDisplayedArea > sixDisplayedArea,
-    `18 area ${eighteenDisplayedArea} must exceed 6 area ${sixDisplayedArea}`
-  );
+    assert.ok(
+      displayedArea > sixDisplayedArea,
+      `${number} area ${displayedArea} must exceed 6 area ${sixDisplayedArea}`
+    );
+  }
 });
