@@ -13,6 +13,7 @@ import {
 } from "./difficulty-preference.mjs";
 import {
   celebrationPresentation,
+  characterShapeScale,
   characterSizeBand,
   formatCountHint,
   formatProblemText,
@@ -76,16 +77,21 @@ function preloadCharacters() {
 }
 
 function character(number, className = "") {
+  const { asset, rows, cols } = NUMBERBLOCKS[number];
   const image = document.createElement("img");
   image.className = `character enter ${className}`.trim();
-  image.src = `assets/characters/${NUMBERBLOCKS[number].asset}`;
+  image.src = `assets/characters/${asset}`;
   image.alt = `숫자 ${number} 블록 캐릭터`;
   image.dataset.number = String(number);
   image.dataset.sizeBand = characterSizeBand(number);
+  image.style.setProperty(
+    "--shape-scale",
+    String(characterShapeScale(number, rows, cols))
+  );
   image.dataset.shape =
-    NUMBERBLOCKS[number].cols > NUMBERBLOCKS[number].rows
+    cols > rows
       ? "wide"
-      : NUMBERBLOCKS[number].rows > NUMBERBLOCKS[number].cols * 2
+      : rows > cols * 2
         ? "tall"
         : "balanced";
   retireAnimationClass(image, "enter");

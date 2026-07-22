@@ -16,7 +16,7 @@ function mediaBlock(marker) {
 test("캐릭터 크기 단계는 애니메이션 transform과 독립된 scale을 사용한다", () => {
   assert.match(
     css,
-    /\.character\s*\{[^}]*--number-scale:\s*1;[^}]*scale:\s*var\(--number-scale\);/s
+    /\.character\s*\{[^}]*--number-scale:\s*1;[^}]*--shape-scale:\s*1;[^}]*--screen-scale-cap:\s*2\.2;[^}]*scale:\s*min\(\s*calc\(var\(--number-scale\)\s*\*\s*var\(--shape-scale\)\),\s*var\(--screen-scale-cap\)\s*\);/s
   );
   for (const [band, scale] of [
     ["scale-120", "1.2"],
@@ -87,16 +87,20 @@ test("일반 모바일은 데스크톱과 같은 숫자 배율을 사용한다",
 
 test("높이 500px 이하 가로 화면은 확대 배율에 안전 상한을 둔다", () => {
   const shortHeightCss = mediaBlock(shortHeightMarker);
-  for (const [band, scale] of [
+  for (const [band, cap] of [
+    ["base", "1"],
     ["scale-120", "1.1"],
     ["scale-140", "1.15"],
     ["scale-160", "1.2"],
     ["scale-180", "1.25"]
   ]) {
+    const selector = band === "base"
+      ? "\\.character"
+      : `\\.character\\[data-size-band="${band}"\\]`;
     assert.match(
       shortHeightCss,
       new RegExp(
-        `\\.character\\[data-size-band="${band}"\\]\\s*\\{[^}]*--number-scale:\\s*${scale.replace(".", "\\.")};`,
+        `${selector}\\s*\\{[^}]*--screen-scale-cap:\\s*${cap.replace(".", "\\.")};`,
         "s"
       )
     );
