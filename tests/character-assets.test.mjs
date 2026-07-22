@@ -1,7 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
+import { characterShapeScale } from "../src/app-behavior.mjs";
 import { characterAsset } from "../src/character-spec.mjs";
+import { NUMBERBLOCKS } from "../src/game-model.mjs";
 import { visiblePngBounds } from "../scripts/png_alpha_bounds.mjs";
 
 const SAFE = Object.freeze({ left: 120, right: 904, top: 190, bottom: 1240 });
@@ -50,4 +52,31 @@ test("11~150의 전체 보이는 실루엣이 공통 안전 영역에 정규화�
     assert.ok(bounds.bottom < SAFE.bottom, `${asset} visible bottom ${bounds.bottom}`);
     assert.ok(fill >= .82 && fill <= .88, `${asset} visible fill ${fill}`);
   }
+});
+
+test("18의 보정된 불투명 몸체 면적은 6보다 크다", async () => {
+  const metrics = {};
+  for (const number of [6, 18]) {
+    const png = await readFile(
+      new URL(
+        `../assets/characters/${characterAsset(number)}`,
+        import.meta.url
+      )
+    );
+    metrics[number] = visiblePngBounds(png);
+  }
+
+  const eighteen = NUMBERBLOCKS[18];
+  const eighteenScale = Math.min(
+    2.2,
+    1.2 * characterShapeScale(18, eighteen.rows, eighteen.cols)
+  );
+  const sixDisplayedArea = metrics[6].opaquePixels;
+  const eighteenDisplayedArea =
+    metrics[18].opaquePixels * (eighteenScale ** 2);
+
+  assert.ok(
+    eighteenDisplayedArea > sixDisplayedArea,
+    `18 area ${eighteenDisplayedArea} must exceed 6 area ${sixDisplayedArea}`
+  );
 });

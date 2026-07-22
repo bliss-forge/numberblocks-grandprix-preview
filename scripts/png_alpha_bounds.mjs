@@ -60,6 +60,7 @@ export function visiblePngBounds(png) {
   let right = -1;
   let top = height;
   let bottom = -1;
+  let opaquePixels = 0;
 
   for (let y = 0; y < height; y += 1) {
     const filter = encoded[sourceOffset];
@@ -84,6 +85,7 @@ export function visiblePngBounds(png) {
 
     for (let x = 0; x < width; x += 1) {
       if (current[x * bytesPerPixel + 3] === 0) continue;
+      opaquePixels += 1;
       left = Math.min(left, x);
       right = Math.max(right, x);
       top = Math.min(top, y);
@@ -100,6 +102,7 @@ export function visiblePngBounds(png) {
     top,
     bottom,
     width: right - left + 1,
-    height: bottom - top + 1
+    height: bottom - top + 1,
+    opaquePixels
   });
 }
