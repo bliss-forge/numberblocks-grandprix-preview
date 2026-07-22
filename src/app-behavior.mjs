@@ -32,6 +32,28 @@ export function characterSizeBand(number) {
   return "base";
 }
 
+const SHAPE_REFERENCE_DENSITY = 2 / 3;
+const MAX_SHAPE_SCALE = 1.75;
+
+export function characterShapeScale(number, rows, cols) {
+  if (
+    !Number.isInteger(number) ||
+    !Number.isInteger(rows) ||
+    !Number.isInteger(cols) ||
+    number <= 10 ||
+    rows <= 0 ||
+    cols <= 0
+  ) {
+    return 1;
+  }
+
+  const longestSide = Math.max(rows, cols);
+  const density = number / (longestSide ** 2);
+  const scale = Math.sqrt(SHAPE_REFERENCE_DENSITY / density);
+  if (!Number.isFinite(scale)) return 1;
+  return Math.min(MAX_SHAPE_SCALE, Math.max(1, scale));
+}
+
 export function formatProblemText(problem) {
   if (problem.mode === "count") return "블록이 몇 개일까요?";
   const [left, right] = problem.operands;

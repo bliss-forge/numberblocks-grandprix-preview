@@ -5,6 +5,7 @@ import { createProblem } from "../src/game-model.mjs";
 import * as appBehavior from "../src/app-behavior.mjs";
 import {
   celebrationView,
+  characterShapeScale,
   characterSizeBand,
   formatCountHint,
   formatProblemText,
@@ -210,5 +211,34 @@ test("캐릭터 숫자를 지정된 다섯 배율 단계로 나눈다", () => {
 
   for (const [number, band] of boundaries) {
     assert.equal(characterSizeBand(number), band, `number ${number}`);
+  }
+});
+
+test("1~10은 형태 보정 없이 기존 크기를 유지한다", () => {
+  assert.equal(characterShapeScale(1, 1, 1), 1);
+  assert.equal(characterShapeScale(6, 3, 2), 1);
+  assert.equal(characterShapeScale(10, 5, 2), 1);
+});
+
+test("11 이상 세로형은 블록 배치 밀도로 자동 확대한다", () => {
+  assert.ok(Math.abs(characterShapeScale(18, 9, 2) - Math.sqrt(3)) < 1e-12);
+  assert.equal(characterShapeScale(20, 4, 5), 1);
+  assert.equal(characterShapeScale(19, 10, 2), 1.75);
+  assert.ok(
+    Math.abs(
+      1.2 * characterShapeScale(18, 9, 2) - 2.0784609690826525
+    ) < 1e-12
+  );
+});
+
+test("잘못된 캐릭터 치수는 안전하게 보정 1을 사용한다", () => {
+  for (const args of [
+    [18, 0, 2],
+    [18, 9, -1],
+    [18, Number.NaN, 2],
+    [18.5, 9, 2],
+    [18, 9.5, 2]
+  ]) {
+    assert.equal(characterShapeScale(...args), 1);
   }
 });
