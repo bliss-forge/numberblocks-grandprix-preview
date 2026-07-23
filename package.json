@@ -3,7 +3,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "render:characters": "node scripts/render_character_pack.mjs --from 11 --to 150",
+    "metrics:characters": "node scripts/generate_character_visual_metrics.mjs",
+    "render:characters": "node scripts/render_character_pack.mjs --from 11 --to 150 && npm run metrics:characters",
     "test": "node --test tests/*.test.mjs"
   }
 }
