@@ -7,7 +7,7 @@
   <meta name="color-scheme" content="light">
   <title>숫자블록 놀이터</title>
   <link rel="icon" href="data:,">
-  <link rel="stylesheet" href="styles.css?v=20260723-strong-character-growth">
+  <link rel="stylesheet" href="styles.css?v=20260724-safe-route">
 </head>
 <body data-state="home" data-mode="">
   <div class="world" aria-hidden="true">
@@ -48,7 +48,7 @@
           <span class="logo-number">숫자</span><span class="logo-block">블록</span>
           <em>놀이터</em>
         </h1>
-        <p class="lead"><kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd> <kbd>4</kbd> 중 하나를 눌러 시작해요!</p>
+        <p class="lead"><kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd> <kbd>4</kbd> <kbd>5</kbd> 중 하나를 눌러 시작해요!</p>
       </div>
 
       <div id="difficulty-picker" class="difficulty-picker" role="group" aria-label="난이도 선택">
@@ -98,6 +98,14 @@
           <span class="card-copy">
             <strong>곱하기 블록</strong>
             <small>줄과 칸을 세어요</small>
+          </span>
+        </button>
+        <button class="mode-card safety-mode-card" type="button" data-mode="safety" aria-keyshortcuts="5">
+          <span class="card-number">5</span>
+          <img src="assets/characters/one.png" alt="">
+          <span class="card-copy">
+            <strong>안전한 길찾기</strong>
+            <small>친구들을 만나러 가요</small>
           </span>
         </button>
       </div>

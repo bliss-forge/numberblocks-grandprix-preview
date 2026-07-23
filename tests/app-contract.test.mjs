@@ -31,9 +31,15 @@ test("게임 화면은 화면 전환 뒤 프로그램 방식으로 포커스를 
   );
 });
 
-test("홈은 네 가지 놀이와 1~4 바로가기 키를 제공한다", () => {
-  assert.equal((html.match(/class="mode-card"/g) ?? []).length, 4);
-  for (const [mode, key] of [["count", "1"], ["add", "2"], ["sub", "3"], ["mul", "4"]]) {
+test("홈은 다섯 가지 놀이와 1~5 바로가기 키를 제공한다", () => {
+  assert.equal((html.match(/class="mode-card(?: [^"]*)?"/g) ?? []).length, 5);
+  for (const [mode, key] of [
+    ["count", "1"],
+    ["add", "2"],
+    ["sub", "3"],
+    ["mul", "4"],
+    ["safety", "5"]
+  ]) {
     assert.match(
       html,
       new RegExp(`data-mode="${mode}"[^>]*aria-keyshortcuts="${key}"`)
@@ -43,6 +49,8 @@ test("홈은 네 가지 놀이와 1~4 바로가기 키를 제공한다", () => {
   assert.match(html, /assets\/characters\/three\.png/);
   assert.match(html, /assets\/characters\/five\.png/);
   assert.match(html, /assets\/characters\/four\.png/);
+  assert.match(html, /안전한 길찾기/);
+  assert.match(html, /<kbd>5<\/kbd>/);
 });
 
 test("홈에는 7~9 바로가기 키가 있는 세 난이도 버튼과 도전 세기 안내가 있다", () => {
@@ -194,7 +202,7 @@ test("문제와 정답 캐릭터는 장면 확대와 실측 상한을 공유한�
 test("오른쪽 아래에 bliss 제작자 서명을 표시한다", () => {
   assert.match(
     html,
-    /<link rel="stylesheet" href="styles\.css\?v=20260723-strong-character-growth">/
+    /<link rel="stylesheet" href="styles\.css\?v=20260724-safe-route">/
   );
   assert.match(
     html,
