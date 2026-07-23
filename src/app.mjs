@@ -38,6 +38,16 @@ import {
   operandScene,
   operatorFor
 } from "./problem-scene.mjs";
+import {
+  advanceSafetyWorld,
+  attemptSafetyMove,
+  createSafetyRouteState
+} from "./safety-route-model.mjs";
+import {
+  directionForKey,
+  safetyCueForEvent
+} from "./safety-route-controller.mjs";
+import { renderSafetyRouteScene } from "./safety-route-scene.mjs";
 
 const audio = new AudioManager();
 const $ = id => document.getElementById(id);
@@ -69,9 +79,10 @@ const state = {
   mode: null,
   difficulty: loadDifficulty(),
   problem: null,
+  safety: null,
   buffer: "",
   stars: 0,
-  streak: { count: 0, add: 0, sub: 0, mul: 0 },
+  streak: { count: 0, add: 0, sub: 0, mul: 0, safety: 0 },
   wrongCount: 0,
   round: 0,
   hintTimer: 0,
@@ -383,6 +394,48 @@ function newProblem() {
   playPromptCue(audio, state.problem.promptKey);
 }
 
+function renderSafetyRoute() {
+  if (!state.safety) return;
+  dom.problem.textContent =
+    state.safety.nextFriend <= 10
+      ? `${state.safety.nextFriend} 친구를 만나러 가요`
+      : "학교까지 안전하게 가요";
+  dom.stage.replaceChildren(
+    renderSafetyRouteScene(document, state.safety)
+  );
+}
+
+function scheduleSafetyWorldTick() {
+  schedule(() => {
+    if (
+      state.phase !== "playing" ||
+      state.mode !== "safety" ||
+      !state.safety
+    ) {
+      return;
+    }
+    state.safety = advanceSafetyWorld(state.safety);
+    renderSafetyRoute();
+    scheduleSafetyWorldTick();
+  }, 900);
+}
+
+function startSafetyRoute() {
+  clearTimers();
+  audio.cancel();
+  state.round += 1;
+  state.problem = null;
+  state.buffer = "";
+  state.safety = createSafetyRouteState(state.difficulty);
+  dom.cheer.classList.remove("show");
+  dom.hint.className = "toast";
+  dom.hint.textContent = "";
+  setPhase("playing");
+  renderSafetyRoute();
+  void audio.playPrompt("safety-next-2");
+  scheduleSafetyWorldTick();
+}
+
 function showHint(message) {
   if (state.hintTimer) {
     clearTimeout(state.hintTimer);
@@ -396,6 +449,54 @@ function showHint(message) {
     state.hintTimer = 0;
     dom.hint.classList.remove("show");
   }, 1300);
+}
+
+async function completeSafetyRoute() {
+  const round = state.round;
+  setPhase("celebrating");
+  clearTimers();
+  audio.cancel();
+  state.stars += 1;
+  state.streak.safety += 1;
+  dom.stars.textContent = String(state.stars);
+  dom.cheer.textContent = "안전하게 도착했어요!";
+  dom.cheer.classList.add("show");
+  renderSafetyRoute();
+  audio.playSfx("win");
+  await audio.playPrompt("safety-finish");
+  if (state.phase !== "celebrating" || state.round !== round) return;
+  schedule(() => {
+    dom.cheer.classList.remove("show");
+    startSafetyRoute();
+  }, 1550);
+}
+
+function moveSafetyRoute(direction) {
+  if (
+    state.phase !== "playing" ||
+    state.mode !== "safety" ||
+    !state.safety
+  ) {
+    return;
+  }
+
+  audio.playSfx("key");
+  const result = attemptSafetyMove(state.safety, direction);
+  state.safety = result.state;
+  renderSafetyRoute();
+
+  if (result.event.type === "complete") {
+    void completeSafetyRoute();
+    return;
+  }
+
+  const cue = safetyCueForEvent(result.event, state.safety.nextFriend);
+  if (!cue) return;
+  showHint(cue.message);
+  if (cue.voiceKey) {
+    audio.cancel();
+    void audio.playPrompt(cue.voiceKey);
+  }
 }
 
 function scheduleCountHint(answer) {
@@ -500,7 +601,12 @@ function startMode(mode) {
     return;
   }
   setMode(mode);
-  newProblem();
+  if (mode === "safety") {
+    startSafetyRoute();
+  } else {
+    state.safety = null;
+    newProblem();
+  }
   focusPhase(state.phase, {
     game: dom.game,
     homeControl: availableHomeControl()
@@ -512,6 +618,7 @@ function goHome() {
   audio.cancel();
   state.round += 1;
   state.problem = null;
+  state.safety = null;
   state.buffer = "";
   setMode(null);
   dom.cheer.classList.remove("show");
@@ -547,6 +654,11 @@ numberPadDigits.forEach(button => {
 });
 
 dom.numberPadDelete.addEventListener("click", deleteDigit);
+dom.stage.addEventListener("click", event => {
+  const button = event.target.closest("[data-route-direction]");
+  if (!button) return;
+  moveSafetyRoute(button.dataset.routeDirection);
+});
 
 dom.homeButton.addEventListener("click", goHome);
 dom.mute.addEventListener("click", () => {
@@ -559,6 +671,19 @@ document.addEventListener("keydown", event => {
     event.preventDefault();
     goHome();
     return;
+  }
+
+  if (
+    state.phase === "playing" &&
+    state.mode === "safety" &&
+    !event.repeat
+  ) {
+    const direction = directionForKey(event.key);
+    if (direction) {
+      event.preventDefault();
+      moveSafetyRoute(direction);
+      return;
+    }
   }
 
   if (event.key === "Backspace" && state.phase === "playing") {
@@ -594,7 +719,13 @@ document.addEventListener("keydown", event => {
       return;
     }
 
-    const modes = { 1: "count", 2: "add", 3: "sub", 4: "mul" };
+    const modes = {
+      1: "count",
+      2: "add",
+      3: "sub",
+      4: "mul",
+      5: "safety"
+    };
     if (modes[digit]) {
       event.preventDefault();
       startMode(modes[digit]);

@@ -53,6 +53,41 @@ test("홈은 다섯 가지 놀이와 1~5 바로가기 키를 제공한다", () =
   assert.match(html, /<kbd>5<\/kbd>/);
 });
 
+test("길찾기는 모델, 장면, 키보드와 모바일 방향 버튼을 앱에 연결한다", () => {
+  for (const name of [
+    "attemptSafetyMove",
+    "createSafetyRouteState",
+    "advanceSafetyWorld"
+  ]) {
+    assert.match(
+      app,
+      new RegExp(
+        `import\\s*\\{[^}]*${name}[^}]*\\}\\s*from "\\.\\/safety-route-model\\.mjs";`,
+        "s"
+      )
+    );
+  }
+  assert.match(
+    app,
+    /import\s*\{[^}]*directionForKey[^}]*safetyCueForEvent[^}]*\}\s*from "\.\/safety-route-controller\.mjs";/s
+  );
+  assert.match(
+    app,
+    /import\s*\{[^}]*renderSafetyRouteScene[^}]*\}\s*from "\.\/safety-route-scene\.mjs";/s
+  );
+  assert.match(app, /const modes = \{[^}]*5:\s*"safety"/s);
+  assert.match(app, /directionForKey\(event\.key\)/);
+  assert.match(app, /closest\("\[data-route-direction\]"\)/);
+  assert.match(app, /attemptSafetyMove\(state\.safety,\s*direction\)/);
+  assert.match(app, /advanceSafetyWorld\(state\.safety\)/);
+});
+
+test("길찾기는 숫자 답안 UI를 사용하지 않고 별을 잃지 않는다", () => {
+  assert.match(app, /state\.mode === "safety"/);
+  assert.match(app, /state\.safety = null;/);
+  assert.doesNotMatch(app, /blocked[\s\S]{0,200}state\.stars\s*-=/);
+});
+
 test("홈에는 7~9 바로가기 키가 있는 세 난이도 버튼과 도전 세기 안내가 있다", () => {
   assert.match(html, /id="difficulty-picker"/);
   assert.equal((html.match(/class="difficulty-button"/g) ?? []).length, 3);
