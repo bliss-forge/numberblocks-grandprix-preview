@@ -1,0 +1,50 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
+
+const css = await readFile(new URL("../styles.css", import.meta.url), "utf8");
+
+test("길찾기에서는 답안 UI를 숨기고 지도를 무대 전체에 펼친다", () => {
+  assert.match(
+    css,
+    /body\[data-mode="safety"\]\s+\.answer-dock,[\s\S]*?body\[data-mode="safety"\]\s+\.number-pad,[\s\S]*?body\[data-mode="safety"\]\s+\.game-keyboard-note\s*\{[^}]*display:\s*none;/s
+  );
+  assert.match(
+    css,
+    /\.safety-grid\s*\{[^}]*grid-template-columns:\s*repeat\(var\(--route-cols\),\s*1fr\);[^}]*grid-template-rows:\s*repeat\(var\(--route-rows\),\s*1fr\);/s
+  );
+});
+
+test("건물과 생활안전 요소를 입체 이미지 없이 평면 CSS 그림으로 표현한다", () => {
+  for (const selector of [
+    ".route-place-home",
+    ".route-place-daycare",
+    ".route-place-shops",
+    ".route-place-school",
+    ".route-manhole",
+    ".route-construction",
+    ".route-scooter",
+    ".route-bicycle",
+    ".route-car"
+  ]) {
+    assert.match(css, new RegExp(`\\${selector}\\s*\\{`), selector);
+  }
+  assert.match(css, /\.route-place::before/);
+  assert.match(css, /\.route-car::before/);
+  assert.doesNotMatch(css, /\.safety-route[\s\S]*?perspective\s*:/);
+});
+
+test("방향 버튼은 터치하기 충분하고 모바일·낮은 가로 화면에서도 유지된다", () => {
+  assert.match(
+    css,
+    /\.route-pad button\s*\{[^}]*min-width:\s*48px;[^}]*min-height:\s*48px;/s
+  );
+  assert.match(
+    css,
+    /@media\s*\(max-width:\s*640px\)[\s\S]*?body\[data-mode="safety"\]\s+#game\s*\{[^}]*padding:/s
+  );
+  assert.match(
+    css,
+    /@media\s*\(max-width:\s*900px\)\s+and\s+\(max-height:\s*500px\)[\s\S]*?\.route-pad\s*\{[^}]*position:\s*absolute;/s
+  );
+});
