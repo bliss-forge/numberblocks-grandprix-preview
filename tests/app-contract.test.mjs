@@ -164,6 +164,29 @@ test("정답 캐릭터 결과는 순수 표현값을 사용하고 이미지 오�
   );
 });
 
+test("문제와 정답 캐릭터는 장면 확대와 실측 상한을 공유한다", () => {
+  assert.match(
+    app,
+    /import\s*\{[^}]*CHARACTER_VISUAL_METRICS[^}]*REFERENCE_VISUAL_AREA[^}]*\}\s*from "\.\/character-visual-metrics\.mjs";/s
+  );
+  assert.match(
+    app,
+    /image\.dataset\.scene\s*=\s*scene;/
+  );
+  assert.match(
+    app,
+    /image\.style\.setProperty\(\s*"--scene-scale",[\s\S]*?characterSceneScale\(/s
+  );
+  assert.match(
+    app,
+    /image\.style\.setProperty\(\s*"--layout-scale-cap",\s*String\(cap\)\s*\);/s
+  );
+  assert.match(
+    app,
+    /className\s*=\s*"celebration-character-zone"/
+  );
+});
+
 test("오른쪽 아래에 bliss 제작자 서명을 표시한다", () => {
   assert.match(
     html,

@@ -13,6 +13,7 @@ import {
 } from "./difficulty-preference.mjs";
 import {
   celebrationPresentation,
+  characterSceneScale,
   characterShapeScale,
   characterShapeWidthScale,
   characterSizeBand,
@@ -24,6 +25,11 @@ import {
   quantityParts,
   retireAnimationClass
 } from "./app-behavior.mjs";
+import {
+  CHARACTER_VISUAL_METRICS,
+  REFERENCE_VISUAL_AREA
+} from "./character-visual-metrics.mjs";
+import { characterLayoutScaleCap } from "./character-layout.mjs";
 import {
   countCharacterValues,
   operandScene,
@@ -77,14 +83,16 @@ function preloadCharacters() {
   });
 }
 
-function character(number, className = "") {
+function character(number, className = "", scene = "neutral") {
   const { asset, rows, cols } = NUMBERBLOCKS[number];
+  const metric = CHARACTER_VISUAL_METRICS[number];
   const image = document.createElement("img");
   image.className = `character enter ${className}`.trim();
   image.src = `assets/characters/${asset}`;
   image.alt = `숫자 ${number} 블록 캐릭터`;
   image.dataset.number = String(number);
   image.dataset.sizeBand = characterSizeBand(number);
+  image.dataset.scene = scene;
   image.style.setProperty(
     "--shape-scale",
     String(characterShapeScale(number, rows, cols))
@@ -92,6 +100,17 @@ function character(number, className = "") {
   image.style.setProperty(
     "--shape-width-scale",
     String(characterShapeWidthScale(number, rows, cols))
+  );
+  image.style.setProperty(
+    "--scene-scale",
+    String(characterSceneScale({
+      number,
+      scene,
+      rows,
+      cols,
+      metric,
+      referenceArea: REFERENCE_VISUAL_AREA
+    }))
   );
   image.dataset.shape =
     cols > rows
@@ -101,6 +120,47 @@ function character(number, className = "") {
         : "balanced";
   retireAnimationClass(image, "enter");
   return image;
+}
+
+function fitSceneCharacter(image) {
+  const zone = image.closest(
+    ".operand-slot, .celebration-character-zone"
+  );
+  const metric = CHARACTER_VISUAL_METRICS[Number(image.dataset.number)];
+  if (!zone || !metric) return;
+
+  const cap = characterLayoutScaleCap({
+    zoneWidth: zone.clientWidth,
+    zoneHeight: zone.clientHeight,
+    imageWidth: image.clientWidth,
+    imageHeight: image.clientHeight,
+    metric,
+    widthScale: Number(
+      image.style.getPropertyValue("--shape-width-scale")
+    )
+  });
+  image.style.setProperty("--layout-scale-cap", String(cap));
+}
+
+function fitSceneCharacters(root = dom.stage) {
+  root
+    .querySelectorAll('.character[data-scene="problem"], .character[data-scene="celebration"]')
+    .forEach(fitSceneCharacter);
+}
+
+function scheduleCharacterFit(root = dom.stage) {
+  requestAnimationFrame(() => {
+    fitSceneCharacters(root);
+    root.querySelectorAll(".character").forEach(image => {
+      if (!image.complete) {
+        image.addEventListener(
+          "load",
+          () => fitSceneCharacter(image),
+          { once: true }
+        );
+      }
+    });
+  });
 }
 
 function quantityVisual(number, { countable = false } = {}) {
@@ -167,13 +227,20 @@ function renderCelebration(problem) {
   if (presentation.view === "number") {
     const wrapper = document.createElement("div");
     wrapper.className = "celebration-result";
-    const image = character(presentation.characterNumber, "correct");
+    const characterZone = document.createElement("div");
+    characterZone.className = "celebration-character-zone";
+    const image = character(
+      presentation.characterNumber,
+      "correct",
+      "celebration"
+    );
     image.addEventListener("error", () => {
       if (state.problem === problem) {
         dom.stage.replaceChildren(resultBoard(problem));
       }
     }, { once: true });
-    wrapper.append(image);
+    characterZone.append(image);
+    wrapper.append(characterZone);
     if (presentation.equation !== null) {
       const equation = document.createElement("strong");
       equation.className = "completed-equation";
@@ -181,6 +248,7 @@ function renderCelebration(problem) {
       wrapper.append(equation);
     }
     dom.stage.replaceChildren(wrapper);
+    scheduleCharacterFit(wrapper);
   } else {
     dom.stage.replaceChildren(resultBoard(problem));
   }
@@ -264,7 +332,11 @@ function renderProblem(problem) {
   }
 
   dom.problem.textContent = formatProblemText(problem);
-  const scene = operandScene(document, problem, character);
+  const scene = operandScene(
+    document,
+    problem,
+    (number, className) => character(number, className, "problem")
+  );
   scene.querySelectorAll(".operand-character").forEach(image => {
     image.addEventListener("error", () => {
       const fallback = document.createElement("strong");
@@ -274,6 +346,7 @@ function renderProblem(problem) {
     }, { once: true });
   });
   dom.stage.append(scene);
+  scheduleCharacterFit(scene);
 }
 
 function newProblem() {
@@ -524,6 +597,8 @@ document.addEventListener("keydown", event => {
     onDigit(digit);
   }
 });
+
+window.addEventListener("resize", () => scheduleCharacterFit());
 
 syncMuteButton();
 syncDifficulty();
