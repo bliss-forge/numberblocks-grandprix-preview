@@ -16,7 +16,7 @@ function mediaBlock(marker) {
 test("캐릭터 크기 단계는 세로 상한과 좁은 몸체 가로 보정을 함께 사용한다", () => {
   assert.match(
     css,
-    /\.character\s*\{[^}]*--number-scale:\s*1;[^}]*--shape-scale:\s*1;[^}]*--shape-width-scale:\s*1;[^}]*--screen-scale-cap:\s*2\.2;[^}]*--screen-width-scale-cap:\s*1\.375;[^}]*--resolved-character-scale:\s*min\([^}]*scale:\s*calc\([^}]*var\(--shape-width-scale\)[^}]*var\(--screen-width-scale-cap\)[^}]*\)\s*var\(--resolved-character-scale\);[^}]*transform-origin:\s*50%\s+50%;/s
+    /\.character\s*\{[^}]*--number-scale:\s*1;[^}]*--shape-scale:\s*1;[^}]*--shape-width-scale:\s*1;[^}]*--scene-scale:\s*1;[^}]*--screen-scale-cap:\s*2\.2;[^}]*--screen-width-scale-cap:\s*1\.375;[^}]*--layout-scale-cap:\s*999;[^}]*--resolved-character-scale:\s*min\([^}]*var\(--scene-scale\)[^}]*var\(--screen-scale-cap\)[^}]*var\(--layout-scale-cap\)[^}]*\);[^}]*scale:\s*calc\([^}]*var\(--shape-width-scale\)[^}]*var\(--screen-width-scale-cap\)[^}]*\)\s*var\(--resolved-character-scale\);[^}]*transform-origin:\s*50%\s+50%;/s
   );
   for (const [band, scale] of [
     ["scale-120", "1.2"],
@@ -37,7 +37,7 @@ test("캐릭터 크기 단계는 세로 상한과 좁은 몸체 가로 보정을
 test("여러 캐릭터 장면은 같은 크기 슬롯과 확대 여유를 유지한다", () => {
   assert.match(
     css,
-    /\.operand-slot,\s*\.count-friends\s*\{[^}]*overflow:\s*visible;/s
+    /\.count-friends\s*\{[^}]*overflow:\s*visible;/s
   );
   assert.match(
     css,
@@ -56,7 +56,7 @@ test("정답 캐릭터와 완성된 식은 무대 안의 반응형 결과 래퍼
   );
   assert.match(
     css,
-    /body\[data-state="celebrating"\]\s+\.celebration-result\s+\.character\s*\{[^}]*max-height:\s*min\(27vh,\s*195px\);/s
+    /body\[data-state="celebrating"\]\s+\.celebration-character-zone\s+\.character\s*\{[^}]*max-height:\s*min\(27vh,\s*195px\);/s
   );
   assert.match(
     css,
@@ -65,6 +65,42 @@ test("정답 캐릭터와 완성된 식은 무대 안의 반응형 결과 래퍼
   assert.match(
     css,
     /@media\s*\(max-width:\s*640px\)[\s\S]*?\.celebration-result\s*\{[^}]*gap:/s
+  );
+});
+
+test("문제와 정답 캐릭터 구역은 수식 행 침범을 차단한다", () => {
+  assert.match(
+    css,
+    /\.operand-scene\s*\{[^}]*grid-template-rows:\s*minmax\(0,\s*1fr\)\s+auto;/s
+  );
+  assert.match(
+    css,
+    /\.operand-slot\s*\{[^}]*overflow:\s*clip;/s
+  );
+  assert.match(
+    css,
+    /\.celebration-character-zone\s*\{[^}]*min-height:\s*0;[^}]*overflow:\s*clip;/s
+  );
+  assert.match(
+    css,
+    /\.equation-label,\s*\.completed-equation\s*\{[^}]*position:\s*relative;[^}]*z-index:\s*1;/s
+  );
+});
+
+test("일반 화면만 C2 상한을 열고 낮은 가로 화면은 기존 상한을 유지한다", () => {
+  assert.match(
+    css,
+    /\.character\[data-scene="problem"\]\s*\{[^}]*--screen-scale-cap:\s*3\.1;/s
+  );
+  assert.match(
+    css,
+    /\.character\[data-scene="celebration"\]\s*\{[^}]*--screen-scale-cap:\s*3\.6;/s
+  );
+
+  const shortHeightCss = mediaBlock(shortHeightMarker);
+  assert.match(
+    shortHeightCss,
+    /\.character\s*\{[^}]*--screen-scale-cap:\s*1;[^}]*--screen-width-scale-cap:\s*1;/s
   );
 });
 
