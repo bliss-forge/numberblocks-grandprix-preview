@@ -291,6 +291,31 @@ test("1~10과 잘못된 장면은 추가 확대를 사용하지 않는다", () =
   assert.equal(characterSceneAreaTarget(151, "problem"), 1);
 });
 
+test("잘못된 숫자나 장면의 장면 배율은 추가 확대를 사용하지 않는다", () => {
+  const { rows, cols } = NUMBERBLOCKS[12];
+  const metric = CHARACTER_VISUAL_METRICS[12];
+
+  for (const [number, scene] of [
+    [12, "other"],
+    [0, "problem"],
+    [12.5, "problem"],
+    [151, "problem"]
+  ]) {
+    assert.equal(
+      characterSceneScale({
+        number,
+        scene,
+        rows,
+        cols,
+        metric,
+        referenceArea: REFERENCE_VISUAL_AREA
+      }),
+      1,
+      `${number} ${scene}`
+    );
+  }
+});
+
 test("19의 문제와 정답 몸체 면적이 각 목표에 도달한다", () => {
   const number = 19;
   const { rows, cols } = NUMBERBLOCKS[number];

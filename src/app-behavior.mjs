@@ -99,6 +99,10 @@ export function characterSceneScale({
   referenceArea
 }) {
   if (
+    !Number.isInteger(number) ||
+    number < 1 ||
+    number > 150 ||
+    !["problem", "celebration"].includes(scene) ||
     !metric ||
     !Number.isFinite(metric.area) ||
     metric.area <= 0 ||
