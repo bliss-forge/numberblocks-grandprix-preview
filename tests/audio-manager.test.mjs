@@ -284,6 +284,21 @@ test("뺄셈 문제 안내는 한국어와 영국 영어 자산을 순서대로 
   ]);
 });
 
+test("안전 안내는 한국어 다음 영국 영어 자산을 순서대로 재생한다", async () => {
+  const { manager, played } = harness();
+
+  assert.deepEqual(VOICE["safety-red-light"], {
+    ko: "assets/audio/voice/ko/safety-red-light.mp3",
+    en: "assets/audio/voice/en/safety-red-light.mp3"
+  });
+  await manager.playPrompt("safety-red-light");
+
+  assert.deepEqual(played, [
+    "assets/audio/voice/ko/safety-red-light.mp3",
+    "assets/audio/voice/en/safety-red-light.mp3"
+  ]);
+});
+
 test("기존 문제 안내는 영어 자산이 없으면 한국어만 재생한다", async () => {
   const { manager, played } = harness();
 
