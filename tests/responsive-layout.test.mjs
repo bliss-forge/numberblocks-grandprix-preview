@@ -1,6 +1,16 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
+import { NUMBERBLOCKS } from "../src/game-model.mjs";
+import {
+  CHARACTER_VISUAL_METRICS,
+  REFERENCE_VISUAL_AREA
+} from "../src/character-visual-metrics.mjs";
+import {
+  characterNumberScale,
+  characterSceneScale,
+  characterShapeScale
+} from "../src/app-behavior.mjs";
 
 const css = await readFile(new URL("../styles.css", import.meta.url), "utf8");
 const shortHeightMarker =
@@ -90,11 +100,11 @@ test("문제와 정답 캐릭터 구역은 수식 행 침범을 차단한다", (
 test("일반 화면만 C2 상한을 열고 낮은 가로 화면은 기존 상한을 유지한다", () => {
   assert.match(
     css,
-    /\.character\[data-scene="problem"\]\s*\{[^}]*--screen-scale-cap:\s*3\.1;/s
+    /\.character\[data-scene="problem"\]\s*\{[^}]*--screen-scale-cap:\s*3\.3;/s
   );
   assert.match(
     css,
-    /\.character\[data-scene="celebration"\]\s*\{[^}]*--screen-scale-cap:\s*3\.6;/s
+    /\.character\[data-scene="celebration"\]\s*\{[^}]*--screen-scale-cap:\s*3\.9;/s
   );
 
   const shortHeightCss = mediaBlock(shortHeightMarker);
@@ -102,6 +112,28 @@ test("일반 화면만 C2 상한을 열고 낮은 가로 화면은 기존 상한
     shortHeightCss,
     /\.character\s*\{[^}]*--screen-scale-cap:\s*1;[^}]*--screen-width-scale-cap:\s*1;/s
   );
+});
+
+test("일반 화면 상한은 11~150의 장면 목표 배율을 자르지 않는다", () => {
+  const caps = { problem: 3.3, celebration: 3.9 };
+
+  for (const scene of Object.keys(caps)) {
+    for (let number = 11; number <= 150; number += 1) {
+      const { rows, cols } = NUMBERBLOCKS[number];
+      const desiredScale =
+        characterNumberScale(number) *
+        characterShapeScale(number, rows, cols) *
+        characterSceneScale({
+          number,
+          scene,
+          rows,
+          cols,
+          metric: CHARACTER_VISUAL_METRICS[number],
+          referenceArea: REFERENCE_VISUAL_AREA
+        });
+      assert.ok(desiredScale <= caps[scene], `${scene} ${number}`);
+    }
+  }
 });
 
 test("일반 모바일은 데스크톱과 같은 숫자 배율을 사용한다", () => {

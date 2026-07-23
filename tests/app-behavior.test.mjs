@@ -291,6 +291,34 @@ test("1~10과 잘못된 장면은 추가 확대를 사용하지 않는다", () =
   assert.equal(characterSceneAreaTarget(151, "problem"), 1);
 });
 
+test("1~10 장면 배율은 항상 1이고 이미 목표 이상인 몸체는 줄이지 않는다", () => {
+  for (let number = 1; number <= 10; number += 1) {
+    const { rows, cols } = NUMBERBLOCKS[number];
+    for (const scene of ["problem", "celebration"]) {
+      assert.equal(characterSceneScale({
+        number,
+        scene,
+        rows,
+        cols,
+        metric: CHARACTER_VISUAL_METRICS[number],
+        referenceArea: REFERENCE_VISUAL_AREA
+      }), 1, `${number} ${scene}`);
+    }
+  }
+
+  for (const number of [39, 52, 75, 76]) {
+    const { rows, cols } = NUMBERBLOCKS[number];
+    assert.equal(characterSceneScale({
+      number,
+      scene: "problem",
+      rows,
+      cols,
+      metric: CHARACTER_VISUAL_METRICS[number],
+      referenceArea: REFERENCE_VISUAL_AREA
+    }), 1, `${number} problem`);
+  }
+});
+
 test("잘못된 숫자나 장면의 장면 배율은 추가 확대를 사용하지 않는다", () => {
   const { rows, cols } = NUMBERBLOCKS[12];
   const metric = CHARACTER_VISUAL_METRICS[12];

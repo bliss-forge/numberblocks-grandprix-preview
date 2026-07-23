@@ -29,7 +29,10 @@ import {
   CHARACTER_VISUAL_METRICS,
   REFERENCE_VISUAL_AREA
 } from "./character-visual-metrics.mjs";
-import { characterLayoutScaleCap } from "./character-layout.mjs";
+import {
+  characterLayoutScaleCap,
+  containedBitmapDimensions
+} from "./character-layout.mjs";
 import {
   countCharacterValues,
   operandScene,
@@ -129,11 +132,18 @@ function fitSceneCharacter(image) {
   const metric = CHARACTER_VISUAL_METRICS[Number(image.dataset.number)];
   if (!zone || !metric) return;
 
+  const bitmap = containedBitmapDimensions({
+    naturalWidth: image.naturalWidth,
+    naturalHeight: image.naturalHeight,
+    boxWidth: image.clientWidth,
+    boxHeight: image.clientHeight
+  });
+
   const cap = characterLayoutScaleCap({
     zoneWidth: zone.clientWidth,
     zoneHeight: zone.clientHeight,
-    imageWidth: image.clientWidth,
-    imageHeight: image.clientHeight,
+    imageWidth: bitmap?.width ?? 0,
+    imageHeight: bitmap?.height ?? 0,
     metric,
     widthScale: Number(
       image.style.getPropertyValue("--shape-width-scale")

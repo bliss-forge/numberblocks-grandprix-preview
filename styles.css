@@ -790,11 +790,11 @@ body[data-state="home"] .star-pill {
 }
 
 .character[data-scene="problem"] {
-  --screen-scale-cap: 3.1;
+  --screen-scale-cap: 3.3;
 }
 
 .character[data-scene="celebration"] {
-  --screen-scale-cap: 3.6;
+  --screen-scale-cap: 3.9;
 }
 
 .character[data-size-band="scale-120"] {

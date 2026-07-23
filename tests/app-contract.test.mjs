@@ -183,6 +183,10 @@ test("문제와 정답 캐릭터는 장면 확대와 실측 상한을 공유한�
   );
   assert.match(
     app,
+    /containedBitmapDimensions\(\{[\s\S]*?naturalWidth:\s*image\.naturalWidth,[\s\S]*?naturalHeight:\s*image\.naturalHeight,[\s\S]*?boxWidth:\s*image\.clientWidth,[\s\S]*?boxHeight:\s*image\.clientHeight/s
+  );
+  assert.match(
+    app,
     /className\s*=\s*"celebration-character-zone"/
   );
 });
@@ -190,7 +194,7 @@ test("문제와 정답 캐릭터는 장면 확대와 실측 상한을 공유한�
 test("오른쪽 아래에 bliss 제작자 서명을 표시한다", () => {
   assert.match(
     html,
-    /<link rel="stylesheet" href="styles\.css\?v=20260720-result-equation">/
+    /<link rel="stylesheet" href="styles\.css\?v=20260723-strong-character-growth">/
   );
   assert.match(
     html,
