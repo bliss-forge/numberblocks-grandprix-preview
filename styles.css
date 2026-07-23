@@ -2332,12 +2332,12 @@ body[data-mode="safety"] .stage-lights {
     position: absolute;
     right: 4px;
     bottom: 4px;
-    grid-template-columns: repeat(3, 42px);
-    grid-template-rows: repeat(2, 42px);
+    grid-template-columns: repeat(3, 48px);
+    grid-template-rows: repeat(2, 48px);
   }
 
   .route-pad button {
-    min-width: 42px;
-    min-height: 42px;
+    min-width: 48px;
+    min-height: 48px;
   }
 }

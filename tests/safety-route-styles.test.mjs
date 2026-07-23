@@ -47,4 +47,8 @@ test("방향 버튼은 터치하기 충분하고 모바일·낮은 가로 화면
     css,
     /@media\s*\(max-width:\s*900px\)\s+and\s+\(max-height:\s*500px\)[\s\S]*?\.route-pad\s*\{[^}]*position:\s*absolute;/s
   );
+  assert.doesNotMatch(
+    css,
+    /@media\s*\(max-width:\s*900px\)\s+and\s+\(max-height:\s*500px\)[\s\S]*?\.route-pad button\s*\{[^}]*min-(?:width|height):\s*(?:4[0-7]|[0-3][0-9])px;/s
+  );
 });
