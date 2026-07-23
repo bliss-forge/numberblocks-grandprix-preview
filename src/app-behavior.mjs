@@ -32,6 +32,37 @@ export function characterSizeBand(number) {
   return "base";
 }
 
+const NUMBER_SCALE_BY_BAND = Object.freeze({
+  base: 1,
+  "scale-120": 1.2,
+  "scale-140": 1.4,
+  "scale-160": 1.6,
+  "scale-180": 1.8
+});
+
+export function characterNumberScale(number) {
+  return NUMBER_SCALE_BY_BAND[characterSizeBand(number)] ?? 1;
+}
+
+export function characterSceneAreaTarget(number, scene) {
+  if (
+    !Number.isInteger(number) ||
+    number < 1 ||
+    number > 150 ||
+    !["problem", "celebration"].includes(scene) ||
+    number <= 10
+  ) {
+    return 1;
+  }
+
+  const problemTarget =
+    number >= 101 ? 2.1 :
+      number >= 51 ? 1.9 :
+        number >= 21 ? 1.7 :
+          1.5;
+  return scene === "celebration" ? problemTarget * 1.4 : problemTarget;
+}
+
 const SHAPE_REFERENCE_DENSITY = 2 / 3;
 const MAX_SHAPE_SCALE = 1.75;
 
@@ -57,6 +88,35 @@ export function characterShapeScale(number, rows, cols) {
 export function characterShapeWidthScale(number, rows, cols) {
   const shapeScale = characterShapeScale(number, rows, cols);
   return 1 + (shapeScale - 1) * 0.5;
+}
+
+export function characterSceneScale({
+  number,
+  scene,
+  rows,
+  cols,
+  metric,
+  referenceArea
+}) {
+  if (
+    !metric ||
+    !Number.isFinite(metric.area) ||
+    metric.area <= 0 ||
+    !Number.isFinite(referenceArea) ||
+    referenceArea <= 0 ||
+    number <= 10
+  ) {
+    return 1;
+  }
+
+  const baseScale =
+    characterNumberScale(number) * characterShapeScale(number, rows, cols);
+  const widthScale = characterShapeWidthScale(number, rows, cols);
+  const existingArea = metric.area * (baseScale ** 2) * widthScale;
+  const targetArea =
+    referenceArea * characterSceneAreaTarget(number, scene);
+  const scale = Math.sqrt(targetArea / existingArea);
+  return Number.isFinite(scale) ? Math.max(1, scale) : 1;
 }
 
 export function formatProblemText(problem) {

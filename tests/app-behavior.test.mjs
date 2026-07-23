@@ -1,10 +1,17 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { AudioManager } from "../src/audio-manager.mjs";
-import { createProblem } from "../src/game-model.mjs";
+import { createProblem, NUMBERBLOCKS } from "../src/game-model.mjs";
+import {
+  CHARACTER_VISUAL_METRICS,
+  REFERENCE_VISUAL_AREA
+} from "../src/character-visual-metrics.mjs";
 import * as appBehavior from "../src/app-behavior.mjs";
 import {
   celebrationView,
+  characterNumberScale,
+  characterSceneAreaTarget,
+  characterSceneScale,
   characterShapeScale,
   characterShapeWidthScale,
   characterSizeBand,
@@ -254,4 +261,60 @@ test("좁은 큰 수는 형태 보정의 절반만큼 가로축을 추가 보정
   );
   assert.equal(characterShapeWidthScale(19, 10, 2), 1.375);
   assert.equal(characterShapeWidthScale(18, 0, 2), 1);
+});
+
+test("장면별 큰 수 몸체 면적 목표를 정확히 고른다", () => {
+  for (const [number, target] of [
+    [10, 1],
+    [11, 1.5],
+    [20, 1.5],
+    [21, 1.7],
+    [50, 1.7],
+    [51, 1.9],
+    [100, 1.9],
+    [101, 2.1],
+    [150, 2.1]
+  ]) {
+    assert.equal(characterSceneAreaTarget(number, "problem"), target);
+    assert.equal(
+      characterSceneAreaTarget(number, "celebration"),
+      number <= 10 ? 1 : target * 1.4
+    );
+  }
+});
+
+test("1~10과 잘못된 장면은 추가 확대를 사용하지 않는다", () => {
+  assert.equal(characterSceneAreaTarget(1, "problem"), 1);
+  assert.equal(characterSceneAreaTarget(10, "celebration"), 1);
+  assert.equal(characterSceneAreaTarget(19, "other"), 1);
+  assert.equal(characterSceneAreaTarget(0, "problem"), 1);
+  assert.equal(characterSceneAreaTarget(151, "problem"), 1);
+});
+
+test("19의 문제와 정답 몸체 면적이 각 목표에 도달한다", () => {
+  const number = 19;
+  const { rows, cols } = NUMBERBLOCKS[number];
+  const metric = CHARACTER_VISUAL_METRICS[number];
+
+  for (const scene of ["problem", "celebration"]) {
+    const sceneScale = characterSceneScale({
+      number,
+      scene,
+      rows,
+      cols,
+      metric,
+      referenceArea: REFERENCE_VISUAL_AREA
+    });
+    const baseScale =
+      characterNumberScale(number) * characterShapeScale(number, rows, cols);
+    const displayedArea =
+      metric.area *
+      (baseScale ** 2) *
+      characterShapeWidthScale(number, rows, cols) *
+      (sceneScale ** 2);
+    const targetArea =
+      REFERENCE_VISUAL_AREA * characterSceneAreaTarget(number, scene);
+
+    assert.ok(displayedArea >= targetArea - 1e-12, scene);
+  }
 });
