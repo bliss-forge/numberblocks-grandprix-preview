@@ -51,10 +51,10 @@ function routeCell(document, point, className = "") {
 }
 
 function currentMoverPoint(state, moverState) {
-  const mover = state.map.movers.find(
-    item => item.type === moverState.type
+  const mover = state.map.trafficPaths.find(
+    item => item.id === moverState.id
   );
-  return mover?.path[moverState.pathIndex] ?? null;
+  return mover?.points[moverState.pathIndex] ?? null;
 }
 
 function routePad(document) {
@@ -78,7 +78,18 @@ function routePad(document) {
   return pad;
 }
 
-export function renderSafetyRouteScene(document, state) {
+export function renderSafetyRouteScene(document, state, requestedView = {}) {
+  const view = {
+    camera: {
+      x: 0,
+      y: Math.max(0, state.map.height - 5),
+      width: 7,
+      height: 5,
+      ...requestedView.camera
+    },
+    guidance: requestedView.guidance ?? [],
+    targetArrow: requestedView.targetArrow ?? { visible: false }
+  };
   const root = document.createElement("div");
   root.className = "safety-route";
   root.dataset.difficulty = state.difficulty;
@@ -108,22 +119,52 @@ export function renderSafetyRouteScene(document, state) {
   top.append(collected);
   root.append(top);
 
-  const grid = document.createElement("div");
-  grid.className = "safety-grid";
-  grid.style.setProperty("--route-cols", state.map.width);
-  grid.style.setProperty("--route-rows", state.map.height);
+  const viewport = document.createElement("div");
+  viewport.className = "safety-grid safety-viewport";
+  viewport.style.setProperty("--viewport-cols", view.camera.width);
+  viewport.style.setProperty("--viewport-rows", view.camera.height);
 
-  state.map.walkable.forEach(point => {
-    const isCrossing =
-      point.x === state.map.signalGate.x &&
-      point.y === state.map.signalGate.y;
-    grid.append(
-      routeCell(
-        document,
-        point,
-        isCrossing ? "route-road route-crossing" : "route-road"
-      )
-    );
+  const world = document.createElement("div");
+  world.className = "safety-world";
+  world.style.setProperty("--world-cols", state.map.width);
+  world.style.setProperty("--world-rows", state.map.height);
+  world.style.setProperty("--camera-x", view.camera.x);
+  world.style.setProperty("--camera-y", view.camera.y);
+
+  const crossingKeys = new Set(
+    state.map.crossings
+      .flatMap(crossing => crossing.cells)
+      .map(point => `${point.x},${point.y}`)
+  );
+  const trafficPoints = new Map();
+  state.map.trafficPaths.forEach(path => {
+    path.points.forEach(point => {
+      trafficPoints.set(`${point.x},${point.y}`, point);
+    });
+  });
+  trafficPoints.forEach(point => {
+    const className = crossingKeys.has(`${point.x},${point.y}`)
+      ? "route-road route-crosswalk"
+      : "route-road";
+    world.append(routeCell(document, point, className));
+  });
+
+  state.map.pedestrianCells.forEach(point => {
+    const className = crossingKeys.has(`${point.x},${point.y}`)
+      ? "route-sidewalk route-crosswalk"
+      : "route-sidewalk";
+    world.append(routeCell(document, point, className));
+  });
+
+  state.map.trafficPaths.forEach(path => {
+    const stopPoint = path.points[path.stopIndex];
+    if (stopPoint) {
+      world.append(routeCell(document, stopPoint, "route-stop-line"));
+    }
+  });
+
+  state.map.entrances.forEach(entrance => {
+    world.append(routeCell(document, entrance, "route-entrance"));
   });
 
   state.map.places.forEach(place => {
@@ -131,17 +172,17 @@ export function renderSafetyRouteScene(document, state) {
     node.className = `route-place route-place-${place.type}`;
     node.textContent = place.label ?? PLACE_LABELS[place.type] ?? place.type;
     node.setAttribute("aria-label", node.textContent);
-    grid.append(placeAt(node, place));
+    world.append(placeAt(node, place));
   });
 
   const signal = document.createElement("div");
   signal.className = "route-signal";
-  signal.dataset.signal = state.signal;
+  signal.dataset.phase = state.signal.phase;
   signal.setAttribute(
     "aria-label",
-    state.signal === "green" ? "초록 신호" : "빨간 신호"
+    state.signal.phase === "pedestrian-go" ? "초록 신호" : "빨간 신호"
   );
-  grid.append(placeAt(signal, state.map.signalGate));
+  world.append(placeAt(signal, state.map.signalGate));
 
   state.map.hazards.forEach(hazard => {
     const node = document.createElement("div");
@@ -151,7 +192,7 @@ export function renderSafetyRouteScene(document, state) {
       "aria-label",
       HAZARD_LABELS[hazard.type] ?? hazard.type
     );
-    grid.append(placeAt(node, hazard));
+    world.append(placeAt(node, hazard));
   });
 
   state.movers.forEach(mover => {
@@ -164,7 +205,7 @@ export function renderSafetyRouteScene(document, state) {
       "aria-label",
       HAZARD_LABELS[mover.type] ?? mover.type
     );
-    grid.append(placeAt(node, point));
+    world.append(placeAt(node, point));
   });
 
   state.map.friends
@@ -176,7 +217,7 @@ export function renderSafetyRouteScene(document, state) {
         "route-character route-friend"
       );
       image.dataset.place = friend.place;
-      grid.append(placeAt(image, friend));
+      world.append(placeAt(image, friend));
     });
 
   const player = characterImage(
@@ -184,15 +225,29 @@ export function renderSafetyRouteScene(document, state) {
     1,
     "route-character route-player"
   );
-  grid.append(placeAt(player, state.position));
+  world.append(placeAt(player, state.position));
 
   const school = document.createElement("div");
   school.className = "route-school-goal";
   school.textContent = "도착";
   school.setAttribute("aria-label", "학교 도착점");
-  grid.append(placeAt(school, state.map.goal));
+  world.append(placeAt(school, state.map.goal));
 
-  root.append(grid, routePad(document));
+  view.guidance.forEach(point => {
+    world.append(routeCell(document, point, "route-guidance-cell"));
+  });
+
+  viewport.append(world);
+  if (view.targetArrow.visible) {
+    const arrow = document.createElement("div");
+    arrow.className = "route-target-arrow";
+    arrow.setAttribute("aria-label", "다음 친구 방향");
+    arrow.style.setProperty("--arrow-x", view.targetArrow.x);
+    arrow.style.setProperty("--arrow-y", view.targetArrow.y);
+    arrow.style.setProperty("--arrow-angle", `${view.targetArrow.angle}rad`);
+    viewport.append(arrow);
+  }
+
+  root.append(viewport, routePad(document));
   return root;
 }
-

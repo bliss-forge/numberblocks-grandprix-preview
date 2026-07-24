@@ -107,17 +107,51 @@ test("난이도별 장애물과 움직이는 교통 요소를 장면에 표시�
   assert.equal(byClass(challenge, "route-car").length, 1);
 });
 
-test("초록불과 빨간불 상태를 색 외의 데이터로도 표시한다", () => {
-  const red = renderSafetyRouteScene(
+test("장면은 보도와 차도를 별도 레이어로 만들고 카메라 값을 노출한다", () => {
+  const state = createSafetyRouteState("challenge");
+  const scene = renderSafetyRouteScene(document, state, {
+    camera: { x: 3, y: 2, width: 7, height: 5 },
+    guidance: [
+      { x: 4, y: 3 },
+      { x: 5, y: 3 },
+      { x: 6, y: 3 }
+    ],
+    targetArrow: { visible: true, x: 6.5, y: 2, angle: 0 }
+  });
+
+  assert.equal(byClass(scene, "safety-viewport").length, 1);
+  assert.equal(byClass(scene, "safety-world").length, 1);
+  assert.ok(byClass(scene, "route-sidewalk").length > 0);
+  assert.ok(byClass(scene, "route-road").length > 0);
+  assert.ok(byClass(scene, "route-crosswalk").length > 0);
+  assert.ok(byClass(scene, "route-stop-line").length > 0);
+  assert.equal(byClass(scene, "route-guidance-cell").length, 3);
+  assert.equal(byClass(scene, "route-target-arrow").length, 1);
+
+  const world = byClass(scene, "safety-world")[0];
+  assert.equal(world.style.values.get("--camera-x"), "3");
+  assert.equal(world.style.values.get("--camera-y"), "2");
+});
+
+test("신호 단계를 색 외의 데이터로도 표시한다", () => {
+  const vehicle = renderSafetyRouteScene(
     document,
     createSafetyRouteState("easy")
   );
-  assert.equal(byClass(red, "route-signal")[0].dataset.signal, "red");
-
-  const green = renderSafetyRouteScene(
-    document,
-    { ...createSafetyRouteState("easy"), signal: "green" }
+  assert.equal(
+    byClass(vehicle, "route-signal")[0].dataset.phase,
+    "vehicle-go"
   );
-  assert.equal(byClass(green, "route-signal")[0].dataset.signal, "green");
-});
 
+  const pedestrian = renderSafetyRouteScene(
+    document,
+    {
+      ...createSafetyRouteState("easy"),
+      signal: { phase: "pedestrian-go", elapsedMs: 0 }
+    }
+  );
+  assert.equal(
+    byClass(pedestrian, "route-signal")[0].dataset.phase,
+    "pedestrian-go"
+  );
+});

@@ -11,8 +11,19 @@ test("길찾기에서는 답안 UI를 숨기고 지도를 무대 전체에 펼�
   );
   assert.match(
     css,
-    /\.safety-grid\s*\{[^}]*grid-template-columns:\s*repeat\(var\(--route-cols\),\s*1fr\);[^}]*grid-template-rows:\s*repeat\(var\(--route-rows\),\s*1fr\);/s
+    /\.safety-viewport\s*\{[^}]*overflow:\s*hidden;/s
   );
+  assert.match(
+    css,
+    /\.safety-world\s*\{[^}]*grid-template-columns:\s*repeat\(var\(--world-cols\),\s*var\(--route-cell-size\)\);[^}]*grid-template-rows:\s*repeat\(var\(--world-rows\),\s*var\(--route-cell-size\)\);[^}]*transform:\s*translate3d/s
+  );
+});
+
+test("보도, 차도, 횡단보도와 유도선을 색 외의 형태로 구분한다", () => {
+  assert.match(css, /\.route-sidewalk\s*\{[^}]*background:\s*#ead9b8;/s);
+  assert.match(css, /\.route-road\s*\{[^}]*#536477;/s);
+  assert.match(css, /\.route-crosswalk\s*\{[^}]*repeating-linear-gradient/s);
+  assert.match(css, /\.route-guidance-cell::after\s*\{[^}]*border-radius:\s*50%;/s);
 });
 
 test("건물과 생활안전 요소를 입체 이미지 없이 평면 CSS 그림으로 표현한다", () => {

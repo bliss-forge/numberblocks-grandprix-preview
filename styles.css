@@ -1832,12 +1832,13 @@ body[data-mode="safety"] .stage-lights {
   filter: drop-shadow(0 2px 1px rgba(37, 52, 93, .2));
 }
 
-.safety-grid {
+.safety-viewport {
+  --route-cell-size: min(
+    calc(92vw / var(--viewport-cols, 7)),
+    calc((100vh - 170px) / var(--viewport-rows, 5))
+  );
   position: relative;
-  display: grid;
-  grid-template-columns: repeat(var(--route-cols), 1fr);
-  grid-template-rows: repeat(var(--route-rows), 1fr);
-  width: min(100%, calc((100vh - 155px) * 1.5));
+  width: 100%;
   height: 100%;
   min-height: 0;
   margin: 0 auto;
@@ -1847,7 +1848,26 @@ body[data-mode="safety"] .stage-lights {
     linear-gradient(90deg, transparent 49%, rgba(255, 255, 255, .1) 50%, transparent 51%),
     linear-gradient(transparent 49%, rgba(255, 255, 255, .1) 50%, transparent 51%),
     #a9df7d;
-  background-size: calc(100% / 12) calc(100% / 8);
+  background-size: var(--route-cell-size) var(--route-cell-size);
+}
+
+.safety-world {
+  position: absolute;
+  left: 0;
+  top: 0;
+  display: grid;
+  grid-template-columns: repeat(var(--world-cols), var(--route-cell-size));
+  grid-template-rows: repeat(var(--world-rows), var(--route-cell-size));
+  width: calc(var(--world-cols) * var(--route-cell-size));
+  height: calc(var(--world-rows) * var(--route-cell-size));
+  background: #a9df7d;
+  transform: translate3d(
+    calc(var(--camera-x) * var(--route-cell-size) * -1),
+    calc(var(--camera-y) * var(--route-cell-size) * -1),
+    0
+  );
+  transition: transform 180ms ease-out;
+  will-change: transform;
 }
 
 .route-cell,
@@ -1860,25 +1880,90 @@ body[data-mode="safety"] .stage-lights {
   grid-row: var(--route-y);
 }
 
+.route-guidance-cell {
+  z-index: 16;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+}
+
+.route-guidance-cell::after {
+  width: 36%;
+  aspect-ratio: 1;
+  border: 3px solid #fff7c9;
+  border-radius: 50%;
+  background: #ffb000;
+  box-shadow: 0 0 0 5px rgba(255, 176, 0, .22);
+  content: "";
+}
+
+.route-target-arrow {
+  position: absolute;
+  left: calc(var(--arrow-x) * var(--route-cell-size));
+  top: calc(var(--arrow-y) * var(--route-cell-size));
+  z-index: 30;
+  width: 44px;
+  height: 44px;
+  border: 4px solid #fff;
+  border-radius: 50%;
+  background: #ffad16;
+  box-shadow: 0 5px 0 rgba(151, 93, 0, .3);
+  transform:
+    translate(-50%, -50%)
+    rotate(var(--arrow-angle));
+}
+
+.route-target-arrow::after {
+  display: grid;
+  place-items: center;
+  height: 100%;
+  color: #fff;
+  font-size: 28px;
+  font-weight: 900;
+  content: "➜";
+}
+
+.route-sidewalk {
+  z-index: 2;
+  margin: -1px;
+  border: 1px solid #bea576;
+  background: #ead9b8;
+}
+
 .route-road {
   z-index: 1;
   margin: -1px;
-  border: 1px solid #d8e3e7;
-  background: #edf3f5;
+  border: 1px solid #435363;
+  background:
+    linear-gradient(
+      90deg,
+      transparent 46%,
+      #ffe06c 46% 54%,
+      transparent 54%
+    ),
+    #536477;
 }
 
-.route-road:nth-child(3n) {
-  background: #e7f0f2;
-}
-
-.route-crossing {
+.route-crosswalk {
+  z-index: 3;
+  border-color: #536477;
   background:
     repeating-linear-gradient(
       90deg,
-      #fff 0 10%,
-      #a8b7bd 10% 18%,
-      #edf3f5 18% 28%
+      #fff 0 18%,
+      #536477 18% 32%
     );
+}
+
+.route-stop-line {
+  z-index: 4;
+  border-right: 7px solid #fff;
+}
+
+.route-entrance {
+  z-index: 3;
+  border-inline: 4px dashed #f29d38;
+  background: #ead9b8;
 }
 
 .route-place {
@@ -1987,8 +2072,8 @@ body[data-mode="safety"] .stage-lights {
   z-index: 12;
   align-self: center;
   justify-self: center;
-  width: min(5vw, 56px);
-  height: min(7vh, 62px);
+  width: calc(var(--route-cell-size) * .72);
+  height: calc(var(--route-cell-size) * .82);
   object-fit: contain;
   pointer-events: none;
   filter: drop-shadow(0 3px 2px rgba(37, 52, 93, .24));
@@ -1996,8 +2081,8 @@ body[data-mode="safety"] .stage-lights {
 
 .route-player {
   z-index: 18;
-  width: min(5.8vw, 64px);
-  height: min(8vh, 70px);
+  width: calc(var(--route-cell-size) * .8);
+  height: calc(var(--route-cell-size) * .9);
   animation: route-player-bob .75s ease-in-out infinite alternate;
 }
 
@@ -2047,12 +2132,14 @@ body[data-mode="safety"] .stage-lights {
   background: #8b959e;
 }
 
-.route-signal[data-signal="red"]::before {
+.route-signal[data-phase="vehicle-go"]::before,
+.route-signal[data-phase="vehicle-clearance"]::before,
+.route-signal[data-phase="pedestrian-clearance"]::before {
   background: #ff4d54;
   box-shadow: 0 0 7px #ff4d54;
 }
 
-.route-signal[data-signal="green"]::after {
+.route-signal[data-phase="pedestrian-go"]::after {
   background: #48cf62;
   box-shadow: 0 0 7px #48cf62;
 }
@@ -2238,8 +2325,8 @@ body[data-mode="safety"] .stage-lights {
   }
 
   .route-character {
-    width: min(6vw, 48px);
-    height: min(7vh, 52px);
+    width: calc(var(--route-cell-size) * .72);
+    height: calc(var(--route-cell-size) * .82);
   }
 }
 
@@ -2274,7 +2361,11 @@ body[data-mode="safety"] .stage-lights {
     height: 25px;
   }
 
-  .safety-grid {
+  .safety-viewport {
+    --route-cell-size: min(
+      calc(100vw / var(--viewport-cols, 5)),
+      calc((100vh - 155px) / var(--viewport-rows, 5))
+    );
     width: 100%;
   }
 
@@ -2286,8 +2377,8 @@ body[data-mode="safety"] .stage-lights {
 
   .route-character,
   .route-player {
-    width: min(8.2vw, 34px);
-    height: min(6.8vh, 43px);
+    width: calc(var(--route-cell-size) * .76);
+    height: calc(var(--route-cell-size) * .86);
   }
 
   .route-pad {
