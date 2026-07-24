@@ -1,7 +1,7 @@
 import { normalizeDifficulty } from "./game-model.mjs";
 
-const WIDTH = 12;
-const HEIGHT = 8;
+const WIDTH = 18;
+const HEIGHT = 12;
 const DIRECTIONS = Object.freeze({
   up: Object.freeze({ x: 0, y: -1 }),
   down: Object.freeze({ x: 0, y: 1 }),
@@ -13,83 +13,139 @@ const pointKey = ({ x, y }) => `${x},${y}`;
 const samePoint = (left, right) =>
   left.x === right.x && left.y === right.y;
 
-const walkable = Object.freeze(
-  Array.from({ length: HEIGHT }, (_, y) =>
-    Array.from({ length: WIDTH }, (_, x) => ({ x, y }))
-  )
-    .flat()
-    .filter(({ x, y }) =>
-      [2, 6, 9].includes(x) || [1, 4, 6].includes(y)
-    )
-);
+function line(from, to) {
+  const points = [];
+  const dx = Math.sign(to.x - from.x);
+  const dy = Math.sign(to.y - from.y);
+  let point = { ...from };
+  while (point.x !== to.x || point.y !== to.y) {
+    points.push(point);
+    point = { x: point.x + dx, y: point.y + dy };
+  }
+  return [...points, point];
+}
+
+function uniquePoints(points) {
+  const unique = new Map();
+  points.forEach(point => unique.set(pointKey(point), Object.freeze({ ...point })));
+  return Object.freeze([...unique.values()]);
+}
+
+const pedestrianCells = uniquePoints([
+  ...line({ x: 1, y: 10 }, { x: 16, y: 10 }),
+  ...line({ x: 2, y: 2 }, { x: 2, y: 10 }),
+  ...line({ x: 2, y: 2 }, { x: 15, y: 2 }),
+  ...line({ x: 8, y: 2 }, { x: 8, y: 10 }),
+  ...line({ x: 14, y: 2 }, { x: 14, y: 10 }),
+  ...line({ x: 2, y: 6 }, { x: 14, y: 6 })
+]);
 
 const friends = Object.freeze([
-  Object.freeze({ number: 2, x: 2, y: 5, place: "daycare" }),
-  Object.freeze({ number: 3, x: 2, y: 1, place: "shops" }),
-  Object.freeze({ number: 4, x: 5, y: 1, place: "roadside" }),
-  Object.freeze({ number: 5, x: 9, y: 2, place: "park" }),
-  Object.freeze({ number: 6, x: 9, y: 4, place: "bus-stop" }),
-  Object.freeze({ number: 7, x: 9, y: 6, place: "library" }),
-  Object.freeze({ number: 8, x: 6, y: 6, place: "construction" }),
-  Object.freeze({ number: 9, x: 6, y: 4, place: "crossing" }),
-  Object.freeze({ number: 10, x: 9, y: 1, place: "school" })
+  Object.freeze({ number: 2, x: 2, y: 8, place: "daycare" }),
+  Object.freeze({ number: 3, x: 5, y: 10, place: "shops" }),
+  Object.freeze({ number: 4, x: 8, y: 8, place: "roadside" }),
+  Object.freeze({ number: 5, x: 12, y: 10, place: "park" }),
+  Object.freeze({ number: 6, x: 14, y: 9, place: "bus-stop" }),
+  Object.freeze({ number: 7, x: 14, y: 6, place: "library" }),
+  Object.freeze({ number: 8, x: 11, y: 6, place: "construction" }),
+  Object.freeze({ number: 9, x: 8, y: 4, place: "crossing" }),
+  Object.freeze({ number: 10, x: 14, y: 2, place: "school" })
 ]);
 
 const places = Object.freeze([
-  Object.freeze({ type: "home", x: 0, y: 7, label: "우리 집" }),
-  Object.freeze({ type: "daycare", x: 0, y: 0, label: "어린이집" }),
-  Object.freeze({ type: "shops", x: 4, y: 0, label: "상가" }),
-  Object.freeze({ type: "park", x: 10, y: 2, label: "공원" }),
-  Object.freeze({ type: "bus-stop", x: 10, y: 4, label: "정류장" }),
-  Object.freeze({ type: "library", x: 10, y: 7, label: "도서관" }),
-  Object.freeze({ type: "school", x: 10, y: 0, label: "학교" })
+  Object.freeze({ type: "home", x: 0, y: 11, label: "우리 집" }),
+  Object.freeze({ type: "daycare", x: 0, y: 8, label: "어린이집" }),
+  Object.freeze({ type: "shops", x: 5, y: 11, label: "상가" }),
+  Object.freeze({ type: "park", x: 12, y: 11, label: "공원" }),
+  Object.freeze({ type: "bus-stop", x: 16, y: 9, label: "정류장" }),
+  Object.freeze({ type: "library", x: 16, y: 6, label: "도서관" }),
+  Object.freeze({ type: "school", x: 16, y: 1, label: "학교" })
 ]);
 
 const steadyHazards = Object.freeze([
-  Object.freeze({ type: "manhole", x: 4, y: 4 }),
-  Object.freeze({ type: "construction", x: 7, y: 6 }),
-  Object.freeze({ type: "scooter", x: 8, y: 1 })
+  Object.freeze({ type: "manhole", x: 5, y: 6 }),
+  Object.freeze({ type: "construction", x: 10, y: 10 }),
+  Object.freeze({ type: "scooter", x: 8, y: 7 })
 ]);
 
-const challengeMovers = Object.freeze([
+const crossings = Object.freeze([
   Object.freeze({
-    type: "bicycle",
-    path: Object.freeze([
-      Object.freeze({ x: 7, y: 4 }),
+    id: "west-crossing",
+    cells: Object.freeze([
       Object.freeze({ x: 8, y: 4 })
     ])
   }),
   Object.freeze({
-    type: "car",
-    path: Object.freeze([
-      Object.freeze({ x: 3, y: 1 }),
-      Object.freeze({ x: 4, y: 1 })
+    id: "east-crossing",
+    cells: Object.freeze([
+      Object.freeze({ x: 14, y: 8 })
     ])
   })
 ]);
 
-function routeMap(difficulty, { hazards = [], movers = [] } = {}) {
+const entrances = Object.freeze([
+  Object.freeze({ id: "shops-entrance", x: 6, y: 10 })
+]);
+
+const carPath = Object.freeze({
+  id: "main-car-lane",
+  type: "car",
+  stopIndex: 4,
+  points: Object.freeze(line({ x: 3, y: 4 }, { x: 13, y: 4 }))
+});
+
+const bicyclePath = Object.freeze({
+  id: "cycle-lane",
+  type: "bicycle",
+  stopIndex: 4,
+  points: Object.freeze(line({ x: 9, y: 8 }, { x: 16, y: 8 }))
+});
+
+const easyTraffic = Object.freeze([carPath]);
+const fullTraffic = Object.freeze([carPath, bicyclePath]);
+
+function legacyMovers(trafficPaths) {
+  return Object.freeze(trafficPaths.map(path => Object.freeze({
+    id: path.id,
+    type: "car",
+    path: path.points
+  })).map((mover, index) =>
+    Object.freeze({ ...mover, type: trafficPaths[index].type })
+  ));
+}
+
+function routeMap(
+  difficulty,
+  { hazards = [], trafficPaths = easyTraffic } = {}
+) {
   return Object.freeze({
     difficulty,
     width: WIDTH,
     height: HEIGHT,
-    start: Object.freeze({ x: 1, y: 6 }),
-    goal: Object.freeze({ x: 10, y: 1 }),
-    signalGate: Object.freeze({ x: 2, y: 4 }),
-    walkable,
+    start: Object.freeze({ x: 1, y: 10 }),
+    goal: Object.freeze({ x: 15, y: 2 }),
+    signalGate: Object.freeze({ x: 8, y: 4 }),
+    pedestrianCells,
+    walkable: pedestrianCells,
+    crossings,
+    entrances,
+    trafficPaths,
     friends,
     places,
     hazards,
-    movers
+    movers: legacyMovers(trafficPaths)
   });
 }
 
 export const SAFETY_ROUTE_MAPS = Object.freeze({
   easy: routeMap("easy"),
-  steady: routeMap("steady", { hazards: steadyHazards }),
+  steady: routeMap("steady", {
+    hazards: steadyHazards,
+    trafficPaths: fullTraffic
+  }),
   challenge: routeMap("challenge", {
     hazards: steadyHazards,
-    movers: challengeMovers
+    trafficPaths: fullTraffic
   })
 });
 
@@ -161,18 +217,6 @@ export function attemptSafetyMove(state, direction) {
     );
   }
 
-  const mover = state.movers.find(item => {
-    const position = currentMoverPosition(state.map, item);
-    return position && samePoint(position, candidate);
-  });
-  if (mover) {
-    return transition(
-      state,
-      { ...state.position },
-      { type: "blocked", reason: mover.type }
-    );
-  }
-
   const friend = state.map.friends.find(item => samePoint(item, candidate));
   if (friend?.number === state.nextFriend) {
     return transition(
@@ -235,26 +279,37 @@ function inBounds(map, point) {
   );
 }
 
-function reachablePoints(map) {
-  const roads = new Set(map.walkable.map(pointKey));
+export function findSafetyPath(map, start, goal) {
+  const roads = new Set(map.pedestrianCells.map(pointKey));
   const blockers = new Set(map.hazards.map(pointKey));
-  const visited = new Set();
-  const queue = [{ ...map.start }];
+  const previous = new Map([[pointKey(start), null]]);
+  const queue = [{ ...start }];
 
   while (queue.length > 0) {
     const current = queue.shift();
     const currentKey = pointKey(current);
-    if (visited.has(currentKey)) continue;
-    if (!roads.has(currentKey) || blockers.has(currentKey)) continue;
-    visited.add(currentKey);
+    if (samePoint(current, goal)) break;
     Object.values(DIRECTIONS).forEach(offset => {
       const next = { x: current.x + offset.x, y: current.y + offset.y };
-      if (inBounds(map, next) && !visited.has(pointKey(next))) {
+      const nextKey = pointKey(next);
+      if (
+        inBounds(map, next) &&
+        roads.has(nextKey) &&
+        !blockers.has(nextKey) &&
+        !previous.has(nextKey)
+      ) {
+        previous.set(nextKey, current);
         queue.push(next);
       }
     });
   }
-  return visited;
+
+  if (!previous.has(pointKey(goal))) return [];
+  const path = [];
+  for (let point = goal; point; point = previous.get(pointKey(point))) {
+    path.push({ x: point.x, y: point.y });
+  }
+  return path.reverse();
 }
 
 export function validateSafetyRouteMap(map) {
@@ -270,29 +325,46 @@ export function validateSafetyRouteMap(map) {
     errors.push("friends must contain 2 through 10 exactly once");
   }
 
-  const roadKeys = new Set(map.walkable.map(pointKey));
-  const occupied = [
+  const pedestrianKeys = new Set(map.pedestrianCells.map(pointKey));
+  const crossingKeys = new Set(
+    map.crossings.flatMap(crossing => crossing.cells).map(pointKey)
+  );
+  const pedestrianOccupied = [
     map.start,
     map.goal,
     map.signalGate,
     ...map.friends,
     ...map.hazards,
-    ...map.movers.flatMap(mover => mover.path)
+    ...map.entrances
   ];
-  occupied.forEach(point => {
+  pedestrianOccupied.forEach(point => {
     if (!inBounds(map, point)) errors.push(`out of bounds: ${pointKey(point)}`);
-    if (!roadKeys.has(pointKey(point))) {
-      errors.push(`not walkable: ${pointKey(point)}`);
+    if (!pedestrianKeys.has(pointKey(point))) {
+      errors.push(`not pedestrian: ${pointKey(point)}`);
     }
   });
 
-  const reachable = reachablePoints(map);
+  map.trafficPaths.forEach(path => {
+    path.points.forEach(point => {
+      if (!inBounds(map, point)) {
+        errors.push(`traffic out of bounds: ${pointKey(point)}`);
+      }
+      if (
+        pedestrianKeys.has(pointKey(point)) &&
+        !crossingKeys.has(pointKey(point))
+      ) {
+        errors.push(`traffic overlaps sidewalk: ${pointKey(point)}`);
+      }
+    });
+  });
+
+  let previousTarget = map.start;
   [...map.friends, map.goal].forEach(point => {
-    if (!reachable.has(pointKey(point))) {
+    if (findSafetyPath(map, previousTarget, point).length === 0) {
       errors.push(`unreachable: ${pointKey(point)}`);
     }
+    previousTarget = point;
   });
 
   return { valid: errors.length === 0, errors };
 }
-
