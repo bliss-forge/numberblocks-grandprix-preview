@@ -15,6 +15,10 @@ test("길찾기에서는 답안 UI를 숨기고 지도를 무대 전체에 펼�
   );
   assert.match(
     css,
+    /\.safety-viewport\s*\{[^}]*width:\s*min\(\s*100%,\s*calc\(var\(--viewport-cols,\s*7\)\s*\*\s*var\(--route-cell-size\)\)\s*\);[^}]*height:\s*min\(\s*100%,\s*calc\(var\(--viewport-rows,\s*5\)\s*\*\s*var\(--route-cell-size\)\)\s*\);/s
+  );
+  assert.match(
+    css,
     /\.safety-world\s*\{[^}]*grid-template-columns:\s*repeat\(var\(--world-cols\),\s*var\(--route-cell-size\)\);[^}]*grid-template-rows:\s*repeat\(var\(--world-rows\),\s*var\(--route-cell-size\)\);[^}]*transform:\s*translate3d/s
   );
 });
@@ -48,11 +52,15 @@ test("건물과 생활안전 요소를 입체 이미지 없이 평면 CSS 그림
 test("방향 버튼은 터치하기 충분하고 모바일·낮은 가로 화면에서도 유지된다", () => {
   assert.match(
     css,
+    /body\[data-mode="safety"\]\s+#game\s*\{[^}]*grid-template-rows:\s*minmax\(0,\s*1fr\);/s
+  );
+  assert.match(
+    css,
     /\.route-pad button\s*\{[^}]*min-width:\s*48px;[^}]*min-height:\s*48px;/s
   );
   assert.match(
     css,
-    /@media\s*\(max-width:\s*640px\)[\s\S]*?body\[data-mode="safety"\]\s+#game\s*\{[^}]*padding:/s
+    /@media\s*\(max-width:\s*640px\)[\s\S]*?body\[data-mode="safety"\]\s+#game\s*\{[^}]*grid-template-rows:\s*minmax\(0,\s*1fr\);[^}]*padding:/s
   );
   assert.match(
     css,
