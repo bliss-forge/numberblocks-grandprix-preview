@@ -18,6 +18,14 @@ const BLOCKED_CUES = Object.freeze({
     message: "빨간불이에요. 초록불이 될 때까지 기다려요!",
     voiceKey: "safety-red-light"
   },
+  "green-ending": {
+    message: "초록불이 곧 끝나요. 다음 초록불을 기다려요!",
+    voiceKey: "safety-red-light"
+  },
+  "look-first": {
+    message: "차가 나올 수 있어요. 잠깐 멈춰 좌우를 살펴요!",
+    voiceKey: "safety-car"
+  },
   manhole: {
     message: "열린 맨홀이에요. 가까이 가지 말고 돌아가요!",
     voiceKey: "safety-manhole"

@@ -110,12 +110,18 @@ test("빨간불은 횡단보도 진입만 막고 초록불에는 통과시킨다
     nextFriend: 10,
     collected: [1, 2, 3, 4, 5, 6, 7, 8, 9]
   };
-  const red = attemptSafetyMove({ ...base, signal: "red" }, "up");
+  const red = attemptSafetyMove({
+    ...base,
+    signal: { phase: "vehicle-go", elapsedMs: 0 }
+  }, "up");
   assert.equal(red.event.type, "blocked");
   assert.equal(red.event.reason, "red-light");
   assert.deepEqual(red.state.position, { x: 8, y: 5 });
 
-  const green = attemptSafetyMove({ ...base, signal: "green" }, "up");
+  const green = attemptSafetyMove({
+    ...base,
+    signal: { phase: "pedestrian-go", elapsedMs: 0 }
+  }, "up");
   assert.equal(green.event.type, "moved");
   assert.deepEqual(green.state.position, { x: 8, y: 4 });
 });
@@ -140,7 +146,7 @@ test("차량과 자전거는 차도에 머물러 보행 통로를 막지 않는�
     {
       ...state,
       position: { x: 8, y: 5 },
-      signal: "green",
+      signal: { phase: "pedestrian-go", elapsedMs: 0 },
       nextFriend: 10,
       collected: [1, 2, 3, 4, 5, 6, 7, 8, 9],
       movers: [
@@ -154,19 +160,63 @@ test("차량과 자전거는 차도에 머물러 보행 통로를 막지 않는�
   assert.deepEqual(car.state.position, { x: 8, y: 4 });
 });
 
+test("보행 신호와 차량 이동은 반대로 작동한다", () => {
+  const start = createSafetyRouteState("challenge");
+  assert.equal(start.signal.phase, "vehicle-go");
+
+  const stopped = advanceSafetyWorld(start, 5000);
+  assert.equal(stopped.signal.phase, "vehicle-clearance");
+
+  const walking = advanceSafetyWorld(stopped, 1000);
+  assert.equal(walking.signal.phase, "pedestrian-go");
+  assert.ok(walking.movers.every(mover => mover.stopped));
+});
+
+test("초록불 종료 2초 전에는 새 횡단만 막고 횡단 중이면 나갈 수 있다", () => {
+  const state = {
+    ...createSafetyRouteState("easy"),
+    signal: { phase: "pedestrian-go", elapsedMs: 5100 }
+  };
+  const entering = attemptSafetyMove(
+    { ...state, position: { x: 8, y: 3 }, crossingId: null },
+    "down"
+  );
+  assert.equal(entering.event.reason, "green-ending");
+
+  const exiting = attemptSafetyMove(
+    { ...state, position: { x: 8, y: 4 }, crossingId: "west-crossing" },
+    "down"
+  );
+  assert.notEqual(exiting.event.type, "blocked");
+});
+
+test("출입구는 첫 입력에 좌우 확인하고 다음 입력에 통과한다", () => {
+  const state = createSafetyRouteState("steady");
+  const first = attemptSafetyMove(
+    { ...state, position: { x: 5, y: 10 } },
+    "right"
+  );
+  assert.equal(first.event.reason, "look-first");
+  assert.equal(first.state.checkedEntrance, "shops-entrance");
+
+  const second = attemptSafetyMove(first.state, "right");
+  assert.equal(second.event.type, "moved");
+  assert.equal(second.state.checkedEntrance, null);
+});
+
 test("신호와 움직이는 장애물은 틱마다 안전하게 갱신된다", () => {
   const start = createSafetyRouteState("challenge");
-  const one = advanceSafetyWorld(start);
-  assert.equal(one.tick, 1);
-  assert.equal(one.signal, "red");
+  const one = advanceSafetyWorld(start, 100);
+  assert.equal(one.tick, 100);
+  assert.equal(one.signal.phase, "vehicle-go");
   assert.deepEqual(
     one.movers.map(mover => mover.pathIndex),
     [1, 1]
   );
 
-  const three = advanceSafetyWorld(advanceSafetyWorld(one));
-  assert.equal(three.tick, 3);
-  assert.equal(three.signal, "green");
+  const green = advanceSafetyWorld(one, 5900);
+  assert.equal(green.tick, 6000);
+  assert.equal(green.signal.phase, "pedestrian-go");
 });
 
 test("10 친구를 만나기 전에는 학교에 도착할 수 없다", () => {

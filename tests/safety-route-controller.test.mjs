@@ -43,6 +43,22 @@ test("안전 장애물은 실패 대신 이유와 행동을 설명한다", () =>
     safetyCueForEvent({ type: "blocked", reason: "car" }, 4).message,
     /자동차/
   );
+  assert.deepEqual(
+    safetyCueForEvent({ type: "blocked", reason: "green-ending" }, 4),
+    {
+      message: "초록불이 곧 끝나요. 다음 초록불을 기다려요!",
+      voiceKey: "safety-red-light",
+      tone: "safety"
+    }
+  );
+  assert.deepEqual(
+    safetyCueForEvent({ type: "blocked", reason: "look-first" }, 4),
+    {
+      message: "차가 나올 수 있어요. 잠깐 멈춰 좌우를 살펴요!",
+      voiceKey: "safety-car",
+      tone: "safety"
+    }
+  );
 });
 
 test("순서와 완주 안내를 제공한다", () => {

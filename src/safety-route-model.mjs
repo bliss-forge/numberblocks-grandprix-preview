@@ -8,6 +8,12 @@ const DIRECTIONS = Object.freeze({
   left: Object.freeze({ x: -1, y: 0 }),
   right: Object.freeze({ x: 1, y: 0 })
 });
+const SIGNAL_PHASES = Object.freeze([
+  Object.freeze({ phase: "vehicle-go", durationMs: 5000 }),
+  Object.freeze({ phase: "vehicle-clearance", durationMs: 1000 }),
+  Object.freeze({ phase: "pedestrian-go", durationMs: 7000 }),
+  Object.freeze({ phase: "pedestrian-clearance", durationMs: 1000 })
+]);
 
 const pointKey = ({ x, y }) => `${x},${y}`;
 const samePoint = (left, right) =>
@@ -149,8 +155,8 @@ export const SAFETY_ROUTE_MAPS = Object.freeze({
   })
 });
 
-function cloneMover(mover, pathIndex = 0) {
-  return { type: mover.type, pathIndex };
+function cloneMover(mover, pathIndex = 0, stopped = false) {
+  return { id: mover.id, type: mover.type, pathIndex, stopped };
 }
 
 export function createSafetyRouteState(difficulty) {
@@ -162,15 +168,18 @@ export function createSafetyRouteState(difficulty) {
     position: { ...map.start },
     nextFriend: 2,
     collected: [1],
-    signal: "red",
+    signal: { phase: "vehicle-go", elapsedMs: 0 },
+    crossingId: null,
+    checkedEntrance: null,
     tick: 0,
-    movers: map.movers.map(mover => cloneMover(mover))
+    movers: map.trafficPaths.map(mover => cloneMover(mover))
   };
 }
 
-function currentMoverPosition(map, mover) {
-  const definition = map.movers.find(item => item.type === mover.type);
-  return definition?.path[mover.pathIndex] ?? null;
+function crossingForPoint(map, point) {
+  return map.crossings.find(crossing =>
+    crossing.cells.some(cell => samePoint(cell, point))
+  ) ?? null;
 }
 
 function transition(state, position, event, extra = {}) {
@@ -206,17 +215,40 @@ export function attemptSafetyMove(state, direction) {
     );
   }
 
-  if (
-    state.signal === "red" &&
-    samePoint(state.map.signalGate, candidate)
-  ) {
+  const entrance = state.map.entrances.find(item =>
+    samePoint(item, candidate)
+  );
+  if (entrance && state.checkedEntrance !== entrance.id) {
     return transition(
       state,
       { ...state.position },
-      { type: "blocked", reason: "red-light" }
+      { type: "blocked", reason: "look-first" },
+      { checkedEntrance: entrance.id }
     );
   }
 
+  const crossing = crossingForPoint(state.map, candidate);
+  if (crossing && !state.crossingId) {
+    if (state.signal.phase !== "pedestrian-go") {
+      return transition(
+        state,
+        { ...state.position },
+        { type: "blocked", reason: "red-light" }
+      );
+    }
+    if (7000 - state.signal.elapsedMs <= 2000) {
+      return transition(
+        state,
+        { ...state.position },
+        { type: "blocked", reason: "green-ending" }
+      );
+    }
+  }
+
+  const moveExtra = {
+    checkedEntrance: null,
+    crossingId: crossing?.id ?? null
+  };
   const friend = state.map.friends.find(item => samePoint(item, candidate));
   if (friend?.number === state.nextFriend) {
     return transition(
@@ -224,6 +256,7 @@ export function attemptSafetyMove(state, direction) {
       candidate,
       { type: "friend", number: friend.number },
       {
+        ...moveExtra,
         nextFriend: state.nextFriend + 1,
         collected: [...state.collected, friend.number]
       }
@@ -233,7 +266,8 @@ export function attemptSafetyMove(state, direction) {
     return transition(
       state,
       candidate,
-      { type: "wrong-friend", number: friend.number }
+      { type: "wrong-friend", number: friend.number },
+      moveExtra
     );
   }
 
@@ -243,29 +277,39 @@ export function attemptSafetyMove(state, direction) {
       candidate,
       state.nextFriend > 10
         ? { type: "complete" }
-        : { type: "need-friends", nextFriend: state.nextFriend }
+        : { type: "need-friends", nextFriend: state.nextFriend },
+      moveExtra
     );
   }
 
-  return transition(state, candidate, { type: "moved" });
+  return transition(state, candidate, { type: "moved" }, moveExtra);
 }
 
-export function advanceSafetyWorld(state) {
-  const tick = state.tick + 1;
-  const signal =
-    tick % 3 === 0
-      ? state.signal === "red" ? "green" : "red"
-      : state.signal;
+function advanceSignal(signal, elapsedMs) {
+  let index = SIGNAL_PHASES.findIndex(item => item.phase === signal.phase);
+  if (index < 0) index = 0;
+  let elapsed = signal.elapsedMs + Math.max(0, elapsedMs);
+  while (elapsed >= SIGNAL_PHASES[index].durationMs) {
+    elapsed -= SIGNAL_PHASES[index].durationMs;
+    index = (index + 1) % SIGNAL_PHASES.length;
+  }
+  return { phase: SIGNAL_PHASES[index].phase, elapsedMs: elapsed };
+}
+
+export function advanceSafetyWorld(state, elapsedMs = 100) {
+  const elapsed = Number.isFinite(elapsedMs) ? Math.max(0, elapsedMs) : 0;
+  const tick = state.tick + elapsed;
+  const signal = advanceSignal(state.signal, elapsed);
   const movers = state.movers.map(mover => {
-    const definition = state.map.movers.find(
-      item => item.type === mover.type
+    const definition = state.map.trafficPaths.find(
+      item => item.id === mover.id
     );
-    if (!definition || definition.path.length === 0) return { ...mover };
-    const nextIndex = (mover.pathIndex + 1) % definition.path.length;
-    const nextPosition = definition.path[nextIndex];
-    return samePoint(nextPosition, state.position)
-      ? { ...mover }
-      : cloneMover(mover, nextIndex);
+    if (!definition || definition.points.length === 0) return { ...mover };
+    if (signal.phase !== "vehicle-go") {
+      return cloneMover(definition, definition.stopIndex, true);
+    }
+    const nextIndex = (mover.pathIndex + 1) % definition.points.length;
+    return cloneMover(definition, nextIndex, false);
   });
   return { ...state, tick, signal, movers };
 }
