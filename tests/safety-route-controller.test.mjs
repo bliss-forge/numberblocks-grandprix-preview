@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import {
+  acceptSafetyRepeat,
   directionForKey,
   safetyCueForEvent
 } from "../src/safety-route-controller.mjs";
@@ -13,6 +14,21 @@ test("방향키와 WASD를 네 방향 이동으로 바꾼다", () => {
   assert.equal(directionForKey("ArrowDown"), "down");
   assert.equal(directionForKey("d"), "right");
   assert.equal(directionForKey("5"), null);
+});
+
+test("길게 누르기는 140ms 간격으로만 이동을 허용한다", () => {
+  assert.equal(
+    acceptSafetyRepeat({ repeat: false, nowMs: 100, previousMs: 95 }),
+    true
+  );
+  assert.equal(
+    acceptSafetyRepeat({ repeat: true, nowMs: 220, previousMs: 100 }),
+    false
+  );
+  assert.equal(
+    acceptSafetyRepeat({ repeat: true, nowMs: 240, previousMs: 100 }),
+    true
+  );
 });
 
 test("친구를 만나면 다음 목적지와 음성 키를 안내한다", () => {

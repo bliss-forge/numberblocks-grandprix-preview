@@ -79,7 +79,17 @@ test("길찾기는 모델, 장면, 키보드와 모바일 방향 버튼을 앱�
   assert.match(app, /directionForKey\(event\.key\)/);
   assert.match(app, /closest\("\[data-route-direction\]"\)/);
   assert.match(app, /attemptSafetyMove\(state\.safety,\s*direction\)/);
-  assert.match(app, /advanceSafetyWorld\(state\.safety\)/);
+  assert.match(app, /advanceSafetyWorld\(\s*state\.safety,\s*/);
+  assert.match(app, /acceptSafetyRepeat\(/);
+  assert.match(app, /pointerdown/);
+  assert.match(app, /pointerup/);
+  assert.match(app, /pointercancel/);
+  assert.match(app, /guidanceCells\(/);
+  assert.match(app, /cameraOffset\(/);
+  assert.doesNotMatch(
+    app,
+    /state\.mode === "safety"\s*&&\s*!event\.repeat/
+  );
 });
 
 test("길찾기는 숫자 답안 UI를 사용하지 않고 별을 잃지 않는다", () => {

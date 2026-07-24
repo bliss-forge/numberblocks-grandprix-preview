@@ -53,6 +53,15 @@ export function directionForKey(key) {
   return KEY_DIRECTIONS[key] ?? KEY_DIRECTIONS[key.toLowerCase()] ?? null;
 }
 
+export function acceptSafetyRepeat({
+  repeat,
+  nowMs,
+  previousMs,
+  intervalMs = 140
+}) {
+  return !repeat || nowMs - previousMs >= intervalMs;
+}
+
 export function safetyCueForEvent(event, nextFriend) {
   if (!event) return null;
 

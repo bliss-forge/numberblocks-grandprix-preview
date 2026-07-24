@@ -41,13 +41,24 @@ import {
 import {
   advanceSafetyWorld,
   attemptSafetyMove,
-  createSafetyRouteState
+  createSafetyRouteState,
+  findSafetyPath
 } from "./safety-route-model.mjs";
 import {
+  acceptSafetyRepeat,
   directionForKey,
   safetyCueForEvent
 } from "./safety-route-controller.mjs";
 import { renderSafetyRouteScene } from "./safety-route-scene.mjs";
+import {
+  createGuidanceState,
+  guidanceCells,
+  recordGuidanceMove
+} from "./safety-route-guidance.mjs";
+import {
+  cameraOffset,
+  targetArrow
+} from "./safety-route-camera.mjs";
 
 const audio = new AudioManager();
 const $ = id => document.getElementById(id);
@@ -80,6 +91,7 @@ const state = {
   difficulty: loadDifficulty(),
   problem: null,
   safety: null,
+  safetyView: null,
   buffer: "",
   stars: 0,
   streak: { count: 0, add: 0, sub: 0, mul: 0, safety: 0 },
@@ -395,17 +407,51 @@ function newProblem() {
 }
 
 function renderSafetyRoute() {
-  if (!state.safety) return;
+  if (!state.safety || !state.safetyView) return;
   dom.problem.textContent =
     state.safety.nextFriend <= 10
       ? `${state.safety.nextFriend} 친구를 만나러 가요`
       : "학교까지 안전하게 가요";
+
+  const mobile = window.innerWidth <= 640;
+  const viewport = mobile
+    ? { width: 5, height: 5 }
+    : { width: 7, height: 5 };
+  const target =
+    state.safety.map.friends.find(
+      friend => friend.number === state.safety.nextFriend
+    ) ?? state.safety.map.goal;
+  state.safetyView.camera = {
+    ...cameraOffset({
+      world: state.safety.map,
+      viewport,
+      player: state.safety.position,
+      previous: state.safetyView.camera
+    }),
+    ...viewport
+  };
+  const nowMs = performance.now();
+  const guidance = guidanceCells(
+    state.safetyView.guidance,
+    state.safety.map,
+    state.safety.position,
+    target,
+    nowMs
+  );
   dom.stage.replaceChildren(
-    renderSafetyRouteScene(document, state.safety)
+    renderSafetyRouteScene(document, state.safety, {
+      camera: state.safetyView.camera,
+      guidance,
+      targetArrow: targetArrow({
+        viewport,
+        camera: state.safetyView.camera,
+        target
+      })
+    })
   );
 }
 
-function scheduleSafetyWorldTick() {
+function scheduleSafetyWorldTick(previousMs = performance.now()) {
   schedule(() => {
     if (
       state.phase !== "playing" ||
@@ -414,26 +460,44 @@ function scheduleSafetyWorldTick() {
     ) {
       return;
     }
-    state.safety = advanceSafetyWorld(state.safety);
+    const nowMs = performance.now();
+    state.safety = advanceSafetyWorld(
+      state.safety,
+      Math.min(250, nowMs - previousMs)
+    );
     renderSafetyRoute();
-    scheduleSafetyWorldTick();
-  }, 900);
+    scheduleSafetyWorldTick(nowMs);
+  }, 100);
 }
 
 function startSafetyRoute() {
+  stopSafetyHold();
   clearTimers();
   audio.cancel();
   state.round += 1;
   state.problem = null;
   state.buffer = "";
   state.safety = createSafetyRouteState(state.difficulty);
+  const mobile = window.innerWidth <= 640;
+  state.safetyView = {
+    camera: {
+      x: 0,
+      y: Math.max(0, state.safety.map.height - 5),
+      width: mobile ? 5 : 7,
+      height: 5
+    },
+    guidance: createGuidanceState(performance.now()),
+    lastMoveAt: 0,
+    heldDirection: null,
+    holdTimer: 0
+  };
   dom.cheer.classList.remove("show");
   dom.hint.className = "toast";
   dom.hint.textContent = "";
   setPhase("playing");
   renderSafetyRoute();
   void audio.playPrompt("safety-next-2");
-  scheduleSafetyWorldTick();
+  scheduleSafetyWorldTick(performance.now());
 }
 
 function showHint(message) {
@@ -453,6 +517,7 @@ function showHint(message) {
 
 async function completeSafetyRoute() {
   const round = state.round;
+  stopSafetyHold();
   setPhase("celebrating");
   clearTimers();
   audio.cancel();
@@ -471,32 +536,91 @@ async function completeSafetyRoute() {
   }, 1550);
 }
 
+function safetyTarget(safety = state.safety) {
+  return safety?.map.friends.find(
+    friend => friend.number === safety.nextFriend
+  ) ?? safety?.map.goal ?? null;
+}
+
+function safetyDistance(safety = state.safety) {
+  const target = safetyTarget(safety);
+  if (!safety || !target) return Number.POSITIVE_INFINITY;
+  const path = findSafetyPath(
+    safety.map,
+    safety.position,
+    target
+  );
+  return path.length > 0 ? path.length - 1 : Number.POSITIVE_INFINITY;
+}
+
+function stopSafetyHold() {
+  if (state.safetyView?.holdTimer) {
+    clearInterval(state.safetyView.holdTimer);
+  }
+  if (state.safetyView) {
+    state.safetyView.holdTimer = 0;
+    state.safetyView.heldDirection = null;
+  }
+}
+
+function startSafetyHold(direction) {
+  stopSafetyHold();
+  if (!state.safetyView) return;
+  state.safetyView.heldDirection = direction;
+  const event = moveSafetyRoute(direction);
+  if (event?.type !== "moved") {
+    stopSafetyHold();
+    return;
+  }
+  state.safetyView.holdTimer = window.setInterval(() => {
+    if (state.safetyView?.heldDirection !== direction) return;
+    const repeatedEvent = moveSafetyRoute(direction);
+    if (repeatedEvent?.type !== "moved") stopSafetyHold();
+  }, 140);
+}
+
 function moveSafetyRoute(direction) {
   if (
     state.phase !== "playing" ||
     state.mode !== "safety" ||
     !state.safety
   ) {
-    return;
+    return null;
   }
 
+  const beforeDistance = safetyDistance();
   audio.playSfx("key");
   const result = attemptSafetyMove(state.safety, direction);
   state.safety = result.state;
+  const nowMs = performance.now();
+  if (result.event.type === "friend") {
+    state.safetyView.guidance = createGuidanceState(nowMs);
+  } else {
+    state.safetyView.guidance = recordGuidanceMove(
+      state.safetyView.guidance,
+      {
+        beforeDistance,
+        afterDistance: safetyDistance(),
+        blocked: result.event.type === "blocked",
+        nowMs
+      }
+    );
+  }
   renderSafetyRoute();
 
   if (result.event.type === "complete") {
     void completeSafetyRoute();
-    return;
+    return result.event;
   }
 
   const cue = safetyCueForEvent(result.event, state.safety.nextFriend);
-  if (!cue) return;
+  if (!cue) return result.event;
   showHint(cue.message);
   if (cue.voiceKey) {
     audio.cancel();
     void audio.playPrompt(cue.voiceKey);
   }
+  return result.event;
 }
 
 function scheduleCountHint(answer) {
@@ -600,11 +724,13 @@ function startMode(mode) {
     showHint("도전에서는 더하기, 빼기와 곱하기를 해요.");
     return;
   }
+  stopSafetyHold();
   setMode(mode);
   if (mode === "safety") {
     startSafetyRoute();
   } else {
     state.safety = null;
+    state.safetyView = null;
     newProblem();
   }
   focusPhase(state.phase, {
@@ -614,11 +740,13 @@ function startMode(mode) {
 }
 
 function goHome() {
+  stopSafetyHold();
   clearTimers();
   audio.cancel();
   state.round += 1;
   state.problem = null;
   state.safety = null;
+  state.safetyView = null;
   state.buffer = "";
   setMode(null);
   dom.cheer.classList.remove("show");
@@ -654,11 +782,21 @@ numberPadDigits.forEach(button => {
 });
 
 dom.numberPadDelete.addEventListener("click", deleteDigit);
-dom.stage.addEventListener("click", event => {
+dom.stage.addEventListener("pointerdown", event => {
   const button = event.target.closest("[data-route-direction]");
   if (!button) return;
+  event.preventDefault();
+  button.setPointerCapture?.(event.pointerId);
+  startSafetyHold(button.dataset.routeDirection);
+});
+dom.stage.addEventListener("click", event => {
+  const button = event.target.closest("[data-route-direction]");
+  if (!button || event.detail !== 0) return;
   moveSafetyRoute(button.dataset.routeDirection);
 });
+document.addEventListener("pointerup", stopSafetyHold);
+document.addEventListener("pointercancel", stopSafetyHold);
+dom.stage.addEventListener("pointerleave", stopSafetyHold);
 
 dom.homeButton.addEventListener("click", goHome);
 dom.mute.addEventListener("click", () => {
@@ -675,13 +813,20 @@ document.addEventListener("keydown", event => {
 
   if (
     state.phase === "playing" &&
-    state.mode === "safety" &&
-    !event.repeat
+    state.mode === "safety"
   ) {
     const direction = directionForKey(event.key);
+    const nowMs = performance.now();
     if (direction) {
       event.preventDefault();
-      moveSafetyRoute(direction);
+      if (acceptSafetyRepeat({
+        repeat: event.repeat,
+        nowMs,
+        previousMs: state.safetyView?.lastMoveAt ?? 0
+      })) {
+        state.safetyView.lastMoveAt = nowMs;
+        moveSafetyRoute(direction);
+      }
       return;
     }
   }
