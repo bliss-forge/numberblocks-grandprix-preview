@@ -1754,7 +1754,7 @@ body[data-state="celebrating"] .answer-box {
 }
 
 body[data-mode="safety"] #game {
-  grid-template-rows: minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr);
   gap: 8px;
   padding: 74px 2vw 14px;
 }
@@ -2340,7 +2340,7 @@ body[data-mode="safety"] .stage-lights {
 
 @media (max-width: 640px) {
   body[data-mode="safety"] #game {
-    grid-template-rows: minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
     padding: 66px 5px 5px;
   }
 
@@ -2405,6 +2405,7 @@ body[data-mode="safety"] .stage-lights {
   }
 
   body[data-mode="safety"] #game {
+    grid-template-rows: minmax(0, 1fr);
     padding: 50px 4px 3px;
   }
 
@@ -2415,6 +2416,10 @@ body[data-mode="safety"] .stage-lights {
     max-width: calc(100vw - 180px);
     padding: 4px 10px;
     font-size: 15px;
+  }
+
+  body[data-mode="safety"] .stage-frame {
+    grid-row: 1;
   }
 
   .safety-route-top {

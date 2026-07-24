@@ -11,6 +11,13 @@ test("정적 셸이 스타일과 앱 모듈을 로드한다", () => {
   assert.match(html, /<script type="module" src="src\/app\.mjs"><\/script>/);
 });
 
+test("길찾기 레이아웃 수정본은 이전 CSS 캐시와 다른 주소를 사용한다", () => {
+  assert.match(
+    html,
+    /<link rel="stylesheet" href="styles\.css\?v=20260724-safe-route-layout-fix">/
+  );
+});
+
 test("홈, 게임, HUD, 음소거 컨트롤이 존재한다", () => {
   for (const id of [
     "home",
@@ -245,10 +252,6 @@ test("문제와 정답 캐릭터는 장면 확대와 실측 상한을 공유한�
 });
 
 test("오른쪽 아래에 bliss 제작자 서명을 표시한다", () => {
-  assert.match(
-    html,
-    /<link rel="stylesheet" href="styles\.css\?v=20260724-safe-route">/
-  );
   assert.match(
     html,
     /<footer class="creator-credit">crafted by <strong>bliss<\/strong> © 2026<\/footer>/

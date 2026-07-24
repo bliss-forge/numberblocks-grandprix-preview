@@ -52,7 +52,7 @@ test("건물과 생활안전 요소를 입체 이미지 없이 평면 CSS 그림
 test("방향 버튼은 터치하기 충분하고 모바일·낮은 가로 화면에서도 유지된다", () => {
   assert.match(
     css,
-    /body\[data-mode="safety"\]\s+#game\s*\{[^}]*grid-template-rows:\s*minmax\(0,\s*1fr\);/s
+    /body\[data-mode="safety"\]\s+#game\s*\{[^}]*grid-template-rows:\s*auto\s+minmax\(0,\s*1fr\);/s
   );
   assert.match(
     css,
@@ -60,11 +60,11 @@ test("방향 버튼은 터치하기 충분하고 모바일·낮은 가로 화면
   );
   assert.match(
     css,
-    /@media\s*\(max-width:\s*640px\)[\s\S]*?body\[data-mode="safety"\]\s+#game\s*\{[^}]*grid-template-rows:\s*minmax\(0,\s*1fr\);[^}]*padding:/s
+    /@media\s*\(max-width:\s*640px\)\s*\{\s*body\[data-mode="safety"\]\s+#game\s*\{[^}]*grid-template-rows:\s*auto\s+minmax\(0,\s*1fr\);[^}]*padding:/s
   );
   assert.match(
     css,
-    /@media\s*\(max-width:\s*900px\)\s+and\s+\(max-height:\s*500px\)[\s\S]*?\.route-pad\s*\{[^}]*position:\s*absolute;/s
+    /@media\s*\(max-width:\s*900px\)\s+and\s+\(max-height:\s*500px\)[\s\S]*?body\[data-mode="safety"\]\s+#game\s*\{[^}]*grid-template-rows:\s*minmax\(0,\s*1fr\);[^}]*\}[\s\S]*?body\[data-mode="safety"\]\s+\.stage-frame\s*\{[^}]*grid-row:\s*1;[^}]*\}[\s\S]*?\.route-pad\s*\{[^}]*position:\s*absolute;/s
   );
   assert.doesNotMatch(
     css,
