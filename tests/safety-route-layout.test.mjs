@@ -109,6 +109,17 @@ test("맨홀은 한 보행 칸만 막고 짝을 이룬 우회 칸을 비워 둔�
   }
 });
 
+test("맨홀 발자국이 짝 우회 칸까지 덮으면 후보 검증이 거부한다", () => {
+  const map = structuredClone(createSafetyRouteMap("easy", { seed: 8 }));
+  const manhole = map.hazards.find(hazard => hazard.type === "manhole");
+  manhole.cells.push({ ...manhole.pairedBypassCell });
+
+  const result = validateCandidateLayout(map);
+
+  assert.equal(result.valid, false);
+  assert.ok(result.errors.includes(`manhole bypass must remain open: ${manhole.x},${manhole.y}`));
+});
+
 test("공사 발자국은 한 골목의 두 보행길 사이 연결부만 막는다", () => {
   const map = createSafetyRouteMap("steady", { seed: 8 });
   const construction = map.hazards.find(hazard => hazard.type === "construction");

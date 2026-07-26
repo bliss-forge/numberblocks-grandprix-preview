@@ -561,6 +561,38 @@ export function validateCandidateLayout(map) {
   if (trafficPaths.length !== lanes.length + (map.patrols ?? []).length) {
     errors.push("traffic paths must include cars and patrols");
   }
+  const manholeBypassProtected = new Set([
+    ...crossingCells,
+    map.start,
+    map.goal,
+    map.signalGate,
+    ...(map.entrances ?? []),
+    ...(map.friends ?? [])
+  ].filter(Boolean).map(pointKey));
+  const occupiedBypassCells = new Set([
+    ...(map.hazards ?? []).flatMap(hazardCells),
+    ...(map.patrols ?? []),
+    ...trafficPaths.flatMap(path => path.points ?? [])
+  ].filter(Boolean).map(pointKey));
+  (map.hazards ?? []).filter(item => item.type === "manhole").forEach(item => {
+    const cells = hazardCells(item);
+    const bypass = item.pairedBypassCell;
+    const hasAnchorFootprint = cells.length === 1 && pointKey(cells[0]) === pointKey(item);
+    const sharesSidewalkBand = bypass && sidewalkBands.some(band => [item, bypass].every(point =>
+      point.x >= band.x && point.x < band.x + band.width &&
+      point.y >= band.y && point.y < band.y + band.height
+    ));
+    if (!hasAnchorFootprint) {
+      errors.push(`manhole must block exactly its anchor: ${pointKey(item)}`);
+    }
+    if (!bypass || !inBounds(bypass) || !walkable.has(pointKey(bypass)) ||
+      Math.abs(item.x - bypass.x) + Math.abs(item.y - bypass.y) !== 1 ||
+      !sharesSidewalkBand) {
+      errors.push(`manhole bypass must share a sidewalk band: ${pointKey(item)}`);
+    } else if (manholeBypassProtected.has(pointKey(bypass)) || occupiedBypassCells.has(pointKey(bypass))) {
+      errors.push(`manhole bypass must remain open: ${pointKey(item)}`);
+    }
+  });
   lanes.forEach(lane => {
     const lanePoints = Array.isArray(lane?.cells) ? lane.cells : [];
     const expectedPoints = new Set(lanePoints.map(pointKey));
