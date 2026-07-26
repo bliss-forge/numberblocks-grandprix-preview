@@ -29,6 +29,20 @@ function placeAt(node, point) {
   return node;
 }
 
+function pointKey(point) {
+  return `${point.x},${point.y}`;
+}
+
+function cellsIn(rectangles) {
+  return new Set(rectangles.flatMap(rectangle =>
+    Array.from({ length: rectangle.width * rectangle.height }, (_, index) => {
+      const x = rectangle.x + (index % rectangle.width);
+      const y = rectangle.y + Math.floor(index / rectangle.width);
+      return `${x},${y}`;
+    })
+  ));
+}
+
 function setWorldCamera(world, camera) {
   world.style.setProperty("--camera-x", camera.x);
   world.style.setProperty("--camera-y", camera.y);
@@ -153,21 +167,35 @@ export function renderSafetyRouteScene(document, state, requestedView = {}) {
     if (zone) world.append(routeZone(document, name, zone, state.map.height));
   }
 
-  const crossingKeys = new Set(
-    state.map.crossings
-      .flatMap(crossing => crossing.cells)
-      .map(point => `${point.x},${point.y}`)
+  const crossingIds = new Map(
+    state.map.crossings.flatMap(crossing =>
+      crossing.cells.map(point => [pointKey(point), crossing.id])
+    )
   );
+  const alleyKeys = cellsIn(state.map.alleys);
   state.map.roadCells.forEach(point => {
-    const className = crossingKeys.has(`${point.x},${point.y}`)
+    const crossingId = crossingIds.get(pointKey(point));
+    const className = crossingId
       ? "route-road route-crosswalk"
       : "route-road";
-    world.append(routeCell(document, point, className));
+    const node = routeCell(document, point, className);
+    const lane = state.map.lanes.find(item =>
+      point.x >= item.x && point.x < item.x + item.width
+    );
+    node.dataset.lane = lane?.id ?? "";
+    node.dataset.roadPosition = [
+      "outer-left", "center-left", "center-right", "outer-right"
+    ][point.x - state.map.zones.road.x] ?? "";
+    if (crossingId) node.dataset.crossingId = crossingId;
+    world.append(node);
   });
 
   state.map.pedestrianCells.forEach(point => {
-    if (!crossingKeys.has(`${point.x},${point.y}`)) {
-      world.append(routeCell(document, point, "route-sidewalk"));
+    if (!crossingIds.has(pointKey(point))) {
+      const className = alleyKeys.has(pointKey(point))
+        ? "route-sidewalk route-alley"
+        : "route-sidewalk route-walkway";
+      world.append(routeCell(document, point, className));
     }
   });
 
@@ -197,25 +225,27 @@ export function renderSafetyRouteScene(document, state, requestedView = {}) {
     world.append(placeAt(node, place));
   });
 
-  const signal = signalNode(
-    document,
-    state.signal.phase,
-    "route-signal",
-    state.map.signalGate,
-    true
-  );
-  world.append(signal);
-  const signalMarkers = (state.map.signalMarkers ?? []).map(marker => {
+  const signalMarkers = state.map.signalMarkers?.length
+    ? state.map.signalMarkers.map(marker => {
     const node = signalNode(
       document,
       state.signal.phase,
       "route-signal-marker",
-      marker
+      marker,
+      true
     );
     node.dataset.crossingId = marker.crossingId;
     world.append(node);
     return node;
-  });
+    })
+    : [signalNode(
+      document,
+      state.signal.phase,
+      "route-signal",
+      state.map.signalGate,
+      true
+    )];
+  if (!state.map.signalMarkers?.length) world.append(signalMarkers[0]);
 
   state.map.hazards.forEach(hazard => {
     const cells = hazard.cells?.length ? hazard.cells : [hazard];
@@ -311,7 +341,7 @@ export function renderSafetyRouteScene(document, state, requestedView = {}) {
     collected,
     viewport,
     world,
-    signalNodes: [signal, ...signalMarkers],
+    signalNodes: signalMarkers,
     moverNodes,
     friendNodes,
     player,
@@ -361,12 +391,10 @@ export function updateSafetyRouteScene(root, state, requestedView = {}) {
 
   nodes.signalNodes.forEach(node => {
     node.dataset.phase = state.signal.phase;
-    if (node.className === "route-signal") {
-      node.setAttribute(
-        "aria-label",
-        state.signal.phase === "pedestrian-go" ? "초록 신호" : "빨간 신호"
-      );
-    }
+    node.setAttribute(
+      "aria-label",
+      state.signal.phase === "pedestrian-go" ? "초록 신호" : "빨간 신호"
+    );
   });
 
   state.movers.forEach(mover => {

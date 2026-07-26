@@ -146,13 +146,28 @@ test("장면은 보도와 차도를 별도 레이어로 만들고 카메라 값�
   assert.equal(world.style.values.get("--camera-y"), "2");
 });
 
+test("장면은 차선과 보행 공간의 역할을 DOM에 표시한다", () => {
+  const scene = renderSafetyRouteScene(
+    document,
+    createSafetyRouteState("easy", { seed: 14 })
+  );
+  assert.ok(byClass(scene, "route-road").every(node => node.dataset.lane));
+  assert.ok(byClass(scene, "route-road").every(node => node.dataset.roadPosition));
+  assert.equal(byClass(scene, "route-crosswalk").length, 16);
+  assert.ok(byClass(scene, "route-crosswalk").every(
+    node => node.dataset.crossingId
+  ));
+  assert.ok(byClass(scene, "route-alley").length > 0);
+  assert.ok(byClass(scene, "route-walkway").length > 0);
+});
+
 test("신호 단계를 색 외의 데이터로도 표시한다", () => {
   const vehicle = renderSafetyRouteScene(
     document,
     createSafetyRouteState("easy")
   );
   assert.equal(
-    byClass(vehicle, "route-signal")[0].dataset.phase,
+    byClass(vehicle, "route-signal-marker")[0].dataset.phase,
     "vehicle-go"
   );
 
@@ -164,7 +179,7 @@ test("신호 단계를 색 외의 데이터로도 표시한다", () => {
     }
   );
   assert.equal(
-    byClass(pedestrian, "route-signal")[0].dataset.phase,
+    byClass(pedestrian, "route-signal-marker")[0].dataset.phase,
     "pedestrian-go"
   );
 });
@@ -177,15 +192,17 @@ test("생성 장면은 위아래 횡단보도에 동기화된 보행 신호 표�
   const scene = renderSafetyRouteScene(document, state);
   const markers = byClass(scene, "route-signal-marker");
 
-  assert.equal(markers.length, 2);
+  assert.equal(markers.length, 4);
   assert.deepEqual(markers.map(marker => marker.dataset.phase), [
+    "pedestrian-go",
+    "pedestrian-go",
     "pedestrian-go",
     "pedestrian-go"
   ]);
   assert.deepEqual(markers.map(marker => [
     marker.style.values.get("--route-x"),
     marker.style.values.get("--route-y")
-  ]), [["14", "4"], ["14", "11"]]);
+  ]), [["14", "4"], ["19", "5"], ["14", "11"], ["19", "12"]]);
 });
 
 test("장면은 좌우 동네와 중앙 2차선 구역을 표시한다", () => {
@@ -269,7 +286,7 @@ test("지도가 입구 신호 표시를 제공하면 하나의 신호 상태를 
 
   const scene = renderSafetyRouteScene(document, state);
 
-  assert.equal(byClass(scene, "route-signal").length, 1);
+  assert.equal(byClass(scene, "route-signal").length, 0);
   assert.equal(byClass(scene, "route-signal-marker").length, 2);
   assert.deepEqual(
     byClass(scene, "route-signal-marker").map(node => node.dataset.phase),
@@ -312,15 +329,12 @@ test("장애물과 신호와 이동체 그림은 레이블이 있는 이미지�
 
   for (const illustration of [
     ...byClass(scene, "route-hazard"),
-    ...byClass(scene, "route-signal")
+    ...byClass(scene, "route-signal-marker")
   ]) {
     assert.equal(illustration.attributes.get("role"), "img");
     assert.ok(illustration.attributes.get("aria-label"));
   }
-  for (const decoration of [
-    ...byClass(scene, "route-hazard-footprint"),
-    ...byClass(scene, "route-signal-marker")
-  ]) {
+  for (const decoration of byClass(scene, "route-hazard-footprint")) {
     assert.equal(decoration.attributes.get("aria-hidden"), "true");
     assert.equal(decoration.attributes.has("role"), false);
   }

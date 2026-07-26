@@ -146,31 +146,19 @@ test("두 횡단보도는 하나의 보행 신호와 signalGate를 공유한다"
   assert.ok(map.crossings.every(item => item.signalId === map.signalGate.signalId));
 });
 
-test("위아래 횡단보도마다 같은 상태를 가리키는 보행 신호 표지가 있다", () => {
-  const map = createSafetyRouteMap("steady", { seed: 4 });
+test("각 횡단보도는 양쪽 보도 모서리에 동기 신호 위치를 만든다", () => {
+  const map = createSafetyRouteMap("easy", { seed: 14 });
 
-  assert.deepEqual(
-    map.signalMarkers.map(marker => ({
-      crossingId: marker.crossingId,
-      signalId: marker.signalId,
-      x: marker.x,
-      y: marker.y
-    })),
-    [
-      {
-        crossingId: "crossing-1",
-        signalId: "neighborhood-pedestrian-signal",
-        x: 13,
-        y: 3
-      },
-      {
-        crossingId: "crossing-2",
-        signalId: "neighborhood-pedestrian-signal",
-        x: 13,
-        y: 10
-      }
-    ]
-  );
+  assert.equal(map.signalMarkers.length, 4);
+  for (const crossing of map.crossings) {
+    const markers = map.signalMarkers.filter(
+      marker => marker.crossingId === crossing.id
+    );
+    assert.deepEqual(markers.map(marker => marker.side).sort(), ["left", "right"]);
+    assert.ok(markers.every(marker => !map.roadCells.some(
+      cell => cell.x === marker.x && cell.y === marker.y
+    )));
+  }
 });
 
 test("생성 및 대체 지도는 정규화한 입력 시드를 보존한다", () => {

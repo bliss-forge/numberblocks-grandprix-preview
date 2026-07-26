@@ -306,13 +306,25 @@ function assembleCandidate(difficulty, random, layoutSource = "generated", seed 
     { id: "right-shop", type: "shop", x: 26, y: 1, label: "가게" },
     { id: "right-school", type: "school", x: 30, y: 12, label: "학교" }
   ];
-  const signalMarkers = geometry.crossings.map(crossing => ({
-    id: `${crossing.id}-signal-marker`,
-    crossingId: crossing.id,
-    signalId: SHARED_SIGNAL_ID,
-    x: ROAD.x - 1,
-    y: Math.min(...crossing.cells.map(cell => cell.y))
-  }));
+  const signalMarkers = geometry.crossings.flatMap(crossing => {
+    const markerY = Math.min(...crossing.cells.map(point => point.y));
+    return [
+      {
+        id: `${crossing.id}-left-signal`,
+        crossingId: crossing.id,
+        side: "left",
+        x: ROAD.x - 1,
+        y: markerY
+      },
+      {
+        id: `${crossing.id}-right-signal`,
+        crossingId: crossing.id,
+        side: "right",
+        x: ROAD.x + ROAD.width,
+        y: markerY + 1
+      }
+    ];
+  });
   const trafficPaths = trafficPathsFor(geometry.lanes, patrols);
 
   return {
@@ -507,14 +519,20 @@ export function validateCandidateLayout(map) {
     errors.push("crossings must share one pedestrian signal and signalGate");
   }
   const signalMarkers = map.signalMarkers ?? [];
-  if (signalMarkers.length !== crossings.length ||
-    signalMarkers.some((marker, index) =>
-      marker.crossingId !== crossings[index]?.id ||
-      marker.signalId !== sharedSignal?.id ||
-      marker.x !== ROAD.x - 1 ||
-      marker.y !== Math.min(...(crossings[index]?.cells ?? []).map(cell => cell.y))
-    )) {
-    errors.push("each crossing must have one synchronized signal marker");
+  if (signalMarkers.length !== crossings.length * 2 || crossings.some(crossing => {
+    const markerY = Math.min(...crossing.cells.map(cell => cell.y));
+    const markers = signalMarkers.filter(marker => marker.crossingId === crossing.id);
+    return markers.length !== 2 ||
+      JSON.stringify(markers.map(marker => marker.side).sort()) !==
+        JSON.stringify(["left", "right"]) ||
+      markers.some(marker =>
+        (marker.side === "left" &&
+          (marker.x !== ROAD.x - 1 || marker.y !== markerY)) ||
+        (marker.side === "right" &&
+          (marker.x !== ROAD.x + ROAD.width || marker.y !== markerY + 1))
+      );
+  })) {
+    errors.push("each crossing must have two synchronized signal markers");
   }
 
   const suppliedRoadCells = Array.isArray(map.roadCells) ? map.roadCells : [];
