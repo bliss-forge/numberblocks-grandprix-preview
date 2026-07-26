@@ -2608,7 +2608,6 @@ body[data-mode="safety"] .stage-lights {
       calc(100vw / var(--viewport-cols, 5)),
       calc((100vh - 155px) / var(--viewport-rows, 5))
     );
-    width: 100%;
   }
 
   .route-place {
