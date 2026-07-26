@@ -81,7 +81,7 @@ test("방향 버튼은 터치하기 충분하고 모바일·낮은 가로 화면
   );
   assert.match(
     css,
-    /\.route-pad button\s*\{[^}]*min-width:\s*44px;[^}]*min-height:\s*44px;/s
+    /\.route-pad button\s*\{[^}]*min-width:\s*48px;[^}]*min-height:\s*48px;[^}]*font-size:\s*28px;/s
   );
   assert.match(
     css,
@@ -91,17 +91,24 @@ test("방향 버튼은 터치하기 충분하고 모바일·낮은 가로 화면
     css,
     /@media\s*\(max-width:\s*900px\)\s+and\s+\(max-height:\s*500px\)[\s\S]*?body\[data-mode="safety"\]\s+#game\s*\{[^}]*grid-template-rows:\s*minmax\(0,\s*1fr\);[^}]*\}[\s\S]*?body\[data-mode="safety"\]\s+\.stage-frame\s*\{[^}]*grid-row:\s*1;[^}]*\}[\s\S]*?\.route-pad\s*\{[^}]*position:\s*absolute;/s
   );
-  assert.doesNotMatch(
-    css,
-    /@media\s*\(max-width:\s*900px\)\s+and\s+\(max-height:\s*500px\)[\s\S]*?\.route-pad button\s*\{[^}]*min-(?:width|height):\s*(?:4[0-3]|[0-3][0-9])px;/s
+  const shortLandscape = css.slice(
+    css.lastIndexOf("@media (max-width: 900px) and (max-height: 500px)")
+  );
+  assert.match(
+    shortLandscape,
+    /\.route-pad button\s*\{[^}]*min-width:\s*48px;[^}]*min-height:\s*48px;/s
   );
 });
 
 test("PC 안전길은 7×5 지도를 크게 쓰고 방향키는 기본 상태에서 절제한다", () => {
-  assert.match(css, /body\[data-mode="safety"\]\s+#game\s*\{[^}]*padding:\s*58px\s+1\.5vw\s+8px;/s);
-  assert.match(css, /body\[data-mode="safety"\]\s+\.stage-frame\s*\{[^}]*width:\s*min\(96vw,\s*1600px\);/s);
-  assert.match(css, /\.safety-viewport\s*\{[^}]*calc\(94vw\s*\/\s*var\(--viewport-cols,\s*7\)\)/s);
-  assert.match(css, /\.route-pad\s*\{[^}]*opacity:\s*\.58;/s);
-  assert.match(css, /\.route-pad:focus-within,[\s\S]*?\.route-pad:hover\s*\{[^}]*opacity:\s*1;/s);
-  assert.match(css, /\.route-pad button\s*\{[^}]*min-width:\s*44px;[^}]*min-height:\s*44px;/s);
+  const desktop = /@media\s*\(min-width:\s*901px\)\s+and\s+\(min-height:\s*501px\)\s*\{([\s\S]*)/s.exec(css)?.[1] ?? "";
+
+  assert.match(desktop, /body\[data-mode="safety"\]\s+#game\s*\{[^}]*padding:\s*48px\s+1\.5vw\s+6px;/s);
+  assert.match(desktop, /body\[data-mode="safety"\]\s+\.stage-frame\s*\{[^}]*width:\s*min\(96vw,\s*1600px\);/s);
+  assert.match(desktop, /\.safety-route\s*\{[^}]*grid-template-rows:\s*var\(--safety-route-top-height\)\s+minmax\(0,\s*1fr\);/s);
+  assert.match(desktop, /\.safety-route\s*\{[^}]*container-type:\s*size;/s);
+  assert.match(desktop, /\.safety-viewport\s*\{[^}]*calc\(\s*\(100cqh\s*-\s*var\(--safety-route-top-height\)\)\s*\/\s*var\(--viewport-rows,\s*5\)\s*\)/s);
+  assert.match(desktop, /body\[data-mode="safety"\]\s+\.route-pad\s*\{[^}]*opacity:\s*\.58;/s);
+  assert.match(desktop, /body\[data-mode="safety"\]\s+\.route-pad:focus-within,[\s\S]*?body\[data-mode="safety"\]\s+\.route-pad:hover\s*\{[^}]*opacity:\s*1;/s);
+  assert.match(desktop, /body\[data-mode="safety"\]\s+\.route-pad button\s*\{[^}]*min-width:\s*44px;[^}]*min-height:\s*44px;[^}]*font-size:\s*23px;/s);
 });
