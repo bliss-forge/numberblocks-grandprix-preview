@@ -123,6 +123,16 @@ test("차선 셀은 지도 안의 중앙 도로 열에만 있어야 한다", () 
   assert.ok(result.errors.includes("lane cell outside road: 13,0"));
 });
 
+test("차선에는 지정된 두 도로 열을 모두 덮는 셀 배열이 필요하다", () => {
+  const map = structuredClone(createSafetyRouteMap("easy", { seed: 3 }));
+  delete map.lanes[0].cells;
+
+  const result = validateCandidateLayout(map);
+
+  assert.equal(result.valid, false);
+  assert.ok(result.errors.includes("lane cells must exactly cover its two road columns"));
+});
+
 test("보호 위치끼리도 겹치면 후보 검증이 실패한다", () => {
   const map = structuredClone(createSafetyRouteMap("easy", { seed: 8 }));
   map.friends[0] = { ...map.start, id: "friend-2", number: 2 };

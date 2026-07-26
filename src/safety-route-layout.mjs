@@ -369,18 +369,40 @@ export function validateCandidateLayout(map) {
     errors.push("road cells must exactly cover all center road cells");
   }
   const lanes = map.lanes ?? [];
-  if (lanes.length !== 2 || lanes.some(lane => !lane ||
-    lane.width !== 2 || !["north", "south"].includes(lane.direction)
+  const expectedLanes = [
+    { id: "northbound-lane", direction: "north", x: 14 },
+    { id: "southbound-lane", direction: "south", x: 16 }
+  ];
+  if (lanes.length !== 2 || lanes.some((lane, index) => !lane ||
+    lane.id !== expectedLanes[index]?.id ||
+    lane.direction !== expectedLanes[index]?.direction ||
+    lane.x !== expectedLanes[index]?.x || lane.y !== 0 ||
+    lane.width !== 2 || lane.height !== HEIGHT
   )) {
     errors.push("two directional road lanes are required");
   }
-  lanes.forEach(lane => {
-    if (!Array.isArray(lane?.cells)) return;
+  lanes.forEach((lane, index) => {
+    const expectedCells = new Set(rectangleCells(
+      expectedLanes[index]?.x ?? ROAD.x,
+      0,
+      2,
+      HEIGHT
+    ).map(pointKey));
+    if (!Array.isArray(lane?.cells)) {
+      errors.push("lane cells must exactly cover its two road columns");
+      return;
+    }
     lane.cells.forEach(cell => {
       if (!inBounds(cell) || cell.x < ROAD.x || cell.x >= ROAD.x + ROAD.width) {
         errors.push(`lane cell outside road: ${cell ? pointKey(cell) : "unknown"}`);
       }
     });
+    const laneCells = new Set(lane.cells.filter(inBounds).map(pointKey));
+    if (lane.cells.length !== expectedCells.size ||
+      laneCells.size !== expectedCells.size ||
+      [...expectedCells].some(key => !laneCells.has(key))) {
+      errors.push("lane cells must exactly cover its two road columns");
+    }
   });
 
   const friendNumbers = (map.friends ?? []).map(friend => friend.number);
