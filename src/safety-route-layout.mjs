@@ -7,10 +7,20 @@ const ZONES = Object.freeze({
   right: Object.freeze({ x: 18, width: 14 })
 });
 const CROSSING_ROWS = Object.freeze([3, 10]);
-const DIFFICULTY_COUNTS = Object.freeze({
-  easy: Object.freeze({ hazards: 0, patrols: 0 }),
-  steady: Object.freeze({ hazards: 2, patrols: 1 }),
-  challenge: Object.freeze({ hazards: 4, patrols: 2 })
+const SHARED_SIGNAL_ID = "neighborhood-pedestrian-signal";
+const DIFFICULTY_CONTENT = Object.freeze({
+  easy: Object.freeze({
+    hazards: Object.freeze(["manhole"]),
+    patrols: Object.freeze(["scooter"])
+  }),
+  steady: Object.freeze({
+    hazards: Object.freeze(["manhole", "construction"]),
+    patrols: Object.freeze(["scooter"])
+  }),
+  challenge: Object.freeze({
+    hazards: Object.freeze(["manhole", "manhole", "construction"]),
+    patrols: Object.freeze(["scooter", "bicycle"])
+  })
 });
 
 const FRIEND_CANDIDATES = Object.freeze({
@@ -25,23 +35,23 @@ const FRIEND_CANDIDATES = Object.freeze({
   10: Object.freeze([{ x: 21, y: 9 }, { x: 28, y: 9 }])
 });
 
-const HAZARD_CANDIDATES = Object.freeze([
-  { type: "scooter", x: 5, y: 3 },
-  { type: "construction", x: 7, y: 4 },
-  { type: "puddle", x: 9, y: 10 },
-  { type: "uneven-paving", x: 5, y: 11 },
-  { type: "scooter", x: 23, y: 3 },
-  { type: "construction", x: 25, y: 4 },
-  { type: "puddle", x: 27, y: 10 },
-  { type: "uneven-paving", x: 23, y: 11 }
-]);
+const HAZARD_CANDIDATES = Object.freeze({
+  manhole: Object.freeze([
+    { x: 5, y: 3 }, { x: 7, y: 4 }, { x: 23, y: 3 }, { x: 25, y: 4 }
+  ]),
+  construction: Object.freeze([
+    { x: 3, y: 9 }, { x: 10, y: 9 }, { x: 21, y: 9 }, { x: 28, y: 9 }
+  ])
+});
 
-const PATROL_CANDIDATES = Object.freeze([
-  { id: "patrol-left-north", type: "patrol", x: 12, y: 3 },
-  { id: "patrol-left-south", type: "patrol", x: 12, y: 10 },
-  { id: "patrol-right-north", type: "patrol", x: 19, y: 4 },
-  { id: "patrol-right-south", type: "patrol", x: 19, y: 11 }
-]);
+const PATROL_CANDIDATES = Object.freeze({
+  scooter: Object.freeze([
+    { x: 12, y: 3 }, { x: 12, y: 10 }, { x: 19, y: 4 }, { x: 19, y: 11 }
+  ]),
+  bicycle: Object.freeze([
+    { x: 11, y: 4 }, { x: 20, y: 3 }, { x: 20, y: 10 }, { x: 27, y: 11 }
+  ])
+});
 
 const DIRECTIONS = Object.freeze([
   Object.freeze({ x: 1, y: 0 }),
@@ -68,11 +78,15 @@ const uniquePoints = points => {
 };
 
 function normalizeDifficulty(difficulty) {
-  return Object.hasOwn(DIFFICULTY_COUNTS, difficulty) ? difficulty : "steady";
+  return Object.hasOwn(DIFFICULTY_CONTENT, difficulty) ? difficulty : "steady";
+}
+
+function normalizeSeed(seed) {
+  return (Number(seed) || 0) >>> 0;
 }
 
 function seededRandom(seed) {
-  let value = (Number(seed) || 0) >>> 0;
+  let value = normalizeSeed(seed);
   return () => {
     value = (value + 0x6d2b79f5) >>> 0;
     let result = Math.imul(value ^ (value >>> 15), 1 | value);
@@ -105,6 +119,7 @@ function fixedGeometry() {
   ];
   const crossings = CROSSING_ROWS.map((y, index) => ({
     id: `crossing-${index + 1}`,
+    signalId: SHARED_SIGNAL_ID,
     cells: rectangleCells(ROAD.x, y, ROAD.width, 2)
   }));
   const roadCells = rectangleCells(ROAD.x, 0, ROAD.width, HEIGHT);
@@ -140,7 +155,7 @@ function fixedGeometry() {
   return { sidewalkBands, alleys, crossings, roadCells, lanes, pedestrianCells };
 }
 
-function assembleCandidate(difficulty, random, layoutSource = "generated") {
+function assembleCandidate(difficulty, random, layoutSource = "generated", seed = 0) {
   const normalized = normalizeDifficulty(difficulty);
   const geometry = fixedGeometry();
   const start = { x: 0, y: 3 };
@@ -165,16 +180,22 @@ function assembleCandidate(difficulty, random, layoutSource = "generated") {
       y: friend.y
     };
   });
-  const counts = DIFFICULTY_COUNTS[normalized];
-  const hazards = selectCandidates(HAZARD_CANDIDATES, counts.hazards, random, forbidden)
-    .map((hazard, index) => ({ ...hazard, id: `hazard-${index + 1}` }));
-  hazards.forEach(hazard => forbidden.add(pointKey(hazard)));
-  const patrols = selectCandidates(PATROL_CANDIDATES, counts.patrols, random, forbidden)
-    .map(patrol => ({ ...patrol }));
+  const content = DIFFICULTY_CONTENT[normalized];
+  const hazards = content.hazards.map((type, index) => {
+    const hazard = selectCandidates(HAZARD_CANDIDATES[type], 1, random, forbidden)[0];
+    forbidden.add(pointKey(hazard));
+    return { ...hazard, id: `hazard-${index + 1}`, type };
+  });
+  const patrols = content.patrols.map((type, index) => {
+    const patrol = selectCandidates(PATROL_CANDIDATES[type], 1, random, forbidden)[0];
+    forbidden.add(pointKey(patrol));
+    return { ...patrol, id: `patrol-${index + 1}`, type, moving: true };
+  });
 
   return {
     difficulty: normalized,
     layoutSource,
+    seed,
     width: WIDTH,
     height: HEIGHT,
     zones: {
@@ -185,6 +206,12 @@ function assembleCandidate(difficulty, random, layoutSource = "generated") {
     ...geometry,
     start,
     goal,
+    signalGate: { x: ROAD.x, y: CROSSING_ROWS[0], signalId: SHARED_SIGNAL_ID },
+    signals: [{
+      id: SHARED_SIGNAL_ID,
+      type: "pedestrian",
+      crossingIds: geometry.crossings.map(crossing => crossing.id)
+    }],
     entrances,
     friends,
     hazards,
@@ -203,9 +230,14 @@ function freezeMap(map) {
 }
 
 const SAFE_LAYOUT_FALLBACKS = Object.freeze(Object.fromEntries(
-  Object.keys(DIFFICULTY_COUNTS).map((difficulty, index) => [
+  Object.keys(DIFFICULTY_CONTENT).map((difficulty, index) => [
     difficulty,
-    freezeMap(assembleCandidate(difficulty, seededRandom(index + 1), "fallback"))
+    freezeMap(assembleCandidate(
+      difficulty,
+      seededRandom(index + 1),
+      "fallback",
+      index + 1
+    ))
   ])
 ));
 
@@ -315,20 +347,41 @@ export function validateCandidateLayout(map) {
     });
   });
 
-  const roadCells = new Set((map.roadCells ?? []).map(pointKey));
-  if (roadCells.size !== ROAD.width * HEIGHT ||
-    [...roadCells].some(key => {
-      const [x] = key.split(",").map(Number);
-      return x < ROAD.x || x >= ROAD.x + ROAD.width;
-    })) {
-    errors.push("road must cover all four center columns");
+  const signals = map.signals ?? [];
+  const sharedSignal = signals.length === 1 ? signals[0] : null;
+  if (!sharedSignal || sharedSignal.type !== "pedestrian" ||
+    !Array.isArray(sharedSignal.crossingIds) ||
+    JSON.stringify(sharedSignal.crossingIds) !== JSON.stringify(crossings.map(item => item.id)) ||
+    crossings.some(crossing => crossing.signalId !== sharedSignal.id) ||
+    !map.signalGate || map.signalGate.signalId !== sharedSignal.id ||
+    !crossingCells.has(pointKey(map.signalGate))) {
+    errors.push("crossings must share one pedestrian signal and signalGate");
+  }
+
+  const suppliedRoadCells = Array.isArray(map.roadCells) ? map.roadCells : [];
+  const expectedRoadCells = new Set(rectangleCells(ROAD.x, 0, ROAD.width, HEIGHT).map(pointKey));
+  const roadCells = new Set(suppliedRoadCells.filter(inBounds).map(pointKey));
+  if (suppliedRoadCells.length !== ROAD.width * HEIGHT ||
+    suppliedRoadCells.some(point => !inBounds(point) ||
+      point.x < ROAD.x || point.x >= ROAD.x + ROAD.width) ||
+    roadCells.size !== expectedRoadCells.size ||
+    [...expectedRoadCells].some(key => !roadCells.has(key))) {
+    errors.push("road cells must exactly cover all center road cells");
   }
   const lanes = map.lanes ?? [];
-  if (lanes.length !== 2 || lanes.some(lane =>
+  if (lanes.length !== 2 || lanes.some(lane => !lane ||
     lane.width !== 2 || !["north", "south"].includes(lane.direction)
   )) {
     errors.push("two directional road lanes are required");
   }
+  lanes.forEach(lane => {
+    if (!Array.isArray(lane?.cells)) return;
+    lane.cells.forEach(cell => {
+      if (!inBounds(cell) || cell.x < ROAD.x || cell.x >= ROAD.x + ROAD.width) {
+        errors.push(`lane cell outside road: ${cell ? pointKey(cell) : "unknown"}`);
+      }
+    });
+  });
 
   const friendNumbers = (map.friends ?? []).map(friend => friend.number);
   if (JSON.stringify(friendNumbers) !== JSON.stringify([2, 3, 4, 5, 6, 7, 8, 9, 10])) {
@@ -342,32 +395,44 @@ export function validateCandidateLayout(map) {
 
   checkPointCollection(errors, map, "start", [map.start], walkable);
   checkPointCollection(errors, map, "goal", [map.goal], walkable);
+  checkPointCollection(errors, map, "signalGate", [map.signalGate], walkable);
   checkPointCollection(errors, map, "entrance", map.entrances, walkable);
   checkPointCollection(errors, map, "friend", map.friends, walkable);
   checkPointCollection(errors, map, "hazard", map.hazards, walkable);
   checkPointCollection(errors, map, "patrol", map.patrols, walkable);
 
-  const expectedCounts = DIFFICULTY_COUNTS[map.difficulty];
-  if (!expectedCounts) errors.push("invalid difficulty");
-  else if ((map.hazards ?? []).length !== expectedCounts.hazards ||
-    (map.patrols ?? []).length !== expectedCounts.patrols) {
-    errors.push("difficulty hazard and patrol counts are invalid");
+  const expectedContent = DIFFICULTY_CONTENT[map.difficulty];
+  if (!expectedContent) errors.push("invalid difficulty");
+  else if (
+    JSON.stringify((map.hazards ?? []).map(item => item.type).sort()) !==
+      JSON.stringify([...expectedContent.hazards].sort()) ||
+    JSON.stringify((map.patrols ?? []).map(item => item.type).sort()) !==
+      JSON.stringify([...expectedContent.patrols].sort()) ||
+    (map.patrols ?? []).some(item => item.moving !== true)
+  ) {
+    errors.push("difficulty safety content is invalid");
   }
 
-  const protectedCells = new Set([
-    ...crossingCells,
-    ...(map.entrances ?? []),
-    ...(map.friends ?? []),
-    map.start,
-    map.goal
-  ].filter(Boolean).map(pointKey));
-  const occupiedSafetyCells = new Set();
+  (map.hazards ?? []).filter(item => item.type === "construction").forEach(item => {
+    const onAlley = alleys.some(alley => item.x === alley.x &&
+      item.y >= alley.y && item.y < alley.y + alley.height);
+    if (!onAlley) errors.push(`construction must be on an alley: ${pointKey(item)}`);
+  });
+
+  const protectedCells = new Set(crossingCells);
+  [map.start, map.goal, ...(map.entrances ?? []), ...(map.friends ?? [])]
+    .filter(Boolean)
+    .forEach(item => {
+      const key = pointKey(item);
+      if (protectedCells.has(key)) errors.push(`protected locations overlap: ${key}`);
+      protectedCells.add(key);
+    });
   [...(map.hazards ?? []), ...(map.patrols ?? [])].forEach(item => {
     const key = pointKey(item);
-    if (protectedCells.has(key) || occupiedSafetyCells.has(key)) {
+    if (protectedCells.has(key)) {
       errors.push(`hazard or patrol overlaps protected cell: ${key}`);
     }
-    occupiedSafetyCells.add(key);
+    protectedCells.add(key);
   });
 
   let previous = map.start;
@@ -386,10 +451,12 @@ export function createSafetyRouteMap(
   { seed = 0, maxAttempts = 20 } = {}
 ) {
   const normalized = normalizeDifficulty(difficulty);
-  const random = seededRandom(seed);
-  for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
-    const candidate = assembleCandidate(normalized, random);
+  const normalizedSeed = normalizeSeed(seed);
+  const random = seededRandom(normalizedSeed);
+  const attemptLimit = Math.min(20, Math.max(0, Math.floor(Number(maxAttempts) || 0)));
+  for (let attempt = 0; attempt < attemptLimit; attempt += 1) {
+    const candidate = assembleCandidate(normalized, random, "generated", normalizedSeed);
     if (validateCandidateLayout(candidate).valid) return freezeMap(candidate);
   }
-  return SAFE_LAYOUT_FALLBACKS[normalized];
+  return freezeMap({ ...SAFE_LAYOUT_FALLBACKS[normalized], seed: normalizedSeed });
 }
