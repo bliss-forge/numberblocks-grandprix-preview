@@ -275,7 +275,7 @@ test("출입구는 첫 입력에 좌우 확인하고 다음 입력에 통과한�
   assert.equal(second.state.checkedEntrance, null);
 });
 
-test("신호와 움직이는 장애물은 틱마다 안전하게 갱신된다", () => {
+test("자동차는 신호에 멈추고 보행 순찰자는 느리게 한 칸씩 움직인다", () => {
   const start = createSafetyRouteState("challenge", { seed: 7 });
   assert.equal(start.signal.phase, "vehicle-go");
   assert.deepEqual(start.movers.map(mover => mover.pathIndex), [0, 0, 0, 0]);
@@ -283,12 +283,35 @@ test("신호와 움직이는 장애물은 틱마다 안전하게 갱신된다", 
   const one = advanceSafetyWorld(start, 100);
   assert.equal(one.tick, 100);
   assert.equal(one.signal.phase, "vehicle-go");
-  assert.deepEqual(one.movers.map(mover => mover.pathIndex), [1, 1, 1, 1]);
+  assert.deepEqual(one.movers.map(mover => mover.pathIndex), [1, 1, 0, 0]);
 
   const walking = advanceSafetyWorld(one, 5900);
   assert.equal(walking.tick, 6000);
   assert.equal(walking.signal.phase, "pedestrian-go");
-  assert.ok(walking.movers.every(mover => mover.stopped));
+  assert.ok(walking.movers.filter(mover => mover.type === "car").every(mover => mover.stopped));
+  assert.deepEqual(
+    walking.movers.filter(mover => mover.type !== "car").map(mover => mover.pathIndex),
+    [1, 1]
+  );
+});
+
+test("보행 순찰자가 점유한 칸은 아이의 위치와 수집 상태를 바꾸지 않고 막는다", () => {
+  const state = createSafetyRouteState("challenge", { seed: 7 });
+  const rider = state.movers.find(mover => mover.type === "scooter");
+  const path = state.map.trafficPaths.find(item => item.id === rider.id);
+  const target = path.points[rider.pathIndex];
+  const move = moveInto(state.map, target);
+
+  const result = attemptSafetyMove({ ...state, ...move }, move.direction);
+
+  assert.deepEqual(result.event, {
+    type: "blocked",
+    reason: "moving-rider",
+    moverType: "scooter"
+  });
+  assert.deepEqual(result.state.position, move.position);
+  assert.deepEqual(result.state.movers, state.movers);
+  assert.deepEqual(result.state.collected, state.collected);
 });
 
 test("10 친구를 만나기 전에는 학교에 도착할 수 없다", () => {

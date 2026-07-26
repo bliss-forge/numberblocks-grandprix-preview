@@ -1,5 +1,10 @@
 import { normalizeDifficulty } from "./game-model.mjs";
 import { createSafetyRouteMap } from "./safety-route-layout.mjs";
+import {
+  advancePatrolMover,
+  createPatrolMover,
+  moverPoint
+} from "./safety-route-movers.mjs";
 
 const DIRECTIONS = Object.freeze({
   up: Object.freeze({ x: 0, y: -1 }),
@@ -53,15 +58,7 @@ export function createSafetyRouteState(difficulty, { seed = 0 } = {}) {
     crossingId: null,
     checkedEntrance: null,
     tick: 0,
-    movers: map.trafficPaths.map(definition => ({
-      id: definition.id,
-      type: definition.type,
-      pathIndex: 0,
-      direction: 1,
-      elapsedMs: 0,
-      pauseMs: 0,
-      stopped: false
-    }))
+    movers: map.trafficPaths.map(createPatrolMover)
   };
 }
 
@@ -96,6 +93,18 @@ export function attemptSafetyMove(state, direction) {
       state,
       { ...state.position },
       { type: "blocked", reason: hazard.type }
+    );
+  }
+
+  const rider = state.movers.find(mover =>
+    (mover.type === "scooter" || mover.type === "bicycle") &&
+    samePoint(moverPoint(state.map, mover), candidate)
+  );
+  if (rider) {
+    return transition(
+      state,
+      { ...state.position },
+      { type: "blocked", reason: "moving-rider", moverType: rider.type }
     );
   }
 
@@ -185,6 +194,12 @@ export function advanceSafetyWorld(state, elapsedMs = 100) {
   const movers = state.movers.map(mover => {
     const definition = state.map.trafficPaths.find(item => item.id === mover.id);
     if (!definition || definition.points.length === 0) return { ...mover };
+    if (definition.type === "scooter" || definition.type === "bicycle") {
+      return advancePatrolMover(definition, mover, {
+        elapsedMs: elapsed,
+        player: state.position
+      });
+    }
     if (signal.phase !== "vehicle-go") {
       return cloneMover(definition, { ...mover, pathIndex: definition.stopIndex, stopped: true });
     }
