@@ -5,38 +5,38 @@ import {
   targetArrow
 } from "../src/safety-route-camera.mjs";
 
-test("안전 영역 안에서는 카메라가 움직이지 않는다", () => {
+test("지도 중앙에서는 플레이어가 뷰포트 정중앙에 온다", () => {
   assert.deepEqual(
     cameraOffset({
-      world: { width: 18, height: 12 },
+      world: { width: 32, height: 16 },
       viewport: { width: 7, height: 5 },
-      player: { x: 3, y: 2 },
+      player: { x: 15, y: 8 },
       previous: { x: 0, y: 0 }
     }),
-    { x: 0, y: 0 }
+    { x: 12, y: 6 }
   );
 });
 
-test("안전 영역 밖에서는 진행 방향을 더 보여준다", () => {
+test("모바일 5×5에서도 플레이어를 중앙에 둔다", () => {
   assert.deepEqual(
     cameraOffset({
-      world: { width: 18, height: 12 },
-      viewport: { width: 7, height: 5 },
-      player: { x: 8, y: 2 },
+      world: { width: 32, height: 16 },
+      viewport: { width: 5, height: 5 },
+      player: { x: 20, y: 9 },
       previous: { x: 0, y: 0 }
     }),
-    { x: 3, y: 0 }
+    { x: 18, y: 7 }
   );
 });
 
-test("카메라는 지도 경계를 넘지 않는다", () => {
+test("지도 가장자리에서는 카메라만 경계에 고정한다", () => {
   const camera = cameraOffset({
-    world: { width: 18, height: 12 },
+    world: { width: 32, height: 16 },
     viewport: { width: 7, height: 5 },
-    player: { x: 17, y: 11 },
-    previous: { x: 10, y: 7 }
+    player: { x: 31, y: 15 },
+    previous: { x: 0, y: 0 }
   });
-  assert.deepEqual(camera, { x: 11, y: 7 });
+  assert.deepEqual(camera, { x: 25, y: 11 });
 });
 
 test("화면 밖 목표는 가장자리 화살표가 된다", () => {
