@@ -17,7 +17,8 @@ export function createPatrolMover(definition) {
     direction: 1,
     elapsedMs: 0,
     pauseMs: 0,
-    stopped: false
+    stopped: false,
+    heading: definition.headings?.[0] ?? null
   };
 }
 

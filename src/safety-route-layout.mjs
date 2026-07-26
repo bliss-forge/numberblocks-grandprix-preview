@@ -93,6 +93,8 @@ const DIRECTIONS = Object.freeze([
 ]);
 
 const pointKey = ({ x, y }) => `${x},${y}`;
+const manhattanDistance = (left, right) =>
+  Math.abs(left.x - right.x) + Math.abs(left.y - right.y);
 const inBounds = point =>
   Boolean(point) && Number.isInteger(point.x) && Number.isInteger(point.y) &&
   point.x >= 0 && point.x < WIDTH && point.y >= 0 && point.y < HEIGHT;
@@ -188,18 +190,48 @@ function fixedGeometry() {
   return { sidewalkBands, alleys, crossings, roadCells, lanes, pedestrianCells };
 }
 
+function headingBetween(point, next) {
+  if (next.y < point.y) return "north";
+  if (next.y > point.y) return "south";
+  if (next.x < point.x) return "west";
+  return "east";
+}
+
+function carLoopForLane(lane) {
+  const outboundRows = lane.direction === "north"
+    ? Array.from({ length: HEIGHT }, (_, index) => HEIGHT - 1 - index)
+    : Array.from({ length: HEIGHT }, (_, index) => index);
+  const returnRows = [...outboundRows].reverse();
+  const outboundX = lane.direction === "north" ? lane.x : lane.x + 1;
+  const returnX = lane.direction === "north" ? lane.x + 1 : lane.x;
+  const points = [
+    ...outboundRows.map(y => ({ x: outboundX, y })),
+    ...returnRows.map(y => ({ x: returnX, y }))
+  ];
+  const headings = points.map((point, index) =>
+    headingBetween(point, points[(index + 1) % points.length])
+  );
+  const stopIndices = points.flatMap((point, index) => {
+    const heading = headings[index];
+    const approachesCrossing = CROSSING_ROWS.some(row =>
+      (heading === "north" && point.y === row + 2) ||
+      (heading === "south" && point.y === row - 1)
+    );
+    return approachesCrossing ? [index] : [];
+  });
+  return { points, headings, stopIndices };
+}
+
 function trafficPathsFor(lanes, patrols) {
   return [
     ...lanes.map(lane => {
-      const points = lane.cells.map(point => ({ ...point }));
-      const stopIndices = points.flatMap((point, index) =>
-        CROSSING_ROWS.includes(point.y + 1) ? [index] : []
-      );
+      const { points, headings, stopIndices } = carLoopForLane(lane);
       return {
         id: `${lane.id}-car`,
         type: "car",
         laneId: lane.id,
         points,
+        headings,
         stopIndex: stopIndices[0],
         stopIndices
       };
@@ -266,8 +298,21 @@ function assembleCandidate(difficulty, random, layoutSource = "generated", seed 
   });
   const places = [
     { id: "left-home", type: "home", x: 1, y: 1, label: "우리 집" },
-    { id: "right-school", type: "school", x: 30, y: 14, label: "학교" }
+    { id: "left-daycare", type: "daycare", x: 5, y: 1, label: "어린이집" },
+    { id: "left-shops", type: "shops", x: 9, y: 1, label: "상가" },
+    { id: "left-park", type: "park", x: 12, y: 12, label: "공원" },
+    { id: "right-library", type: "library", x: 19, y: 1, label: "도서관" },
+    { id: "right-bus-stop", type: "bus-stop", x: 22, y: 12, label: "버스 정류장" },
+    { id: "right-shop", type: "shop", x: 26, y: 1, label: "가게" },
+    { id: "right-school", type: "school", x: 30, y: 12, label: "학교" }
   ];
+  const signalMarkers = geometry.crossings.map(crossing => ({
+    id: `${crossing.id}-signal-marker`,
+    crossingId: crossing.id,
+    signalId: SHARED_SIGNAL_ID,
+    x: ROAD.x - 1,
+    y: Math.min(...crossing.cells.map(cell => cell.y))
+  }));
   const trafficPaths = trafficPathsFor(geometry.lanes, patrols);
 
   return {
@@ -291,6 +336,7 @@ function assembleCandidate(difficulty, random, layoutSource = "generated", seed 
       type: "pedestrian",
       crossingIds: geometry.crossings.map(crossing => crossing.id)
     }],
+    signalMarkers,
     entrances,
     friends,
     places,
@@ -387,15 +433,23 @@ export function validateCandidateLayout(map) {
   }
 
   const places = Array.isArray(map.places) ? map.places : [];
-  if (places.length !== 2 ||
-    JSON.stringify(places.map(place => place.type).sort()) !==
-      JSON.stringify(["home", "school"])) {
-    errors.push("home and school places are required");
+  const expectedPlaceTypes = [
+    "home", "daycare", "shops", "park",
+    "library", "bus-stop", "shop", "school"
+  ];
+  if (places.length !== expectedPlaceTypes.length ||
+    JSON.stringify(places.map(place => place.type)) !==
+      JSON.stringify(expectedPlaceTypes) ||
+    places.some(place => typeof place.label !== "string" || place.label.length === 0)) {
+    errors.push("approved labeled landmarks are required");
   }
   places.forEach(place => {
     if (!inBounds(place)) errors.push(`place out of bounds: ${place?.id ?? "unknown"}`);
-    if ((place.type === "home" && place.x >= ROAD.x) ||
-      (place.type === "school" && place.x < 18)) {
+    const leftPlace = place.id?.startsWith("left-");
+    const rightPlace = place.id?.startsWith("right-");
+    if ((leftPlace && place.x >= ROAD.x) ||
+      (rightPlace && place.x < ZONES.right.x) ||
+      (!leftPlace && !rightPlace)) {
       errors.push(`place in wrong neighborhood: ${place.id ?? place.type}`);
     }
   });
@@ -451,6 +505,16 @@ export function validateCandidateLayout(map) {
     !map.signalGate || map.signalGate.signalId !== sharedSignal.id ||
     !crossingCells.has(pointKey(map.signalGate))) {
     errors.push("crossings must share one pedestrian signal and signalGate");
+  }
+  const signalMarkers = map.signalMarkers ?? [];
+  if (signalMarkers.length !== crossings.length ||
+    signalMarkers.some((marker, index) =>
+      marker.crossingId !== crossings[index]?.id ||
+      marker.signalId !== sharedSignal?.id ||
+      marker.x !== ROAD.x - 1 ||
+      marker.y !== Math.min(...(crossings[index]?.cells ?? []).map(cell => cell.y))
+    )) {
+    errors.push("each crossing must have one synchronized signal marker");
   }
 
   const suppliedRoadCells = Array.isArray(map.roadCells) ? map.roadCells : [];
@@ -602,14 +666,29 @@ export function validateCandidateLayout(map) {
       return;
     }
     const points = cars[0].points ?? [];
+    const headings = cars[0].headings ?? [];
     const actualPoints = new Set(points.filter(inBounds).map(pointKey));
     if (points.length !== expectedPoints.size || actualPoints.size !== expectedPoints.size ||
       [...expectedPoints].some(key => !actualPoints.has(key))) {
       errors.push(`car path must cover assigned lane: ${lane.id}`);
     }
-    const expectedStops = points.flatMap((point, index) =>
-      CROSSING_ROWS.includes(point.y + 1) ? [index] : []
-    );
+    points.forEach((point, pointIndex) => {
+      const next = points[(pointIndex + 1) % points.length];
+      const expectedHeading = headingBetween(point, next);
+      if (manhattanDistance(point, next) !== 1) {
+        errors.push(`car path must be Manhattan-adjacent: ${lane.id}`);
+      }
+      if (headings[pointIndex] !== expectedHeading) {
+        errors.push(`car heading must match movement: ${lane.id}`);
+      }
+    });
+    const expectedStops = points.flatMap((point, pointIndex) => {
+      const heading = headings[pointIndex];
+      return CROSSING_ROWS.some(row =>
+        (heading === "north" && point.y === row + 2) ||
+        (heading === "south" && point.y === row - 1)
+      ) ? [pointIndex] : [];
+    });
     if (!Array.isArray(cars[0].stopIndices) ||
       JSON.stringify(cars[0].stopIndices) !== JSON.stringify(expectedStops) ||
       cars[0].stopIndex !== expectedStops[0]) {

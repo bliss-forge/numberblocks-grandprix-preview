@@ -21,6 +21,12 @@ const SIGNAL_PHASES = Object.freeze([
 
 const pointKey = ({ x, y }) => `${x},${y}`;
 const samePoint = (left, right) => left.x === right.x && left.y === right.y;
+const OPPOSITE_HEADINGS = Object.freeze({
+  north: "south",
+  south: "north",
+  east: "west",
+  west: "east"
+});
 
 function hazardCells(hazard) {
   return hazard.cells?.length ? hazard.cells : [hazard];
@@ -40,7 +46,8 @@ function cloneMover(definition, mover = {}) {
     direction: mover.direction ?? 1,
     elapsedMs: mover.elapsedMs ?? 0,
     pauseMs: mover.pauseMs ?? 0,
-    stopped: mover.stopped ?? false
+    stopped: mover.stopped ?? false,
+    heading: mover.heading ?? definition.headings?.[mover.pathIndex ?? 0] ?? null
   };
 }
 
@@ -187,11 +194,64 @@ function advanceSignal(signal, elapsedMs) {
   return { phase: SIGNAL_PHASES[index].phase, elapsedMs: elapsed };
 }
 
+function advanceCarMover(definition, mover, signal) {
+  const direction = mover.direction === -1 ? -1 : 1;
+  if (signal.phase !== "vehicle-go" && definition.stopIndices.includes(mover.pathIndex)) {
+    return cloneMover(definition, {
+      ...mover,
+      stopped: true,
+      heading: definition.headings?.[mover.pathIndex] ?? mover.heading
+    });
+  }
+  const pathIndex =
+    (mover.pathIndex + direction + definition.points.length) % definition.points.length;
+  const stopped =
+    signal.phase !== "vehicle-go" && definition.stopIndices.includes(pathIndex);
+  return cloneMover(definition, {
+    ...mover,
+    pathIndex,
+    direction,
+    stopped,
+    heading: definition.headings?.[pathIndex] ?? mover.heading
+  });
+}
+
+function oppositeHeadings(left, right) {
+  return Boolean(left?.heading) && OPPOSITE_HEADINGS[left.heading] === right?.heading;
+}
+
+function synchronizeCarHeadings(previousMovers, nextMovers) {
+  const carIndices = nextMovers.flatMap((mover, index) =>
+    mover.type === "car" ? [index] : []
+  );
+  if (carIndices.length !== 2) return nextMovers;
+  const [leftIndex, rightIndex] = carIndices;
+  const previousLeft = previousMovers[leftIndex];
+  const previousRight = previousMovers[rightIndex];
+  const nextLeft = nextMovers[leftIndex];
+  const nextRight = nextMovers[rightIndex];
+  if (oppositeHeadings(nextLeft, nextRight)) return nextMovers;
+
+  const holdLeft = { ...previousLeft, stopped: true };
+  const holdRight = { ...previousRight, stopped: true };
+  if (oppositeHeadings(holdLeft, nextRight)) {
+    return nextMovers.map((mover, index) => index === leftIndex ? holdLeft : mover);
+  }
+  if (oppositeHeadings(nextLeft, holdRight)) {
+    return nextMovers.map((mover, index) => index === rightIndex ? holdRight : mover);
+  }
+  return nextMovers.map((mover, index) => {
+    if (index === leftIndex) return holdLeft;
+    if (index === rightIndex) return holdRight;
+    return mover;
+  });
+}
+
 export function advanceSafetyWorld(state, elapsedMs = 100) {
   const elapsed = Number.isFinite(elapsedMs) ? Math.max(0, elapsedMs) : 0;
   const tick = state.tick + elapsed;
   const signal = advanceSignal(state.signal, elapsed);
-  const movers = state.movers.map(mover => {
+  const advancedMovers = state.movers.map(mover => {
     const definition = state.map.trafficPaths.find(item => item.id === mover.id);
     if (!definition || definition.points.length === 0) return { ...mover };
     if (definition.type === "scooter" || definition.type === "bicycle") {
@@ -200,13 +260,9 @@ export function advanceSafetyWorld(state, elapsedMs = 100) {
         player: state.position
       });
     }
-    if (signal.phase !== "vehicle-go") {
-      return cloneMover(definition, { ...mover, pathIndex: definition.stopIndex, stopped: true });
-    }
-    const direction = mover.direction === -1 ? -1 : 1;
-    const pathIndex = (mover.pathIndex + direction + definition.points.length) % definition.points.length;
-    return cloneMover(definition, { ...mover, pathIndex, direction, stopped: false });
+    return advanceCarMover(definition, mover, signal);
   });
+  const movers = synchronizeCarHeadings(state.movers, advancedMovers);
   return { ...state, tick, signal, movers };
 }
 

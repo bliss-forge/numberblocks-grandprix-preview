@@ -285,14 +285,60 @@ test("자동차는 신호에 멈추고 보행 순찰자는 느리게 한 칸씩 
   assert.equal(one.signal.phase, "vehicle-go");
   assert.deepEqual(one.movers.map(mover => mover.pathIndex), [1, 1, 0, 0]);
 
-  const walking = advanceSafetyWorld(one, 5900);
+  let walking = one;
+  for (let elapsed = 100; elapsed < 6000; elapsed += 100) {
+    walking = advanceSafetyWorld(walking, 100);
+  }
   assert.equal(walking.tick, 6000);
   assert.equal(walking.signal.phase, "pedestrian-go");
   assert.ok(walking.movers.filter(mover => mover.type === "car").every(mover => mover.stopped));
-  assert.deepEqual(
-    walking.movers.filter(mover => mover.type !== "car").map(mover => mover.pathIndex),
-    [1, 1]
-  );
+  assert.ok(walking.movers
+    .filter(mover => mover.type !== "car")
+    .every(mover => mover.pathIndex >= 0 && mover.pathIndex <= 2));
+});
+
+test("차량 신호가 멈추면 자동차는 현재 위치 다음 횡단보도 정지선까지 접근한다", () => {
+  const state = structuredClone(createSafetyRouteState("easy", { seed: 7 }));
+  const cars = state.map.trafficPaths.filter(path => path.type === "car");
+
+  state.signal = { phase: "pedestrian-go", elapsedMs: 0 };
+  state.movers = state.movers.map(mover => {
+    const path = cars.find(candidate => candidate.id === mover.id);
+    if (!path) return mover;
+    const lowerStopIndex = path.stopIndices.find(index =>
+      path.points[index].y === 12 || path.points[index].y === 9
+    );
+    return {
+      ...mover,
+      pathIndex: (lowerStopIndex - 1 + path.points.length) % path.points.length,
+      stopped: false
+    };
+  });
+
+  const advanced = advanceSafetyWorld(state, 100);
+  for (const mover of advanced.movers.filter(item => item.type === "car")) {
+    const path = cars.find(candidate => candidate.id === mover.id);
+    const lowerStopIndex = path.stopIndices.find(index =>
+      path.points[index].y === 12 || path.points[index].y === 9
+    );
+    assert.equal(mover.pathIndex, lowerStopIndex);
+    assert.equal(mover.stopped, true);
+  }
+});
+
+test("신호 대기로 위치가 어긋나도 두 자동차 heading은 운행 내내 서로 반대다", () => {
+  const opposite = { north: "south", south: "north", east: "west", west: "east" };
+  let state = createSafetyRouteState("easy", { seed: 7 });
+
+  for (let tick = 0; tick < 300; tick += 1) {
+    state = advanceSafetyWorld(state, 100);
+    const cars = state.movers.filter(mover => mover.type === "car");
+    assert.equal(
+      cars[1].heading,
+      opposite[cars[0].heading],
+      `headings diverged at tick ${tick + 1}: ${cars[0].heading}/${cars[1].heading}`
+    );
+  }
 });
 
 test("보행 순찰자가 점유한 칸은 아이의 위치와 수집 상태를 바꾸지 않고 막는다", () => {

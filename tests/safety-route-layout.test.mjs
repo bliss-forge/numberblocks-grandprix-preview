@@ -146,6 +146,33 @@ test("두 횡단보도는 하나의 보행 신호와 signalGate를 공유한다"
   assert.ok(map.crossings.every(item => item.signalId === map.signalGate.signalId));
 });
 
+test("위아래 횡단보도마다 같은 상태를 가리키는 보행 신호 표지가 있다", () => {
+  const map = createSafetyRouteMap("steady", { seed: 4 });
+
+  assert.deepEqual(
+    map.signalMarkers.map(marker => ({
+      crossingId: marker.crossingId,
+      signalId: marker.signalId,
+      x: marker.x,
+      y: marker.y
+    })),
+    [
+      {
+        crossingId: "crossing-1",
+        signalId: "neighborhood-pedestrian-signal",
+        x: 13,
+        y: 3
+      },
+      {
+        crossingId: "crossing-2",
+        signalId: "neighborhood-pedestrian-signal",
+        x: 13,
+        y: 10
+      }
+    ]
+  );
+});
+
 test("생성 및 대체 지도는 정규화한 입력 시드를 보존한다", () => {
   assert.equal(createSafetyRouteMap("easy", { seed: -1 }).seed, 4294967295);
   assert.equal(
@@ -205,13 +232,38 @@ test("생성 지도는 런타임 공용 필드와 보행 별칭 및 두 동네 �
   }
   assert.strictEqual(map.walkable, map.pedestrianCells);
   assert.ok(Object.isFrozen(map.walkable));
-  assert.deepEqual(map.places.map(place => place.type).sort(), ["home", "school"]);
+  assert.deepEqual(map.places.map(place => place.type).sort(), [
+    "bus-stop", "daycare", "home", "library", "park", "school", "shop", "shops"
+  ]);
   assert.ok(map.places.every(place =>
     Number.isInteger(place.x) && Number.isInteger(place.y) &&
     place.x >= 0 && place.x < map.width && place.y >= 0 && place.y < map.height
   ));
   assert.ok(map.places.some(place => place.type === "home" && place.x < 14));
   assert.ok(map.places.some(place => place.type === "school" && place.x >= 18));
+});
+
+test("승인된 여덟 랜드마크는 올바른 동네와 접근 가능한 이름을 가진다", () => {
+  const map = createSafetyRouteMap("steady", { seed: 12 });
+
+  assert.deepEqual(
+    map.places.map(place => [place.id, place.type, place.label]),
+    [
+      ["left-home", "home", "우리 집"],
+      ["left-daycare", "daycare", "어린이집"],
+      ["left-shops", "shops", "상가"],
+      ["left-park", "park", "공원"],
+      ["right-library", "library", "도서관"],
+      ["right-bus-stop", "bus-stop", "버스 정류장"],
+      ["right-shop", "shop", "가게"],
+      ["right-school", "school", "학교"]
+    ]
+  );
+  assert.ok(map.places.slice(0, 4).every(place => place.x < map.zones.road.x));
+  assert.ok(map.places.slice(4).every(place =>
+    place.x >= map.zones.right.x &&
+    place.x < map.zones.right.x + map.zones.right.width
+  ));
 });
 
 test("교통 경로는 두 차선 자동차와 안전한 다점 순찰 경로를 함께 제공한다", () => {
@@ -241,7 +293,7 @@ test("교통 경로는 두 차선 자동차와 안전한 다점 순찰 경로를
     assert.ok(car.points.every(({ x, y }) => laneCells.has(`${x},${y}`)));
     assert.equal(car.stopIndices?.length, 4);
     assert.ok(car.stopIndices.every(index =>
-      car.points[index].y === 2 || car.points[index].y === 9
+      [2, 5, 9, 12].includes(car.points[index].y)
     ));
   }
   for (const patrol of map.patrols) {
@@ -255,4 +307,52 @@ test("교통 경로는 두 차선 자동차와 안전한 다점 순찰 경로를
       !crossings.has(`${x},${y}`) && !forbidden.has(`${x},${y}`)
     ));
   }
+});
+
+test("두 자동차 경로는 인접한 칸으로 순환하며 실제 진행 방향이 서로 반대다", () => {
+  const map = createSafetyRouteMap("easy", { seed: 12 });
+  const cars = map.trafficPaths.filter(path => path.type === "car");
+  const opposite = { north: "south", south: "north", east: "west", west: "east" };
+
+  assert.deepEqual(cars.map(path => path.headings[0]), ["north", "south"]);
+  assert.ok(cars[0].headings.every((heading, index) =>
+    cars[1].headings[index] === opposite[heading]
+  ));
+  for (const path of cars) {
+    for (let index = 0; index < path.points.length; index += 1) {
+      const point = path.points[index];
+      const next = path.points[(index + 1) % path.points.length];
+      assert.equal(
+        Math.abs(point.x - next.x) + Math.abs(point.y - next.y),
+        1,
+        `${path.id} jumps from ${point.x},${point.y} to ${next.x},${next.y}`
+      );
+    }
+  }
+});
+
+test("자동차 정지선은 각 횡단보도의 실제 접근 방향 앞에 놓인다", () => {
+  const map = createSafetyRouteMap("easy", { seed: 12 });
+  const cars = map.trafficPaths.filter(path => path.type === "car");
+
+  assert.deepEqual(
+    cars.map(path => path.stopIndices.map(index => ({
+      y: path.points[index].y,
+      heading: path.headings[index]
+    }))),
+    [
+      [
+        { y: 12, heading: "north" },
+        { y: 5, heading: "north" },
+        { y: 2, heading: "south" },
+        { y: 9, heading: "south" }
+      ],
+      [
+        { y: 2, heading: "south" },
+        { y: 9, heading: "south" },
+        { y: 12, heading: "north" },
+        { y: 5, heading: "north" }
+      ]
+    ]
+  );
 });
