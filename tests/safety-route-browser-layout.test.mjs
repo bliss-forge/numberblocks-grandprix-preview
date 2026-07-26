@@ -79,18 +79,23 @@ test("1280×720 PC 안전길은 7×5칸을 자르지 않고 모바일 방향키�
   const desktopMetrics = await desktop.evaluate(() => {
     const viewport = document.querySelector(".safety-viewport");
     const world = document.querySelector(".safety-world");
+    const route = document.querySelector(".safety-route");
+    const top = document.querySelector(".safety-route-top");
     const viewportRect = viewport.getBoundingClientRect();
     const gameRect = document.querySelector("#game").getBoundingClientRect();
     const rows = Number(world.style.getPropertyValue("--world-rows"));
     const columns = Number(world.style.getPropertyValue("--world-cols"));
     const cell = world.offsetHeight / rows;
+    const usableRouteHeight = route.clientHeight - top.offsetHeight;
 
     return {
       cell,
-      columnsVisible: viewportRect.width / cell,
+      clientColumnsVisible: viewport.clientWidth / cell,
+      clientRowsVisible: viewport.clientHeight / cell,
       gameBottom: gameRect.bottom,
+      maximumCell: Math.min((innerWidth * .94) / 7, usableRouteHeight / 5),
       pageHeight: document.documentElement.scrollHeight,
-      rowsVisible: viewportRect.height / cell,
+      usableRouteHeight,
       viewportBottom: viewportRect.bottom,
       viewportColumns: viewport.style.getPropertyValue("--viewport-cols"),
       viewportRows: viewport.style.getPropertyValue("--viewport-rows"),
@@ -102,12 +107,16 @@ test("1280×720 PC 안전길은 7×5칸을 자르지 않고 모바일 방향키�
   assert.equal(desktopMetrics.viewportRows, "5");
   assert.equal(desktopMetrics.worldColumns, 32);
   assert.ok(
-    desktopMetrics.columnsVisible >= 7 - .01,
-    `visible columns: ${desktopMetrics.columnsVisible}`
+    desktopMetrics.clientColumnsVisible >= 7 - .01,
+    `client-visible columns: ${desktopMetrics.clientColumnsVisible}`
   );
   assert.ok(
-    desktopMetrics.rowsVisible >= 5 - .01,
-    `visible rows: ${desktopMetrics.rowsVisible}`
+    desktopMetrics.clientRowsVisible >= 5 - .01,
+    `client-visible rows: ${desktopMetrics.clientRowsVisible}`
+  );
+  assert.ok(
+    Math.abs(desktopMetrics.cell - desktopMetrics.maximumCell) <= .02,
+    `cell ${desktopMetrics.cell}, maximum ${desktopMetrics.maximumCell}`
   );
   assert.ok(desktopMetrics.viewportBottom <= desktopMetrics.gameBottom + .01);
   assert.ok(desktopMetrics.pageHeight <= 720, `page height: ${desktopMetrics.pageHeight}`);

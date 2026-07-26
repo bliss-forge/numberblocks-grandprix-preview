@@ -108,6 +108,7 @@ test("PC 안전길은 7×5 지도를 크게 쓰고 방향키는 기본 상태에
   assert.match(desktop, /\.safety-route\s*\{[^}]*grid-template-rows:\s*var\(--safety-route-top-height\)\s+minmax\(0,\s*1fr\);/s);
   assert.match(desktop, /\.safety-route\s*\{[^}]*container-type:\s*size;/s);
   assert.match(desktop, /\.safety-viewport\s*\{[^}]*calc\(\s*\(100cqh\s*-\s*var\(--safety-route-top-height\)\)\s*\/\s*var\(--viewport-rows,\s*5\)\s*\)/s);
+  assert.match(desktop, /\.safety-viewport\s*\{[^}]*border-inline:\s*0;/s);
   assert.match(desktop, /body\[data-mode="safety"\]\s+\.route-pad\s*\{[^}]*opacity:\s*\.58;/s);
   assert.match(desktop, /body\[data-mode="safety"\]\s+\.route-pad:focus-within,[\s\S]*?body\[data-mode="safety"\]\s+\.route-pad:hover\s*\{[^}]*opacity:\s*1;/s);
   assert.match(desktop, /body\[data-mode="safety"\]\s+\.route-pad button\s*\{[^}]*min-width:\s*44px;[^}]*min-height:\s*44px;[^}]*font-size:\s*23px;/s);
