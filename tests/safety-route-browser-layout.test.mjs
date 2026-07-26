@@ -82,11 +82,14 @@ test("1280×720 PC 안전길은 7×5칸을 자르지 않고 모바일 방향키�
     const route = document.querySelector(".safety-route");
     const top = document.querySelector(".safety-route-top");
     const viewportRect = viewport.getBoundingClientRect();
+    const worldRect = world.getBoundingClientRect();
+    const routeRect = route.getBoundingClientRect();
+    const topRect = top.getBoundingClientRect();
     const gameRect = document.querySelector("#game").getBoundingClientRect();
     const rows = Number(world.style.getPropertyValue("--world-rows"));
     const columns = Number(world.style.getPropertyValue("--world-cols"));
-    const cell = world.offsetHeight / rows;
-    const usableRouteHeight = route.clientHeight - top.offsetHeight;
+    const cell = worldRect.height / rows;
+    const usableRouteHeight = routeRect.height - topRect.height;
 
     return {
       cell,
