@@ -54,8 +54,11 @@ async function startStaticServer() {
   return { server, url: `http://127.0.0.1:${port}` };
 }
 
-async function openSafetyRoute(page, url) {
+async function openSafetyRoute(page, url, difficulty) {
   await page.goto(url, { waitUntil: "networkidle" });
+  if (difficulty) {
+    await page.locator(`[data-difficulty="${difficulty}"]`).click();
+  }
   await page.locator('[data-mode="safety"]').click();
   await page.waitForSelector(".safety-viewport");
 }
@@ -75,7 +78,7 @@ test("1280×720 PC 안전길은 7×5칸을 자르지 않고 모바일 방향키�
   });
 
   const desktop = await browser.newPage({ viewport: { width: 1280, height: 720 } });
-  await openSafetyRoute(desktop, url);
+  await openSafetyRoute(desktop, url, "challenge");
   const desktopMetrics = await desktop.evaluate(() => {
     const viewport = document.querySelector(".safety-viewport");
     const world = document.querySelector(".safety-world");
@@ -121,6 +124,37 @@ test("1280×720 PC 안전길은 7×5칸을 자르지 않고 모바일 방향키�
     });
     const pole = getComputedStyle(markerNodes[0], "::before");
     const base = getComputedStyle(markerNodes[0], "::after");
+    const riderNodes = [
+      document.querySelector(".route-scooter"),
+      document.querySelector(".route-bicycle")
+    ];
+    const riders = riderNodes.map(vehicle => {
+      vehicle.dataset.direction = "-1";
+      const rider = vehicle.querySelector(":scope > .route-rider-person");
+      const torso = getComputedStyle(rider);
+      const limbs = getComputedStyle(rider, "::after");
+      return {
+        directChild: rider?.parentElement === vehicle,
+        flip: getComputedStyle(vehicle).transform,
+        limbBackground: limbs.backgroundImage,
+        limbHeight: parseFloat(limbs.height),
+        limbWidth: parseFloat(limbs.width),
+        torsoWidth: parseFloat(torso.width)
+      };
+    });
+    const construction = document.querySelector(".route-construction");
+    const constructionRect = construction.getBoundingClientRect();
+    const constructionFootprints = [
+      ...document.querySelectorAll(".route-hazard-footprint-construction")
+    ].map(node => node.getBoundingClientRect());
+    const footprintBounds = {
+      left: Math.min(...constructionFootprints.map(rect => rect.left)),
+      right: Math.max(...constructionFootprints.map(rect => rect.right)),
+      top: Math.min(...constructionFootprints.map(rect => rect.top)),
+      bottom: Math.max(...constructionFootprints.map(rect => rect.bottom))
+    };
+    const board = getComputedStyle(construction, "::before");
+    const posts = getComputedStyle(construction, "::after");
 
     return {
       cell,
@@ -134,6 +168,25 @@ test("1280×720 PC 안전길은 7×5칸을 자르지 않고 모바일 방향키�
       viewportColumns: viewport.style.getPropertyValue("--viewport-cols"),
       viewportRows: viewport.style.getPropertyValue("--viewport-rows"),
       worldColumns: columns,
+      taskFour: {
+        barrier: {
+          boardZIndex: board.zIndex,
+          centerDeltaX: Math.abs(
+            constructionRect.left + constructionRect.width / 2 -
+              (footprintBounds.left + footprintBounds.right) / 2
+          ),
+          centerDeltaY: Math.abs(
+            constructionRect.top + constructionRect.height / 2 -
+              (footprintBounds.top + footprintBounds.bottom) / 2
+          ),
+          footprintCount: constructionFootprints.length,
+          heightInCells: constructionRect.height / cell,
+          postBackgroundPositions: posts.backgroundPosition,
+          postBackgroundSizes: posts.backgroundSize,
+          postsZIndex: posts.zIndex
+        },
+        riders
+      },
       street: {
         base: {
           backgroundColor: base.backgroundColor,
@@ -217,6 +270,41 @@ test("1280×720 PC 안전길은 7×5칸을 자르지 않고 모바일 방향키�
     marker.zIndex === "10" &&
     marker.translate === (marker.side === "left" ? "-8px 6px" : "8px 6px")
   ), JSON.stringify(desktopMetrics.street.markers));
+  assert.deepEqual(
+    desktopMetrics.taskFour.riders.map(rider => rider.directChild),
+    [true, true]
+  );
+  for (const rider of desktopMetrics.taskFour.riders) {
+    assert.match(rider.flip, /^matrix\(-1, 0, 0, 1,/);
+    assert.equal(
+      (rider.limbBackground.match(/rgb\(255, 207, 159\)/g) ?? []).length,
+      4
+    );
+    assert.ok(rider.limbWidth >= rider.torsoWidth * 2);
+    assert.ok(rider.limbHeight > rider.torsoWidth);
+  }
+  assert.deepEqual(
+    {
+      boardZIndex: desktopMetrics.taskFour.barrier.boardZIndex,
+      footprintCount: desktopMetrics.taskFour.barrier.footprintCount,
+      postBackgroundPositions:
+        desktopMetrics.taskFour.barrier.postBackgroundPositions,
+      postBackgroundSizes: desktopMetrics.taskFour.barrier.postBackgroundSizes,
+      postsZIndex: desktopMetrics.taskFour.barrier.postsZIndex
+    },
+    {
+      boardZIndex: "2",
+      footprintCount: 5,
+      postBackgroundPositions: "10% 0px, 90% 0px, 0px 100%, 100% 100%",
+      postBackgroundSizes: "16px 84%, 16px 84%, 42px 12px, 42px 12px",
+      postsZIndex: "1"
+    }
+  );
+  assert.ok(desktopMetrics.taskFour.barrier.centerDeltaX <= .02);
+  assert.ok(desktopMetrics.taskFour.barrier.centerDeltaY <= .02);
+  assert.ok(
+    Math.abs(desktopMetrics.taskFour.barrier.heightInCells - 1.2) <= .02
+  );
 
   const mobile = await browser.newPage({ viewport: { width: 390, height: 844 } });
   await openSafetyRoute(mobile, url);

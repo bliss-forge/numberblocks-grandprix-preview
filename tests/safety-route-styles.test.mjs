@@ -4,6 +4,13 @@ import { readFile } from "node:fs/promises";
 
 const css = await readFile(new URL("../styles.css", import.meta.url), "utf8");
 
+function selectorBody(selector) {
+  const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const match = new RegExp(`${escaped}\\s*\\{([^}]*)\\}`, "s").exec(css);
+  assert.ok(match, `missing CSS selector: ${selector}`);
+  return match[1];
+}
+
 test("길찾기에서는 답안 UI를 숨기고 지도를 무대 전체에 펼친다", () => {
   assert.match(
     css,
@@ -116,12 +123,43 @@ test("건물과 생활안전 요소를 입체 이미지 없이 평면 CSS 그림
 });
 
 test("탑승자와 닫힌 맨홀과 공사 차단봉은 원본 CSS 그림을 사용한다", () => {
-  assert.match(css, /\.route-rider-person::before\s*\{[^}]*border-radius:\s*50%;/s);
-  assert.match(css, /\.route-rider-person::after\s*\{[^}]*#ffcf9f/s);
-  assert.match(css, /\.route-hazard-footprint-manhole\s*\{[^}]*border:\s*0;[^}]*background:\s*transparent;/s);
-  assert.match(css, /\.route-manhole\s*\{[^}]*repeating-(?:linear|conic)-gradient/s);
-  assert.match(css, /\.route-construction::before\s*\{[^}]*repeating-linear-gradient\([^}]*#f5c400[^}]*#171717/s);
-  assert.match(css, /\.route-construction::after\s*\{[^}]*#ef5a29[^}]*#fff/s);
+  const riderHead = selectorBody(".route-rider-person::before");
+  const riderLimbs = selectorBody(".route-rider-person::after");
+  const manholeFootprint = selectorBody(".route-hazard-footprint-manhole");
+  const manhole = selectorBody(".route-manhole");
+  const construction = selectorBody(".route-construction");
+  const barrierBoard = selectorBody(".route-construction::before");
+  const barrierPosts = selectorBody(".route-construction::after");
+  const reversedMover = selectorBody('.route-moving-rider[data-direction="-1"]');
+
+  assert.match(riderHead, /border-radius:\s*50%;/);
+  assert.equal((riderLimbs.match(/#ffcf9f/g) ?? []).length, 2);
+  assert.match(riderLimbs, /left:\s*-9px;[^}]*width:\s*36px;[^}]*height:\s*31px;/s);
+  assert.match(manholeFootprint, /border:\s*0;[^}]*background:\s*transparent;/s);
+  assert.match(manhole, /repeating-(?:linear|conic)-gradient/);
+  assert.match(construction, /height:\s*calc\(var\(--route-cell-size\)\s*\*\s*1\.2\);/);
+  assert.match(barrierBoard, /z-index:\s*2;[^}]*repeating-linear-gradient\([^}]*#f5c400[^}]*#171717/s);
+  assert.match(barrierPosts, /z-index:\s*1;/);
+  assert.match(barrierPosts, /10%\s+0\s*\/\s*16px\s+84%\s+no-repeat/);
+  assert.match(barrierPosts, /90%\s+0\s*\/\s*16px\s+84%\s+no-repeat/);
+  assert.match(barrierPosts, /0\s+100%\s*\/\s*42px\s+12px\s+no-repeat/);
+  assert.match(barrierPosts, /100%\s+100%\s*\/\s*42px\s+12px\s+no-repeat/);
+  assert.match(reversedMover, /transform:\s*scaleX\(-1\);/);
+
+  for (const selector of [
+    ".route-rider-person",
+    ".route-rider-person::before",
+    ".route-rider-person::after",
+    ".route-hazard-footprint-manhole",
+    ".route-manhole",
+    ".route-manhole::before",
+    ".route-manhole::after",
+    ".route-construction",
+    ".route-construction::before",
+    ".route-construction::after"
+  ]) {
+    assert.doesNotMatch(selectorBody(selector), /url\s*\(/i, selector);
+  }
 });
 
 test("자동차 CSS는 북쪽과 남쪽 heading을 서로 반대로 그린다", () => {

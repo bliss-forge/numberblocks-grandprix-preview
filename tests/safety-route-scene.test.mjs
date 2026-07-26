@@ -125,15 +125,28 @@ test("킥보드와 자전거에는 헬멧을 쓴 탑승자가 함께 표시된�
     document,
     createSafetyRouteState("challenge", { seed: 3 })
   );
-  for (const vehicleClass of ["route-scooter", "route-bicycle"]) {
+  for (const [vehicleClass, label] of [
+    ["route-scooter", "헬멧을 쓴 어린이의 킥보드"],
+    ["route-bicycle", "헬멧을 쓴 어린이의 자전거"]
+  ]) {
     const vehicle = byClass(scene, vehicleClass)[0];
-    assert.equal(byClass(vehicle, "route-rider-person").length, 1);
-    assert.match(vehicle.attributes.get("aria-label"), /헬멧을 쓴 어린이/);
+    const directRiders = vehicle.children.filter(child =>
+      child.className.split(/\s+/).includes("route-rider-person")
+    );
+    assert.equal(directRiders.length, 1);
+    assert.equal(directRiders[0].attributes.get("aria-hidden"), "true");
+    assert.equal(vehicle.attributes.get("aria-label"), label);
   }
-  assert.equal(
-    byClass(scene, "route-manhole")[0].attributes.get("aria-label"),
-    "닫힌 맨홀 덮개"
-  );
+  for (const [hazardClass, label] of [
+    ["route-manhole", "닫힌 맨홀 덮개"],
+    ["route-construction", "공사 차단봉"],
+    ["route-car", "도로 자동차"]
+  ]) {
+    assert.equal(
+      byClass(scene, hazardClass)[0].attributes.get("aria-label"),
+      label
+    );
+  }
 });
 
 test("장면은 보도와 차도를 별도 레이어로 만들고 카메라 값을 노출한다", () => {

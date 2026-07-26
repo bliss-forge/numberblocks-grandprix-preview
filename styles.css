@@ -2523,16 +2523,17 @@ body[data-mode="safety"] .stage-lights {
 
 .route-rider-person::after {
   position: absolute;
-  right: -13px;
+  left: -9px;
   top: 6px;
-  width: 17px;
-  height: 6px;
-  border-radius: 999px;
-  background: #ffcf9f;
-  box-shadow: -4px 19px 0 -1px #25345d;
+  width: 36px;
+  height: 31px;
+  background:
+    linear-gradient(20deg, transparent 0 35%, #ffcf9f 36% 61%, transparent 62%) 0 0 / 18px 12px no-repeat,
+    linear-gradient(-20deg, transparent 0 35%, #ffcf9f 36% 61%, transparent 62%) 100% 0 / 18px 12px no-repeat,
+    linear-gradient(65deg, transparent 0 39%, #25345d 40% 62%, transparent 63%) 6px 13px / 16px 18px no-repeat,
+    linear-gradient(-65deg, transparent 0 39%, #25345d 40% 62%, transparent 63%) 100% 13px / 16px 18px no-repeat;
   content: "";
-  transform: rotate(20deg);
-  transform-origin: left center;
+  pointer-events: none;
 }
 
 .route-bicycle .route-rider-person {
