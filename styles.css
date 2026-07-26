@@ -2605,7 +2605,7 @@ body[data-mode="safety"] .stage-lights {
 
   .safety-viewport {
     --route-cell-size: min(
-      calc(100vw / var(--viewport-cols, 5)),
+      calc((100vw - 30px) / var(--viewport-cols, 5)),
       calc((100vh - 155px) / var(--viewport-rows, 5))
     );
   }
