@@ -241,6 +241,19 @@ test("생성 장면은 위아래 횡단보도에 동기화된 보행 신호 표�
   const markers = byClass(scene, "route-signal-marker");
 
   assert.equal(markers.length, 4);
+  assert.deepEqual(
+    [...new Set(markers.map(marker => marker.dataset.crossingId))].sort(),
+    ["crossing-1", "crossing-2"]
+  );
+  for (const crossingId of ["crossing-1", "crossing-2"]) {
+    assert.deepEqual(
+      markers
+        .filter(marker => marker.dataset.crossingId === crossingId)
+        .map(marker => marker.dataset.side)
+        .sort(),
+      ["left", "right"]
+    );
+  }
   assert.deepEqual(markers.map(marker => marker.dataset.phase), [
     "pedestrian-go",
     "pedestrian-go",

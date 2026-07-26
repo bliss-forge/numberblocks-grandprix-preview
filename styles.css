@@ -1913,20 +1913,14 @@ body[data-mode="safety"] .stage-lights {
 }
 
 .route-zone-road {
+  --road-asphalt: #4d5965;
   position: relative;
   overflow: hidden;
-  border-inline: 4px solid #fff5d9;
-  background:
-    repeating-linear-gradient(
-      180deg,
-      transparent 0 28px,
-      #ffe06c 28px 50px,
-      transparent 50px 78px
-    ) center / 5px 78px repeat-y,
-    #536477;
+  border-inline: 5px solid #f7f2df;
+  background: var(--road-asphalt);
   box-shadow:
-    inset 8px 0 rgba(42, 54, 67, .16),
-    inset -8px 0 rgba(42, 54, 67, .16);
+    inset 8px 0 rgba(42, 54, 67, .12),
+    inset -8px 0 rgba(42, 54, 67, .12);
 }
 
 .route-zone-road::before,
@@ -2017,21 +2011,36 @@ body[data-mode="safety"] .stage-lights {
 }
 
 .route-road {
+  --road-asphalt: #4d5965;
   z-index: 1;
-  margin: -1px;
-  border: 1px solid #536477;
+  border: 0;
   background: transparent;
+}
+
+.route-road[data-road-position="center-left"] {
+  border-inline-end: 3px dashed #f4c542;
+}
+
+.route-road[data-road-position="outer-left"] {
+  box-shadow: inset 4px 0 #f7f2df;
+}
+
+.route-road[data-road-position="outer-right"] {
+  box-shadow: inset -4px 0 #f7f2df;
 }
 
 .route-crosswalk {
   z-index: 3;
-  border-color: #536477;
   background:
     repeating-linear-gradient(
-      90deg,
-      #fff 0 18%,
-      #536477 18% 32%
+      180deg,
+      #fff 0 22%,
+      var(--road-asphalt, #4d5965) 22% 38%
     );
+}
+
+.route-crosswalk[data-road-position="center-left"] {
+  border-inline-end: 0;
 }
 
 .route-stop-line {
@@ -2043,6 +2052,21 @@ body[data-mode="safety"] .stage-lights {
   z-index: 3;
   border-inline: 4px dashed #f29d38;
   background: #ead9b8;
+}
+
+.route-alley {
+  background: #e7d2aa;
+  border-inline: 3px solid #c4aa78;
+  box-shadow:
+    inset 0 3px rgba(255, 248, 226, .36),
+    inset 0 -3px rgba(146, 116, 70, .12);
+}
+
+.route-walkway {
+  background: #efdcb8;
+  box-shadow:
+    inset 0 3px rgba(255, 250, 234, .48),
+    inset 0 -3px rgba(166, 132, 79, .14);
 }
 
 .route-place {
@@ -2184,8 +2208,7 @@ body[data-mode="safety"] .stage-lights {
   background: var(--red);
 }
 
-.route-signal,
-.route-signal-marker {
+.route-signal {
   position: relative;
   z-index: 10;
   align-self: start;
@@ -2200,9 +2223,7 @@ body[data-mode="safety"] .stage-lights {
 }
 
 .route-signal::before,
-.route-signal::after,
-.route-signal-marker::before,
-.route-signal-marker::after {
+.route-signal::after {
   position: absolute;
   left: 50%;
   width: 10px;
@@ -2212,32 +2233,88 @@ body[data-mode="safety"] .stage-lights {
   transform: translateX(-50%);
 }
 
-.route-signal::before,
-.route-signal-marker::before {
+.route-signal::before {
   top: 4px;
   background: #8b959e;
 }
 
-.route-signal::after,
-.route-signal-marker::after {
+.route-signal::after {
   bottom: 4px;
   background: #8b959e;
 }
 
+.route-signal-marker {
+  --signal-top: #8b959e;
+  --signal-bottom: #8b959e;
+  position: relative;
+  z-index: 10;
+  align-self: start;
+  justify-self: start;
+  width: 24px;
+  height: 40px;
+  margin: 0;
+  border: 3px solid #f7f2df;
+  border-radius: 7px;
+  background:
+    radial-gradient(circle at 50% 9px, var(--signal-top) 0 5px, transparent 6px),
+    radial-gradient(circle at 50% 25px, var(--signal-bottom) 0 5px, transparent 6px),
+    #34445b;
+  translate: var(--signal-shift-x, 0) 6px;
+}
+
+.route-signal-marker[data-side="left"] {
+  --signal-shift-x: -8px;
+  justify-self: end;
+}
+
+.route-signal-marker[data-side="right"] {
+  --signal-shift-x: 8px;
+}
+
+.route-signal-marker::before,
+.route-signal-marker::after {
+  position: absolute;
+  left: 50%;
+  z-index: -1;
+  border-radius: 2px;
+  content: "";
+  transform: translateX(-50%);
+}
+
+.route-signal-marker::before {
+  top: 100%;
+  width: 5px;
+  height: 22px;
+  background: #f7f2df;
+}
+
+.route-signal-marker::after {
+  top: calc(100% + 18px);
+  width: 20px;
+  height: 6px;
+  background: #c4aa78;
+}
+
 .route-signal[data-phase="vehicle-go"]::before,
 .route-signal[data-phase="vehicle-clearance"]::before,
-.route-signal[data-phase="pedestrian-clearance"]::before,
-.route-signal-marker[data-phase="vehicle-go"]::before,
-.route-signal-marker[data-phase="vehicle-clearance"]::before,
-.route-signal-marker[data-phase="pedestrian-clearance"]::before {
+.route-signal[data-phase="pedestrian-clearance"]::before {
   background: #ff4d54;
   box-shadow: 0 0 7px #ff4d54;
 }
 
-.route-signal[data-phase="pedestrian-go"]::after,
-.route-signal-marker[data-phase="pedestrian-go"]::after {
+.route-signal[data-phase="pedestrian-go"]::after {
   background: #48cf62;
   box-shadow: 0 0 7px #48cf62;
+}
+
+.route-signal-marker[data-phase="vehicle-go"],
+.route-signal-marker[data-phase="vehicle-clearance"],
+.route-signal-marker[data-phase="pedestrian-clearance"] {
+  --signal-top: #ff4d54;
+}
+
+.route-signal-marker[data-phase="pedestrian-go"] {
+  --signal-bottom: #48cf62;
 }
 
 .route-hazard {

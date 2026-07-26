@@ -235,6 +235,7 @@ export function renderSafetyRouteScene(document, state, requestedView = {}) {
       true
     );
     node.dataset.crossingId = marker.crossingId;
+    node.dataset.side = marker.side;
     world.append(node);
     return node;
     })
