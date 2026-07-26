@@ -57,11 +57,7 @@ test("건물과 생활안전 요소를 입체 이미지 없이 평면 CSS 그림
 test("줄인 동작은 장식 애니메이션과 카메라 이동만 끈다", () => {
   assert.match(
     css,
-    /@media\s*\(prefers-reduced-motion:\s*reduce\)[\s\S]*?\.route-moving-rider/s
-  );
-  assert.match(
-    css,
-    /@media\s*\(prefers-reduced-motion:\s*reduce\)[\s\S]*?\.safety-world\s*\{[^}]*transition:\s*none;/s
+    /@media\s*\(prefers-reduced-motion:\s*reduce\)\s*\{\s*\.safety-world\s*\{[^}]*transition:\s*none;[^}]*\}\s*\.route-player,\s*\.route-moving-rider,\s*\.route-moving-rider::before,\s*\.route-moving-rider::after\s*\{[^}]*animation:\s*none;[^}]*\}\s*\}/s
   );
   assert.doesNotMatch(
     css,
