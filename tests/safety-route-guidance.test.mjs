@@ -6,11 +6,11 @@ import {
   recordGuidanceMove
 } from "../src/safety-route-guidance.mjs";
 import {
-  SAFETY_ROUTE_MAPS
+  createSafetyRouteState
 } from "../src/safety-route-model.mjs";
 
 test("5초 정지 뒤 안전 경로 앞 세 칸만 보여준다", () => {
-  const map = SAFETY_ROUTE_MAPS.easy;
+  const map = createSafetyRouteState("easy", { seed: 0 }).map;
   const guidance = createGuidanceState(1000);
   assert.deepEqual(
     guidanceCells(guidance, map, map.start, map.friends[0], 5999),
