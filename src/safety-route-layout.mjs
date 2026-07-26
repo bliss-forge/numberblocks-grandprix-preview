@@ -24,38 +24,64 @@ const DIFFICULTY_CONTENT = Object.freeze({
 });
 
 const FRIEND_CANDIDATES = Object.freeze({
-  2: Object.freeze([{ x: 3, y: 5 }, { x: 10, y: 5 }]),
-  3: Object.freeze([{ x: 3, y: 6 }, { x: 10, y: 6 }]),
-  4: Object.freeze([{ x: 3, y: 7 }, { x: 10, y: 7 }]),
-  5: Object.freeze([{ x: 3, y: 8 }, { x: 10, y: 8 }]),
-  6: Object.freeze([{ x: 21, y: 5 }, { x: 28, y: 5 }]),
-  7: Object.freeze([{ x: 21, y: 6 }, { x: 28, y: 6 }]),
-  8: Object.freeze([{ x: 21, y: 7 }, { x: 28, y: 7 }]),
-  9: Object.freeze([{ x: 21, y: 8 }, { x: 28, y: 8 }]),
-  10: Object.freeze([{ x: 21, y: 9 }, { x: 28, y: 9 }])
+  2: Object.freeze([{ x: 1, y: 4 }, { x: 12, y: 4 }]),
+  3: Object.freeze([{ x: 2, y: 3 }, { x: 11, y: 3 }]),
+  4: Object.freeze([{ x: 4, y: 10 }, { x: 9, y: 10 }]),
+  5: Object.freeze([{ x: 5, y: 11 }, { x: 8, y: 11 }]),
+  6: Object.freeze([{ x: 19, y: 4 }, { x: 30, y: 4 }]),
+  7: Object.freeze([{ x: 20, y: 3 }, { x: 29, y: 3 }]),
+  8: Object.freeze([{ x: 22, y: 10 }, { x: 27, y: 10 }]),
+  9: Object.freeze([{ x: 23, y: 11 }, { x: 26, y: 11 }]),
+  10: Object.freeze([{ x: 24, y: 10 }, { x: 25, y: 10 }])
 });
 
 const HAZARD_CANDIDATES = Object.freeze({
   manhole: Object.freeze([
-    { x: 5, y: 3 }, { x: 7, y: 4 }, { x: 23, y: 3 }, { x: 25, y: 4 }
+    { x: 5, y: 3, cells: [{ x: 5, y: 3 }], pairedBypassCell: { x: 5, y: 4 } },
+    { x: 7, y: 4, cells: [{ x: 7, y: 4 }], pairedBypassCell: { x: 7, y: 3 } },
+    { x: 23, y: 3, cells: [{ x: 23, y: 3 }], pairedBypassCell: { x: 23, y: 4 } },
+    { x: 25, y: 4, cells: [{ x: 25, y: 4 }], pairedBypassCell: { x: 25, y: 3 } }
   ]),
   construction: Object.freeze([
-    { x: 3, y: 9 }, { x: 10, y: 9 }, { x: 21, y: 9 }, { x: 28, y: 9 }
+    {
+      x: 3,
+      y: 5,
+      cells: [{ x: 3, y: 5 }, { x: 3, y: 6 }, { x: 3, y: 7 }, { x: 3, y: 8 }, { x: 3, y: 9 }],
+      bypassAlleyId: "left-east-alley"
+    },
+    {
+      x: 10,
+      y: 5,
+      cells: [{ x: 10, y: 5 }, { x: 10, y: 6 }, { x: 10, y: 7 }, { x: 10, y: 8 }, { x: 10, y: 9 }],
+      bypassAlleyId: "left-west-alley"
+    },
+    {
+      x: 21,
+      y: 5,
+      cells: [{ x: 21, y: 5 }, { x: 21, y: 6 }, { x: 21, y: 7 }, { x: 21, y: 8 }, { x: 21, y: 9 }],
+      bypassAlleyId: "right-east-alley"
+    },
+    {
+      x: 28,
+      y: 5,
+      cells: [{ x: 28, y: 5 }, { x: 28, y: 6 }, { x: 28, y: 7 }, { x: 28, y: 8 }, { x: 28, y: 9 }],
+      bypassAlleyId: "right-west-alley"
+    }
   ])
 });
 
 const PATROL_CANDIDATES = Object.freeze({
   scooter: Object.freeze([
-    { x: 12, y: 3, points: [{ x: 11, y: 3 }, { x: 12, y: 3 }, { x: 13, y: 3 }] },
-    { x: 12, y: 10, points: [{ x: 11, y: 10 }, { x: 12, y: 10 }, { x: 13, y: 10 }] },
-    { x: 19, y: 4, points: [{ x: 18, y: 4 }, { x: 19, y: 4 }, { x: 20, y: 4 }] },
-    { x: 19, y: 11, points: [{ x: 18, y: 11 }, { x: 19, y: 11 }, { x: 20, y: 11 }] }
+    { x: 9, y: 3, points: [{ x: 8, y: 3 }, { x: 9, y: 3 }, { x: 10, y: 3 }] },
+    { x: 12, y: 11, points: [{ x: 11, y: 11 }, { x: 12, y: 11 }, { x: 13, y: 11 }] },
+    { x: 27, y: 3, points: [{ x: 26, y: 3 }, { x: 27, y: 3 }, { x: 28, y: 3 }] },
+    { x: 19, y: 10, points: [{ x: 18, y: 10 }, { x: 19, y: 10 }, { x: 20, y: 10 }] }
   ]),
   bicycle: Object.freeze([
-    { x: 8, y: 10, points: [{ x: 8, y: 10 }, { x: 9, y: 10 }, { x: 10, y: 10 }] },
-    { x: 8, y: 10, points: [{ x: 8, y: 10 }, { x: 9, y: 10 }, { x: 10, y: 10 }] },
-    { x: 24, y: 4, points: [{ x: 24, y: 4 }, { x: 25, y: 4 }, { x: 26, y: 4 }] },
-    { x: 24, y: 11, points: [{ x: 24, y: 11 }, { x: 25, y: 11 }, { x: 26, y: 11 }] }
+    { x: 5, y: 4, points: [{ x: 4, y: 4 }, { x: 5, y: 4 }, { x: 6, y: 4 }] },
+    { x: 10, y: 11, points: [{ x: 9, y: 11 }, { x: 10, y: 11 }, { x: 11, y: 11 }] },
+    { x: 27, y: 4, points: [{ x: 26, y: 4 }, { x: 27, y: 4 }, { x: 28, y: 4 }] },
+    { x: 19, y: 11, points: [{ x: 18, y: 11 }, { x: 19, y: 11 }, { x: 20, y: 11 }] }
   ])
 });
 
@@ -82,6 +108,7 @@ const uniquePoints = points => {
   points.forEach(point => result.set(pointKey(point), { x: point.x, y: point.y }));
   return [...result.values()];
 };
+const hazardCells = hazard => hazard.cells?.length ? hazard.cells : [hazard];
 
 function normalizeDifficulty(difficulty) {
   return Object.hasOwn(DIFFICULTY_CONTENT, difficulty) ? difficulty : "steady";
@@ -163,13 +190,20 @@ function fixedGeometry() {
 
 function trafficPathsFor(lanes, patrols) {
   return [
-    ...lanes.map(lane => ({
-      id: `${lane.id}-car`,
-      type: "car",
-      laneId: lane.id,
-      points: lane.cells.map(point => ({ ...point })),
-      stopIndex: Math.floor(lane.cells.length / 2)
-    })),
+    ...lanes.map(lane => {
+      const points = lane.cells.map(point => ({ ...point }));
+      const stopIndices = points.flatMap((point, index) =>
+        CROSSING_ROWS.includes(point.y + 1) ? [index] : []
+      );
+      return {
+        id: `${lane.id}-car`,
+        type: "car",
+        laneId: lane.id,
+        points,
+        stopIndex: stopIndices[0],
+        stopIndices
+      };
+    }),
     ...patrols.map(patrol => ({
       id: patrol.id,
       type: patrol.type,
@@ -207,9 +241,20 @@ function assembleCandidate(difficulty, random, layoutSource = "generated", seed 
   });
   const content = DIFFICULTY_CONTENT[normalized];
   const hazards = content.hazards.map((type, index) => {
-    const hazard = selectCandidates(HAZARD_CANDIDATES[type], 1, random, forbidden)[0];
-    forbidden.add(pointKey(hazard));
-    return { ...hazard, id: `hazard-${index + 1}`, type };
+    const candidates = HAZARD_CANDIDATES[type].filter(candidate =>
+      [...hazardCells(candidate), candidate.pairedBypassCell].filter(Boolean)
+        .every(point => !forbidden.has(pointKey(point)))
+    );
+    const hazard = selectCandidates(candidates, 1, random, forbidden)[0];
+    hazardCells(hazard).forEach(point => forbidden.add(pointKey(point)));
+    if (hazard.pairedBypassCell) forbidden.add(pointKey(hazard.pairedBypassCell));
+    return {
+      ...hazard,
+      cells: hazardCells(hazard).map(point => ({ ...point })),
+      pairedBypassCell: hazard.pairedBypassCell && { ...hazard.pairedBypassCell },
+      id: `hazard-${index + 1}`,
+      type
+    };
   });
   const patrols = content.patrols.map((type, index) => {
     const candidates = PATROL_CANDIDATES[type].filter(candidate =>
@@ -280,10 +325,7 @@ const SAFE_LAYOUT_FALLBACKS = Object.freeze(Object.fromEntries(
 function hasPath(map, from, to) {
   if (!from || !to) return false;
   const walkable = new Set((map.pedestrianCells ?? []).map(pointKey));
-  const blocked = new Set([
-    ...(map.hazards ?? []),
-    ...(map.patrols ?? [])
-  ].map(pointKey));
+  const blocked = new Set((map.hazards ?? []).flatMap(hazardCells).map(pointKey));
   const origin = pointKey(from);
   const destination = pointKey(to);
   if (!walkable.has(origin) || !walkable.has(destination) || blocked.has(origin)) {
@@ -489,9 +531,15 @@ export function validateCandidateLayout(map) {
   }
 
   (map.hazards ?? []).filter(item => item.type === "construction").forEach(item => {
-    const onAlley = alleys.some(alley => item.x === alley.x &&
-      item.y >= alley.y && item.y < alley.y + alley.height);
-    if (!onAlley) errors.push(`construction must be on an alley: ${pointKey(item)}`);
+    const alley = alleys.find(candidate => candidate.x === item.x &&
+      item.y >= candidate.y && item.y < candidate.y + candidate.height);
+    const expectedCells = alley && rectangleCells(alley.x, alley.y + 2, 1, alley.height - 4);
+    const bypassAlley = alleys.find(candidate => candidate.id === item.bypassAlleyId);
+    if (!alley || !expectedCells ||
+      JSON.stringify(hazardCells(item)) !== JSON.stringify(expectedCells) ||
+      !bypassAlley || bypassAlley.zone !== alley.zone || bypassAlley.id === alley.id) {
+      errors.push(`construction must block one alley connector: ${pointKey(item)}`);
+    }
   });
 
   const trafficPaths = Array.isArray(map.trafficPaths) ? map.trafficPaths : [];
@@ -527,12 +575,20 @@ export function validateCandidateLayout(map) {
       [...expectedPoints].some(key => !actualPoints.has(key))) {
       errors.push(`car path must cover assigned lane: ${lane.id}`);
     }
+    const expectedStops = points.flatMap((point, index) =>
+      CROSSING_ROWS.includes(point.y + 1) ? [index] : []
+    );
+    if (!Array.isArray(cars[0].stopIndices) ||
+      JSON.stringify(cars[0].stopIndices) !== JSON.stringify(expectedStops) ||
+      cars[0].stopIndex !== expectedStops[0]) {
+      errors.push(`car stops must precede both crossings: ${lane.id}`);
+    }
   });
   const patrolPathForbidden = new Set([
     ...crossingCells,
     ...(map.friends ?? []),
     ...(map.entrances ?? []),
-    ...(map.hazards ?? []),
+    ...(map.hazards ?? []).flatMap(hazardCells),
     map.start,
     map.goal
   ].filter(Boolean).map(pointKey));
@@ -564,7 +620,7 @@ export function validateCandidateLayout(map) {
       if (protectedCells.has(key)) errors.push(`protected locations overlap: ${key}`);
       protectedCells.add(key);
     });
-  [...(map.hazards ?? []), ...(map.patrols ?? [])].forEach(item => {
+  [...(map.hazards ?? []).flatMap(hazardCells), ...(map.patrols ?? [])].forEach(item => {
     const key = pointKey(item);
     if (protectedCells.has(key)) {
       errors.push(`hazard or patrol overlaps protected cell: ${key}`);
@@ -578,6 +634,23 @@ export function validateCandidateLayout(map) {
       errors.push(`unreachable: ${pointKey(target)}`);
     }
     previous = target;
+  });
+
+  const riderCells = trafficPaths
+    .filter(path => path.type === "scooter" || path.type === "bicycle")
+    .flatMap(path => path.points ?? []);
+  riderCells.forEach(riderCell => {
+    const mapWithRider = { ...map, hazards: [
+      ...(map.hazards ?? []),
+      { type: "rider", x: riderCell.x, y: riderCell.y, cells: [riderCell] }
+    ] };
+    let previous = map.start;
+    [...(map.friends ?? []), map.goal].filter(Boolean).forEach(target => {
+      if (!hasPath(mapWithRider, previous, target)) {
+        errors.push(`unreachable with rider: ${pointKey(riderCell)}`);
+      }
+      previous = target;
+    });
   });
 
   return { valid: errors.length === 0, errors };

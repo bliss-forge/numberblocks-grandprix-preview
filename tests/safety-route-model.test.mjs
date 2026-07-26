@@ -180,6 +180,42 @@ test("고정 장애물은 위치를 유지하고 정확한 안전 이유를 반�
   }
 });
 
+test("맨홀 앞에서는 멈추고 비어 있는 짝 행으로 돌아갈 수 있다", () => {
+  const state = createSafetyRouteState("easy", { seed: 8 });
+  const manhole = state.map.hazards.find(hazard => hazard.type === "manhole");
+  const before = { x: manhole.x - 1, y: manhole.y };
+  const after = { x: manhole.x + 1, y: manhole.y };
+  const blocked = attemptSafetyMove({ ...state, position: before }, "right");
+
+  assert.deepEqual(blocked.event, { type: "blocked", reason: "manhole" });
+  assert.ok(manhole.pairedBypassCell);
+  const detour = findSafetyPath(state.map, before, after);
+  assert.ok(detour.some(point => pointKey(point) === pointKey(manhole.pairedBypassCell)));
+});
+
+test("공사 골목을 만나면 다른 같은 동네 골목으로 우회할 수 있다", () => {
+  const state = createSafetyRouteState("steady", { seed: 8 });
+  const construction = state.map.hazards.find(hazard => hazard.type === "construction");
+  const blockedAlley = state.map.alleys.find(alley => alley.x === construction.x);
+  const openAlley = state.map.alleys.find(alley =>
+    alley.zone === blockedAlley.zone && alley.id !== blockedAlley.id
+  );
+
+  assert.ok(construction.cells?.length > 1);
+  const beforeConstruction = { x: construction.x, y: construction.cells[0].y - 1 };
+  assert.deepEqual(
+    attemptSafetyMove({ ...state, position: beforeConstruction }, "down").event,
+    { type: "blocked", reason: "construction" }
+  );
+  const detour = findSafetyPath(
+    state.map,
+    { x: openAlley.x, y: openAlley.y + 1 },
+    { x: openAlley.x, y: openAlley.y + openAlley.height - 2 }
+  );
+  assert.ok(detour.length > 0);
+  assert.ok(detour.every(point => point.x === openAlley.x));
+});
+
 test("다중 셀 장애물은 이동과 길찾기 및 지도 검증에 모두 반영된다", () => {
   const state = createSafetyRouteState("easy", { seed: 3 });
   const map = structuredClone(state.map);

@@ -86,6 +86,46 @@ test("난이도별 생활안전 요소는 정해진 장애물과 이동 수단�
   }
 });
 
+test("맨홀은 한 보행 칸만 막고 짝을 이룬 우회 칸을 비워 둔다", () => {
+  const map = createSafetyRouteMap("challenge", { seed: 8 });
+  const walkable = new Set(map.pedestrianCells.map(({ x, y }) => `${x},${y}`));
+  const occupied = new Set([
+    ...map.hazards.flatMap(hazard => hazard.cells ?? [hazard]),
+    ...map.friends,
+    ...map.entrances,
+    ...map.patrols,
+    map.start,
+    map.goal
+  ].map(({ x, y }) => `${x},${y}`));
+
+  for (const manhole of map.hazards.filter(hazard => hazard.type === "manhole")) {
+    assert.equal(manhole.cells?.length, 1);
+    assert.ok(manhole.pairedBypassCell);
+    assert.equal(walkable.has(`${manhole.pairedBypassCell.x},${manhole.pairedBypassCell.y}`), true);
+    assert.equal(
+      occupied.has(`${manhole.pairedBypassCell.x},${manhole.pairedBypassCell.y}`),
+      false
+    );
+  }
+});
+
+test("공사 발자국은 한 골목의 두 보행길 사이 연결부만 막는다", () => {
+  const map = createSafetyRouteMap("steady", { seed: 8 });
+  const construction = map.hazards.find(hazard => hazard.type === "construction");
+  const alley = map.alleys.find(item => item.x === construction.x);
+  const otherAlley = map.alleys.find(item => item.zone === alley.zone && item.id !== alley.id);
+  const connector = Array.from({ length: alley.height - 4 }, (_, index) => ({
+    x: alley.x,
+    y: alley.y + 2 + index
+  }));
+
+  assert.deepEqual(construction.cells, connector);
+  assert.equal(
+    construction.cells.some(cell => cell.x === otherAlley.x),
+    false
+  );
+});
+
 test("두 횡단보도는 하나의 보행 신호와 signalGate를 공유한다", () => {
   const map = createSafetyRouteMap("steady", { seed: 4 });
 
@@ -188,6 +228,10 @@ test("교통 경로는 두 차선 자동차와 안전한 다점 순찰 경로를
     assert.ok(lane);
     const laneCells = new Set(lane.cells.map(({ x, y }) => `${x},${y}`));
     assert.ok(car.points.every(({ x, y }) => laneCells.has(`${x},${y}`)));
+    assert.equal(car.stopIndices?.length, 4);
+    assert.ok(car.stopIndices.every(index =>
+      car.points[index].y === 2 || car.points[index].y === 9
+    ));
   }
   for (const patrol of map.patrols) {
     const path = map.trafficPaths.find(item => item.id === patrol.id);
