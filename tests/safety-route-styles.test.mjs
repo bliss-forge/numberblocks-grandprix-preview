@@ -115,6 +115,15 @@ test("건물과 생활안전 요소를 입체 이미지 없이 평면 CSS 그림
   assert.doesNotMatch(css, /\.safety-route[\s\S]*?perspective\s*:/);
 });
 
+test("탑승자와 닫힌 맨홀과 공사 차단봉은 원본 CSS 그림을 사용한다", () => {
+  assert.match(css, /\.route-rider-person::before\s*\{[^}]*border-radius:\s*50%;/s);
+  assert.match(css, /\.route-rider-person::after\s*\{[^}]*#ffcf9f/s);
+  assert.match(css, /\.route-hazard-footprint-manhole\s*\{[^}]*border:\s*0;[^}]*background:\s*transparent;/s);
+  assert.match(css, /\.route-manhole\s*\{[^}]*repeating-(?:linear|conic)-gradient/s);
+  assert.match(css, /\.route-construction::before\s*\{[^}]*repeating-linear-gradient\([^}]*#f5c400[^}]*#171717/s);
+  assert.match(css, /\.route-construction::after\s*\{[^}]*#ef5a29[^}]*#fff/s);
+});
+
 test("자동차 CSS는 북쪽과 남쪽 heading을 서로 반대로 그린다", () => {
   assert.match(css, /\.route-car\[data-heading="north"\]\s*\{/);
   assert.match(css, /\.route-car\[data-heading="south"\]\s*\{[^}]*rotate\(180deg\)/s);

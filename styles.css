@@ -2341,21 +2341,24 @@ body[data-mode="safety"] .stage-lights {
 }
 
 .route-hazard-footprint-manhole {
+  border: 0;
   border-radius: 50%;
-  background: rgba(51, 65, 76, .34);
+  background: transparent;
 }
 
 .route-manhole {
-  width: 68%;
-  height: 38%;
-  border: 4px solid #fff;
+  width: 58%;
+  height: auto;
+  aspect-ratio: 1;
+  border: 5px solid #4a5760;
   border-radius: 50%;
   background:
-    radial-gradient(ellipse, #18242d 0 48%, transparent 50%),
-    #65727c;
+    repeating-linear-gradient(0deg, transparent 0 7px, rgba(58, 69, 77, .5) 7px 9px),
+    repeating-linear-gradient(90deg, transparent 0 7px, rgba(58, 69, 77, .5) 7px 9px),
+    #7e8a91;
   box-shadow:
-    inset 0 0 0 5px #3b4954,
-    0 3px 0 rgba(37, 52, 93, .2);
+    inset 0 0 0 4px #aab2b6,
+    0 2px 0 rgba(37, 52, 93, .16);
 }
 
 .route-manhole::before,
@@ -2367,62 +2370,55 @@ body[data-mode="safety"] .stage-lights {
 }
 
 .route-manhole::before {
-  border: 2px solid #89949b;
+  border: 2px solid rgba(226, 231, 233, .72);
   border-radius: 50%;
 }
 
 .route-manhole::after {
   background:
-    repeating-linear-gradient(0deg, transparent 0 5px, #697781 5px 7px),
-    repeating-linear-gradient(90deg, transparent 0 7px, #697781 7px 9px);
+    radial-gradient(circle at 18% 50%, #39464e 0 2px, transparent 3px),
+    radial-gradient(circle at 82% 50%, #39464e 0 2px, transparent 3px);
   clip-path: ellipse(50% 48% at 50% 50%);
 }
 
 .route-construction {
   grid-row: var(--route-y) / span var(--hazard-span);
   width: 84%;
-  height: 92%;
-  border: 5px solid #fff;
-  border-radius: 12px;
-  background:
-    repeating-linear-gradient(135deg, #f47725 0 12px, #fff5d9 12px 24px);
-  box-shadow: 0 4px 0 rgba(37, 52, 93, .2);
+  height: calc(var(--route-cell-size) * 1.2);
+  border: 0;
+  background: transparent;
+  box-shadow: none;
 }
 
 .route-construction::before {
   position: absolute;
-  left: -16%;
-  right: -16%;
-  bottom: 4%;
-  height: 22%;
-  background:
-    conic-gradient(from 330deg at 16% 100%, transparent 0 30deg, #f47725 31deg 89deg, transparent 90deg),
-    conic-gradient(from 330deg at 50% 100%, transparent 0 30deg, #f47725 31deg 89deg, transparent 90deg),
-    conic-gradient(from 330deg at 84% 100%, transparent 0 30deg, #f47725 31deg 89deg, transparent 90deg);
+  left: -14%;
+  right: -14%;
+  top: 34%;
+  z-index: 2;
+  height: 26%;
+  border: 4px solid #fff;
+  border-radius: 6px;
+  background: repeating-linear-gradient(
+    135deg,
+    #f5c400 0 15px,
+    #171717 15px 30px
+  );
+  box-shadow: 0 4px 0 rgba(37, 52, 93, .2);
   content: "";
-  filter: drop-shadow(0 0 2px #fff) drop-shadow(0 2px 0 #fff);
 }
 
 .route-construction::after {
   position: absolute;
-  left: 50%;
-  top: 16%;
-  display: grid;
-  place-items: center;
-  width: 118%;
-  min-height: 38px;
-  padding: 4px 1px;
-  border: 4px solid #fff;
-  border-radius: 7px;
-  color: #fff;
-  font-family: var(--display-font);
-  font-size: clamp(8px, .8vw, 13px);
-  font-weight: 900;
-  line-height: 1;
-  background: #d94b2b;
-  content: "공사중";
-  text-shadow: 0 2px #8d2716;
-  transform: translateX(-50%) rotate(-2deg);
+  inset: 8% -8% 3%;
+  z-index: 1;
+  background:
+    linear-gradient(#ef5a29 0 25%, #fff 25% 48%, #ef5a29 48% 73%, #fff 73%) 10% 0 / 16px 84% no-repeat,
+    linear-gradient(#ef5a29 0 25%, #fff 25% 48%, #ef5a29 48% 73%, #fff 73%) 90% 0 / 16px 84% no-repeat,
+    linear-gradient(90deg, #c94722, #ef5a29, #c94722) 0 100% / 42px 12px no-repeat,
+    linear-gradient(90deg, #c94722, #ef5a29, #c94722) 100% 100% / 42px 12px no-repeat;
+  content: "";
+  filter: drop-shadow(0 2px 0 rgba(37, 52, 93, .18));
 }
 
 .route-scooter {
@@ -2492,6 +2488,56 @@ body[data-mode="safety"] .stage-lights {
   border-right: 5px solid #31445b;
   content: "";
   box-shadow: -9px -3px 0 -2px #31445b;
+}
+
+.route-rider-person {
+  position: absolute;
+  left: 38%;
+  bottom: 44%;
+  z-index: 3;
+  width: 18px;
+  height: 27px;
+  border: 2px solid #fff;
+  border-radius: 7px 7px 5px 5px;
+  background: #2879df;
+  box-shadow: inset 0 -7px #1758aa;
+  pointer-events: none;
+  transform: rotate(-7deg);
+  transform-origin: 50% 100%;
+}
+
+.route-rider-person::before {
+  position: absolute;
+  left: 50%;
+  top: -20px;
+  width: 20px;
+  height: 20px;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  background:
+    linear-gradient(180deg, #ffd83d 0 44%, #f05256 45% 52%, #ffcf9f 53%);
+  box-shadow: inset 0 4px #f05256;
+  content: "";
+  transform: translateX(-50%);
+}
+
+.route-rider-person::after {
+  position: absolute;
+  right: -13px;
+  top: 6px;
+  width: 17px;
+  height: 6px;
+  border-radius: 999px;
+  background: #ffcf9f;
+  box-shadow: -4px 19px 0 -1px #25345d;
+  content: "";
+  transform: rotate(20deg);
+  transform-origin: left center;
+}
+
+.route-bicycle .route-rider-person {
+  left: 41%;
+  bottom: 48%;
 }
 
 .route-car {

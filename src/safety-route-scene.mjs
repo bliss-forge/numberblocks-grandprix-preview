@@ -16,11 +16,11 @@ const PLACE_LABELS = Object.freeze({
 });
 
 const HAZARD_LABELS = Object.freeze({
-  manhole: "열린 맨홀",
-  construction: "공사 중",
-  scooter: "놓인 킥보드",
-  bicycle: "지나가는 자전거",
-  car: "골목 자동차"
+  manhole: "닫힌 맨홀 덮개",
+  construction: "공사 차단봉",
+  scooter: "헬멧을 쓴 어린이의 킥보드",
+  bicycle: "헬멧을 쓴 어린이의 자전거",
+  car: "도로 자동차"
 });
 
 function placeAt(node, point) {
@@ -291,6 +291,12 @@ export function renderSafetyRouteScene(document, state, requestedView = {}) {
       HAZARD_LABELS[mover.type] ?? mover.type
     );
     node.setAttribute("role", "img");
+    if (mover.type === "scooter" || mover.type === "bicycle") {
+      const rider = document.createElement("span");
+      rider.className = "route-rider-person";
+      rider.setAttribute("aria-hidden", "true");
+      node.append(rider);
+    }
     world.append(placeAt(node, point));
     moverNodes.set(mover.id, node);
   });

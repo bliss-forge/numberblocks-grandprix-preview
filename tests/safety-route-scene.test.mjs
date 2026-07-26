@@ -120,6 +120,22 @@ test("난이도별 장애물과 두 차선 자동차를 장면에 표시한다",
   assert.equal(byClass(challenge, "route-car").length, 2);
 });
 
+test("킥보드와 자전거에는 헬멧을 쓴 탑승자가 함께 표시된다", () => {
+  const scene = renderSafetyRouteScene(
+    document,
+    createSafetyRouteState("challenge", { seed: 3 })
+  );
+  for (const vehicleClass of ["route-scooter", "route-bicycle"]) {
+    const vehicle = byClass(scene, vehicleClass)[0];
+    assert.equal(byClass(vehicle, "route-rider-person").length, 1);
+    assert.match(vehicle.attributes.get("aria-label"), /헬멧을 쓴 어린이/);
+  }
+  assert.equal(
+    byClass(scene, "route-manhole")[0].attributes.get("aria-label"),
+    "닫힌 맨홀 덮개"
+  );
+});
+
 test("장면은 보도와 차도를 별도 레이어로 만들고 카메라 값을 노출한다", () => {
   const state = createSafetyRouteState("challenge");
   const scene = renderSafetyRouteScene(document, state, {
