@@ -181,6 +181,7 @@ test("1280×720 PC 안전길은 7×5칸을 자르지 않고 모바일 방향키�
           ),
           footprintCount: constructionFootprints.length,
           heightInCells: constructionRect.height / cell,
+          postBackgroundImages: posts.backgroundImage,
           postBackgroundPositions: posts.backgroundPosition,
           postBackgroundSizes: posts.backgroundSize,
           postsZIndex: posts.zIndex
@@ -305,6 +306,13 @@ test("1280×720 PC 안전길은 7×5칸을 자르지 않고 모바일 방향키�
   assert.ok(
     Math.abs(desktopMetrics.taskFour.barrier.heightInCells - 1.2) <= .02
   );
+  const postPaintLayers = desktopMetrics.taskFour.barrier.postBackgroundImages
+    .split(/\),\s*linear-gradient\(/);
+  assert.equal(postPaintLayers.length, 4);
+  for (const postLayer of postPaintLayers.slice(0, 2)) {
+    assert.match(postLayer, /rgb\(239, 90, 41\)/);
+    assert.match(postLayer, /rgb\(255, 255, 255\)/);
+  }
 
   const mobile = await browser.newPage({ viewport: { width: 390, height: 844 } });
   await openSafetyRoute(mobile, url);

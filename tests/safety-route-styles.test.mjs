@@ -142,6 +142,9 @@ test("탑승자와 닫힌 맨홀과 공사 차단봉은 원본 CSS 그림을 사
   assert.match(barrierPosts, /z-index:\s*1;/);
   assert.match(barrierPosts, /10%\s+0\s*\/\s*16px\s+84%\s+no-repeat/);
   assert.match(barrierPosts, /90%\s+0\s*\/\s*16px\s+84%\s+no-repeat/);
+  assert.equal((barrierPosts.match(
+    /linear-gradient\(#ef5a29 0 25%, #fff 25% 48%, #ef5a29 48% 73%, #fff 73%\)/g
+  ) ?? []).length, 2);
   assert.match(barrierPosts, /0\s+100%\s*\/\s*42px\s+12px\s+no-repeat/);
   assert.match(barrierPosts, /100%\s+100%\s*\/\s*42px\s+12px\s+no-repeat/);
   assert.match(reversedMover, /transform:\s*scaleX\(-1\);/);
