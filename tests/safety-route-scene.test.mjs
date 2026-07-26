@@ -241,29 +241,23 @@ test("생성 장면은 위아래 횡단보도에 동기화된 보행 신호 표�
   const markers = byClass(scene, "route-signal-marker");
 
   assert.equal(markers.length, 4);
-  assert.deepEqual(
-    [...new Set(markers.map(marker => marker.dataset.crossingId))].sort(),
-    ["crossing-1", "crossing-2"]
-  );
-  for (const crossingId of ["crossing-1", "crossing-2"]) {
-    assert.deepEqual(
-      markers
-        .filter(marker => marker.dataset.crossingId === crossingId)
-        .map(marker => marker.dataset.side)
-        .sort(),
-      ["left", "right"]
-    );
-  }
+  assert.deepEqual(markers.map(marker => ({
+    crossingId: marker.dataset.crossingId,
+    side: marker.dataset.side,
+    x: marker.style.values.get("--route-x"),
+    y: marker.style.values.get("--route-y")
+  })), [
+    { crossingId: "crossing-1", side: "left", x: "14", y: "4" },
+    { crossingId: "crossing-1", side: "right", x: "19", y: "5" },
+    { crossingId: "crossing-2", side: "left", x: "14", y: "11" },
+    { crossingId: "crossing-2", side: "right", x: "19", y: "12" }
+  ]);
   assert.deepEqual(markers.map(marker => marker.dataset.phase), [
     "pedestrian-go",
     "pedestrian-go",
     "pedestrian-go",
     "pedestrian-go"
   ]);
-  assert.deepEqual(markers.map(marker => [
-    marker.style.values.get("--route-x"),
-    marker.style.values.get("--route-y")
-  ]), [["14", "4"], ["19", "5"], ["14", "11"], ["19", "12"]]);
 });
 
 test("장면은 좌우 동네와 중앙 2차선 구역을 표시한다", () => {

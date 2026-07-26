@@ -35,7 +35,7 @@ test("PC 도로와 골목은 실제 역할에 맞는 평면 패턴을 사용한�
   assert.match(css, /\.route-zone-road\s*\{[^}]*--road-asphalt:\s*#4d5965;/s);
   assert.match(
     css,
-    /\.route-road\[data-road-position="center-left"\][\s\S]*?border-inline-end:\s*3px\s+(?:dashed|solid)\s+#f4c542;/s
+    /\.route-road\[data-road-position="center-left"\]\s*\{[^}]*border-inline-end:\s*3px\s+dashed\s+#f4c542;/s
   );
   assert.match(
     css,
@@ -44,6 +44,48 @@ test("PC 도로와 골목은 실제 역할에 맞는 평면 패턴을 사용한�
   assert.match(css, /\.route-alley\s*\{[^}]*#e7d2aa;[^}]*border-inline:/s);
   assert.match(css, /\.route-walkway\s*\{[^}]*#efdcb8;/s);
   assert.match(css, /\.route-signal-marker\s*\{[^}]*translate:/s);
+});
+
+test("PC 도로의 가장자리·횡단보도·신호 가구는 selector별 위치와 층서를 유지한다", () => {
+  assert.match(css, /\.route-road\s*\{[^}]*z-index:\s*1;/s);
+  assert.match(
+    css,
+    /\.route-road\[data-road-position="outer-left"\]\s*\{[^}]*box-shadow:\s*inset\s+4px\s+0\s+#f7f2df;/s
+  );
+  assert.match(
+    css,
+    /\.route-road\[data-road-position="outer-right"\]\s*\{[^}]*box-shadow:\s*inset\s+-4px\s+0\s+#f7f2df;/s
+  );
+  assert.match(css, /\.route-crosswalk\s*\{[^}]*z-index:\s*3;/s);
+  assert.match(
+    css,
+    /\.route-crosswalk\[data-road-position="center-left"\]\s*\{[^}]*border-inline-end:\s*0;/s
+  );
+  assert.match(css, /\.route-signal-marker\s*\{[^}]*z-index:\s*10;/s);
+  assert.match(
+    css,
+    /\.route-signal-marker\[data-side="left"\]\s*\{[^}]*--signal-shift-x:\s*-8px;[^}]*justify-self:\s*end;/s
+  );
+  assert.match(
+    css,
+    /\.route-signal-marker\[data-side="right"\]\s*\{[^}]*--signal-shift-x:\s*8px;/s
+  );
+  assert.match(
+    css,
+    /\.route-signal-marker::before\s*\{[^}]*top:\s*100%;[^}]*width:\s*5px;[^}]*height:\s*22px;[^}]*background:\s*#f7f2df;/s
+  );
+  assert.match(
+    css,
+    /\.route-signal-marker::after\s*\{[^}]*top:\s*calc\(100%\s*\+\s*18px\);[^}]*width:\s*20px;[^}]*height:\s*6px;[^}]*background:\s*#c4aa78;/s
+  );
+  assert.match(
+    css,
+    /\.route-signal-marker\[data-phase="vehicle-go"\],\s*\.route-signal-marker\[data-phase="vehicle-clearance"\],\s*\.route-signal-marker\[data-phase="pedestrian-clearance"\]\s*\{[^}]*--signal-top:\s*#ff4d54;/s
+  );
+  assert.match(
+    css,
+    /\.route-signal-marker\[data-phase="pedestrian-go"\]\s*\{[^}]*--signal-bottom:\s*#48cf62;/s
+  );
 });
 
 test("건물과 생활안전 요소를 입체 이미지 없이 평면 CSS 그림으로 표현한다", () => {
