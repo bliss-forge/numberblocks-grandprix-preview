@@ -1,4 +1,5 @@
 import { characterAsset } from "./character-spec.mjs";
+import { moverPoint } from "./safety-route-movers.mjs";
 
 const PLACE_LABELS = Object.freeze({
   home: "우리 집",
@@ -50,11 +51,30 @@ function routeCell(document, point, className = "") {
   return placeAt(cell, point);
 }
 
-function currentMoverPoint(state, moverState) {
-  const mover = state.map.trafficPaths.find(
-    item => item.id === moverState.id
-  );
-  return mover?.points[moverState.pathIndex] ?? null;
+function routeZone(document, name, zone, height) {
+  const node = document.createElement("div");
+  node.className = `route-zone route-zone-${name}`;
+  node.setAttribute("aria-hidden", "true");
+  node.style.setProperty("--route-x", zone.x + 1);
+  node.style.setProperty("--route-y", (zone.y ?? 0) + 1);
+  node.style.setProperty("--route-width", zone.width);
+  node.style.setProperty("--route-height", zone.height ?? height);
+  return node;
+}
+
+function signalNode(document, phase, className, point, accessible = false) {
+  const signal = document.createElement("div");
+  signal.className = className;
+  signal.dataset.phase = phase;
+  if (accessible) {
+    signal.setAttribute(
+      "aria-label",
+      phase === "pedestrian-go" ? "초록 신호" : "빨간 신호"
+    );
+  } else {
+    signal.setAttribute("aria-hidden", "true");
+  }
+  return placeAt(signal, point);
 }
 
 function routePad(document) {
@@ -131,18 +151,17 @@ export function renderSafetyRouteScene(document, state, requestedView = {}) {
   world.style.setProperty("--camera-x", view.camera.x);
   world.style.setProperty("--camera-y", view.camera.y);
 
+  for (const name of ["left", "road", "right"]) {
+    const zone = state.map.zones?.[name];
+    if (zone) world.append(routeZone(document, name, zone, state.map.height));
+  }
+
   const crossingKeys = new Set(
     state.map.crossings
       .flatMap(crossing => crossing.cells)
       .map(point => `${point.x},${point.y}`)
   );
-  const trafficPoints = new Map();
-  state.map.trafficPaths.forEach(path => {
-    path.points.forEach(point => {
-      trafficPoints.set(`${point.x},${point.y}`, point);
-    });
-  });
-  trafficPoints.forEach(point => {
+  state.map.roadCells.forEach(point => {
     const className = crossingKeys.has(`${point.x},${point.y}`)
       ? "route-road route-crosswalk"
       : "route-road";
@@ -150,10 +169,9 @@ export function renderSafetyRouteScene(document, state, requestedView = {}) {
   });
 
   state.map.pedestrianCells.forEach(point => {
-    const className = crossingKeys.has(`${point.x},${point.y}`)
-      ? "route-sidewalk route-crosswalk"
-      : "route-sidewalk";
-    world.append(routeCell(document, point, className));
+    if (!crossingKeys.has(`${point.x},${point.y}`)) {
+      world.append(routeCell(document, point, "route-sidewalk"));
+    }
   });
 
   state.map.trafficPaths.forEach(path => {
@@ -175,19 +193,42 @@ export function renderSafetyRouteScene(document, state, requestedView = {}) {
     world.append(placeAt(node, place));
   });
 
-  const signal = document.createElement("div");
-  signal.className = "route-signal";
-  signal.dataset.phase = state.signal.phase;
-  signal.setAttribute(
-    "aria-label",
-    state.signal.phase === "pedestrian-go" ? "초록 신호" : "빨간 신호"
-  );
-  world.append(placeAt(signal, state.map.signalGate));
+  world.append(signalNode(
+    document,
+    state.signal.phase,
+    "route-signal",
+    state.map.signalGate,
+    true
+  ));
+  (state.map.signalMarkers ?? []).forEach(marker => {
+    world.append(signalNode(
+      document,
+      state.signal.phase,
+      "route-signal-marker",
+      marker
+    ));
+  });
 
   state.map.hazards.forEach(hazard => {
+    const cells = hazard.cells?.length ? hazard.cells : [hazard];
+    cells.forEach(point => {
+      const footprint = routeCell(
+        document,
+        point,
+        `route-hazard-footprint route-hazard-footprint-${hazard.type}`
+      );
+      footprint.dataset.hazard = hazard.type;
+      world.append(footprint);
+    });
+
     const node = document.createElement("div");
     node.className = `route-hazard route-${hazard.type}`;
     node.dataset.hazard = hazard.type;
+    node.style.setProperty(
+      "--hazard-span",
+      Math.max(...cells.map(point => point.y)) -
+        Math.min(...cells.map(point => point.y)) + 1
+    );
     node.setAttribute(
       "aria-label",
       HAZARD_LABELS[hazard.type] ?? hazard.type
@@ -196,11 +237,16 @@ export function renderSafetyRouteScene(document, state, requestedView = {}) {
   });
 
   state.movers.forEach(mover => {
-    const point = currentMoverPoint(state, mover);
+    const point = moverPoint(state.map, mover);
     if (!point) return;
     const node = document.createElement("div");
-    node.className = `route-hazard route-${mover.type}`;
+    const riderClass = mover.type === "scooter" || mover.type === "bicycle"
+      ? " route-moving-rider"
+      : "";
+    node.className = `route-hazard route-${mover.type}${riderClass}`;
     node.dataset.hazard = mover.type;
+    node.dataset.direction = String(mover.direction);
+    node.dataset.stopped = String(Boolean(mover.stopped));
     node.setAttribute(
       "aria-label",
       HAZARD_LABELS[mover.type] ?? mover.type

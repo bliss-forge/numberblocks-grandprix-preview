@@ -26,6 +26,7 @@ test("길찾기에서는 답안 UI를 숨기고 지도를 무대 전체에 펼�
 test("보도, 차도, 횡단보도와 유도선을 색 외의 형태로 구분한다", () => {
   assert.match(css, /\.route-sidewalk\s*\{[^}]*background:\s*#ead9b8;/s);
   assert.match(css, /\.route-road\s*\{[^}]*#536477;/s);
+  assert.match(css, /\.route-zone-road\s*\{[^}]*#536477/s);
   assert.match(css, /\.route-crosswalk\s*\{[^}]*repeating-linear-gradient/s);
   assert.match(css, /\.route-guidance-cell::after\s*\{[^}]*border-radius:\s*50%;/s);
 });
@@ -46,7 +47,26 @@ test("건물과 생활안전 요소를 입체 이미지 없이 평면 CSS 그림
   }
   assert.match(css, /\.route-place::before/);
   assert.match(css, /\.route-car::before/);
+  assert.match(css, /\.route-bicycle::before/);
+  assert.match(css, /\.route-scooter::before/);
+  assert.match(css, /\.route-manhole::after/);
+  assert.match(css, /\.route-construction::after/);
   assert.doesNotMatch(css, /\.safety-route[\s\S]*?perspective\s*:/);
+});
+
+test("줄인 동작은 장식 애니메이션과 카메라 이동만 끈다", () => {
+  assert.match(
+    css,
+    /@media\s*\(prefers-reduced-motion:\s*reduce\)[\s\S]*?\.route-moving-rider/s
+  );
+  assert.match(
+    css,
+    /@media\s*\(prefers-reduced-motion:\s*reduce\)[\s\S]*?\.safety-world\s*\{[^}]*transition:\s*none;/s
+  );
+  assert.doesNotMatch(
+    css,
+    /@media\s*\(prefers-reduced-motion:\s*reduce\)[\s\S]*?\.route-moving-rider\s*\{[^}]*(?:display:\s*none|visibility:\s*hidden)/s
+  );
 });
 
 test("방향 버튼은 터치하기 충분하고 모바일·낮은 가로 화면에서도 유지된다", () => {

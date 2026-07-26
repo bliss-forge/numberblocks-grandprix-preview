@@ -155,3 +155,82 @@ test("신호 단계를 색 외의 데이터로도 표시한다", () => {
     "pedestrian-go"
   );
 });
+
+test("장면은 좌우 동네와 중앙 2차선 구역을 표시한다", () => {
+  const scene = renderSafetyRouteScene(
+    document,
+    createSafetyRouteState("easy", { seed: 1 })
+  );
+
+  assert.equal(byClass(scene, "route-zone-left").length, 1);
+  assert.equal(byClass(scene, "route-zone-road").length, 1);
+  assert.equal(byClass(scene, "route-zone-right").length, 1);
+  assert.equal(byClass(scene, "route-crosswalk").length, 16);
+});
+
+test("도로 배경은 이동체 경로가 없어도 전체 도로 칸을 표시한다", () => {
+  const state = structuredClone(
+    createSafetyRouteState("easy", { seed: 2 })
+  );
+  state.map.trafficPaths = [];
+  state.movers = [];
+
+  const scene = renderSafetyRouteScene(document, state);
+
+  assert.equal(byClass(scene, "route-road").length, state.map.roadCells.length);
+});
+
+test("다칸 공사장은 발자국 전부를 막힘 레이어로 표시하고 그림은 한 번만 만든다", () => {
+  const state = createSafetyRouteState("steady", { seed: 8 });
+  const construction = state.map.hazards.find(
+    item => item.type === "construction"
+  );
+  const scene = renderSafetyRouteScene(document, state);
+  const constructionFootprints = byClass(scene, "route-hazard-footprint")
+    .filter(node => node.dataset.hazard === "construction");
+
+  assert.equal(constructionFootprints.length, construction.cells.length);
+  assert.equal(byClass(scene, "route-construction").length, 1);
+});
+
+test("이동체는 방향과 정지 상태를 색 이외 데이터로 노출한다", () => {
+  const state = structuredClone(
+    createSafetyRouteState("challenge", { seed: 3 })
+  );
+  const riderIndex = state.movers.findIndex(
+    mover => mover.type === "scooter" || mover.type === "bicycle"
+  );
+  state.movers[riderIndex] = {
+    ...state.movers[riderIndex],
+    direction: -1,
+    stopped: true
+  };
+
+  const mover = byClass(
+    renderSafetyRouteScene(document, state),
+    "route-moving-rider"
+  )[0];
+
+  assert.ok(mover);
+  assert.equal(mover.dataset.direction, "-1");
+  assert.equal(mover.dataset.stopped, "true");
+});
+
+test("지도가 입구 신호 표시를 제공하면 하나의 신호 상태를 두 곳에 그린다", () => {
+  const state = structuredClone(
+    createSafetyRouteState("easy", { seed: 4 })
+  );
+  state.map.signalMarkers = [
+    { x: 13, y: 3 },
+    { x: 18, y: 3 }
+  ];
+
+  const scene = renderSafetyRouteScene(document, state);
+
+  assert.equal(byClass(scene, "route-signal").length, 1);
+  assert.equal(byClass(scene, "route-signal-marker").length, 2);
+  assert.deepEqual(
+    byClass(scene, "route-signal-marker").map(node => node.dataset.phase),
+    ["vehicle-go", "vehicle-go"]
+  );
+});
