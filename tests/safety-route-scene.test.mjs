@@ -90,7 +90,7 @@ test("만난 친구는 지도에서 사라지고 상단 행렬에 표시된다",
   assert.deepEqual(collectedNumbers, [1, 2, 3]);
 });
 
-test("난이도별 장애물과 움직이는 교통 요소를 장면에 표시한다", () => {
+test("난이도별 장애물과 두 차선 자동차를 장면에 표시한다", () => {
   const steady = renderSafetyRouteScene(
     document,
     createSafetyRouteState("steady")
@@ -104,7 +104,7 @@ test("난이도별 장애물과 움직이는 교통 요소를 장면에 표시�
     createSafetyRouteState("challenge")
   );
   assert.equal(byClass(challenge, "route-bicycle").length, 1);
-  assert.equal(byClass(challenge, "route-car").length, 1);
+  assert.equal(byClass(challenge, "route-car").length, 2);
 });
 
 test("장면은 보도와 차도를 별도 레이어로 만들고 카메라 값을 노출한다", () => {
