@@ -36,6 +36,10 @@ test("건물과 생활안전 요소를 입체 이미지 없이 평면 CSS 그림
     ".route-place-home",
     ".route-place-daycare",
     ".route-place-shops",
+    ".route-place-park",
+    ".route-place-library",
+    ".route-place-bus-stop",
+    ".route-place-shop",
     ".route-place-school",
     ".route-manhole",
     ".route-construction",
@@ -52,6 +56,11 @@ test("건물과 생활안전 요소를 입체 이미지 없이 평면 CSS 그림
   assert.match(css, /\.route-manhole::after/);
   assert.match(css, /\.route-construction::after/);
   assert.doesNotMatch(css, /\.safety-route[\s\S]*?perspective\s*:/);
+});
+
+test("자동차 CSS는 북쪽과 남쪽 heading을 서로 반대로 그린다", () => {
+  assert.match(css, /\.route-car\[data-heading="north"\]\s*\{/);
+  assert.match(css, /\.route-car\[data-heading="south"\]\s*\{[^}]*rotate\(180deg\)/s);
 });
 
 test("줄인 동작은 장식 애니메이션과 카메라 이동만 끈다", () => {

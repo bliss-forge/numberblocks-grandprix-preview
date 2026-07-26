@@ -9,6 +9,7 @@ const PLACE_LABELS = Object.freeze({
   park: "공원",
   "bus-stop": "버스 정류장",
   library: "도서관",
+  shop: "가게",
   construction: "공사 구간",
   crossing: "횡단보도",
   school: "학교"
@@ -31,6 +32,20 @@ function placeAt(node, point) {
 function setWorldCamera(world, camera) {
   world.style.setProperty("--camera-x", camera.x);
   world.style.setProperty("--camera-y", camera.y);
+}
+
+function resolvedView(state, requestedView = {}) {
+  return {
+    camera: {
+      x: 0,
+      y: Math.max(0, state.map.height - 5),
+      width: 7,
+      height: 5,
+      ...requestedView.camera
+    },
+    guidance: requestedView.guidance ?? [],
+    targetArrow: requestedView.targetArrow ?? { visible: false }
+  };
 }
 
 function characterImage(document, number, className) {
@@ -105,43 +120,19 @@ function routePad(document) {
 }
 
 export function renderSafetyRouteScene(document, state, requestedView = {}) {
-  const view = {
-    camera: {
-      x: 0,
-      y: Math.max(0, state.map.height - 5),
-      width: 7,
-      height: 5,
-      ...requestedView.camera
-    },
-    guidance: requestedView.guidance ?? [],
-    targetArrow: requestedView.targetArrow ?? { visible: false }
-  };
+  const view = resolvedView(state, requestedView);
   const root = document.createElement("div");
   root.className = "safety-route";
-  root.dataset.difficulty = state.difficulty;
 
   const top = document.createElement("div");
   top.className = "safety-route-top";
 
   const goal = document.createElement("div");
   goal.className = "safety-goal";
-  goal.textContent =
-    state.nextFriend <= 10
-      ? `다음은 ${state.nextFriend} 친구를 만나러 가요!`
-      : "친구들과 학교로 가요!";
   top.append(goal);
 
   const collected = document.createElement("div");
   collected.className = "safety-collected";
-  collected.setAttribute(
-    "aria-label",
-    `만난 친구 ${state.collected.join(", ")}`
-  );
-  state.collected.forEach(number => {
-    collected.append(
-      characterImage(document, number, "collected-friend")
-    );
-  });
   top.append(collected);
   root.append(top);
 
@@ -156,16 +147,6 @@ export function renderSafetyRouteScene(document, state, requestedView = {}) {
   world.style.setProperty("--world-rows", state.map.height);
   const cameraStart = requestedView.cameraStart ?? view.camera;
   setWorldCamera(world, cameraStart);
-
-  if (
-    requestedView.cameraStart &&
-    typeof requestedView.scheduleFrame === "function" &&
-    (cameraStart.x !== view.camera.x || cameraStart.y !== view.camera.y)
-  ) {
-    requestedView.scheduleFrame(() => {
-      setWorldCamera(world, view.camera);
-    });
-  }
 
   for (const name of ["left", "road", "right"]) {
     const zone = state.map.zones?.[name];
@@ -190,12 +171,19 @@ export function renderSafetyRouteScene(document, state, requestedView = {}) {
     }
   });
 
-  state.map.trafficPaths.forEach(path => {
-    const stopPoint = path.points[path.stopIndex];
-    if (stopPoint) {
-      world.append(routeCell(document, stopPoint, "route-stop-line"));
-    }
-  });
+  const stopLines = new Set();
+  state.map.trafficPaths
+    .filter(path => path.type === "car")
+    .forEach(path => {
+      (path.stopIndices ?? [path.stopIndex]).forEach(index => {
+        const stopPoint = path.points[index];
+        const key = stopPoint && `${stopPoint.x},${stopPoint.y}`;
+        if (stopPoint && !stopLines.has(key)) {
+          stopLines.add(key);
+          world.append(routeCell(document, stopPoint, "route-stop-line"));
+        }
+      });
+    });
 
   state.map.entrances.forEach(entrance => {
     world.append(routeCell(document, entrance, "route-entrance"));
@@ -209,20 +197,24 @@ export function renderSafetyRouteScene(document, state, requestedView = {}) {
     world.append(placeAt(node, place));
   });
 
-  world.append(signalNode(
+  const signal = signalNode(
     document,
     state.signal.phase,
     "route-signal",
     state.map.signalGate,
     true
-  ));
-  (state.map.signalMarkers ?? []).forEach(marker => {
-    world.append(signalNode(
+  );
+  world.append(signal);
+  const signalMarkers = (state.map.signalMarkers ?? []).map(marker => {
+    const node = signalNode(
       document,
       state.signal.phase,
       "route-signal-marker",
       marker
-    ));
+    );
+    node.dataset.crossingId = marker.crossingId;
+    world.append(node);
+    return node;
   });
 
   state.map.hazards.forEach(hazard => {
@@ -253,6 +245,7 @@ export function renderSafetyRouteScene(document, state, requestedView = {}) {
     world.append(placeAt(node, hazard));
   });
 
+  const moverNodes = new Map();
   state.movers.forEach(mover => {
     const point = moverPoint(state.map, mover);
     if (!point) return;
@@ -262,27 +255,26 @@ export function renderSafetyRouteScene(document, state, requestedView = {}) {
       : "";
     node.className = `route-hazard route-${mover.type}${riderClass}`;
     node.dataset.hazard = mover.type;
-    node.dataset.direction = String(mover.direction);
-    node.dataset.stopped = String(Boolean(mover.stopped));
     node.setAttribute(
       "aria-label",
       HAZARD_LABELS[mover.type] ?? mover.type
     );
     node.setAttribute("role", "img");
     world.append(placeAt(node, point));
+    moverNodes.set(mover.id, node);
   });
 
-  state.map.friends
-    .filter(friend => !state.collected.includes(friend.number))
-    .forEach(friend => {
-      const image = characterImage(
-        document,
-        friend.number,
-        "route-character route-friend"
-      );
-      image.dataset.place = friend.place;
-      world.append(placeAt(image, friend));
-    });
+  const friendNodes = new Map();
+  state.map.friends.forEach(friend => {
+    const image = characterImage(
+      document,
+      friend.number,
+      "route-character route-friend"
+    );
+    image.dataset.place = friend.place;
+    world.append(placeAt(image, friend));
+    friendNodes.set(friend.number, image);
+  });
 
   const player = characterImage(
     document,
@@ -297,21 +289,114 @@ export function renderSafetyRouteScene(document, state, requestedView = {}) {
   school.setAttribute("aria-label", "학교 도착점");
   world.append(placeAt(school, state.map.goal));
 
-  view.guidance.forEach(point => {
-    world.append(routeCell(document, point, "route-guidance-cell"));
+  const guidanceNodes = Array.from({ length: 3 }, () => {
+    const node = routeCell(document, { x: 0, y: 0 }, "route-guidance-cell");
+    node.hidden = true;
+    world.append(node);
+    return node;
   });
 
   viewport.append(world);
-  if (view.targetArrow.visible) {
-    const arrow = document.createElement("div");
-    arrow.className = "route-target-arrow";
-    arrow.setAttribute("aria-label", "다음 친구 방향");
-    arrow.style.setProperty("--arrow-x", view.targetArrow.x);
-    arrow.style.setProperty("--arrow-y", view.targetArrow.y);
-    arrow.style.setProperty("--arrow-angle", `${view.targetArrow.angle}rad`);
-    viewport.append(arrow);
+  const arrow = document.createElement("div");
+  arrow.className = "route-target-arrow";
+  arrow.setAttribute("aria-label", "다음 친구 방향");
+  arrow.hidden = true;
+  viewport.append(arrow);
+
+  const pad = routePad(document);
+  root.append(viewport, pad);
+  root._safetyRouteView = {
+    document,
+    goal,
+    collected,
+    viewport,
+    world,
+    signalNodes: [signal, ...signalMarkers],
+    moverNodes,
+    friendNodes,
+    player,
+    guidanceNodes,
+    arrow,
+    pad
+  };
+  updateSafetyRouteScene(root, state, {
+    ...requestedView,
+    camera: cameraStart
+  });
+
+  if (
+    requestedView.cameraStart &&
+    typeof requestedView.scheduleFrame === "function" &&
+    (cameraStart.x !== view.camera.x || cameraStart.y !== view.camera.y)
+  ) {
+    requestedView.scheduleFrame(() => {
+      setWorldCamera(world, view.camera);
+    });
+  }
+  return root;
+}
+
+export function updateSafetyRouteScene(root, state, requestedView = {}) {
+  const nodes = root?._safetyRouteView;
+  if (!nodes) throw new TypeError("A mounted safety route scene is required");
+  const view = resolvedView(state, requestedView);
+  root.dataset.difficulty = state.difficulty;
+  nodes.goal.textContent =
+    state.nextFriend <= 10
+      ? `다음은 ${state.nextFriend} 친구를 만나러 가요!`
+      : "친구들과 학교로 가요!";
+
+  const collectedKey = state.collected.join(",");
+  if (nodes.collected.dataset.numbers !== collectedKey) {
+    nodes.collected.dataset.numbers = collectedKey;
+    nodes.collected.setAttribute("aria-label", `만난 친구 ${collectedKey}`);
+    nodes.collected.replaceChildren(...state.collected.map(number =>
+      characterImage(nodes.document, number, "collected-friend")
+    ));
   }
 
-  root.append(viewport, routePad(document));
+  nodes.viewport.style.setProperty("--viewport-cols", view.camera.width);
+  nodes.viewport.style.setProperty("--viewport-rows", view.camera.height);
+  setWorldCamera(nodes.world, view.camera);
+
+  nodes.signalNodes.forEach(node => {
+    node.dataset.phase = state.signal.phase;
+    if (node.className === "route-signal") {
+      node.setAttribute(
+        "aria-label",
+        state.signal.phase === "pedestrian-go" ? "초록 신호" : "빨간 신호"
+      );
+    }
+  });
+
+  state.movers.forEach(mover => {
+    const node = nodes.moverNodes.get(mover.id);
+    const point = moverPoint(state.map, mover);
+    if (!node || !point) return;
+    const definition = state.map.trafficPaths.find(path => path.id === mover.id);
+    placeAt(node, point);
+    node.dataset.direction = String(mover.direction);
+    node.dataset.stopped = String(Boolean(mover.stopped));
+    node.dataset.heading =
+      mover.heading ?? definition?.headings?.[mover.pathIndex] ?? "";
+  });
+
+  nodes.friendNodes.forEach((node, number) => {
+    node.hidden = state.collected.includes(number);
+  });
+  placeAt(nodes.player, state.position);
+
+  nodes.guidanceNodes.forEach((node, index) => {
+    const point = view.guidance[index];
+    node.hidden = !point;
+    if (point) placeAt(node, point);
+  });
+
+  nodes.arrow.hidden = !view.targetArrow.visible;
+  if (view.targetArrow.visible) {
+    nodes.arrow.style.setProperty("--arrow-x", view.targetArrow.x);
+    nodes.arrow.style.setProperty("--arrow-y", view.targetArrow.y);
+    nodes.arrow.style.setProperty("--arrow-angle", `${view.targetArrow.angle}rad`);
+  }
   return root;
 }

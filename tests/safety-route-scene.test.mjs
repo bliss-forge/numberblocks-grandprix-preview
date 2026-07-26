@@ -1,7 +1,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createSafetyRouteState } from "../src/safety-route-model.mjs";
-import { renderSafetyRouteScene } from "../src/safety-route-scene.mjs";
+import {
+  renderSafetyRouteScene,
+  updateSafetyRouteScene
+} from "../src/safety-route-scene.mjs";
 
 class FakeStyle {
   constructor() {
@@ -28,14 +31,23 @@ class FakeElement {
     this.children.push(...children);
   }
 
+  replaceChildren(...children) {
+    this.children = [...children];
+  }
+
   setAttribute(name, value) {
     this.attributes.set(name, String(value));
+  }
+
+  removeAttribute(name) {
+    this.attributes.delete(name);
   }
 
   addEventListener() {}
 }
 
 const document = {
+  activeElement: null,
   createElement(tagName) {
     return new FakeElement(tagName);
   }
@@ -81,6 +93,7 @@ test("만난 친구는 지도에서 사라지고 상단 행렬에 표시된다",
   const scene = renderSafetyRouteScene(document, state);
 
   const mapNumbers = byClass(scene, "route-friend")
+    .filter(node => !node.hidden)
     .map(node => Number(node.dataset.number))
     .sort((a, b) => a - b);
   const collectedNumbers = byClass(scene, "collected-friend")
@@ -156,6 +169,25 @@ test("신호 단계를 색 외의 데이터로도 표시한다", () => {
   );
 });
 
+test("생성 장면은 위아래 횡단보도에 동기화된 보행 신호 표지를 그린다", () => {
+  const state = {
+    ...createSafetyRouteState("easy", { seed: 4 }),
+    signal: { phase: "pedestrian-go", elapsedMs: 0 }
+  };
+  const scene = renderSafetyRouteScene(document, state);
+  const markers = byClass(scene, "route-signal-marker");
+
+  assert.equal(markers.length, 2);
+  assert.deepEqual(markers.map(marker => marker.dataset.phase), [
+    "pedestrian-go",
+    "pedestrian-go"
+  ]);
+  assert.deepEqual(markers.map(marker => [
+    marker.style.values.get("--route-x"),
+    marker.style.values.get("--route-y")
+  ]), [["14", "4"], ["14", "11"]]);
+});
+
 test("장면은 좌우 동네와 중앙 2차선 구역을 표시한다", () => {
   const scene = renderSafetyRouteScene(
     document,
@@ -214,6 +246,16 @@ test("이동체는 방향과 정지 상태를 색 이외 데이터로 노출한�
   assert.ok(mover);
   assert.equal(mover.dataset.direction, "-1");
   assert.equal(mover.dataset.stopped, "true");
+});
+
+test("자동차 그림은 실제 이동 방향을 heading 속성으로 노출한다", () => {
+  const state = createSafetyRouteState("easy", { seed: 3 });
+  const cars = byClass(
+    renderSafetyRouteScene(document, state),
+    "route-car"
+  );
+
+  assert.deepEqual(cars.map(car => car.dataset.heading), ["north", "south"]);
 });
 
 test("지도가 입구 신호 표시를 제공하면 하나의 신호 상태를 두 곳에 그린다", () => {
@@ -282,4 +324,38 @@ test("장애물과 신호와 이동체 그림은 레이블이 있는 이미지�
     assert.equal(decoration.attributes.get("aria-hidden"), "true");
     assert.equal(decoration.attributes.has("role"), false);
   }
+});
+
+test("월드 틱 갱신 뒤에도 같은 장면과 방향 버튼이 유지되어 포커스를 잃지 않는다", () => {
+  const state = createSafetyRouteState("easy", { seed: 9 });
+  const scene = renderSafetyRouteScene(document, state, {
+    camera: { x: 0, y: 1, width: 7, height: 5 }
+  });
+  const world = byClass(scene, "safety-world")[0];
+  const button = descendants(scene).find(node => node.dataset.routeDirection === "right");
+  document.activeElement = button;
+
+  const updated = updateSafetyRouteScene(scene, {
+    ...state,
+    tick: 100,
+    signal: { phase: "pedestrian-go", elapsedMs: 0 },
+    movers: state.movers.map(mover => ({
+      ...mover,
+      pathIndex: mover.type === "car" ? 1 : mover.pathIndex
+    }))
+  }, {
+    camera: { x: 1, y: 1, width: 7, height: 5 }
+  });
+
+  assert.strictEqual(updated, scene);
+  assert.strictEqual(byClass(scene, "safety-world")[0], world);
+  assert.strictEqual(
+    descendants(scene).find(node => node.dataset.routeDirection === "right"),
+    button
+  );
+  assert.strictEqual(document.activeElement, button);
+  assert.equal(world.style.values.get("--camera-x"), "1");
+  assert.ok(byClass(scene, "route-signal-marker").every(
+    marker => marker.dataset.phase === "pedestrian-go"
+  ));
 });

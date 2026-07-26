@@ -111,17 +111,17 @@ test("길찾기는 숫자 답안 UI를 사용하지 않고 별을 잃지 않는�
   assert.doesNotMatch(app, /blocked[\s\S]{0,200}state\.stars\s*-=/);
 });
 
-test("길찾기 카메라는 첫 장면을 즉시 표시하고 이후 장면을 이전 위치에서 보간한다", () => {
+test("길찾기 카메라는 첫 장면만 마운트하고 이후 월드 틱은 같은 장면을 갱신한다", () => {
   assert.match(app, /cameraRendered:\s*false/);
   assert.match(app, /const previousCamera = state\.safetyView\.camera;/);
   assert.match(app, /const animateCamera = state\.safetyView\.cameraRendered;/);
   assert.match(
     app,
-    /const cameraFrames = \[\];[\s\S]*?const scene = renderSafetyRouteScene\([\s\S]*?cameraStart:\s*animateCamera\s*\?\s*previousCamera\s*:\s*undefined,[\s\S]*?scheduleFrame:\s*callback\s*=>\s*cameraFrames\.push\(callback\)/
+    /if\s*\(!state\.safetyView\.scene\)\s*\{[\s\S]*?state\.safetyView\.scene = renderSafetyRouteScene\([\s\S]*?dom\.stage\.replaceChildren\(state\.safetyView\.scene\);[\s\S]*?\}\s*else\s*\{[\s\S]*?updateSafetyRouteScene\(\s*state\.safetyView\.scene/
   );
   assert.match(
     app,
-    /dom\.stage\.replaceChildren\(scene\);\s*cameraFrames\.forEach\(callback\s*=>\s*requestAnimationFrame\(callback\)\);/
+    /scene:\s*null/
   );
   assert.match(app, /state\.safetyView\.cameraRendered = true;/);
   assert.match(app, /scheduleSafetyWorldTick\(nowMs\);[\s\S]*?},\s*100\);/);

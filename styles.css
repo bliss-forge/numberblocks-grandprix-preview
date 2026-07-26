@@ -2036,7 +2036,7 @@ body[data-mode="safety"] .stage-lights {
 
 .route-stop-line {
   z-index: 4;
-  border-right: 7px solid #fff;
+  border-bottom: 7px solid #fff;
 }
 
 .route-entrance {
@@ -2110,6 +2110,14 @@ body[data-mode="safety"] .stage-lights {
   background:
     repeating-linear-gradient(90deg, #ff7e83 0 18%, #fff 18% 34%),
     #45a8d8;
+  background-size: 100% 24%, auto;
+  background-repeat: no-repeat;
+}
+
+.route-place-shop {
+  background:
+    repeating-linear-gradient(90deg, #ffd45f 0 18%, #fff 18% 34%),
+    #4ba67c;
   background-size: 100% 24%, auto;
   background-repeat: no-repeat;
 }
@@ -2447,8 +2455,20 @@ body[data-mode="safety"] .stage-lights {
   content: "";
 }
 
-.route-car[data-direction="-1"] {
+.route-car[data-heading="north"] {
+  transform: rotate(0);
+}
+
+.route-car[data-heading="south"] {
   transform: rotate(180deg);
+}
+
+.route-car[data-heading="east"] {
+  transform: rotate(90deg);
+}
+
+.route-car[data-heading="west"] {
+  transform: rotate(-90deg);
 }
 
 .route-moving-rider {

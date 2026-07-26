@@ -49,7 +49,10 @@ import {
   directionForKey,
   safetyCueForEvent
 } from "./safety-route-controller.mjs";
-import { renderSafetyRouteScene } from "./safety-route-scene.mjs";
+import {
+  renderSafetyRouteScene,
+  updateSafetyRouteScene
+} from "./safety-route-scene.mjs";
 import {
   createGuidanceState,
   guidanceCells,
@@ -440,20 +443,30 @@ function renderSafetyRoute() {
     target,
     nowMs
   );
-  const cameraFrames = [];
-  const scene = renderSafetyRouteScene(document, state.safety, {
+  const sceneView = {
     camera: state.safetyView.camera,
     cameraStart: animateCamera ? previousCamera : undefined,
-    scheduleFrame: callback => cameraFrames.push(callback),
     guidance,
     targetArrow: targetArrow({
       viewport,
       camera: state.safetyView.camera,
       target
     })
-  });
-  dom.stage.replaceChildren(scene);
-  cameraFrames.forEach(callback => requestAnimationFrame(callback));
+  };
+  if (!state.safetyView.scene) {
+    state.safetyView.scene = renderSafetyRouteScene(
+      document,
+      state.safety,
+      sceneView
+    );
+    dom.stage.replaceChildren(state.safetyView.scene);
+  } else {
+    updateSafetyRouteScene(
+      state.safetyView.scene,
+      state.safety,
+      sceneView
+    );
+  }
   state.safetyView.cameraRendered = true;
 }
 
@@ -494,6 +507,7 @@ function startSafetyRoute() {
       height: 5
     },
     cameraRendered: false,
+    scene: null,
     guidance: createGuidanceState(performance.now()),
     lastMoveAt: 0,
     heldDirection: null,
