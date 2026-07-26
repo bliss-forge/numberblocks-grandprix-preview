@@ -201,6 +201,31 @@ test("다중 셀 장애물은 이동과 길찾기 및 지도 검증에 모두 �
   assert.ok(validation.errors.includes(`out of bounds: -1,${map.start.y}`));
 });
 
+test("장애물 발자국이 시작점을 덮으면 지도 검증이 거부한다", () => {
+  const map = structuredClone(createSafetyRouteState("easy", { seed: 3 }).map);
+  const hazard = map.hazards[0];
+  map.hazards[0] = {
+    ...hazard,
+    cells: [{ ...hazard }, { ...map.start }]
+  };
+
+  const validation = validateSafetyRouteMap(map);
+
+  assert.equal(validation.valid, false);
+  assert.ok(validation.errors.includes(`blocked route endpoint: ${pointKey(map.start)}`));
+});
+
+test("자동차 경로가 중앙 도로 밖으로 나가면 지도 검증이 거부한다", () => {
+  const map = structuredClone(createSafetyRouteState("challenge", { seed: 3 }).map);
+  const car = map.trafficPaths.find(path => path.type === "car");
+  car.points[0] = { x: 0, y: 0 };
+
+  const validation = validateSafetyRouteMap(map);
+
+  assert.equal(validation.valid, false);
+  assert.ok(validation.errors.includes("car outside road: 0,0"));
+});
+
 test("출입구는 첫 입력에 좌우 확인하고 다음 입력에 통과한다", () => {
   const state = createSafetyRouteState("steady", { seed: 9 });
   const entrance = state.map.entrances[0];

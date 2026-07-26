@@ -202,7 +202,17 @@ function inBounds(map, point) {
 export function findSafetyPath(map, start, goal) {
   const walkable = new Set(map.pedestrianCells.map(pointKey));
   const blockers = new Set(map.hazards.flatMap(hazardCells).map(pointKey));
-  const previous = new Map([[pointKey(start), null]]);
+  const startKey = pointKey(start);
+  const goalKey = pointKey(goal);
+  if (
+    !walkable.has(startKey) ||
+    !walkable.has(goalKey) ||
+    blockers.has(startKey) ||
+    blockers.has(goalKey)
+  ) {
+    return [];
+  }
+  const previous = new Map([[startKey, null]]);
   const queue = [{ ...start }];
 
   while (queue.length > 0) {
@@ -223,7 +233,7 @@ export function findSafetyPath(map, start, goal) {
     });
   }
 
-  if (!previous.has(pointKey(goal))) return [];
+  if (!previous.has(goalKey)) return [];
   const path = [];
   for (let point = goal; point; point = previous.get(pointKey(point))) {
     path.push({ x: point.x, y: point.y });
@@ -249,6 +259,13 @@ export function validateSafetyRouteMap(map) {
 
   const pedestrianKeys = new Set(pedestrianCells.map(pointKey));
   const crossingKeys = new Set(crossings.flatMap(crossing => crossing.cells).map(pointKey));
+  const roadKeys = new Set((map.roadCells ?? []).map(pointKey));
+  const hazardKeys = new Set(hazards.flatMap(hazardCells).map(pointKey));
+  [map.start, ...friends, map.goal].filter(Boolean).forEach(point => {
+    if (hazardKeys.has(pointKey(point))) {
+      errors.push(`blocked route endpoint: ${pointKey(point)}`);
+    }
+  });
   const pedestrianOccupied = [
     map.start,
     map.goal,
@@ -267,6 +284,7 @@ export function validateSafetyRouteMap(map) {
       if (!inBounds(map, point)) errors.push(`traffic out of bounds: ${pointKey(point)}`);
       const key = pointKey(point);
       if (path.type === "car") {
+        if (!roadKeys.has(key)) errors.push(`car outside road: ${key}`);
         if (pedestrianKeys.has(key) && !crossingKeys.has(key)) {
           errors.push(`traffic overlaps sidewalk: ${key}`);
         }
