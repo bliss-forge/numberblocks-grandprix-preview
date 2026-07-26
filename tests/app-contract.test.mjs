@@ -11,10 +11,10 @@ test("정적 셸이 스타일과 앱 모듈을 로드한다", () => {
   assert.match(html, /<script type="module" src="src\/app\.mjs"><\/script>/);
 });
 
-test("길찾기 레이아웃 수정본은 이전 CSS 캐시와 다른 주소를 사용한다", () => {
+test("두 동네 안전길 수정본은 이전 CSS 캐시와 다른 주소를 사용한다", () => {
   assert.match(
     html,
-    /<link rel="stylesheet" href="styles\.css\?v=20260724-safe-route-layout-fix">/
+    /<link rel="stylesheet" href="styles\.css\?v=20260726-two-neighborhood-route">/
   );
 });
 
