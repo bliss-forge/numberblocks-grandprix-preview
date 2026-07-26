@@ -142,3 +142,62 @@ test("보호 위치끼리도 겹치면 후보 검증이 실패한다", () => {
   assert.equal(result.valid, false);
   assert.ok(result.errors.includes("protected locations overlap: 0,3"));
 });
+
+test("생성 지도는 런타임 공용 필드와 보행 별칭 및 두 동네 장소를 제공한다", () => {
+  const map = createSafetyRouteMap("steady", { seed: 12 });
+
+  for (const field of [
+    "zones", "pedestrianCells", "roadCells", "crossings", "friends", "places",
+    "entrances", "hazards", "trafficPaths", "start", "goal", "signalGate"
+  ]) {
+    assert.ok(Object.hasOwn(map, field), `${field} missing`);
+  }
+  assert.strictEqual(map.walkable, map.pedestrianCells);
+  assert.ok(Object.isFrozen(map.walkable));
+  assert.deepEqual(map.places.map(place => place.type).sort(), ["home", "school"]);
+  assert.ok(map.places.every(place =>
+    Number.isInteger(place.x) && Number.isInteger(place.y) &&
+    place.x >= 0 && place.x < map.width && place.y >= 0 && place.y < map.height
+  ));
+  assert.ok(map.places.some(place => place.type === "home" && place.x < 14));
+  assert.ok(map.places.some(place => place.type === "school" && place.x >= 18));
+});
+
+test("교통 경로는 두 차선 자동차와 안전한 다점 순찰 경로를 함께 제공한다", () => {
+  const map = createSafetyRouteMap("challenge", { seed: 12 });
+  const crossings = new Set(map.crossings.flatMap(item => item.cells).map(({ x, y }) => `${x},${y}`));
+  const forbidden = new Set([
+    ...map.friends,
+    ...map.entrances,
+    ...map.hazards,
+    map.start,
+    map.goal
+  ].map(({ x, y }) => `${x},${y}`));
+  const cars = map.trafficPaths.filter(path => path.type === "car");
+
+  for (const path of map.trafficPaths) {
+    assert.equal(typeof path.id, "string");
+    assert.equal(typeof path.type, "string");
+    assert.ok(path.points.length >= 2);
+    assert.ok(Number.isInteger(path.stopIndex));
+    assert.ok(path.stopIndex >= 0 && path.stopIndex < path.points.length);
+  }
+  assert.equal(cars.length, 2);
+  for (const car of cars) {
+    const lane = map.lanes.find(item => item.id === car.laneId);
+    assert.ok(lane);
+    const laneCells = new Set(lane.cells.map(({ x, y }) => `${x},${y}`));
+    assert.ok(car.points.every(({ x, y }) => laneCells.has(`${x},${y}`)));
+  }
+  for (const patrol of map.patrols) {
+    const path = map.trafficPaths.find(item => item.id === patrol.id);
+    assert.ok(path);
+    assert.equal(path.type, patrol.type);
+    assert.ok(path.points.length >= 2);
+    assert.ok(Number.isInteger(path.stopIndex));
+    assert.ok(path.stopIndex >= 0 && path.stopIndex < path.points.length);
+    assert.ok(path.points.every(({ x, y }) =>
+      !crossings.has(`${x},${y}`) && !forbidden.has(`${x},${y}`)
+    ));
+  }
+});

@@ -46,10 +46,16 @@ const HAZARD_CANDIDATES = Object.freeze({
 
 const PATROL_CANDIDATES = Object.freeze({
   scooter: Object.freeze([
-    { x: 12, y: 3 }, { x: 12, y: 10 }, { x: 19, y: 4 }, { x: 19, y: 11 }
+    { x: 12, y: 3, points: [{ x: 11, y: 3 }, { x: 12, y: 3 }, { x: 13, y: 3 }] },
+    { x: 12, y: 10, points: [{ x: 11, y: 10 }, { x: 12, y: 10 }, { x: 13, y: 10 }] },
+    { x: 19, y: 4, points: [{ x: 18, y: 4 }, { x: 19, y: 4 }, { x: 20, y: 4 }] },
+    { x: 19, y: 11, points: [{ x: 18, y: 11 }, { x: 19, y: 11 }, { x: 20, y: 11 }] }
   ]),
   bicycle: Object.freeze([
-    { x: 11, y: 4 }, { x: 20, y: 3 }, { x: 20, y: 10 }, { x: 27, y: 11 }
+    { x: 8, y: 10, points: [{ x: 8, y: 10 }, { x: 9, y: 10 }, { x: 10, y: 10 }] },
+    { x: 8, y: 10, points: [{ x: 8, y: 10 }, { x: 9, y: 10 }, { x: 10, y: 10 }] },
+    { x: 24, y: 4, points: [{ x: 24, y: 4 }, { x: 25, y: 4 }, { x: 26, y: 4 }] },
+    { x: 24, y: 11, points: [{ x: 24, y: 11 }, { x: 25, y: 11 }, { x: 26, y: 11 }] }
   ])
 });
 
@@ -155,6 +161,25 @@ function fixedGeometry() {
   return { sidewalkBands, alleys, crossings, roadCells, lanes, pedestrianCells };
 }
 
+function trafficPathsFor(lanes, patrols) {
+  return [
+    ...lanes.map(lane => ({
+      id: `${lane.id}-car`,
+      type: "car",
+      laneId: lane.id,
+      points: lane.cells.map(point => ({ ...point })),
+      stopIndex: Math.floor(lane.cells.length / 2)
+    })),
+    ...patrols.map(patrol => ({
+      id: patrol.id,
+      type: patrol.type,
+      patrolId: patrol.id,
+      points: patrol.points.map(point => ({ ...point })),
+      stopIndex: 0
+    }))
+  ];
+}
+
 function assembleCandidate(difficulty, random, layoutSource = "generated", seed = 0) {
   const normalized = normalizeDifficulty(difficulty);
   const geometry = fixedGeometry();
@@ -187,10 +212,18 @@ function assembleCandidate(difficulty, random, layoutSource = "generated", seed 
     return { ...hazard, id: `hazard-${index + 1}`, type };
   });
   const patrols = content.patrols.map((type, index) => {
-    const patrol = selectCandidates(PATROL_CANDIDATES[type], 1, random, forbidden)[0];
-    forbidden.add(pointKey(patrol));
+    const candidates = PATROL_CANDIDATES[type].filter(candidate =>
+      candidate.points.every(point => !forbidden.has(pointKey(point)))
+    );
+    const patrol = selectCandidates(candidates, 1, random, forbidden)[0];
+    patrol.points.forEach(point => forbidden.add(pointKey(point)));
     return { ...patrol, id: `patrol-${index + 1}`, type, moving: true };
   });
+  const places = [
+    { id: "left-home", type: "home", x: 1, y: 1, label: "우리 집" },
+    { id: "right-school", type: "school", x: 30, y: 14, label: "학교" }
+  ];
+  const trafficPaths = trafficPathsFor(geometry.lanes, patrols);
 
   return {
     difficulty: normalized,
@@ -204,6 +237,7 @@ function assembleCandidate(difficulty, random, layoutSource = "generated", seed 
       right: { ...ZONES.right }
     },
     ...geometry,
+    walkable: geometry.pedestrianCells,
     start,
     goal,
     signalGate: { x: ROAD.x, y: CROSSING_ROWS[0], signalId: SHARED_SIGNAL_ID },
@@ -214,8 +248,10 @@ function assembleCandidate(difficulty, random, layoutSource = "generated", seed 
     }],
     entrances,
     friends,
+    places,
     hazards,
-    patrols
+    patrols,
+    trafficPaths
   };
 }
 
@@ -303,6 +339,23 @@ export function validateCandidateLayout(map) {
   if (walkable.size === 0) errors.push("pedestrian cells are required");
   (map.pedestrianCells ?? []).forEach(point => {
     if (!inBounds(point)) errors.push(`pedestrian out of bounds: ${pointKey(point)}`);
+  });
+  if (map.walkable !== map.pedestrianCells) {
+    errors.push("walkable must alias pedestrian cells");
+  }
+
+  const places = Array.isArray(map.places) ? map.places : [];
+  if (places.length !== 2 ||
+    JSON.stringify(places.map(place => place.type).sort()) !==
+      JSON.stringify(["home", "school"])) {
+    errors.push("home and school places are required");
+  }
+  places.forEach(place => {
+    if (!inBounds(place)) errors.push(`place out of bounds: ${place?.id ?? "unknown"}`);
+    if ((place.type === "home" && place.x >= ROAD.x) ||
+      (place.type === "school" && place.x < 18)) {
+      errors.push(`place in wrong neighborhood: ${place.id ?? place.type}`);
+    }
   });
 
   const alleys = map.alleys ?? [];
@@ -439,6 +492,68 @@ export function validateCandidateLayout(map) {
     const onAlley = alleys.some(alley => item.x === alley.x &&
       item.y >= alley.y && item.y < alley.y + alley.height);
     if (!onAlley) errors.push(`construction must be on an alley: ${pointKey(item)}`);
+  });
+
+  const trafficPaths = Array.isArray(map.trafficPaths) ? map.trafficPaths : [];
+  const pathIds = new Set();
+  trafficPaths.forEach(path => {
+    if (!path || typeof path.id !== "string" || typeof path.type !== "string" ||
+      !Array.isArray(path.points) || path.points.length < 2 ||
+      !Number.isInteger(path.stopIndex) || path.stopIndex < 0 ||
+      path.stopIndex >= path.points.length) {
+      errors.push(`invalid traffic path: ${path?.id ?? "unknown"}`);
+      return;
+    }
+    if (pathIds.has(path.id)) errors.push(`duplicate traffic path: ${path.id}`);
+    pathIds.add(path.id);
+    path.points.forEach(point => {
+      if (!inBounds(point)) errors.push(`traffic path out of bounds: ${path.id}`);
+    });
+  });
+  if (trafficPaths.length !== lanes.length + (map.patrols ?? []).length) {
+    errors.push("traffic paths must include cars and patrols");
+  }
+  lanes.forEach(lane => {
+    const lanePoints = Array.isArray(lane?.cells) ? lane.cells : [];
+    const expectedPoints = new Set(lanePoints.map(pointKey));
+    const cars = trafficPaths.filter(path => path.type === "car" && path.laneId === lane.id);
+    if (cars.length !== 1) {
+      errors.push(`missing car path for lane: ${lane.id}`);
+      return;
+    }
+    const points = cars[0].points ?? [];
+    const actualPoints = new Set(points.filter(inBounds).map(pointKey));
+    if (points.length !== expectedPoints.size || actualPoints.size !== expectedPoints.size ||
+      [...expectedPoints].some(key => !actualPoints.has(key))) {
+      errors.push(`car path must cover assigned lane: ${lane.id}`);
+    }
+  });
+  const patrolPathForbidden = new Set([
+    ...crossingCells,
+    ...(map.friends ?? []),
+    ...(map.entrances ?? []),
+    ...(map.hazards ?? []),
+    map.start,
+    map.goal
+  ].filter(Boolean).map(pointKey));
+  (map.patrols ?? []).forEach(patrol => {
+    const paths = trafficPaths.filter(path =>
+      path.id === patrol.id && path.type === patrol.type && path.patrolId === patrol.id
+    );
+    if (paths.length !== 1) {
+      errors.push(`missing patrol path: ${patrol.id}`);
+      return;
+    }
+    const points = paths[0].points ?? [];
+    const sharesBand = sidewalkBands.some(band => points.every(point =>
+      point.x >= band.x && point.x < band.x + band.width &&
+      point.y >= band.y && point.y < band.y + band.height
+    ));
+    if (!sharesBand || points.some(point =>
+      !walkable.has(pointKey(point)) || patrolPathForbidden.has(pointKey(point))
+    )) {
+      errors.push(`unsafe patrol path: ${patrol.id}`);
+    }
   });
 
   const protectedCells = new Set(crossingCells);
