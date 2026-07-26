@@ -77,6 +77,31 @@ test("안전 장애물은 실패 대신 이유와 행동을 설명한다", () =>
   );
 });
 
+test("왼쪽 친구를 먼저 만나도록 횡단을 안내한다", () => {
+  assert.deepEqual(
+    safetyCueForEvent({ type: "blocked", reason: "left-friends-first" }, 5),
+    {
+      message: "먼저 이 동네의 5 친구를 만나고 횡단보도로 가요!",
+      voiceKey: "safety-next-5",
+      tone: "guide"
+    }
+  );
+});
+
+test("움직이는 자전거와 킥보드는 기다리거나 옆줄로 피하라고 안내한다", () => {
+  const cue = safetyCueForEvent(
+    {
+      type: "blocked",
+      reason: "moving-rider",
+      moverType: "bicycle"
+    },
+    6
+  );
+
+  assert.match(cue.message, /기다리|옆줄/);
+  assert.equal(cue.voiceKey, "safety-bicycle");
+});
+
 test("순서와 완주 안내를 제공한다", () => {
   assert.deepEqual(
     safetyCueForEvent({ type: "wrong-friend", number: 7 }, 4),

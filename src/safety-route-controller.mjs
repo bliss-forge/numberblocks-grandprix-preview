@@ -81,6 +81,25 @@ export function safetyCueForEvent(event, nextFriend) {
   }
 
   if (event.type === "blocked") {
+    if (event.reason === "left-friends-first") {
+      return {
+        message: `먼저 이 동네의 ${nextFriend} 친구를 만나고 횡단보도로 가요!`,
+        voiceKey: `safety-next-${nextFriend}`,
+        tone: "guide"
+      };
+    }
+
+    if (event.reason === "moving-rider") {
+      const isBicycle = event.moverType === "bicycle";
+      return {
+        message: isBicycle
+          ? "움직이는 자전거예요. 잠깐 기다리거나 옆줄로 피해 가요!"
+          : "움직이는 킥보드예요. 잠깐 기다리거나 옆줄로 피해 가요!",
+        voiceKey: isBicycle ? "safety-bicycle" : "safety-scooter",
+        tone: "safety"
+      };
+    }
+
     const cue = BLOCKED_CUES[event.reason] ?? BLOCKED_CUES.wall;
     return { ...cue, tone: "safety" };
   }

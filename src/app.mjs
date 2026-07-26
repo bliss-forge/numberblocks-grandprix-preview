@@ -483,7 +483,8 @@ function startSafetyRoute() {
   state.round += 1;
   state.problem = null;
   state.buffer = "";
-  state.safety = createSafetyRouteState(state.difficulty);
+  const seed = Math.floor(Math.random() * 0x100000000);
+  state.safety = createSafetyRouteState(state.difficulty, { seed });
   const mobile = window.innerWidth <= 640;
   state.safetyView = {
     camera: {
