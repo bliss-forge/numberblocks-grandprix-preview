@@ -81,7 +81,7 @@ test("방향 버튼은 터치하기 충분하고 모바일·낮은 가로 화면
   );
   assert.match(
     css,
-    /\.route-pad button\s*\{[^}]*min-width:\s*48px;[^}]*min-height:\s*48px;/s
+    /\.route-pad button\s*\{[^}]*min-width:\s*44px;[^}]*min-height:\s*44px;/s
   );
   assert.match(
     css,
@@ -93,6 +93,15 @@ test("방향 버튼은 터치하기 충분하고 모바일·낮은 가로 화면
   );
   assert.doesNotMatch(
     css,
-    /@media\s*\(max-width:\s*900px\)\s+and\s+\(max-height:\s*500px\)[\s\S]*?\.route-pad button\s*\{[^}]*min-(?:width|height):\s*(?:4[0-7]|[0-3][0-9])px;/s
+    /@media\s*\(max-width:\s*900px\)\s+and\s+\(max-height:\s*500px\)[\s\S]*?\.route-pad button\s*\{[^}]*min-(?:width|height):\s*(?:4[0-3]|[0-3][0-9])px;/s
   );
+});
+
+test("PC 안전길은 7×5 지도를 크게 쓰고 방향키는 기본 상태에서 절제한다", () => {
+  assert.match(css, /body\[data-mode="safety"\]\s+#game\s*\{[^}]*padding:\s*58px\s+1\.5vw\s+8px;/s);
+  assert.match(css, /body\[data-mode="safety"\]\s+\.stage-frame\s*\{[^}]*width:\s*min\(96vw,\s*1600px\);/s);
+  assert.match(css, /\.safety-viewport\s*\{[^}]*calc\(94vw\s*\/\s*var\(--viewport-cols,\s*7\)\)/s);
+  assert.match(css, /\.route-pad\s*\{[^}]*opacity:\s*\.58;/s);
+  assert.match(css, /\.route-pad:focus-within,[\s\S]*?\.route-pad:hover\s*\{[^}]*opacity:\s*1;/s);
+  assert.match(css, /\.route-pad button\s*\{[^}]*min-width:\s*44px;[^}]*min-height:\s*44px;/s);
 });

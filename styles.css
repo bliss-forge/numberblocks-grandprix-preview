@@ -1755,8 +1755,8 @@ body[data-state="celebrating"] .answer-box {
 
 body[data-mode="safety"] #game {
   grid-template-rows: auto minmax(0, 1fr);
-  gap: 8px;
-  padding: 74px 2vw 14px;
+  gap: 6px;
+  padding: 58px 1.5vw 8px;
 }
 
 body[data-mode="safety"] .answer-dock,
@@ -1766,7 +1766,8 @@ body[data-mode="safety"] .game-keyboard-note {
 }
 
 body[data-mode="safety"] .stage-frame {
-  width: min(96vw, 1280px);
+  width: min(96vw, 1600px);
+  border-radius: 26px;
   background: #b9e992;
 }
 
@@ -1834,8 +1835,8 @@ body[data-mode="safety"] .stage-lights {
 
 .safety-viewport {
   --route-cell-size: min(
-    calc(92vw / var(--viewport-cols, 7)),
-    calc((100vh - 250px) / var(--viewport-rows, 5))
+    calc(94vw / var(--viewport-cols, 7)),
+    calc((100vh - 150px) / var(--viewport-rows, 5))
   );
   position: relative;
   width: min(
@@ -2503,27 +2504,34 @@ body[data-mode="safety"] .stage-lights {
   right: 14px;
   bottom: 12px;
   display: grid;
-  grid-template-columns: repeat(3, 48px);
-  grid-template-rows: repeat(2, 48px);
-  gap: 5px;
-  padding: 7px;
+  grid-template-columns: repeat(3, 44px);
+  grid-template-rows: repeat(2, 44px);
+  gap: 3px;
+  padding: 4px;
   border: 3px solid #fff;
   border-radius: 18px;
   background: rgba(255, 253, 246, .88);
   box-shadow: 0 5px 0 rgba(37, 52, 93, .16);
+  opacity: .58;
+  transition: opacity 120ms ease-out;
+}
+
+.route-pad:focus-within,
+.route-pad:hover {
+  opacity: 1;
 }
 
 .route-pad button {
   display: grid;
   place-items: center;
-  min-width: 48px;
-  min-height: 48px;
+  min-width: 44px;
+  min-height: 44px;
   padding: 0;
   border: 0;
   border-radius: 13px;
   color: #fff;
   font-family: var(--display-font);
-  font-size: 28px;
+  font-size: 23px;
   font-weight: 900;
   background: var(--blue);
   box-shadow: inset 0 -5px var(--blue-deep);
