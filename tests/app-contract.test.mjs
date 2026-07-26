@@ -105,6 +105,22 @@ test("길찾기는 숫자 답안 UI를 사용하지 않고 별을 잃지 않는�
   assert.doesNotMatch(app, /blocked[\s\S]{0,200}state\.stars\s*-=/);
 });
 
+test("길찾기 카메라는 첫 장면을 즉시 표시하고 이후 장면을 이전 위치에서 보간한다", () => {
+  assert.match(app, /cameraRendered:\s*false/);
+  assert.match(app, /const previousCamera = state\.safetyView\.camera;/);
+  assert.match(app, /const animateCamera = state\.safetyView\.cameraRendered;/);
+  assert.match(
+    app,
+    /const cameraFrames = \[\];[\s\S]*?const scene = renderSafetyRouteScene\([\s\S]*?cameraStart:\s*animateCamera\s*\?\s*previousCamera\s*:\s*undefined,[\s\S]*?scheduleFrame:\s*callback\s*=>\s*cameraFrames\.push\(callback\)/
+  );
+  assert.match(
+    app,
+    /dom\.stage\.replaceChildren\(scene\);\s*cameraFrames\.forEach\(callback\s*=>\s*requestAnimationFrame\(callback\)\);/
+  );
+  assert.match(app, /state\.safetyView\.cameraRendered = true;/);
+  assert.match(app, /scheduleSafetyWorldTick\(nowMs\);[\s\S]*?},\s*100\);/);
+});
+
 test("홈에는 7~9 바로가기 키가 있는 세 난이도 버튼과 도전 세기 안내가 있다", () => {
   assert.match(html, /id="difficulty-picker"/);
   assert.equal((html.match(/class="difficulty-button"/g) ?? []).length, 3);

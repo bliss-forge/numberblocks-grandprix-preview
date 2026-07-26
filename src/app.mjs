@@ -421,6 +421,8 @@ function renderSafetyRoute() {
     state.safety.map.friends.find(
       friend => friend.number === state.safety.nextFriend
     ) ?? state.safety.map.goal;
+  const previousCamera = state.safetyView.camera;
+  const animateCamera = state.safetyView.cameraRendered;
   state.safetyView.camera = {
     ...cameraOffset({
       world: state.safety.map,
@@ -438,17 +440,21 @@ function renderSafetyRoute() {
     target,
     nowMs
   );
-  dom.stage.replaceChildren(
-    renderSafetyRouteScene(document, state.safety, {
+  const cameraFrames = [];
+  const scene = renderSafetyRouteScene(document, state.safety, {
+    camera: state.safetyView.camera,
+    cameraStart: animateCamera ? previousCamera : undefined,
+    scheduleFrame: callback => cameraFrames.push(callback),
+    guidance,
+    targetArrow: targetArrow({
+      viewport,
       camera: state.safetyView.camera,
-      guidance,
-      targetArrow: targetArrow({
-        viewport,
-        camera: state.safetyView.camera,
-        target
-      })
+      target
     })
-  );
+  });
+  dom.stage.replaceChildren(scene);
+  cameraFrames.forEach(callback => requestAnimationFrame(callback));
+  state.safetyView.cameraRendered = true;
 }
 
 function scheduleSafetyWorldTick(previousMs = performance.now()) {
@@ -486,6 +492,7 @@ function startSafetyRoute() {
       width: mobile ? 5 : 7,
       height: 5
     },
+    cameraRendered: false,
     guidance: createGuidanceState(performance.now()),
     lastMoveAt: 0,
     heldDirection: null,

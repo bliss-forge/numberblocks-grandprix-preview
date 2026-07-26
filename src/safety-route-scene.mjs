@@ -28,6 +28,11 @@ function placeAt(node, point) {
   return node;
 }
 
+function setWorldCamera(world, camera) {
+  world.style.setProperty("--camera-x", camera.x);
+  world.style.setProperty("--camera-y", camera.y);
+}
+
 function characterImage(document, number, className) {
   const image = document.createElement("img");
   image.className = className;
@@ -67,6 +72,7 @@ function signalNode(document, phase, className, point, accessible = false) {
   signal.className = className;
   signal.dataset.phase = phase;
   if (accessible) {
+    signal.setAttribute("role", "img");
     signal.setAttribute(
       "aria-label",
       phase === "pedestrian-go" ? "초록 신호" : "빨간 신호"
@@ -148,8 +154,18 @@ export function renderSafetyRouteScene(document, state, requestedView = {}) {
   world.className = "safety-world";
   world.style.setProperty("--world-cols", state.map.width);
   world.style.setProperty("--world-rows", state.map.height);
-  world.style.setProperty("--camera-x", view.camera.x);
-  world.style.setProperty("--camera-y", view.camera.y);
+  const cameraStart = requestedView.cameraStart ?? view.camera;
+  setWorldCamera(world, cameraStart);
+
+  if (
+    requestedView.cameraStart &&
+    typeof requestedView.scheduleFrame === "function" &&
+    (cameraStart.x !== view.camera.x || cameraStart.y !== view.camera.y)
+  ) {
+    requestedView.scheduleFrame(() => {
+      setWorldCamera(world, view.camera);
+    });
+  }
 
   for (const name of ["left", "road", "right"]) {
     const zone = state.map.zones?.[name];
@@ -233,6 +249,7 @@ export function renderSafetyRouteScene(document, state, requestedView = {}) {
       "aria-label",
       HAZARD_LABELS[hazard.type] ?? hazard.type
     );
+    node.setAttribute("role", "img");
     world.append(placeAt(node, hazard));
   });
 
@@ -251,6 +268,7 @@ export function renderSafetyRouteScene(document, state, requestedView = {}) {
       "aria-label",
       HAZARD_LABELS[mover.type] ?? mover.type
     );
+    node.setAttribute("role", "img");
     world.append(placeAt(node, point));
   });
 

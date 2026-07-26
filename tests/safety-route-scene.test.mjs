@@ -234,3 +234,52 @@ test("지도가 입구 신호 표시를 제공하면 하나의 신호 상태를 
     ["vehicle-go", "vehicle-go"]
   );
 });
+
+test("새로 삽입한 월드는 이전 카메라에서 시작해 다음 프레임에 같은 노드를 목표로 옮긴다", () => {
+  const frames = [];
+  const scene = renderSafetyRouteScene(
+    document,
+    createSafetyRouteState("easy", { seed: 5 }),
+    {
+      camera: { x: 8, y: 6, width: 7, height: 5 },
+      cameraStart: { x: 5, y: 6 },
+      scheduleFrame: callback => frames.push(callback)
+    }
+  );
+  const stage = document.createElement("div");
+  stage.append(scene);
+  const world = byClass(stage, "safety-world")[0];
+
+  assert.equal(world.style.values.get("--camera-x"), "5");
+  assert.equal(world.style.values.get("--camera-y"), "6");
+  assert.equal(frames.length, 1);
+
+  frames[0]();
+
+  assert.equal(byClass(stage, "safety-world")[0], world);
+  assert.equal(world.style.values.get("--camera-x"), "8");
+  assert.equal(world.style.values.get("--camera-y"), "6");
+});
+
+test("장애물과 신호와 이동체 그림은 레이블이 있는 이미지로 노출한다", () => {
+  const state = structuredClone(
+    createSafetyRouteState("challenge", { seed: 6 })
+  );
+  state.map.signalMarkers = [{ x: 13, y: 3 }, { x: 18, y: 3 }];
+  const scene = renderSafetyRouteScene(document, state);
+
+  for (const illustration of [
+    ...byClass(scene, "route-hazard"),
+    ...byClass(scene, "route-signal")
+  ]) {
+    assert.equal(illustration.attributes.get("role"), "img");
+    assert.ok(illustration.attributes.get("aria-label"));
+  }
+  for (const decoration of [
+    ...byClass(scene, "route-hazard-footprint"),
+    ...byClass(scene, "route-signal-marker")
+  ]) {
+    assert.equal(decoration.attributes.get("aria-hidden"), "true");
+    assert.equal(decoration.attributes.has("role"), false);
+  }
+});
