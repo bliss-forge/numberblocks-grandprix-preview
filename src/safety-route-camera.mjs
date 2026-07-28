@@ -1,26 +1,18 @@
 const clamp = (value, minimum, maximum) =>
   Math.min(maximum, Math.max(minimum, value));
 
-export function cameraOffset({ world, viewport, player, previous }) {
-  let x = previous.x;
-  let y = previous.y;
-  const localX = player.x - x;
-  const localY = player.y - y;
-
-  if (localX > viewport.width - 2) {
-    x = player.x - (viewport.width - 2);
-  } else if (localX < 1) {
-    x = player.x - 1;
-  }
-  if (localY > viewport.height - 2) {
-    y = player.y - (viewport.height - 2);
-  } else if (localY < 1) {
-    y = player.y - 1;
-  }
-
+export function cameraOffset({ world, viewport, player }) {
   return {
-    x: clamp(x, 0, Math.max(0, world.width - viewport.width)),
-    y: clamp(y, 0, Math.max(0, world.height - viewport.height))
+    x: clamp(
+      player.x - Math.floor(viewport.width / 2),
+      0,
+      Math.max(0, world.width - viewport.width)
+    ),
+    y: clamp(
+      player.y - Math.floor(viewport.height / 2),
+      0,
+      Math.max(0, world.height - viewport.height)
+    )
   };
 }
 

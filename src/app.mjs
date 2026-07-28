@@ -49,7 +49,10 @@ import {
   directionForKey,
   safetyCueForEvent
 } from "./safety-route-controller.mjs";
-import { renderSafetyRouteScene } from "./safety-route-scene.mjs";
+import {
+  renderSafetyRouteScene,
+  updateSafetyRouteScene
+} from "./safety-route-scene.mjs";
 import {
   createGuidanceState,
   guidanceCells,
@@ -421,6 +424,8 @@ function renderSafetyRoute() {
     state.safety.map.friends.find(
       friend => friend.number === state.safety.nextFriend
     ) ?? state.safety.map.goal;
+  const previousCamera = state.safetyView.camera;
+  const animateCamera = state.safetyView.cameraRendered;
   state.safetyView.camera = {
     ...cameraOffset({
       world: state.safety.map,
@@ -438,17 +443,31 @@ function renderSafetyRoute() {
     target,
     nowMs
   );
-  dom.stage.replaceChildren(
-    renderSafetyRouteScene(document, state.safety, {
+  const sceneView = {
+    camera: state.safetyView.camera,
+    cameraStart: animateCamera ? previousCamera : undefined,
+    guidance,
+    targetArrow: targetArrow({
+      viewport,
       camera: state.safetyView.camera,
-      guidance,
-      targetArrow: targetArrow({
-        viewport,
-        camera: state.safetyView.camera,
-        target
-      })
+      target
     })
-  );
+  };
+  if (!state.safetyView.scene) {
+    state.safetyView.scene = renderSafetyRouteScene(
+      document,
+      state.safety,
+      sceneView
+    );
+    dom.stage.replaceChildren(state.safetyView.scene);
+  } else {
+    updateSafetyRouteScene(
+      state.safetyView.scene,
+      state.safety,
+      sceneView
+    );
+  }
+  state.safetyView.cameraRendered = true;
 }
 
 function scheduleSafetyWorldTick(previousMs = performance.now()) {
@@ -477,7 +496,8 @@ function startSafetyRoute() {
   state.round += 1;
   state.problem = null;
   state.buffer = "";
-  state.safety = createSafetyRouteState(state.difficulty);
+  const seed = Math.floor(Math.random() * 0x100000000);
+  state.safety = createSafetyRouteState(state.difficulty, { seed });
   const mobile = window.innerWidth <= 640;
   state.safetyView = {
     camera: {
@@ -486,6 +506,8 @@ function startSafetyRoute() {
       width: mobile ? 5 : 7,
       height: 5
     },
+    cameraRendered: false,
+    scene: null,
     guidance: createGuidanceState(performance.now()),
     lastMoveAt: 0,
     heldDirection: null,

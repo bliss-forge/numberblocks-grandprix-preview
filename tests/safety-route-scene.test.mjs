@@ -1,7 +1,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createSafetyRouteState } from "../src/safety-route-model.mjs";
-import { renderSafetyRouteScene } from "../src/safety-route-scene.mjs";
+import {
+  renderSafetyRouteScene,
+  updateSafetyRouteScene
+} from "../src/safety-route-scene.mjs";
 
 class FakeStyle {
   constructor() {
@@ -28,14 +31,23 @@ class FakeElement {
     this.children.push(...children);
   }
 
+  replaceChildren(...children) {
+    this.children = [...children];
+  }
+
   setAttribute(name, value) {
     this.attributes.set(name, String(value));
+  }
+
+  removeAttribute(name) {
+    this.attributes.delete(name);
   }
 
   addEventListener() {}
 }
 
 const document = {
+  activeElement: null,
   createElement(tagName) {
     return new FakeElement(tagName);
   }
@@ -81,6 +93,7 @@ test("만난 친구는 지도에서 사라지고 상단 행렬에 표시된다",
   const scene = renderSafetyRouteScene(document, state);
 
   const mapNumbers = byClass(scene, "route-friend")
+    .filter(node => !node.hidden)
     .map(node => Number(node.dataset.number))
     .sort((a, b) => a - b);
   const collectedNumbers = byClass(scene, "collected-friend")
@@ -90,7 +103,7 @@ test("만난 친구는 지도에서 사라지고 상단 행렬에 표시된다",
   assert.deepEqual(collectedNumbers, [1, 2, 3]);
 });
 
-test("난이도별 장애물과 움직이는 교통 요소를 장면에 표시한다", () => {
+test("난이도별 장애물과 두 차선 자동차를 장면에 표시한다", () => {
   const steady = renderSafetyRouteScene(
     document,
     createSafetyRouteState("steady")
@@ -104,7 +117,36 @@ test("난이도별 장애물과 움직이는 교통 요소를 장면에 표시�
     createSafetyRouteState("challenge")
   );
   assert.equal(byClass(challenge, "route-bicycle").length, 1);
-  assert.equal(byClass(challenge, "route-car").length, 1);
+  assert.equal(byClass(challenge, "route-car").length, 2);
+});
+
+test("킥보드와 자전거에는 헬멧을 쓴 탑승자가 함께 표시된다", () => {
+  const scene = renderSafetyRouteScene(
+    document,
+    createSafetyRouteState("challenge", { seed: 3 })
+  );
+  for (const [vehicleClass, label] of [
+    ["route-scooter", "헬멧을 쓴 어린이의 킥보드"],
+    ["route-bicycle", "헬멧을 쓴 어린이의 자전거"]
+  ]) {
+    const vehicle = byClass(scene, vehicleClass)[0];
+    const directRiders = vehicle.children.filter(child =>
+      child.className.split(/\s+/).includes("route-rider-person")
+    );
+    assert.equal(directRiders.length, 1);
+    assert.equal(directRiders[0].attributes.get("aria-hidden"), "true");
+    assert.equal(vehicle.attributes.get("aria-label"), label);
+  }
+  for (const [hazardClass, label] of [
+    ["route-manhole", "닫힌 맨홀 덮개"],
+    ["route-construction", "공사 차단봉"],
+    ["route-car", "도로 자동차"]
+  ]) {
+    assert.equal(
+      byClass(scene, hazardClass)[0].attributes.get("aria-label"),
+      label
+    );
+  }
 });
 
 test("장면은 보도와 차도를 별도 레이어로 만들고 카메라 값을 노출한다", () => {
@@ -133,13 +175,76 @@ test("장면은 보도와 차도를 별도 레이어로 만들고 카메라 값�
   assert.equal(world.style.values.get("--camera-y"), "2");
 });
 
+test("장면은 차선과 보행 공간의 역할을 DOM에 표시한다", () => {
+  const state = createSafetyRouteState("easy", { seed: 14 });
+  const scene = renderSafetyRouteScene(
+    document,
+    state
+  );
+  const roadMetadata = {
+    14: { lane: "northbound-lane", roadPosition: "outer-left" },
+    15: { lane: "northbound-lane", roadPosition: "center-left" },
+    16: { lane: "southbound-lane", roadPosition: "center-right" },
+    17: { lane: "southbound-lane", roadPosition: "outer-right" }
+  };
+  const alleyKeys = new Set(state.map.alleys.flatMap(alley =>
+    Array.from({ length: alley.width * alley.height }, (_, index) =>
+      `${alley.x + (index % alley.width)},${alley.y + Math.floor(index / alley.width)}`
+    )
+  ));
+  const crossingKeys = new Set(state.map.crossings.flatMap(crossing =>
+    crossing.cells.map(cell => `${cell.x},${cell.y}`)
+  ));
+
+  for (const node of byClass(scene, "route-road")) {
+    const x = Number(node.style.values.get("--route-x")) - 1;
+    const y = Number(node.style.values.get("--route-y")) - 1;
+    assert.equal(node.dataset.lane, roadMetadata[x].lane, `lane for ${x},${y}`);
+    assert.equal(
+      node.dataset.roadPosition,
+      roadMetadata[x].roadPosition,
+      `road position for ${x},${y}`
+    );
+  }
+  assert.equal(byClass(scene, "route-crosswalk").length, 16);
+  assert.ok(byClass(scene, "route-crosswalk").every(
+    node => node.dataset.crossingId
+  ));
+  const sidewalkNodes = byClass(scene, "route-sidewalk");
+  const expectedSidewalkKeys = state.map.pedestrianCells
+    .map(cell => `${cell.x},${cell.y}`)
+    .filter(key => !crossingKeys.has(key))
+    .sort();
+  assert.deepEqual(
+    sidewalkNodes.map(node =>
+      `${Number(node.style.values.get("--route-x")) - 1},${Number(node.style.values.get("--route-y")) - 1}`
+    ).sort(),
+    expectedSidewalkKeys
+  );
+  for (const node of sidewalkNodes) {
+    const x = Number(node.style.values.get("--route-x")) - 1;
+    const y = Number(node.style.values.get("--route-y")) - 1;
+    const isAlley = alleyKeys.has(`${x},${y}`);
+    assert.equal(
+      node.className.split(/\s+/).includes("route-alley"),
+      isAlley,
+      `alley class for ${x},${y}`
+    );
+    assert.equal(
+      node.className.split(/\s+/).includes("route-walkway"),
+      !isAlley,
+      `walkway class for ${x},${y}`
+    );
+  }
+});
+
 test("신호 단계를 색 외의 데이터로도 표시한다", () => {
   const vehicle = renderSafetyRouteScene(
     document,
     createSafetyRouteState("easy")
   );
   assert.equal(
-    byClass(vehicle, "route-signal")[0].dataset.phase,
+    byClass(vehicle, "route-signal-marker")[0].dataset.phase,
     "vehicle-go"
   );
 
@@ -151,7 +256,211 @@ test("신호 단계를 색 외의 데이터로도 표시한다", () => {
     }
   );
   assert.equal(
-    byClass(pedestrian, "route-signal")[0].dataset.phase,
+    byClass(pedestrian, "route-signal-marker")[0].dataset.phase,
     "pedestrian-go"
   );
+});
+
+test("생성 장면은 위아래 횡단보도에 동기화된 보행 신호 표지를 그린다", () => {
+  const state = {
+    ...createSafetyRouteState("easy", { seed: 4 }),
+    signal: { phase: "pedestrian-go", elapsedMs: 0 }
+  };
+  const scene = renderSafetyRouteScene(document, state);
+  const markers = byClass(scene, "route-signal-marker");
+
+  assert.equal(markers.length, 4);
+  assert.deepEqual(markers.map(marker => ({
+    crossingId: marker.dataset.crossingId,
+    side: marker.dataset.side,
+    x: marker.style.values.get("--route-x"),
+    y: marker.style.values.get("--route-y")
+  })), [
+    { crossingId: "crossing-1", side: "left", x: "14", y: "4" },
+    { crossingId: "crossing-1", side: "right", x: "19", y: "5" },
+    { crossingId: "crossing-2", side: "left", x: "14", y: "11" },
+    { crossingId: "crossing-2", side: "right", x: "19", y: "12" }
+  ]);
+  assert.deepEqual(markers.map(marker => marker.dataset.phase), [
+    "pedestrian-go",
+    "pedestrian-go",
+    "pedestrian-go",
+    "pedestrian-go"
+  ]);
+});
+
+test("장면은 좌우 동네와 중앙 2차선 구역을 표시한다", () => {
+  const scene = renderSafetyRouteScene(
+    document,
+    createSafetyRouteState("easy", { seed: 1 })
+  );
+
+  assert.equal(byClass(scene, "route-zone-left").length, 1);
+  assert.equal(byClass(scene, "route-zone-road").length, 1);
+  assert.equal(byClass(scene, "route-zone-right").length, 1);
+  assert.equal(byClass(scene, "route-crosswalk").length, 16);
+});
+
+test("도로 배경은 이동체 경로가 없어도 전체 도로 칸을 표시한다", () => {
+  const state = structuredClone(
+    createSafetyRouteState("easy", { seed: 2 })
+  );
+  state.map.trafficPaths = [];
+  state.movers = [];
+
+  const scene = renderSafetyRouteScene(document, state);
+
+  assert.equal(byClass(scene, "route-road").length, state.map.roadCells.length);
+});
+
+test("다칸 공사장은 발자국 전부를 막힘 레이어로 표시하고 그림은 한 번만 만든다", () => {
+  const state = createSafetyRouteState("steady", { seed: 8 });
+  const construction = state.map.hazards.find(
+    item => item.type === "construction"
+  );
+  const scene = renderSafetyRouteScene(document, state);
+  const constructionFootprints = byClass(scene, "route-hazard-footprint")
+    .filter(node => node.dataset.hazard === "construction");
+
+  assert.equal(constructionFootprints.length, construction.cells.length);
+  assert.equal(byClass(scene, "route-construction").length, 1);
+});
+
+test("이동체는 방향과 정지 상태를 색 이외 데이터로 노출한다", () => {
+  const state = structuredClone(
+    createSafetyRouteState("challenge", { seed: 3 })
+  );
+  const riderIndex = state.movers.findIndex(
+    mover => mover.type === "scooter" || mover.type === "bicycle"
+  );
+  state.movers[riderIndex] = {
+    ...state.movers[riderIndex],
+    direction: -1,
+    stopped: true
+  };
+
+  const mover = byClass(
+    renderSafetyRouteScene(document, state),
+    "route-moving-rider"
+  )[0];
+
+  assert.ok(mover);
+  assert.equal(mover.dataset.direction, "-1");
+  assert.equal(mover.dataset.stopped, "true");
+});
+
+test("자동차 그림은 실제 이동 방향을 heading 속성으로 노출한다", () => {
+  const state = createSafetyRouteState("easy", { seed: 3 });
+  const cars = byClass(
+    renderSafetyRouteScene(document, state),
+    "route-car"
+  );
+
+  assert.deepEqual(cars.map(car => car.dataset.heading), ["north", "south"]);
+});
+
+test("지도가 입구 신호 표시를 제공하면 하나의 신호 상태를 두 곳에 그린다", () => {
+  const state = structuredClone(
+    createSafetyRouteState("easy", { seed: 4 })
+  );
+  state.map.signalMarkers = [
+    { x: 13, y: 3 },
+    { x: 18, y: 3 }
+  ];
+
+  const scene = renderSafetyRouteScene(document, state);
+
+  assert.equal(byClass(scene, "route-signal").length, 0);
+  assert.equal(byClass(scene, "route-signal-marker").length, 2);
+  assert.deepEqual(
+    byClass(scene, "route-signal-marker").map(node => node.dataset.phase),
+    ["vehicle-go", "vehicle-go"]
+  );
+});
+
+test("새로 삽입한 월드는 이전 카메라에서 시작해 다음 프레임에 같은 노드를 목표로 옮긴다", () => {
+  const frames = [];
+  const scene = renderSafetyRouteScene(
+    document,
+    createSafetyRouteState("easy", { seed: 5 }),
+    {
+      camera: { x: 8, y: 6, width: 7, height: 5 },
+      cameraStart: { x: 5, y: 6 },
+      scheduleFrame: callback => frames.push(callback)
+    }
+  );
+  const stage = document.createElement("div");
+  stage.append(scene);
+  const world = byClass(stage, "safety-world")[0];
+
+  assert.equal(world.style.values.get("--camera-x"), "5");
+  assert.equal(world.style.values.get("--camera-y"), "6");
+  assert.equal(frames.length, 1);
+
+  frames[0]();
+
+  assert.equal(byClass(stage, "safety-world")[0], world);
+  assert.equal(world.style.values.get("--camera-x"), "8");
+  assert.equal(world.style.values.get("--camera-y"), "6");
+});
+
+test("장애물과 신호와 이동체 그림은 레이블이 있는 이미지로 노출한다", () => {
+  const state = structuredClone(
+    createSafetyRouteState("challenge", { seed: 6 })
+  );
+  state.map.signalMarkers = [{ x: 13, y: 3 }, { x: 18, y: 3 }];
+  const scene = renderSafetyRouteScene(document, state);
+
+  for (const illustration of [
+    ...byClass(scene, "route-hazard"),
+    ...byClass(scene, "route-signal-marker")
+  ]) {
+    assert.equal(illustration.attributes.get("role"), "img");
+    assert.ok(illustration.attributes.get("aria-label"));
+  }
+  for (const decoration of byClass(scene, "route-hazard-footprint")) {
+    assert.equal(decoration.attributes.get("aria-hidden"), "true");
+    assert.equal(decoration.attributes.has("role"), false);
+  }
+});
+
+test("월드 틱 갱신 뒤에도 같은 장면과 방향 버튼이 유지되어 포커스를 잃지 않는다", () => {
+  const state = createSafetyRouteState("easy", { seed: 9 });
+  const scene = renderSafetyRouteScene(document, state, {
+    camera: { x: 0, y: 1, width: 7, height: 5 }
+  });
+  const world = byClass(scene, "safety-world")[0];
+  const button = descendants(scene).find(node => node.dataset.routeDirection === "right");
+  const markers = byClass(scene, "route-signal-marker");
+  document.activeElement = button;
+
+  assert.equal(markers.length, 4);
+  assert.ok(markers.every(marker => marker.attributes.get("role") === "img"));
+
+  const updated = updateSafetyRouteScene(scene, {
+    ...state,
+    tick: 100,
+    signal: { phase: "pedestrian-go", elapsedMs: 0 },
+    movers: state.movers.map(mover => ({
+      ...mover,
+      pathIndex: mover.type === "car" ? 1 : mover.pathIndex
+    }))
+  }, {
+    camera: { x: 1, y: 1, width: 7, height: 5 }
+  });
+
+  assert.strictEqual(updated, scene);
+  assert.strictEqual(byClass(scene, "safety-world")[0], world);
+  assert.strictEqual(
+    descendants(scene).find(node => node.dataset.routeDirection === "right"),
+    button
+  );
+  assert.strictEqual(document.activeElement, button);
+  assert.equal(world.style.values.get("--camera-x"), "1");
+  assert.ok(byClass(scene, "route-signal-marker").every(
+    marker => marker.dataset.phase === "pedestrian-go"
+  ));
+  assert.ok(markers.every(
+    marker => marker.attributes.get("aria-label") === "초록 신호"
+  ));
 });

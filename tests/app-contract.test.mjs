@@ -11,10 +11,10 @@ test("정적 셸이 스타일과 앱 모듈을 로드한다", () => {
   assert.match(html, /<script type="module" src="src\/app\.mjs"><\/script>/);
 });
 
-test("길찾기 레이아웃 수정본은 이전 CSS 캐시와 다른 주소를 사용한다", () => {
+test("PC 안전길 시각 개선은 새 CSS 캐시 주소를 사용한다", () => {
   assert.match(
     html,
-    /<link rel="stylesheet" href="styles\.css\?v=20260724-safe-route-layout-fix">/
+    /<link rel="stylesheet" href="styles\.css\?v=20260726-pc-route-visual">/
   );
 });
 
@@ -99,10 +99,32 @@ test("길찾기는 모델, 장면, 키보드와 모바일 방향 버튼을 앱�
   );
 });
 
+test("길찾기 라운드는 난수 시드를 만들고 월드 시간을 제한한다", () => {
+  assert.match(app, /const seed = Math\.floor\(Math\.random\(\) \* 0x100000000\);/);
+  assert.match(app, /createSafetyRouteState\(state\.difficulty,\s*\{ seed \}\)/);
+  assert.match(app, /Math\.min\(250,\s*nowMs - previousMs\)/);
+});
+
 test("길찾기는 숫자 답안 UI를 사용하지 않고 별을 잃지 않는다", () => {
   assert.match(app, /state\.mode === "safety"/);
   assert.match(app, /state\.safety = null;/);
   assert.doesNotMatch(app, /blocked[\s\S]{0,200}state\.stars\s*-=/);
+});
+
+test("길찾기 카메라는 첫 장면만 마운트하고 이후 월드 틱은 같은 장면을 갱신한다", () => {
+  assert.match(app, /cameraRendered:\s*false/);
+  assert.match(app, /const previousCamera = state\.safetyView\.camera;/);
+  assert.match(app, /const animateCamera = state\.safetyView\.cameraRendered;/);
+  assert.match(
+    app,
+    /if\s*\(!state\.safetyView\.scene\)\s*\{[\s\S]*?state\.safetyView\.scene = renderSafetyRouteScene\([\s\S]*?dom\.stage\.replaceChildren\(state\.safetyView\.scene\);[\s\S]*?\}\s*else\s*\{[\s\S]*?updateSafetyRouteScene\(\s*state\.safetyView\.scene/
+  );
+  assert.match(
+    app,
+    /scene:\s*null/
+  );
+  assert.match(app, /state\.safetyView\.cameraRendered = true;/);
+  assert.match(app, /scheduleSafetyWorldTick\(nowMs\);[\s\S]*?},\s*100\);/);
 });
 
 test("홈에는 7~9 바로가기 키가 있는 세 난이도 버튼과 도전 세기 안내가 있다", () => {
