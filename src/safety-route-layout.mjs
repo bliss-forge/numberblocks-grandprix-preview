@@ -47,24 +47,28 @@ const HAZARD_CANDIDATES = Object.freeze({
       x: 3,
       y: 5,
       cells: [{ x: 3, y: 5 }, { x: 3, y: 6 }, { x: 3, y: 7 }, { x: 3, y: 8 }, { x: 3, y: 9 }],
+      approachAnchor: { x: 3, y: 5 },
       bypassAlleyId: "left-east-alley"
     },
     {
       x: 10,
       y: 5,
       cells: [{ x: 10, y: 5 }, { x: 10, y: 6 }, { x: 10, y: 7 }, { x: 10, y: 8 }, { x: 10, y: 9 }],
+      approachAnchor: { x: 10, y: 5 },
       bypassAlleyId: "left-west-alley"
     },
     {
       x: 21,
       y: 5,
       cells: [{ x: 21, y: 5 }, { x: 21, y: 6 }, { x: 21, y: 7 }, { x: 21, y: 8 }, { x: 21, y: 9 }],
+      approachAnchor: { x: 21, y: 5 },
       bypassAlleyId: "right-east-alley"
     },
     {
       x: 28,
       y: 5,
       cells: [{ x: 28, y: 5 }, { x: 28, y: 6 }, { x: 28, y: 7 }, { x: 28, y: 8 }, { x: 28, y: 9 }],
+      approachAnchor: { x: 28, y: 5 },
       bypassAlleyId: "right-west-alley"
     }
   ])
@@ -617,8 +621,12 @@ export function validateCandidateLayout(map) {
       item.y >= candidate.y && item.y < candidate.y + candidate.height);
     const expectedCells = alley && rectangleCells(alley.x, alley.y + 2, 1, alley.height - 4);
     const bypassAlley = alleys.find(candidate => candidate.id === item.bypassAlleyId);
+    const approachAnchor = item.approachAnchor;
+    const expectedApproachAnchor = expectedCells?.[0];
     if (!alley || !expectedCells ||
       JSON.stringify(hazardCells(item)) !== JSON.stringify(expectedCells) ||
+      !approachAnchor || !expectedApproachAnchor ||
+      pointKey(approachAnchor) !== pointKey(expectedApproachAnchor) ||
       !bypassAlley || bypassAlley.zone !== alley.zone || bypassAlley.id === alley.id) {
       errors.push(`construction must block one alley connector: ${pointKey(item)}`);
     }

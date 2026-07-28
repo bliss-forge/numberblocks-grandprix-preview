@@ -4,6 +4,33 @@ import {
   createSafetyRouteMap,
   validateCandidateLayout
 } from "../src/safety-route-layout.mjs";
+import { cameraOffset } from "../src/safety-route-camera.mjs";
+
+const pointKey = ({ x, y }) => `${x},${y}`;
+
+function reachablePedestrianCells(map) {
+  const blocked = new Set(map.hazards.flatMap(hazard =>
+    (hazard.cells ?? [hazard]).map(pointKey)
+  ));
+  const pedestrian = new Set(map.pedestrianCells.map(pointKey));
+  const queue = [map.start];
+  const visited = new Set();
+
+  while (queue.length) {
+    const point = queue.shift();
+    const key = pointKey(point);
+    if (visited.has(key) || blocked.has(key) || !pedestrian.has(key)) continue;
+    visited.add(key);
+    for (const [x, y] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      queue.push({ x: point.x + x, y: point.y + y });
+    }
+  }
+
+  return [...visited].map(key => {
+    const [x, y] = key.split(",").map(Number);
+    return { x, y };
+  });
+}
 
 test("지도는 14:4:14 구역과 32×16 크기를 사용한다", () => {
   const map = createSafetyRouteMap("easy", { seed: 17 });
@@ -135,6 +162,39 @@ test("공사 발자국은 한 골목의 두 보행길 사이 연결부만 막는
     construction.cells.some(cell => cell.x === otherAlley.x),
     false
   );
+});
+
+test("공사 그림은 접근 쪽 앵커에 고정되어 도달 가능한 PC 카메라에 전부 보인다", () => {
+  for (const difficulty of ["steady", "challenge"]) {
+    for (let seed = 0; seed < 30; seed += 1) {
+      const map = createSafetyRouteMap(difficulty, { seed });
+      const construction = map.hazards.find(hazard => hazard.type === "construction");
+      const approachAnchor = construction.approachAnchor;
+      const topFootprintY = Math.min(...construction.cells.map(cell => cell.y));
+
+      assert.deepEqual(
+        approachAnchor,
+        { x: construction.x, y: topFootprintY },
+        `${difficulty} seed ${seed} must anchor the artwork at the upper approach`
+      );
+
+      const artworkBounds = {
+        left: approachAnchor.x - .1,
+        right: approachAnchor.x + 1.1,
+        top: approachAnchor.y - .1,
+        bottom: approachAnchor.y + 1.1
+      };
+      const cameras = reachablePedestrianCells(map).map(player =>
+        cameraOffset({ world: map, viewport: { width: 7, height: 5 }, player })
+      );
+      const visibleCamera = cameras.find(camera =>
+        artworkBounds.left >= camera.x && artworkBounds.right <= camera.x + 7 &&
+        artworkBounds.top >= camera.y && artworkBounds.bottom <= camera.y + 5
+      );
+
+      assert.ok(visibleCamera, `${difficulty} seed ${seed} has no full-art PC camera`);
+    }
+  }
 });
 
 test("두 횡단보도는 하나의 보행 신호와 signalGate를 공유한다", () => {

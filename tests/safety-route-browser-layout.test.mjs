@@ -84,6 +84,19 @@ test("1280×720 PC 안전길은 7×5칸을 자르지 않고 모바일 방향키�
     const world = document.querySelector(".safety-world");
     const route = document.querySelector(".safety-route");
     const top = document.querySelector(".safety-route-top");
+    const construction = document.querySelector(".route-construction");
+    const [constructionX, constructionY] = construction.dataset.approachAnchor
+      .split(",")
+      .map(Number);
+    world.style.transition = "none";
+    world.style.setProperty(
+      "--camera-x",
+      String(Math.max(0, Math.min(constructionX - 3, 32 - 7)))
+    );
+    world.style.setProperty(
+      "--camera-y",
+      String(Math.max(0, Math.min(constructionY - 2, 16 - 5)))
+    );
     const viewportRect = viewport.getBoundingClientRect();
     const worldRect = world.getBoundingClientRect();
     const routeRect = route.getBoundingClientRect();
@@ -142,7 +155,6 @@ test("1280×720 PC 안전길은 7×5칸을 자르지 않고 모바일 방향키�
         torsoWidth: parseFloat(torso.width)
       };
     });
-    const construction = document.querySelector(".route-construction");
     const constructionRect = construction.getBoundingClientRect();
     const constructionFootprints = [
       ...document.querySelectorAll(".route-hazard-footprint-construction")
@@ -171,15 +183,13 @@ test("1280×720 PC 안전길은 7×5칸을 자르지 않고 모바일 방향키�
       taskFour: {
         barrier: {
           boardZIndex: board.zIndex,
-          centerDeltaX: Math.abs(
-            constructionRect.left + constructionRect.width / 2 -
-              (footprintBounds.left + footprintBounds.right) / 2
-          ),
-          centerDeltaY: Math.abs(
-            constructionRect.top + constructionRect.height / 2 -
-              (footprintBounds.top + footprintBounds.bottom) / 2
-          ),
+          approachAnchor: construction.dataset.approachAnchor,
+          artworkBottom: constructionRect.bottom,
+          artworkLeft: constructionRect.left,
+          artworkRight: constructionRect.right,
+          artworkTop: constructionRect.top,
           footprintCount: constructionFootprints.length,
+          footprintTop: footprintBounds.top,
           heightInCells: constructionRect.height / cell,
           postBackgroundImages: posts.backgroundImage,
           postBackgroundPositions: posts.backgroundPosition,
@@ -301,8 +311,15 @@ test("1280×720 PC 안전길은 7×5칸을 자르지 않고 모바일 방향키�
       postsZIndex: "1"
     }
   );
-  assert.ok(desktopMetrics.taskFour.barrier.centerDeltaX <= .02);
-  assert.ok(desktopMetrics.taskFour.barrier.centerDeltaY <= .02);
+  assert.match(desktopMetrics.taskFour.barrier.approachAnchor, /^\d+,5$/);
+  const barrierTopOverlap = (
+    desktopMetrics.taskFour.barrier.footprintTop -
+      desktopMetrics.taskFour.barrier.artworkTop
+  ) / desktopMetrics.cell;
+  assert.ok(barrierTopOverlap >= .09 && barrierTopOverlap <= .2);
+  assert.ok(desktopMetrics.taskFour.barrier.artworkLeft >= 0);
+  assert.ok(desktopMetrics.taskFour.barrier.artworkRight <= 1280);
+  assert.ok(desktopMetrics.taskFour.barrier.artworkBottom <= 720);
   assert.ok(
     Math.abs(desktopMetrics.taskFour.barrier.heightInCells - 1.2) <= .02
   );

@@ -2382,7 +2382,6 @@ body[data-mode="safety"] .stage-lights {
 }
 
 .route-construction {
-  grid-row: var(--route-y) / span var(--hazard-span);
   width: 84%;
   height: calc(var(--route-cell-size) * 1.2);
   border: 0;

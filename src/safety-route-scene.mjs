@@ -273,7 +273,10 @@ export function renderSafetyRouteScene(document, state, requestedView = {}) {
       HAZARD_LABELS[hazard.type] ?? hazard.type
     );
     node.setAttribute("role", "img");
-    world.append(placeAt(node, hazard));
+    if (hazard.approachAnchor) {
+      node.dataset.approachAnchor = pointKey(hazard.approachAnchor);
+    }
+    world.append(placeAt(node, hazard.approachAnchor ?? hazard));
   });
 
   const moverNodes = new Map();
