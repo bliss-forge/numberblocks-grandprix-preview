@@ -71,3 +71,29 @@ test("안전 연출·투어 음성 키가 매니페스트와 생성 스크립트
   assert.match(generator, /"safety-look-both": "Stop! Look left and right!"/);
   assert.match(generator, /"safety-tour": "Let's walk safely to school!"/);
 });
+
+test("SRT 여정 음성 키가 매니페스트와 생성 스크립트에 준비되어 있다", async () => {
+  const { VOICE } = await import("../src/audio-manifest.mjs");
+  const keys = [
+    "srt-arrive", "srt-board", "srt-seat", "srt-wrong-seat", "srt-depart",
+    "srt-station-dongtan", "srt-station-daejeon", "srt-station-daegu",
+    "srt-station-busan", "srt-wrong-station", "srt-parking",
+    "srt-wrong-car", "srt-grandparents"
+  ];
+  for (const key of keys) {
+    assert.ok(VOICE[key]?.ko.endsWith(`${key}.mp3`), `ko ${key}`);
+    assert.ok(VOICE[key]?.en.endsWith(`${key}.mp3`), `en ${key}`);
+  }
+
+  const generator = await readFile(
+    new URL("../scripts/generate_voice_pack.py", import.meta.url),
+    "utf8"
+  );
+  assert.match(generator, /"srt-arrive": "수서역에 도착하였어요!"/);
+  assert.match(generator, /"srt-board": "SRT를 타고 할아버지 할머니댁에 가요!"/);
+  assert.match(generator, /"srt-seat": "내 자리를 찾아 앉아보아요!"/);
+  assert.match(generator, /"srt-station-busan": "부산역이에요! 여기서 내려요!"/);
+  assert.match(generator, /"srt-grandparents": "We met Grandma and Grandpa! Well done!"/);
+  assert.match(generator, /render_pack\("ko", KO_SRT/);
+  assert.match(generator, /render_pack\("en", EN_SRT/);
+});

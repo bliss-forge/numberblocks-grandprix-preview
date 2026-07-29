@@ -64,10 +64,12 @@ import {
   tourCameraPath
 } from "./safety-route-camera.mjs";
 import {
+  SPLASH_MESSAGES,
   SRT_STATIONS,
   advanceSrtWorld,
   attemptSrtMove,
   createSrtJourney,
+  splashStep,
   targetSeatName
 } from "./srt-journey.mjs";
 import {
@@ -732,6 +734,19 @@ function moveSafetyRoute(direction) {
   return result.event;
 }
 
+const SRT_SPLASH_VOICES = ["srt-arrive", "srt-board", "srt-seat"];
+const SRT_STATION_VOICES = {
+  동탄: "srt-station-dongtan",
+  대전: "srt-station-daejeon",
+  대구: "srt-station-daegu",
+  부산: "srt-station-busan"
+};
+
+function playSrtVoice(key) {
+  audio.cancel();
+  void audio.playPrompt(key);
+}
+
 function startSrtJourney() {
   stopSafetyHold();
   clearTimers();
@@ -741,7 +756,8 @@ function startSrtJourney() {
   dom.stage.replaceChildren(state.srtScene);
   dom.problem.textContent = "SRT를 타고 할아버지 할머니댁에 가요!";
   audio.playSfx("win");
-  showHint("수서역에 도착했어요!");
+  showHint(SPLASH_MESSAGES[0]);
+  playSrtVoice(SRT_SPLASH_VOICES[0]);
   scheduleSrtTick(performance.now());
 }
 
@@ -757,19 +773,28 @@ function scheduleSrtTick(previousMs = performance.now()) {
     const nowMs = performance.now();
     if (state.srt.phase === "station" || state.srt.phase === "ride") {
       const wasPhase = state.srt.phase;
+      const wasStep = wasPhase === "station" ? splashStep(state.srt) : -1;
       const wasOpen = state.srt.ride.doorOpen;
       state.srt = advanceSrtWorld(
         state.srt,
         Math.min(400, nowMs - previousMs)
       );
+      if (wasPhase === "station" && state.srt.phase === "station") {
+        const step = splashStep(state.srt);
+        if (step !== wasStep) {
+          showHint(SPLASH_MESSAGES[step]);
+          playSrtVoice(SRT_SPLASH_VOICES[step]);
+        }
+      }
       if (wasPhase === "station" && state.srt.phase === "seat") {
         showHint(`${targetSeatName(state.srt)} 좌석을 찾아요!`);
       }
       if (!wasOpen && state.srt.ride.doorOpen) {
         audio.playSfx("key");
-        showHint(
-          `${SRT_STATIONS[state.srt.ride.stationIndex]}역이에요! 문이 열렸어요`
-        );
+        const station = SRT_STATIONS[state.srt.ride.stationIndex];
+        showHint(`${station}역이에요! 문이 열렸어요`);
+        const voiceKey = SRT_STATION_VOICES[station];
+        if (voiceKey) playSrtVoice(voiceKey);
       }
       updateSrtJourney(state.srtScene, state.srt);
     }
@@ -793,17 +818,22 @@ function moveSrt(direction) {
   if (event.type === "seat-found") {
     audio.playSfx("win");
     showHint(`${event.seat} 좌석을 찾았어요! 출발합니다!`);
+    playSrtVoice("srt-depart");
   } else if (event.type === "wrong-seat") {
     showHint(`여기는 ${event.seat} 좌석이에요. ${targetSeatName(state.srt)}를 찾아요!`);
+    playSrtVoice("srt-wrong-seat");
   } else if (event.type === "wrong-station") {
     showHint(`${event.station}역은 해당 역이 아니에요. 다시 기차에 올라타요!`);
+    playSrtVoice("srt-wrong-station");
   } else if (event.type === "arrived") {
     audio.playSfx("win");
     showHint(`${event.station}역에 내렸어요! 할아버지 할머니 차를 찾아요!`);
+    playSrtVoice("srt-parking");
   } else if (event.type === "wrong-car") {
     showHint(event.shapeMatches
       ? `모양은 맞아요! 번호판 ${state.srt.parking.targetPlate}를 찾아요!`
       : "이 모양이 아니에요. 그림자를 잘 봐요!");
+    playSrtVoice("srt-wrong-car");
   } else if (event.type === "car-found") {
     audio.playSfx("win");
     showHint("차를 찾았어요! 할아버지 할머니예요!");
@@ -824,7 +854,7 @@ async function completeSrtJourney() {
   dom.cheer.textContent = "할아버지 할머니를 만났어요!";
   dom.cheer.classList.add("show");
   audio.playSfx("win");
-  await audio.playPrompt("safety-finish");
+  await audio.playPrompt("srt-grandparents");
   if (state.phase !== "celebrating" || state.round !== round) return;
   schedule(() => {
     dom.cheer.classList.remove("show");

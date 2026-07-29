@@ -1,6 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
+  SPLASH_MESSAGES,
+  SPLASH_STEP_MS,
   SRT_STATIONS,
   RIDE_DOOR,
   RIDE_SEAT,
@@ -9,6 +11,7 @@ import {
   createSrtJourney,
   seatCell,
   seatInfo,
+  splashStep,
   targetSeatName,
   trainWalkable
 } from "../src/srt-journey.mjs";
@@ -29,10 +32,22 @@ test("같은 시드는 같은 좌석·차량 목표를 만든다", () => {
   assert.equal(first.targetStation, "부산");
 });
 
-test("수서역 스플래시는 잠시 뒤 좌석 찾기로 넘어간다", () => {
+test("수서역 스플래시는 3단계 안내를 거쳐 좌석 찾기로 넘어간다", () => {
+  assert.deepEqual([...SPLASH_MESSAGES], [
+    "수서역에 도착하였어요!",
+    "SRT를 타고 할아버지 할머니댁에 가요!",
+    "내 자리를 찾아 앉아보아요!"
+  ]);
   let state = createSrtJourney(5);
   assert.equal(attemptSrtMove(state, "right").event.type, "ignored");
-  state = advanceSrtWorld(state, 2800);
+  assert.equal(splashStep(state), 0);
+  state = advanceSrtWorld(state, SPLASH_STEP_MS);
+  assert.equal(state.phase, "station");
+  assert.equal(splashStep(state), 1);
+  state = advanceSrtWorld(state, SPLASH_STEP_MS);
+  assert.equal(state.phase, "station");
+  assert.equal(splashStep(state), 2);
+  state = advanceSrtWorld(state, SPLASH_STEP_MS);
   assert.equal(state.phase, "seat");
 });
 

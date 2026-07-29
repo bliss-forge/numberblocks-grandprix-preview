@@ -59,6 +59,36 @@ EN_SAFETY = {
     "safety-look-both": "Stop! Look left and right!",
     "safety-tour": "Let's walk safely to school!",
 }
+KO_SRT = {
+    "srt-arrive": "수서역에 도착하였어요!",
+    "srt-board": "SRT를 타고 할아버지 할머니댁에 가요!",
+    "srt-seat": "내 자리를 찾아 앉아보아요!",
+    "srt-wrong-seat": "여기는 내 자리가 아니에요. 자리 번호를 다시 봐요!",
+    "srt-depart": "좌석을 찾았어요! 출발합니다. 부산역에서 내려요!",
+    "srt-station-dongtan": "동탄역이에요. 우리가 내릴 역인지 확인해요!",
+    "srt-station-daejeon": "대전역이에요. 우리가 내릴 역인지 확인해요!",
+    "srt-station-daegu": "대구역이에요. 우리가 내릴 역인지 확인해요!",
+    "srt-station-busan": "부산역이에요! 여기서 내려요!",
+    "srt-wrong-station": "해당 역이 아니에요. 다시 기차에 올라타야 해요!",
+    "srt-parking": "할아버지 할머니 차를 찾아보아요. 그림자 모양과 번호가 같은 차예요!",
+    "srt-wrong-car": "이 차가 아니에요. 모양과 번호판을 다시 봐요!",
+    "srt-grandparents": "할아버지 할머니를 만났어요! 정말 잘했어요!",
+}
+EN_SRT = {
+    "srt-arrive": "We have arrived at Suseo Station!",
+    "srt-board": "Let's ride the SRT to Grandma and Grandpa's house!",
+    "srt-seat": "Let's find my seat and sit down!",
+    "srt-wrong-seat": "This is not my seat. Check the seat number again!",
+    "srt-depart": "We found our seat! Off we go. We get off at Busan Station!",
+    "srt-station-dongtan": "This is Dongtan Station. Is this our stop?",
+    "srt-station-daejeon": "This is Daejeon Station. Is this our stop?",
+    "srt-station-daegu": "This is Daegu Station. Is this our stop?",
+    "srt-station-busan": "This is Busan Station! Time to get off!",
+    "srt-wrong-station": "This is not our station. Hop back on the train!",
+    "srt-parking": "Let's find Grandma and Grandpa's car. Match the shadow and the number plate!",
+    "srt-wrong-car": "That is not the car. Look at the shape and the number plate again!",
+    "srt-grandparents": "We met Grandma and Grandpa! Well done!",
+}
 KO_ONES = ["", "일", "이", "삼", "사", "오", "육", "칠", "팔", "구"]
 EN_ONES = [
     "", "one", "two", "three", "four", "five", "six", "seven",
@@ -141,8 +171,10 @@ async def main():
     await render_pack("ko", KO_CHEERS, KO_VOICE, "+3%", "+4Hz")
     await render_pack("ko", KO_RETRIES, KO_VOICE, "-8%", "-2Hz")
     await render_pack("ko", KO_SAFETY, KO_VOICE, "-5%", "+2Hz")
+    await render_pack("ko", KO_SRT, KO_VOICE, "-5%", "+2Hz")
     await render_pack("en", EN_PROMPTS, EN_VOICE, "-4%", "+0Hz")
     await render_pack("en", EN_SAFETY, EN_VOICE, "-5%", "+2Hz")
+    await render_pack("en", EN_SRT, EN_VOICE, "-5%", "+2Hz")
     await render_pack("en", EN, EN_VOICE, "+4%", "+7Hz")
 
 

@@ -19,7 +19,13 @@ export const PARKING_SLOTS = 8;
 
 const TRAVEL_MS = 4000;
 const STOP_MS = 5000;
-const STATION_SPLASH_MS = 2800;
+export const SPLASH_MESSAGES = Object.freeze([
+  "수서역에 도착하였어요!",
+  "SRT를 타고 할아버지 할머니댁에 가요!",
+  "내 자리를 찾아 앉아보아요!"
+]);
+export const SPLASH_STEP_MS = 2600;
+const STATION_SPLASH_MS = SPLASH_STEP_MS * SPLASH_MESSAGES.length;
 const LETTER_ROWS = Object.freeze({ A: 0, B: 1, C: 3, D: 4 });
 const ROW_LETTERS = Object.freeze({ 0: "A", 1: "B", 3: "C", 4: "D" });
 export const RIDE_DOOR = Object.freeze({ x: 2, y: 2 });
@@ -117,6 +123,13 @@ export function createSrtJourney(seed = 0) {
 
 export function targetSeatName(state) {
   return `${state.target.car}호차 ${state.target.row}${state.target.letter}`;
+}
+
+export function splashStep(state) {
+  return Math.min(
+    Math.floor((state.introMs ?? 0) / SPLASH_STEP_MS),
+    SPLASH_MESSAGES.length - 1
+  );
 }
 
 function move(state, position, event, extra = {}) {

@@ -33,6 +33,30 @@ const safety = Object.fromEntries(
   ])
 );
 
+const srt = Object.fromEntries(
+  [
+    "srt-arrive",
+    "srt-board",
+    "srt-seat",
+    "srt-wrong-seat",
+    "srt-depart",
+    "srt-station-dongtan",
+    "srt-station-daejeon",
+    "srt-station-daegu",
+    "srt-station-busan",
+    "srt-wrong-station",
+    "srt-parking",
+    "srt-wrong-car",
+    "srt-grandparents"
+  ].map(key => [
+    key,
+    {
+      ko: `assets/audio/voice/ko/${key}.mp3`,
+      en: `assets/audio/voice/en/${key}.mp3`
+    }
+  ])
+);
+
 export const VOICE = Object.freeze({
   "prompt-count": { ko: "assets/audio/voice/ko/prompt-count.mp3" },
   "prompt-add": { ko: "assets/audio/voice/ko/prompt-add.mp3" },
@@ -42,6 +66,7 @@ export const VOICE = Object.freeze({
   },
   "prompt-mul": { ko: "assets/audio/voice/ko/prompt-mul.mp3" },
   ...safety,
+  ...srt,
   ...numbers,
   ...Object.fromEntries(
     Array.from({ length: 4 }, (_, index) => [

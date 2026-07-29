@@ -2,12 +2,14 @@ import { characterAsset } from "./character-spec.mjs";
 import {
   CAR_SHAPE_LABELS,
   RIDE_DOOR,
+  SPLASH_MESSAGES,
   SRT_CARS,
   SRT_STATIONS,
   TRAIN_HEIGHT,
   TRAIN_WIDTH,
   rideAnnouncement,
   seatInfo,
+  splashStep,
   targetSeatName,
   trainWalkable
 } from "./srt-journey.mjs";
@@ -27,7 +29,7 @@ function playerImage(document) {
 
 function missionText(state) {
   if (state.phase === "station") {
-    return "수서역에 도착했어요!";
+    return SPLASH_MESSAGES[splashStep(state)];
   }
   if (state.phase === "seat") {
     return `${targetSeatName(state)} 좌석을 찾아요!`;
@@ -61,7 +63,8 @@ function renderStationPhase(document, state, stage) {
 
   const banner = document.createElement("div");
   banner.className = "srt-splash-banner";
-  banner.textContent = "🚄 SRT를 타고 할아버지 할머니댁에 가요!";
+  banner.dataset.step = String(splashStep(state));
+  banner.textContent = `🚄 ${SPLASH_MESSAGES[splashStep(state)]}`;
 
   splash.append(facade, banner);
   stage.append(splash);
@@ -300,6 +303,13 @@ export function updateSrtJourney(root, state) {
   view.mission.textContent = missionText(state);
   view.player.style.setProperty("--srt-x", state.position.x + 1);
   view.player.style.setProperty("--srt-y", state.position.y + 1);
+  if (state.phase === "station") {
+    const banner = root.querySelector?.(".srt-splash-banner");
+    if (banner) {
+      banner.dataset.step = String(splashStep(state));
+      banner.textContent = `🚄 ${SPLASH_MESSAGES[splashStep(state)]}`;
+    }
+  }
   if (state.phase === "seat") {
     root.style.setProperty(
       "--srt-camera-x",
