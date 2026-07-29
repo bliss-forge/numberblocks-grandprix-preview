@@ -2025,7 +2025,7 @@ body[data-mode="safety"] .stage-lights {
 }
 
 .route-road[data-road-position="center-left"] {
-  border-inline-end: 3px dashed #f4c542;
+  border-inline-end: 7px double #f4c542;
 }
 
 .route-road[data-road-position="outer-left"] {
@@ -2040,9 +2040,9 @@ body[data-mode="safety"] .stage-lights {
   z-index: 3;
   background:
     repeating-linear-gradient(
-      90deg,
-      #fff 0 22%,
-      var(--road-asphalt, #4d5965) 22% 38%
+      180deg,
+      #fff 0 26%,
+      var(--road-asphalt, #4d5965) 26% 46%
     );
 }
 
@@ -2057,7 +2057,6 @@ body[data-mode="safety"] .stage-lights {
 
 .route-entrance {
   z-index: 3;
-  border-inline: 4px dashed #f29d38;
   background: #ead9b8;
 }
 
@@ -2193,29 +2192,53 @@ body[data-mode="safety"] .stage-lights {
 }
 
 .route-building-park {
-  filter: none;
-}
-
-.route-building-park .route-building-roof,
-.route-building-park::after {
-  border: 3px dashed #6fae52;
-  background: transparent;
+  filter: drop-shadow(0 3px 0 rgba(60, 90, 40, .18));
 }
 
 .route-building-park .route-building-roof {
-  border-bottom: none;
-  border-radius: 14px 14px 0 0;
+  display: none;
+}
+
+.route-building-park::after {
+  border: 4px solid #b07a4d;
+  border-radius: 12px;
+  background:
+    radial-gradient(circle at 22% 74%, #ef6aa0 0 4%, transparent 5%),
+    radial-gradient(circle at 36% 82%, #ffd166 0 4%, transparent 5%),
+    radial-gradient(circle at 66% 78%, #ef6aa0 0 4%, transparent 5%),
+    radial-gradient(circle at 80% 84%, #5aa9e6 0 4%, transparent 5%),
+    radial-gradient(circle at 50% 88%, #ffd166 0 4%, transparent 5%),
+    linear-gradient(180deg, #a8dd82 0 100%);
 }
 
 .route-building-park .route-building-door {
-  border-color: #6fae52;
-  background: #55b966;
+  width: 26%;
+  height: 26%;
+  border: 3px solid #8a5a3b;
+  border-bottom: none;
+  border-radius: 6px 6px 0 0;
+  background:
+    linear-gradient(90deg, #b07a4d 0 18%, transparent 18% 41%,
+      #b07a4d 41% 59%, transparent 59% 82%, #b07a4d 82%);
 }
 
 .route-building-park .route-building-window {
-  border-color: #6fae52;
-  border-radius: 50% 50% 6px 6px;
-  background: #55b966;
+  top: 16%;
+  width: 26%;
+  height: 40%;
+  border: 0;
+  border-radius: 0;
+  background:
+    radial-gradient(circle at 50% 32%, #55b966 0 46%, transparent 48%),
+    linear-gradient(#8a5a3b, #8a5a3b) 50% 100% / 14% 45% no-repeat;
+}
+
+.route-building-park .route-building-window:nth-of-type(4) {
+  left: 6%;
+}
+
+.route-building-park .route-building-window:nth-of-type(5) {
+  right: 6%;
 }
 
 .route-building-school {
@@ -2451,15 +2474,8 @@ body[data-mode="safety"] .stage-lights {
 
 .route-hazard-footprint {
   z-index: 9;
-  margin: 8%;
-  border: 3px dashed rgba(224, 112, 32, .55);
-  border-radius: 9px;
-  background:
-    repeating-linear-gradient(
-      -45deg,
-      rgba(224, 112, 32, .16) 0 8px,
-      rgba(255, 246, 210, .3) 8px 16px
-    );
+  border: 0;
+  background: transparent;
   pointer-events: none;
 }
 

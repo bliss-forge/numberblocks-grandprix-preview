@@ -42,11 +42,11 @@ test("PC 도로와 골목은 실제 역할에 맞는 평면 패턴을 사용한�
   assert.match(css, /\.route-zone-road\s*\{[^}]*--road-asphalt:\s*#4d5965;/s);
   assert.match(
     css,
-    /\.route-road\[data-road-position="center-left"\]\s*\{[^}]*border-inline-end:\s*3px\s+dashed\s+#f4c542;/s
+    /\.route-road\[data-road-position="center-left"\]\s*\{[^}]*border-inline-end:\s*7px\s+double\s+#f4c542;/s
   );
   assert.match(
     css,
-    /\.route-crosswalk\s*\{[^}]*repeating-linear-gradient\(\s*90deg,/s
+    /\.route-crosswalk\s*\{[^}]*repeating-linear-gradient\(\s*180deg,/s
   );
   assert.match(css, /\.route-alley\s*\{[^}]*#e7d2aa;[^}]*border-inline:/s);
   assert.match(css, /\.route-walkway\s*\{[^}]*#efdcb8;/s);

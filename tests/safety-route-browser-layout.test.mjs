@@ -245,8 +245,8 @@ test("1280×720 PC 안전길은 7×5칸을 자르지 않고 모바일 방향키�
   assert.ok(desktopMetrics.pageHeight <= 720, `page height: ${desktopMetrics.pageHeight}`);
   assert.deepEqual(desktopMetrics.street.centerDivider, {
     color: "rgb(244, 197, 66)",
-    style: "dashed",
-    width: "3px",
+    style: "double",
+    width: "7px",
     zIndex: "1"
   });
   assert.deepEqual(desktopMetrics.street.crosswalk, {
