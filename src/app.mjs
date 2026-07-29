@@ -63,6 +63,17 @@ import {
   targetArrow,
   tourCameraPath
 } from "./safety-route-camera.mjs";
+import {
+  SRT_STATIONS,
+  advanceSrtWorld,
+  attemptSrtMove,
+  createSrtJourney,
+  targetSeatName
+} from "./srt-journey.mjs";
+import {
+  renderSrtJourney,
+  updateSrtJourney
+} from "./srt-journey-scene.mjs";
 
 const audio = new AudioManager();
 const $ = id => document.getElementById(id);
@@ -655,6 +666,10 @@ function stopSafetyHold() {
 
 function startSafetyHold(direction) {
   stopSafetyHold();
+  if (state.srt) {
+    moveSrt(direction);
+    return;
+  }
   if (!state.safetyView) return;
   state.safetyView.heldDirection = direction;
   const event = moveSafetyRoute(direction);
@@ -699,7 +714,11 @@ function moveSafetyRoute(direction) {
   renderSafetyRoute();
 
   if (result.event.type === "complete") {
-    void completeSafetyRoute();
+    if (state.safety.map.srtMode) {
+      startSrtJourney();
+    } else {
+      void completeSafetyRoute();
+    }
     return result.event;
   }
 
@@ -711,6 +730,98 @@ function moveSafetyRoute(direction) {
     void audio.playPrompt(cue.voiceKey);
   }
   return result.event;
+}
+
+function startSrtJourney() {
+  stopSafetyHold();
+  clearTimers();
+  audio.cancel();
+  state.srt = createSrtJourney(state.safety?.seed ?? 0);
+  state.srtScene = renderSrtJourney(document, state.srt);
+  dom.stage.replaceChildren(state.srtScene);
+  dom.problem.textContent = "SRT를 타고 할아버지 할머니댁에 가요!";
+  audio.playSfx("win");
+  showHint(`수서역이에요! ${targetSeatName(state.srt)} 좌석을 찾아요!`);
+  scheduleSrtTick(performance.now());
+}
+
+function scheduleSrtTick(previousMs = performance.now()) {
+  schedule(() => {
+    if (
+      state.phase !== "playing" ||
+      state.mode !== "safety" ||
+      !state.srt
+    ) {
+      return;
+    }
+    const nowMs = performance.now();
+    if (state.srt.phase === "ride") {
+      const wasOpen = state.srt.ride.doorOpen;
+      state.srt = advanceSrtWorld(
+        state.srt,
+        Math.min(400, nowMs - previousMs)
+      );
+      if (!wasOpen && state.srt.ride.doorOpen) {
+        audio.playSfx("key");
+        showHint(
+          `${SRT_STATIONS[state.srt.ride.stationIndex]}역이에요! 문이 열렸어요`
+        );
+      }
+      updateSrtJourney(state.srtScene, state.srt);
+    }
+    scheduleSrtTick(nowMs);
+  }, 200);
+}
+
+function moveSrt(direction) {
+  if (
+    state.phase !== "playing" ||
+    state.mode !== "safety" ||
+    !state.srt
+  ) {
+    return;
+  }
+  audio.playSfx("key");
+  const result = attemptSrtMove(state.srt, direction);
+  state.srt = result.state;
+  updateSrtJourney(state.srtScene, state.srt);
+  const event = result.event;
+  if (event.type === "seat-found") {
+    audio.playSfx("win");
+    showHint(`${event.seat} 좌석을 찾았어요! 출발합니다!`);
+  } else if (event.type === "wrong-seat") {
+    showHint(`여기는 ${event.seat} 좌석이에요. ${targetSeatName(state.srt)}를 찾아요!`);
+  } else if (event.type === "wrong-station") {
+    showHint(`${event.station}역은 해당 역이 아니에요. 다시 기차에 올라타요!`);
+  } else if (event.type === "arrived") {
+    audio.playSfx("win");
+    showHint(`${event.station}역에 내렸어요! 할아버지 할머니 차를 찾아요!`);
+  } else if (event.type === "wrong-car") {
+    showHint("이 차가 아니에요. 그림자 모양을 잘 봐요!");
+  } else if (event.type === "car-found") {
+    void completeSrtJourney();
+  }
+}
+
+async function completeSrtJourney() {
+  const round = state.round;
+  setPhase("celebrating");
+  clearTimers();
+  audio.cancel();
+  state.stars += 1;
+  state.streak.safety += 1;
+  dom.stars.textContent = String(state.stars);
+  dom.cheer.textContent = "할아버지 할머니를 만났어요!";
+  dom.cheer.classList.add("show");
+  audio.playSfx("win");
+  await audio.playPrompt("safety-finish");
+  if (state.phase !== "celebrating" || state.round !== round) return;
+  schedule(() => {
+    dom.cheer.classList.remove("show");
+    state.srt = null;
+    state.srtScene = null;
+    goHome();
+  }, 1800);
 }
 
 function scheduleCountHint(answer) {
@@ -816,6 +927,8 @@ function startMode(mode) {
   }
   stopSafetyHold();
   setMode(mode);
+  state.srt = null;
+  state.srtScene = null;
   if (mode === "safety") {
     startSafetyRoute();
   } else {
@@ -837,6 +950,8 @@ function goHome() {
   state.problem = null;
   state.safety = null;
   state.safetyView = null;
+  state.srt = null;
+  state.srtScene = null;
   state.buffer = "";
   setMode(null);
   dom.cheer.classList.remove("show");
@@ -886,7 +1001,8 @@ dom.stage.addEventListener("pointerdown", event => {
 dom.stage.addEventListener("click", event => {
   const button = event.target.closest("[data-route-direction]");
   if (!button || event.detail !== 0) return;
-  moveSafetyRoute(button.dataset.routeDirection);
+  if (state.srt) moveSrt(button.dataset.routeDirection);
+  else moveSafetyRoute(button.dataset.routeDirection);
 });
 document.addEventListener("pointerup", stopSafetyHold);
 document.addEventListener("pointercancel", stopSafetyHold);
@@ -924,7 +1040,8 @@ document.addEventListener("keydown", event => {
         previousMs: state.safetyView?.lastMoveAt ?? 0
       })) {
         state.safetyView.lastMoveAt = nowMs;
-        moveSafetyRoute(direction);
+        if (state.srt) moveSrt(direction);
+        else moveSafetyRoute(direction);
       }
       return;
     }
