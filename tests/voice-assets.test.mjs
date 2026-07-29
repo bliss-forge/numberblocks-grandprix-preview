@@ -8,6 +8,15 @@ const srtKeys = [
   "srt-station-busan", "srt-wrong-station", "srt-parking",
   "srt-wrong-car", "srt-grandparents"
 ];
+const subwayKeys = [
+  "subway-board", "subway-wrong-line", "subway-stop-check",
+  "subway-wrong-stop", "subway-transfer", "subway-arrive",
+  "subway-mind-gap",
+  "subway-place-zoo", "subway-place-lunapark", "subway-place-baseball",
+  "subway-place-palace", "subway-place-namsan", "subway-place-hanriver",
+  "subway-place-skypark", "subway-place-childpark", "subway-place-lake",
+  "subway-place-assembly"
+];
 const ko = [
   "prompt-count", "prompt-add", "prompt-sub", "prompt-mul",
   ...Array.from({ length: 150 }, (_, i) => `number-${i + 1}`),
@@ -18,7 +27,8 @@ const ko = [
   "safety-scooter", "safety-bicycle", "safety-car",
   "safety-wrong-order", "safety-finish",
   "safety-look-both", "safety-tour",
-  ...srtKeys
+  ...srtKeys,
+  ...subwayKeys
 ];
 const en = [
   "prompt-sub",
@@ -28,6 +38,7 @@ const en = [
   "safety-wrong-order", "safety-finish",
   "safety-look-both", "safety-tour",
   ...srtKeys,
+  ...subwayKeys,
   ...Array.from({ length: 150 }, (_, i) => `number-${i + 1}`)
 ];
 
