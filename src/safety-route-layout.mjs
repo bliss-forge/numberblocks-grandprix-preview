@@ -29,11 +29,11 @@ const DIFFICULTY_CONTENT = Object.freeze({
 const FRIEND_CANDIDATES = Object.freeze({
   2: Object.freeze([{ x: 5, y: 3 }, { x: 6, y: 3 }]),
   3: Object.freeze([{ x: 7, y: 3 }, { x: 9, y: 3 }]),
-  4: Object.freeze([{ x: 4, y: 10 }, { x: 9, y: 10 }]),
+  4: Object.freeze([{ x: 4, y: 11 }, { x: 9, y: 11 }]),
   5: Object.freeze([{ x: 11, y: 11 }, { x: 12, y: 11 }]),
   6: Object.freeze([{ x: 22, y: 11 }, { x: 23, y: 11 }]),
   7: Object.freeze([{ x: 19, y: 3 }, { x: 20, y: 3 }]),
-  8: Object.freeze([{ x: 22, y: 10 }, { x: 27, y: 10 }]),
+  8: Object.freeze([{ x: 21, y: 11 }, { x: 24, y: 11 }]),
   9: Object.freeze([{ x: 19, y: 11 }, { x: 26, y: 11 }]),
   10: Object.freeze([{ x: 27, y: 11 }, { x: 29, y: 11 }])
 });
@@ -41,9 +41,9 @@ const FRIEND_CANDIDATES = Object.freeze({
 const HAZARD_CANDIDATES = Object.freeze({
   manhole: Object.freeze([
     { x: 5, y: 3, cells: [{ x: 5, y: 3 }], pairedBypassCell: { x: 5, y: 4 } },
-    { x: 7, y: 4, cells: [{ x: 7, y: 4 }], pairedBypassCell: { x: 7, y: 3 } },
+    { x: 2, y: 11, cells: [{ x: 2, y: 11 }], pairedBypassCell: { x: 2, y: 10 } },
     { x: 23, y: 3, cells: [{ x: 23, y: 3 }], pairedBypassCell: { x: 23, y: 4 } },
-    { x: 25, y: 4, cells: [{ x: 25, y: 4 }], pairedBypassCell: { x: 25, y: 3 } }
+    { x: 25, y: 11, cells: [{ x: 25, y: 11 }], pairedBypassCell: { x: 25, y: 10 } }
   ]),
   construction: Object.freeze([
     {
@@ -80,18 +80,18 @@ const HAZARD_CANDIDATES = Object.freeze({
 const PATROL_ROWS = Object.freeze({
   scooter: Object.freeze([
     { zone: "left", y: 4 },
-    { zone: "right", y: 3 },
+    { zone: "right", y: 10 },
     { zone: "left", y: 10 },
-    { zone: "right", y: 11 }
+    { zone: "right", y: 4 }
   ]),
   bicycle: Object.freeze([
     { zone: "right", y: 4 },
-    { zone: "left", y: 11 },
+    { zone: "left", y: 10 },
     { zone: "right", y: 10 },
-    { zone: "left", y: 3 }
+    { zone: "left", y: 4 }
   ])
 });
-const MINIMUM_PATROL_LENGTH = 5;
+const MINIMUM_PATROL_LENGTH = 12;
 
 const DIRECTIONS = Object.freeze([
   Object.freeze({ x: 1, y: 0 }),
@@ -296,6 +296,7 @@ function assembleCandidate(difficulty, random, layoutSource = "generated", seed 
     };
   });
   const content = DIFFICULTY_CONTENT[normalized];
+  const bypassKeys = new Set();
   const hazards = content.hazards.map((type, index) => {
     const candidates = HAZARD_CANDIDATES[type].filter(candidate =>
       [...hazardCells(candidate), candidate.pairedBypassCell].filter(Boolean)
@@ -303,7 +304,10 @@ function assembleCandidate(difficulty, random, layoutSource = "generated", seed 
     );
     const hazard = selectCandidates(candidates, 1, random, forbidden)[0];
     hazardCells(hazard).forEach(point => forbidden.add(pointKey(point)));
-    if (hazard.pairedBypassCell) forbidden.add(pointKey(hazard.pairedBypassCell));
+    if (hazard.pairedBypassCell) {
+      forbidden.add(pointKey(hazard.pairedBypassCell));
+      bypassKeys.add(pointKey(hazard.pairedBypassCell));
+    }
     return {
       ...hazard,
       cells: hazardCells(hazard).map(point => ({ ...point })),
@@ -318,9 +322,12 @@ function assembleCandidate(difficulty, random, layoutSource = "generated", seed 
       const choice = Math.floor(random() * (position + 1));
       [rows[position], rows[choice]] = [rows[choice], rows[position]];
     }
+    const patrolBlockers = new Set(
+      [...forbidden].filter(key => !bypassKeys.has(key))
+    );
     let points = [];
     for (const row of rows) {
-      const run = longestFreeRun(row.zone, row.y, forbidden);
+      const run = longestFreeRun(row.zone, row.y, patrolBlockers);
       if (run.length >= MINIMUM_PATROL_LENGTH) {
         points = run;
         break;
@@ -740,11 +747,9 @@ export function validateCandidateLayout(map) {
     ...(map.entrances ?? []),
     ...(map.friends ?? [])
   ].filter(Boolean).map(pointKey));
-  const occupiedBypassCells = new Set([
-    ...(map.hazards ?? []).flatMap(hazardCells),
-    ...(map.patrols ?? []),
-    ...trafficPaths.flatMap(path => path.points ?? [])
-  ].filter(Boolean).map(pointKey));
+  const occupiedBypassCells = new Set(
+    (map.hazards ?? []).flatMap(hazardCells).filter(Boolean).map(pointKey)
+  );
   (map.hazards ?? []).filter(item => item.type === "manhole").forEach(item => {
     const cells = hazardCells(item);
     const bypass = item.pairedBypassCell;

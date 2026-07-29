@@ -122,7 +122,7 @@ test("맨홀은 한 보행 칸만 막고 짝을 이룬 우회 칸을 비워 둔�
     ...map.hazards.flatMap(hazard => hazard.cells ?? [hazard]),
     ...map.friends,
     ...map.entrances,
-    ...map.patrols,
+
     map.start,
     map.goal
   ].map(({ x, y }) => `${x},${y}`));
@@ -448,7 +448,7 @@ test("킥보드·자전거는 한 줄의 빈 구간 전체를 왕복한다", () 
         const rows = new Set(path.points.map(point => point.y));
         assert.equal(rows.size, 1, `${difficulty}/${seed} patrol spans one row`);
         assert.ok(
-          path.points.length >= 5,
+          path.points.length >= 12,
           `${difficulty}/${seed} patrol length ${path.points.length}`
         );
         const xs = path.points.map(point => point.x);
