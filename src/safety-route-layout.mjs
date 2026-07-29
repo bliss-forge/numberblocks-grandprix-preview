@@ -10,22 +10,25 @@ const CROSSING_ROWS = Object.freeze([3, 10]);
 const SHARED_SIGNAL_ID = "neighborhood-pedestrian-signal";
 const DIFFICULTY_CONTENT = Object.freeze({
   easy: Object.freeze({
-    hazards: Object.freeze(["manhole"]),
-    patrols: Object.freeze(["scooter"]),
-    signalless: false,
-    busMode: false
+    hazards: Object.freeze(["manhole", "manhole", "construction"]),
+    patrols: Object.freeze(["scooter", "bicycle"]),
+    signalless: true,
+    busMode: false,
+    srtMode: false
   }),
   steady: Object.freeze({
     hazards: Object.freeze(["manhole", "manhole", "construction"]),
     patrols: Object.freeze(["scooter", "bicycle"]),
     signalless: true,
-    busMode: false
+    busMode: true,
+    srtMode: false
   }),
   challenge: Object.freeze({
     hazards: Object.freeze(["manhole", "manhole", "construction"]),
     patrols: Object.freeze(["scooter", "bicycle"]),
     signalless: true,
-    busMode: true
+    busMode: false,
+    srtMode: true
   })
 });
 const BUS_NUMBERS = Object.freeze([11, 85, 101, 105]);
@@ -37,14 +40,18 @@ const BUS_STOPS = Object.freeze({
 const FRIEND_CANDIDATES = Object.freeze({
   2: Object.freeze([{ x: 5, y: 3 }, { x: 6, y: 3 }]),
   3: Object.freeze([{ x: 7, y: 3 }, { x: 9, y: 3 }]),
-  4: Object.freeze([{ x: 4, y: 11 }, { x: 9, y: 11 }]),
+  4: Object.freeze([{ x: 1, y: 11 }, { x: 6, y: 11 }]),
   5: Object.freeze([{ x: 11, y: 11 }, { x: 12, y: 11 }]),
   6: Object.freeze([{ x: 22, y: 11 }, { x: 23, y: 11 }]),
   7: Object.freeze([{ x: 19, y: 3 }, { x: 20, y: 3 }]),
-  8: Object.freeze([{ x: 21, y: 11 }, { x: 24, y: 11 }]),
-  9: Object.freeze([{ x: 19, y: 11 }, { x: 26, y: 11 }]),
+  8: Object.freeze([{ x: 25, y: 3 }, { x: 26, y: 3 }]),
+  9: Object.freeze([{ x: 30, y: 3 }, { x: 26, y: 11 }]),
   10: Object.freeze([{ x: 27, y: 11 }, { x: 29, y: 11 }])
 });
+const SRT_FRIEND_10_CANDIDATES = Object.freeze([
+  Object.freeze({ x: 2, y: 3 }),
+  Object.freeze({ x: 8, y: 11 })
+]);
 
 const HAZARD_CANDIDATES = Object.freeze({
   manhole: Object.freeze([
@@ -255,13 +262,11 @@ function carLoopForLane(lane) {
 }
 
 function busRing() {
-  const left = ROAD.x;
-  const right = ROAD.x + ROAD.width - 1;
+  const northbound = ROAD.x;
+  const southbound = ROAD.x + ROAD.width - 1;
   const points = [];
-  for (let y = HEIGHT - 1; y >= 0; y -= 1) points.push({ x: left, y });
-  for (let x = left + 1; x <= right; x += 1) points.push({ x, y: 0 });
-  for (let y = 1; y <= HEIGHT - 1; y += 1) points.push({ x: right, y });
-  for (let x = right - 1; x > left; x -= 1) points.push({ x, y: HEIGHT - 1 });
+  for (let y = HEIGHT - 1; y >= 0; y -= 1) points.push({ x: northbound, y });
+  for (let y = 0; y <= HEIGHT - 1; y += 1) points.push({ x: southbound, y });
   return points;
 }
 
@@ -331,8 +336,12 @@ function assembleCandidate(difficulty, random, layoutSource = "generated", seed 
     ...entrances.map(pointKey),
     ...geometry.crossings.flatMap(crossing => crossing.cells).map(pointKey)
   ]);
+  const content = DIFFICULTY_CONTENT[normalized];
   const friends = Object.entries(FRIEND_CANDIDATES).map(([number, slots]) => {
-    const friend = selectCandidates(slots, 1, random, forbidden)[0];
+    const candidates = content.srtMode && Number(number) === 10
+      ? SRT_FRIEND_10_CANDIDATES
+      : slots;
+    const friend = selectCandidates(candidates, 1, random, forbidden)[0];
     forbidden.add(pointKey(friend));
     return {
       id: `friend-${number}`,
@@ -341,7 +350,6 @@ function assembleCandidate(difficulty, random, layoutSource = "generated", seed 
       y: friend.y
     };
   });
-  const content = DIFFICULTY_CONTENT[normalized];
   const bypassKeys = new Set();
   const hazards = content.hazards.map((type, index) => {
     const candidates = HAZARD_CANDIDATES[type].filter(candidate =>
@@ -406,8 +414,11 @@ function assembleCandidate(difficulty, random, layoutSource = "generated", seed 
       door: { x: 22, y: 11 }, label: "버스 정류장" },
     { id: "right-shop", type: "shop", x: 25, y: 1, width: 2, height: 2,
       door: { x: 25, y: 3 }, label: "가게" },
-    { id: "right-school", type: "school", x: 27, y: 12, width: 3, height: 3,
-      door: { x: 28, y: 11 }, label: "학교" }
+    content.srtMode
+      ? { id: "right-station", type: "station", x: 26, y: 12, width: 4,
+        height: 3, door: { x: 28, y: 11 }, label: "수서역" }
+      : { id: "right-school", type: "school", x: 27, y: 12, width: 3, height: 3,
+        door: { x: 28, y: 11 }, label: "학교" }
   ];
   const props = [
     { id: "prop-1", type: "tree", x: 3, y: 0 },
@@ -446,6 +457,7 @@ function assembleCandidate(difficulty, random, layoutSource = "generated", seed 
     layoutSource,
     seed,
     signalless: content.signalless === true,
+    srtMode: content.srtMode === true,
     busMode,
     busTarget: busMode
       ? BUS_NUMBERS[Math.floor(random() * BUS_NUMBERS.length)]
@@ -571,7 +583,7 @@ export function validateCandidateLayout(map) {
   const places = Array.isArray(map.places) ? map.places : [];
   const expectedPlaceTypes = [
     "home", "daycare", "shops", "park",
-    "library", "bus-stop", "shop", "school"
+    "library", "bus-stop", "shop", map.srtMode ? "station" : "school"
   ];
   if (places.length !== expectedPlaceTypes.length ||
     JSON.stringify(places.map(place => place.type)) !==
@@ -736,7 +748,11 @@ export function validateCandidateLayout(map) {
   (map.friends ?? []).forEach(friend => {
     const isLeftFriend = friend.number >= 2 && friend.number <= 5 && friend.x < ROAD.x;
     const isRightFriend = friend.number >= 6 && friend.number <= 10 && friend.x >= 18;
-    if (!isLeftFriend && !isRightFriend) errors.push(`friend in wrong neighborhood: ${friend.number}`);
+    const isSrtReturnFriend =
+      map.srtMode && friend.number === 10 && friend.x < ROAD.x;
+    if (!isLeftFriend && !isRightFriend && !isSrtReturnFriend) {
+      errors.push(`friend in wrong neighborhood: ${friend.number}`);
+    }
   });
 
   checkPointCollection(errors, map, "start", [map.start], walkable);

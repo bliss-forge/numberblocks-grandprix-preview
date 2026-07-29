@@ -95,8 +95,10 @@ test("난이도별 생활안전 요소는 정해진 장애물과 이동 수단�
   const steady = createSafetyRouteMap("steady", { seed: 1 });
   const challenge = createSafetyRouteMap("challenge", { seed: 1 });
 
-  assert.deepEqual(easy.hazards.map(item => item.type), ["manhole"]);
-  assert.deepEqual(easy.patrols.map(item => item.type), ["scooter"]);
+  assert.deepEqual(easy.hazards.map(item => item.type).sort(), [
+    "construction", "manhole", "manhole"
+  ]);
+  assert.deepEqual(easy.patrols.map(item => item.type).sort(), ["bicycle", "scooter"]);
   assert.deepEqual(steady.hazards.map(item => item.type).sort(), [
     "construction", "manhole", "manhole"
   ]);
@@ -105,7 +107,7 @@ test("난이도별 생활안전 요소는 정해진 장애물과 이동 수단�
     "construction", "manhole", "manhole"
   ]);
   assert.deepEqual(challenge.patrols.map(item => item.type).sort(), ["bicycle", "scooter"]);
-  for (const map of [steady, challenge]) {
+  for (const map of [easy, steady, challenge]) {
     const construction = map.hazards.find(item => item.type === "construction");
     assert.ok(map.alleys.some(alley =>
       construction.x === alley.x &&
@@ -349,7 +351,7 @@ test("승인된 여덟 랜드마크는 올바른 동네와 접근 가능한 이�
 });
 
 test("교통 경로는 두 차선 자동차와 안전한 다점 순찰 경로를 함께 제공한다", () => {
-  const map = createSafetyRouteMap("steady", { seed: 12 });
+  const map = createSafetyRouteMap("easy", { seed: 12 });
   const crossings = new Set(map.crossings.flatMap(item => item.cells).map(({ x, y }) => `${x},${y}`));
   const forbidden = new Set([
     ...map.friends,
@@ -460,49 +462,56 @@ test("킥보드·자전거는 한 줄의 빈 구간 전체를 왕복한다", () 
   }
 });
 
-test("난이도 3단계는 요소 수와 신호 유무로 차이가 난다", () => {
+test("난이도 3단계는 무신호 도보, 버스, SRT 여정으로 차이가 난다", () => {
   const easy = createSafetyRouteMap("easy", { seed: 2 });
   const steady = createSafetyRouteMap("steady", { seed: 2 });
   const challenge = createSafetyRouteMap("challenge", { seed: 2 });
 
-  assert.deepEqual(easy.hazards.map(item => item.type), ["manhole"]);
-  assert.deepEqual(easy.patrols.map(item => item.type), ["scooter"]);
-  assert.equal(easy.signalless, false);
+  for (const map of [easy, steady, challenge]) {
+    assert.deepEqual(
+      map.hazards.map(item => item.type).sort(),
+      ["construction", "manhole", "manhole"],
+      map.difficulty
+    );
+    assert.deepEqual(
+      map.patrols.map(item => item.type).sort(),
+      ["bicycle", "scooter"],
+      map.difficulty
+    );
+    assert.equal(map.signalless, true, map.difficulty);
+  }
 
-  assert.deepEqual(
-    steady.hazards.map(item => item.type).sort(),
-    ["construction", "manhole", "manhole"]
-  );
-  assert.deepEqual(
-    steady.patrols.map(item => item.type).sort(),
-    ["bicycle", "scooter"]
-  );
-  assert.equal(steady.signalless, true);
+  assert.equal(easy.busMode, false);
+  assert.equal(easy.srtMode, false);
 
-  assert.deepEqual(
-    challenge.hazards.map(item => item.type).sort(),
-    ["construction", "manhole", "manhole"]
-  );
-  assert.deepEqual(
-    challenge.patrols.map(item => item.type).sort(),
-    ["bicycle", "scooter"]
-  );
-  assert.equal(challenge.signalless, true);
-  assert.equal(challenge.busMode, true);
-  assert.equal(steady.busMode, false);
-
-  const buses = challenge.trafficPaths.filter(path => path.type === "bus");
+  assert.equal(steady.busMode, true);
+  const buses = steady.trafficPaths.filter(path => path.type === "bus");
   assert.deepEqual(
     buses.map(bus => bus.number).sort((left, right) => left - right),
     [11, 85, 101, 105]
   );
-  assert.ok([11, 85, 101, 105].includes(challenge.busTarget));
-  const road = new Set(challenge.roadCells.map(pointKey));
+  assert.ok([11, 85, 101, 105].includes(steady.busTarget));
+  const road = new Set(steady.roadCells.map(pointKey));
   buses.forEach(bus => {
     assert.ok(bus.points.every(point => road.has(pointKey(point))), bus.id);
+    const columns = new Set(bus.points.map(point => point.x));
+    assert.deepEqual([...columns].sort((a, b) => a - b), [14, 17],
+      "buses stay in outer lanes");
     assert.ok(bus.boardIndex >= 0 && bus.alightIndex >= 0, bus.id);
   });
-  const walkable = new Set(challenge.pedestrianCells.map(pointKey));
-  assert.ok(walkable.has(pointKey(challenge.busStops.board)));
-  assert.ok(walkable.has(pointKey(challenge.busStops.alight)));
+  const walkable = new Set(steady.pedestrianCells.map(pointKey));
+  assert.ok(walkable.has(pointKey(steady.busStops.board)));
+  assert.ok(walkable.has(pointKey(steady.busStops.alight)));
+
+  assert.equal(challenge.srtMode, true);
+  assert.equal(challenge.busMode, false);
+  assert.equal(
+    challenge.trafficPaths.filter(path => path.type === "car").length,
+    2
+  );
+  const station = challenge.places.find(place => place.type === "station");
+  assert.equal(station.label, "수서역");
+  assert.equal(challenge.places.some(place => place.type === "school"), false);
+  const friendTen = challenge.friends.find(friend => friend.number === 10);
+  assert.ok(friendTen.x < challenge.zones.road.x, "friend 10 crosses back");
 });

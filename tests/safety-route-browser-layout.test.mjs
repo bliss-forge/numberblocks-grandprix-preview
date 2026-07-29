@@ -233,68 +233,6 @@ test("1280×720 PC 안전길은 7×5칸을 자르지 않고 모바일 방향키�
   );
   assert.equal(desktopMetrics.signalMarkerCount, 0);
 
-  const easyPage = await browser.newPage({
-    viewport: { width: 1280, height: 720 }
-  });
-  await openSafetyRoute(easyPage, url, "easy");
-  const signalMetrics = await easyPage.evaluate(() => {
-    const world = document.querySelector(".safety-world");
-    const worldRect = world.getBoundingClientRect();
-    const rows = Number(world.style.getPropertyValue("--world-rows"));
-    const cell = worldRect.height / rows;
-    const markerNodes = [...document.querySelectorAll(".route-signal-marker")];
-    const markers = markerNodes.map(marker => {
-      const rect = marker.getBoundingClientRect();
-      const routeX = Number(marker.style.getPropertyValue("--route-x")) - 1;
-      const cellLeft = worldRect.left + routeX * cell;
-      const cellRight = cellLeft + cell;
-      const side = marker.dataset.side;
-      return {
-        curbGap: side === "left"
-          ? cellRight - rect.right
-          : rect.left - cellLeft,
-        side,
-        staysInsideCell: rect.left >= cellLeft && rect.right <= cellRight,
-        translate: getComputedStyle(marker).translate,
-        zIndex: getComputedStyle(marker).zIndex
-      };
-    });
-    const pole = getComputedStyle(markerNodes[0], "::before");
-    const base = getComputedStyle(markerNodes[0], "::after");
-    return {
-      markers,
-      pole: {
-        backgroundColor: pole.backgroundColor,
-        height: pole.height,
-        width: pole.width
-      },
-      base: {
-        backgroundColor: base.backgroundColor,
-        height: base.height,
-        width: base.width
-      }
-    };
-  });
-  assert.deepEqual(signalMetrics.pole, {
-    backgroundColor: "rgb(247, 242, 223)",
-    height: "22px",
-    width: "5px"
-  });
-  assert.deepEqual(signalMetrics.base, {
-    backgroundColor: "rgb(196, 170, 120)",
-    height: "6px",
-    width: "20px"
-  });
-  assert.deepEqual(
-    signalMetrics.markers.map(marker => marker.side),
-    ["left", "right", "left", "right"]
-  );
-  assert.ok(signalMetrics.markers.every(marker =>
-    marker.staysInsideCell &&
-    Math.abs(marker.curbGap - 8) <= .25 &&
-    marker.zIndex === "10" &&
-    marker.translate === (marker.side === "left" ? "-8px 6px" : "8px 6px")
-  ), JSON.stringify(signalMetrics.markers));
   assert.deepEqual(
     desktopMetrics.taskFour.riders.map(rider => rider.directChild),
     [true, true]

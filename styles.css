@@ -2040,7 +2040,7 @@ body[data-mode="safety"] .stage-lights {
   z-index: 3;
   background:
     repeating-linear-gradient(
-      180deg,
+      90deg,
       #fff 0 15%,
       var(--road-asphalt, #4d5965) 15% 25%
     );
@@ -2245,6 +2245,60 @@ body[data-mode="safety"] .stage-lights {
   --roof: #e8564a;
   --wall: #fdf0d5;
   z-index: 4;
+}
+
+.route-building-station {
+  --roof: #7d8593;
+  --wall: #eef1f5;
+  z-index: 4;
+}
+
+.route-building-station .route-building-roof {
+  border-radius: 50% 50% 0 0 / 100% 100% 0 0;
+  background: linear-gradient(180deg, #98a0ad 0 46%, var(--roof) 46%);
+}
+
+.route-building-station .route-building-window {
+  top: 38%;
+  width: 26%;
+  height: 34%;
+  border-radius: 4px 4px 0 0;
+  background:
+    linear-gradient(90deg, rgba(255, 255, 255, .55) 0 12%, transparent 12% 88%,
+      rgba(255, 255, 255, .55) 88%),
+    #9fd0f5;
+}
+
+.route-building-station .route-building-door {
+  width: 30%;
+  border-color: #cfd6df;
+  background: #9fd0f5;
+}
+
+.route-building-station-canopy {
+  position: absolute;
+  left: 8%;
+  right: 8%;
+  top: 26%;
+  z-index: 2;
+  height: 7%;
+  border-radius: 999px;
+  background: #fff;
+  box-shadow: 0 2px 0 rgba(37, 52, 93, .18);
+}
+
+.route-building-station-logo {
+  position: absolute;
+  right: 6%;
+  top: 40%;
+  z-index: 2;
+  padding: 1px 6px;
+  border-radius: 6px;
+  background: #5b2d86;
+  color: #fff;
+  font-size: clamp(8px, .75vw, 12px);
+  font-weight: 900;
+  line-height: 1.4;
 }
 
 .route-building-school .route-building-door {
@@ -2680,10 +2734,33 @@ body[data-mode="safety"] .stage-lights {
   z-index: 8;
   display: grid;
   place-items: start center;
-  font-size: calc(var(--route-cell-size) * .46);
-  line-height: 1.2;
   pointer-events: none;
+  border: 3px dashed #5aa9e6;
+  border-radius: 10px;
+  background: rgba(191, 232, 255, .45);
   filter: drop-shadow(0 2px 0 rgba(37, 52, 93, .25));
+}
+
+.route-bus-shelter {
+  font-size: calc(var(--route-cell-size) * .5);
+  line-height: 1.1;
+}
+
+.route-bus-stop-sign {
+  position: absolute;
+  left: 50%;
+  top: -10px;
+  transform: translate(-50%, -100%);
+  padding: 2px 8px;
+  border: 3px solid #5aa9e6;
+  border-radius: 999px;
+  background: #fff;
+  color: #1758aa;
+  font-size: clamp(9px, .9vw, 13px);
+  font-weight: 900;
+  line-height: 1.4;
+  white-space: nowrap;
+  box-shadow: 0 2px 0 rgba(37, 52, 93, .2);
 }
 
 .route-moving-rider {

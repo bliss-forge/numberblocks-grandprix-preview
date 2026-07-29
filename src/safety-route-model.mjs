@@ -227,6 +227,16 @@ export function attemptSafetyMove(state, direction) {
     return transition(state, candidate, { type: "wrong-friend", number: friend.number }, moveExtra);
   }
 
+  if (state.map.busMode && state.nextFriend > 5 &&
+    samePoint(state.map.busStops.board, candidate)) {
+    return transition(
+      state,
+      candidate,
+      { type: "bus-stop", target: state.map.busTarget },
+      moveExtra
+    );
+  }
+
   if (samePoint(state.map.goal, candidate)) {
     return transition(
       state,

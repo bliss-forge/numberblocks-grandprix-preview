@@ -25,7 +25,8 @@ const PLACE_LABELS = Object.freeze({
   shop: "가게",
   construction: "공사 구간",
   crossing: "횡단보도",
-  school: "학교"
+  school: "학교",
+  station: "수서역"
 });
 
 const HAZARD_LABELS = Object.freeze({
@@ -279,6 +280,16 @@ export function renderSafetyRouteScene(document, state, requestedView = {}) {
       flag.setAttribute("aria-hidden", "true");
       node.append(clock, flag);
     }
+    if (place.type === "station") {
+      const canopy = document.createElement("div");
+      canopy.className = "route-building-station-canopy";
+      canopy.setAttribute("aria-hidden", "true");
+      const logo = document.createElement("div");
+      logo.className = "route-building-station-logo";
+      logo.textContent = "SRT";
+      logo.setAttribute("aria-hidden", "true");
+      node.append(canopy, logo);
+    }
     world.append(node);
   });
 
@@ -388,12 +399,22 @@ export function renderSafetyRouteScene(document, state, requestedView = {}) {
     ]) {
       const stop = document.createElement("div");
       stop.className = `route-bus-stop-marker route-bus-stop-${stopName}`;
-      stop.textContent = "🚏";
       stop.setAttribute("role", "img");
       stop.setAttribute(
         "aria-label",
         stopName === "board" ? "버스 타는 정류장" : "버스 내리는 정류장"
       );
+      const shelter = document.createElement("span");
+      shelter.className = "route-bus-shelter";
+      shelter.textContent = "🚏";
+      shelter.setAttribute("aria-hidden", "true");
+      const sign = document.createElement("span");
+      sign.className = "route-bus-stop-sign";
+      sign.textContent = stopName === "board"
+        ? `${state.map.busTarget}번 타는 곳`
+        : "내리는 곳";
+      sign.setAttribute("aria-hidden", "true");
+      stop.append(shelter, sign);
       world.append(placeAt(stop, stopPoint));
     }
   }

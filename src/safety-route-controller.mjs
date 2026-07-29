@@ -73,6 +73,14 @@ export function acceptSafetyRepeat({
 export function safetyCueForEvent(event, nextFriend) {
   if (!event) return null;
 
+  if (event.type === "bus-stop") {
+    return {
+      message: `${event.target}번 버스를 타면 건너갈 수 있어요!`,
+      voiceKey: null,
+      tone: "guide"
+    };
+  }
+
   if (event.type === "crossing-started") {
     return {
       message: "멈춰요, 왼쪽 오른쪽을 봐요!",

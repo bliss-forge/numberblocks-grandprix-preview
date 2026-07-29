@@ -46,7 +46,7 @@ test("PC 도로와 골목은 실제 역할에 맞는 평면 패턴을 사용한�
   );
   assert.match(
     css,
-    /\.route-crosswalk\s*\{[^}]*repeating-linear-gradient\(\s*180deg,/s
+    /\.route-crosswalk\s*\{[^}]*repeating-linear-gradient\(\s*90deg,/s
   );
   assert.match(css, /\.route-alley\s*\{[^}]*#e7d2aa;[^}]*border-inline:/s);
   assert.match(css, /\.route-walkway\s*\{[^}]*#efdcb8;/s);
