@@ -618,6 +618,50 @@ test("정류장에서 목표 버스가 서면 타고, 하차 정류장에 내린
   assert.equal(notBoarded.riding, null);
 });
 
+test("건너편 10번 친구를 데리러 하차 정류장에서 같은 버스를 타고 돌아온다", () => {
+  const base = createSafetyRouteState("steady", { seed: 9 });
+  const friendTen = base.map.friends.find(friend => friend.number === 10);
+  assert.ok(friendTen.x < base.map.zones.road.x, "friend 10 waits across");
+  const targetPath = base.map.trafficPaths.find(path =>
+    path.type === "bus" && path.number === base.map.busTarget
+  );
+
+  const returning = {
+    ...base,
+    nextFriend: 10,
+    position: { ...base.map.busStops.alight },
+    movers: base.movers.map(mover =>
+      mover.id === targetPath.id
+        ? { ...mover, pathIndex: targetPath.alightIndex, stopped: true, pauseMs: 100 }
+        : mover
+    )
+  };
+  const boarded = advanceSafetyWorld(returning, 100);
+  assert.equal(boarded.riding, targetPath.id);
+  assert.equal(boarded.ridingDest, "board");
+
+  let riding = boarded;
+  for (let tick = 0; tick < 200 && riding.riding; tick += 1) {
+    riding = advanceSafetyWorld(riding, 250);
+  }
+  assert.equal(riding.riding, null);
+  assert.deepEqual(riding.position, base.map.busStops.board);
+
+  const settled = {
+    ...riding,
+    movers: riding.movers.map(mover =>
+      mover.id === targetPath.id
+        ? { ...mover, pathIndex: targetPath.boardIndex, stopped: true, pauseMs: 100 }
+        : mover
+    )
+  };
+  assert.equal(
+    advanceSafetyWorld(settled, 100).riding,
+    null,
+    "no reboarding while friend 10 waits on this side"
+  );
+});
+
 test("친구 2~5를 만나기 전에는 버스에 타지 않는다", () => {
   const base = createSafetyRouteState("steady", { seed: 9 });
   const targetPath = base.map.trafficPaths.find(path =>

@@ -1,3 +1,5 @@
+import { busStopForNextTarget } from "./safety-route-model.mjs";
+
 function percent(value, total) {
   return (value / total) * 100;
 }
@@ -9,11 +11,7 @@ function placeDot(node, map, point) {
 }
 
 function minimapTarget(state) {
-  if (state.map.busMode && state.nextFriend > 5 && !state.riding &&
-    state.position.x < state.map.zones.road.x) {
-    return state.map.busStops.board;
-  }
-  return state.map.friends.find(
+  return busStopForNextTarget(state) ?? state.map.friends.find(
     friend => friend.number === state.nextFriend
   ) ?? state.map.goal;
 }

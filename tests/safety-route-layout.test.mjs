@@ -502,6 +502,11 @@ test("난이도 3단계는 무신호 도보, 버스, SRT 여정으로 차이가 
   const walkable = new Set(steady.pedestrianCells.map(pointKey));
   assert.ok(walkable.has(pointKey(steady.busStops.board)));
   assert.ok(walkable.has(pointKey(steady.busStops.alight)));
+  const steadyFriendTen = steady.friends.find(friend => friend.number === 10);
+  assert.ok(
+    steadyFriendTen.x < steady.zones.road.x,
+    "steady friend 10 waits across for the return bus"
+  );
 
   assert.equal(challenge.srtMode, true);
   assert.equal(challenge.busMode, false);

@@ -48,7 +48,7 @@ const FRIEND_CANDIDATES = Object.freeze({
   9: Object.freeze([{ x: 30, y: 3 }, { x: 26, y: 11 }]),
   10: Object.freeze([{ x: 27, y: 11 }, { x: 29, y: 11 }])
 });
-const SRT_FRIEND_10_CANDIDATES = Object.freeze([
+const RETURN_FRIEND_10_CANDIDATES = Object.freeze([
   Object.freeze({ x: 2, y: 3 }),
   Object.freeze({ x: 8, y: 11 })
 ]);
@@ -338,9 +338,10 @@ function assembleCandidate(difficulty, random, layoutSource = "generated", seed 
   ]);
   const content = DIFFICULTY_CONTENT[normalized];
   const friends = Object.entries(FRIEND_CANDIDATES).map(([number, slots]) => {
-    const candidates = content.srtMode && Number(number) === 10
-      ? SRT_FRIEND_10_CANDIDATES
-      : slots;
+    const candidates =
+      (content.srtMode || content.busMode) && Number(number) === 10
+        ? RETURN_FRIEND_10_CANDIDATES
+        : slots;
     const friend = selectCandidates(candidates, 1, random, forbidden)[0];
     forbidden.add(pointKey(friend));
     return {
@@ -748,9 +749,9 @@ export function validateCandidateLayout(map) {
   (map.friends ?? []).forEach(friend => {
     const isLeftFriend = friend.number >= 2 && friend.number <= 5 && friend.x < ROAD.x;
     const isRightFriend = friend.number >= 6 && friend.number <= 10 && friend.x >= 18;
-    const isSrtReturnFriend =
-      map.srtMode && friend.number === 10 && friend.x < ROAD.x;
-    if (!isLeftFriend && !isRightFriend && !isSrtReturnFriend) {
+    const isReturnFriend = (map.srtMode || map.busMode) &&
+      friend.number === 10 && friend.x < ROAD.x;
+    if (!isLeftFriend && !isRightFriend && !isReturnFriend) {
       errors.push(`friend in wrong neighborhood: ${friend.number}`);
     }
   });

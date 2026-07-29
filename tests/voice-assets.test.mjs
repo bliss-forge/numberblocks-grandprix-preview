@@ -2,6 +2,12 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile, stat } from "node:fs/promises";
 
+const srtKeys = [
+  "srt-arrive", "srt-board", "srt-seat", "srt-wrong-seat", "srt-depart",
+  "srt-station-dongtan", "srt-station-daejeon", "srt-station-daegu",
+  "srt-station-busan", "srt-wrong-station", "srt-parking",
+  "srt-wrong-car", "srt-grandparents"
+];
 const ko = [
   "prompt-count", "prompt-add", "prompt-sub", "prompt-mul",
   ...Array.from({ length: 150 }, (_, i) => `number-${i + 1}`),
@@ -10,7 +16,9 @@ const ko = [
   ...Array.from({ length: 9 }, (_, i) => `safety-next-${i + 2}`),
   "safety-red-light", "safety-manhole", "safety-construction",
   "safety-scooter", "safety-bicycle", "safety-car",
-  "safety-wrong-order", "safety-finish"
+  "safety-wrong-order", "safety-finish",
+  "safety-look-both", "safety-tour",
+  ...srtKeys
 ];
 const en = [
   "prompt-sub",
@@ -18,6 +26,8 @@ const en = [
   "safety-red-light", "safety-manhole", "safety-construction",
   "safety-scooter", "safety-bicycle", "safety-car",
   "safety-wrong-order", "safety-finish",
+  "safety-look-both", "safety-tour",
+  ...srtKeys,
   ...Array.from({ length: 150 }, (_, i) => `number-${i + 1}`)
 ];
 

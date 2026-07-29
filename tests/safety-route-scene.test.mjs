@@ -125,6 +125,9 @@ test("난이도별 장애물과 두 차선 자동차를 장면에 표시한다",
   assert.equal(byClass(busScene, "route-bus").length, 4);
   assert.equal(byClass(busScene, "route-bus-stop-marker").length, 2);
   assert.equal(byClass(busScene, "route-bus-stop-sign").length, 2);
+  byClass(busScene, "route-bus-stop-sign").forEach(sign => {
+    assert.match(sign.textContent, /^\d+번 타는 곳$/, "both stops board");
+  });
   byClass(busScene, "route-bus").forEach(node => {
     assert.match(node.innerHTML ?? "", /route-art-bus/);
     assert.match(node.attributes.get("aria-label"), /^\d+번 버스$/);

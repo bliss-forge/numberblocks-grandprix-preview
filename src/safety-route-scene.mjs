@@ -7,6 +7,7 @@ import {
   scooterSvg
 } from "./safety-route-art.mjs";
 import { renderMinimap, updateMinimap } from "./safety-route-minimap.mjs";
+import { busStopForNextTarget } from "./safety-route-model.mjs";
 
 const MOVER_ART = Object.freeze({
   car: carSvg,
@@ -402,7 +403,7 @@ export function renderSafetyRouteScene(document, state, requestedView = {}) {
       stop.setAttribute("role", "img");
       stop.setAttribute(
         "aria-label",
-        stopName === "board" ? "버스 타는 정류장" : "버스 내리는 정류장"
+        stopName === "board" ? "학교 방향 버스 정류장" : "돌아오는 버스 정류장"
       );
       const shelter = document.createElement("span");
       shelter.className = "route-bus-shelter";
@@ -410,9 +411,7 @@ export function renderSafetyRouteScene(document, state, requestedView = {}) {
       shelter.setAttribute("aria-hidden", "true");
       const sign = document.createElement("span");
       sign.className = "route-bus-stop-sign";
-      sign.textContent = stopName === "board"
-        ? `${state.map.busTarget}번 타는 곳`
-        : "내리는 곳";
+      sign.textContent = `${state.map.busTarget}번 타는 곳`;
       sign.setAttribute("aria-hidden", "true");
       stop.append(shelter, sign);
       world.append(placeAt(stop, stopPoint));
@@ -505,8 +504,7 @@ export function updateSafetyRouteScene(root, state, requestedView = {}) {
   const view = resolvedView(state, requestedView);
   root.dataset.difficulty = state.difficulty;
   root.dataset.ceremony = state.ceremony?.stage ?? "";
-  const waitingForBus = state.map.busMode && state.nextFriend > 5 &&
-    !state.riding && state.position.x < state.map.zones.road.x;
+  const waitingForBus = Boolean(busStopForNextTarget(state));
   nodes.goal.textContent = state.riding
     ? "버스를 타고 가요!"
     : waitingForBus

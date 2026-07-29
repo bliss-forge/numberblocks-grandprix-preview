@@ -41,6 +41,7 @@ import {
 import {
   advanceSafetyWorld,
   attemptSafetyMove,
+  busStopForNextTarget,
   createSafetyRouteState,
   findSafetyPath
 } from "./safety-route-model.mjs";
@@ -636,13 +637,10 @@ async function completeSafetyRoute() {
 }
 
 function safetyTarget(safety = state.safety) {
-  if (safety?.map.busMode && safety.nextFriend > 5 && !safety.riding &&
-    safety.position.x < safety.map.zones.road.x) {
-    return safety.map.busStops.board;
-  }
-  return safety?.map.friends.find(
+  if (!safety) return null;
+  return busStopForNextTarget(safety) ?? safety.map.friends.find(
     friend => friend.number === safety.nextFriend
-  ) ?? safety?.map.goal ?? null;
+  ) ?? safety.map.goal ?? null;
 }
 
 function safetyDistance(safety = state.safety) {

@@ -69,6 +69,7 @@ export function createSafetyRouteState(
     checkedEntrance: null,
     ceremony: null,
     riding: null,
+    ridingDest: null,
     tourActive: Boolean(tourActive),
     tick: 0,
     movers: map.trafficPaths.map(path => ({
@@ -76,6 +77,26 @@ export function createSafetyRouteState(
       pathIndex: path.startIndex ?? 0
     }))
   };
+}
+
+function pendingBusStop(map, nextFriend, riding, position) {
+  if (!map?.busMode || nextFriend <= 5 || riding) return null;
+  const roadX = map.zones.road.x;
+  const target = map.friends.find(friend => friend.number === nextFriend) ??
+    map.goal;
+  if (!target) return null;
+  const playerLeft = position.x < roadX;
+  if (playerLeft === (target.x < roadX)) return null;
+  return playerLeft ? map.busStops.board : map.busStops.alight;
+}
+
+export function busStopForNextTarget(state) {
+  return pendingBusStop(
+    state.map,
+    state.nextFriend,
+    state.riding,
+    state.position
+  );
 }
 
 function crossingForPoint(map, point) {
@@ -227,8 +248,13 @@ export function attemptSafetyMove(state, direction) {
     return transition(state, candidate, { type: "wrong-friend", number: friend.number }, moveExtra);
   }
 
-  if (state.map.busMode && state.nextFriend > 5 &&
-    samePoint(state.map.busStops.board, candidate)) {
+  const pendingStop = pendingBusStop(
+    state.map,
+    state.nextFriend,
+    state.riding,
+    candidate
+  );
+  if (pendingStop && samePoint(pendingStop, candidate)) {
     return transition(
       state,
       candidate,
@@ -290,7 +316,9 @@ const BUS_STOP_PAUSE_MS = 2000;
 
 function advanceBusMover(definition, mover, { elapsedMs, ridingId }) {
   const carrying = ridingId === definition.id;
-  if (mover.pathIndex === definition.boardIndex && !carrying) {
+  const atStop = mover.pathIndex === definition.boardIndex ||
+    mover.pathIndex === definition.alightIndex;
+  if (atStop && !carrying) {
     const pauseMs = (mover.pauseMs ?? 0) + Math.max(0, elapsedMs);
     if (pauseMs < BUS_STOP_PAUSE_MS) {
       return cloneMover(definition, {
@@ -434,33 +462,51 @@ export function advanceSafetyWorld(state, elapsedMs = 100) {
         : { stage: ceremony.stage, elapsedMs: elapsedTotal };
   }
   let riding = state.riding;
+  let ridingDest = state.ridingDest ?? null;
   let position = state.position;
   if (state.map.busMode) {
-    if (!riding && state.nextFriend > 5 &&
-      samePoint(position, state.map.busStops.board)) {
+    const pendingStop = pendingBusStop(
+      state.map,
+      state.nextFriend,
+      riding,
+      position
+    );
+    if (!riding && pendingStop && samePoint(position, pendingStop)) {
+      const boardingBack = samePoint(pendingStop, state.map.busStops.alight);
       const targetPath = state.map.trafficPaths.find(path =>
         path.type === "bus" && path.number === state.map.busTarget
       );
+      const stopIndex = boardingBack
+        ? targetPath?.alightIndex
+        : targetPath?.boardIndex;
       const targetMover = targetPath &&
         movers.find(mover => mover.id === targetPath.id);
       if (targetMover && targetMover.stopped &&
-        targetMover.pathIndex === targetPath.boardIndex) {
+        targetMover.pathIndex === stopIndex) {
         riding = targetPath.id;
+        ridingDest = boardingBack ? "board" : "alight";
       }
     } else if (riding) {
       const path = state.map.trafficPaths.find(item => item.id === riding);
       const mover = movers.find(item => item.id === riding);
       if (path && mover) {
-        if (mover.pathIndex === path.alightIndex) {
+        const destKey = ridingDest ?? "alight";
+        const destIndex = destKey === "board"
+          ? path.boardIndex
+          : path.alightIndex;
+        if (mover.pathIndex === destIndex) {
           riding = null;
-          position = { ...state.map.busStops.alight };
+          ridingDest = null;
+          position = { ...state.map.busStops[destKey] };
         } else {
           position = { ...path.points[mover.pathIndex] };
         }
       }
     }
   }
-  return { ...state, tick, signal, movers, ceremony, riding, position };
+  return {
+    ...state, tick, signal, movers, ceremony, riding, ridingDest, position
+  };
 }
 
 function inBounds(map, point) {
