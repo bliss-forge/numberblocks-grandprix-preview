@@ -95,7 +95,7 @@ test("목적지 선택 화면은 숫자키 카드 10장과 환승 난이도 칩�
   const chips = byClass(picker, "subway-transfer-chip");
   assert.equal(chips.length, 10);
   for (const chip of chips) {
-    assert.match(chip.textContent, /^(바로 가요|1번 갈아타요|2번 갈아타요)$/);
+    assert.match(chip.textContent, /^(바로 가요|🚶 1번 갈아타요|🚶🚶 2번 갈아타요)$/);
   }
   for (const card of cards) {
     assert.ok(card.dataset.placeId, "card carries place id");

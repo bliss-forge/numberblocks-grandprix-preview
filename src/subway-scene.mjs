@@ -11,7 +11,12 @@ import {
   rideStation,
   subwayAnnouncement
 } from "./subway-journey.mjs";
-import { lineBadgeSvg, mapTrainSvg, subwayTrainSvg } from "./subway-art.mjs";
+import {
+  lineBadgeSvg,
+  lineTextColor,
+  mapTrainSvg,
+  subwayTrainSvg
+} from "./subway-art.mjs";
 
 const MAP_SCALE = 10;
 const MAP_PAD = 7;
@@ -33,8 +38,8 @@ const PARKS = [
 
 const TRANSFER_LABELS = Object.freeze({
   0: "바로 가요",
-  1: "1번 갈아타요",
-  2: "2번 갈아타요"
+  1: "🚶 1번 갈아타요",
+  2: "🚶🚶 2번 갈아타요"
 });
 
 function playerImage(document) {
@@ -86,6 +91,7 @@ export function renderSubwayPicker(document, destinations) {
       "aria-label",
       `${place.label} — ${TRANSFER_LABELS[transfers]}`
     );
+    card.setAttribute("aria-keyshortcuts", String(digit));
 
     const key = document.createElement("span");
     key.className = "subway-place-key";
@@ -342,6 +348,7 @@ function renderRidePhase(document, state, stage) {
   banner.className = "subway-ride-banner";
   const announcement = document.createElement("span");
   announcement.className = "subway-announcement";
+  announcement.setAttribute("role", "status");
   announcement.textContent = subwayAnnouncement(state);
   const door = document.createElement("span");
   door.className = "subway-door-state";
@@ -354,6 +361,7 @@ function renderRidePhase(document, state, stage) {
   const capsule = document.createElement("div");
   capsule.className = "subway-capsule";
   capsule.style.setProperty("--line-color", lineColor);
+  capsule.style.setProperty("--line-text", lineTextColor(lineColor));
   const prev = document.createElement("span");
   prev.className = "subway-capsule-side subway-capsule-prev";
   prev.textContent = texts.prev;
@@ -436,6 +444,7 @@ export function renderSubwayJourney(document, state) {
 
   const pad = document.createElement("div");
   pad.className = "route-pad";
+  pad.setAttribute("role", "group");
   pad.setAttribute("aria-label", "지하철 이동");
   for (const [direction, label, symbol] of [
     ["up", "타요", "↑"],

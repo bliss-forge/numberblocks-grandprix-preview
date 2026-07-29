@@ -886,6 +886,7 @@ function startSubwayJourney() {
   state.buffer = "";
   state.subway = null;
   state.subwayChoosing = true;
+  dom.stage.setAttribute("aria-live", "off");
   state.subwayScene = renderSubwayPicker(document, subwayDestinations());
   dom.stage.replaceChildren(state.subwayScene);
   dom.problem.textContent = "🚇 어디로 갈까요?";
@@ -1163,6 +1164,7 @@ function goHome() {
   state.subway = null;
   state.subwayScene = null;
   state.subwayChoosing = false;
+  dom.stage.setAttribute("aria-live", "polite");
   state.buffer = "";
   setMode(null);
   dom.cheer.classList.remove("show");
