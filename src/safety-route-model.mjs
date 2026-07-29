@@ -51,7 +51,10 @@ function cloneMover(definition, mover = {}) {
   };
 }
 
-export function createSafetyRouteState(difficulty, { seed = 0 } = {}) {
+export function createSafetyRouteState(
+  difficulty,
+  { seed = 0, tourActive = false } = {}
+) {
   const normalized = normalizeDifficulty(difficulty);
   const map = createSafetyRouteMap(normalized, { seed });
   return {
@@ -64,6 +67,8 @@ export function createSafetyRouteState(difficulty, { seed = 0 } = {}) {
     signal: { phase: "vehicle-go", elapsedMs: 0 },
     crossingId: null,
     checkedEntrance: null,
+    ceremony: null,
+    tourActive: Boolean(tourActive),
     tick: 0,
     movers: map.trafficPaths.map(createPatrolMover)
   };
@@ -82,6 +87,10 @@ function transition(state, position, event, extra = {}) {
 export function attemptSafetyMove(state, direction) {
   const offset = DIRECTIONS[direction];
   if (!offset) return { state, event: { type: "ignored" } };
+  if (state.tourActive) return { state, event: { type: "ignored" } };
+  if (state.ceremony && state.ceremony.stage !== "crossing") {
+    return { state, event: { type: "ignored" } };
+  }
 
   const candidate = {
     x: state.position.x + offset.x,
@@ -155,8 +164,15 @@ export function attemptSafetyMove(state, direction) {
 
   const moveExtra = {
     checkedEntrance: null,
-    crossingId: crossing?.id ?? null
+    crossingId: crossing?.id ?? null,
+    ceremony: crossing ? state.ceremony ?? null : null
   };
+  if (crossing && !state.crossingId) {
+    return transition(state, candidate, { type: "crossing-started" }, {
+      ...moveExtra,
+      ceremony: { stage: "stopping", elapsedMs: 0 }
+    });
+  }
   const friend = state.map.friends.find(item => samePoint(item, candidate));
   if (friend?.number === state.nextFriend) {
     return transition(state, candidate, { type: "friend", number: friend.number }, {
@@ -263,7 +279,16 @@ export function advanceSafetyWorld(state, elapsedMs = 100) {
     return advanceCarMover(definition, mover, signal);
   });
   const movers = synchronizeCarHeadings(state.movers, advancedMovers);
-  return { ...state, tick, signal, movers };
+  let ceremony = state.ceremony;
+  if (ceremony && ceremony.stage !== "crossing") {
+    const elapsedTotal = ceremony.elapsedMs + elapsed;
+    ceremony = elapsedTotal >= 1400
+      ? { stage: "crossing", elapsedMs: elapsedTotal }
+      : elapsedTotal >= 600
+        ? { stage: "looking", elapsedMs: elapsedTotal }
+        : { stage: ceremony.stage, elapsedMs: elapsedTotal };
+  }
+  return { ...state, tick, signal, movers, ceremony };
 }
 
 function inBounds(map, point) {

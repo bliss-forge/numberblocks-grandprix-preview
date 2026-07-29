@@ -82,7 +82,7 @@ test("5 친구를 만나면 위와 아래 횡단보도를 모두 사용할 수 �
     nextFriend: 6,
     signal: { phase: "pedestrian-go", elapsedMs: 0 }
   })) {
-    assert.equal(attemptSafetyMove(state, "right").event.type, "moved");
+    assert.equal(attemptSafetyMove(state, "right").event.type, "crossing-started");
   }
 });
 
@@ -167,7 +167,7 @@ test("횡단보도는 빨간불과 초록불 종료 직전에 새 진입을 막�
     ...entry,
     signal: { phase: "pedestrian-go", elapsedMs: 0 }
   }, "right");
-  assert.equal(green.event.type, "moved");
+  assert.equal(green.event.type, "crossing-started");
 });
 
 test("고정 장애물은 위치를 유지하고 정확한 안전 이유를 반환한다", () => {
@@ -388,4 +388,61 @@ test("벽과 잘못된 방향 입력은 상태를 바꾸지 않는다", () => {
 
 test("잘못된 난이도는 차근차근 지도로 안전하게 정규화한다", () => {
   assert.equal(createSafetyRouteState("unknown").difficulty, "steady");
+});
+
+test("초록불 횡단 진입은 crossing-started 이벤트와 연출 상태를 만든다", () => {
+  const base = createSafetyRouteState("easy", { seed: 1 });
+  const crossingCell = base.map.crossings[0].cells
+    .find(cell => cell.x === base.map.zones.road.x);
+  const state = {
+    ...base,
+    nextFriend: 6,
+    position: { x: crossingCell.x - 1, y: crossingCell.y },
+    signal: { phase: "pedestrian-go", elapsedMs: 0 }
+  };
+  const result = attemptSafetyMove(state, "right");
+  assert.equal(result.event.type, "crossing-started");
+  assert.deepEqual(result.state.ceremony, { stage: "stopping", elapsedMs: 0 });
+});
+
+test("연출 stopping/looking 동안 이동 입력은 무시된다", () => {
+  const base = createSafetyRouteState("easy", { seed: 1 });
+  const state = { ...base, ceremony: { stage: "stopping", elapsedMs: 100 } };
+  const result = attemptSafetyMove(state, "right");
+  assert.equal(result.event.type, "ignored");
+  assert.deepEqual(result.state.position, state.position);
+});
+
+test("연출은 시간에 따라 stopping→looking→crossing으로 진행된다", () => {
+  const base = createSafetyRouteState("easy", { seed: 1 });
+  let state = { ...base, ceremony: { stage: "stopping", elapsedMs: 0 } };
+  state = advanceSafetyWorld(state, 600);
+  assert.equal(state.ceremony.stage, "looking");
+  state = advanceSafetyWorld(state, 800);
+  assert.equal(state.ceremony.stage, "crossing");
+});
+
+test("횡단보도를 벗어나면 연출이 해제된다", () => {
+  const base = createSafetyRouteState("easy", { seed: 1 });
+  const crossing = base.map.crossings[0];
+  const lastCell = crossing.cells.reduce((a, b) => (b.x > a.x ? b : a));
+  const state = {
+    ...base,
+    nextFriend: 6,
+    position: { x: lastCell.x, y: lastCell.y },
+    crossingId: crossing.id,
+    ceremony: { stage: "crossing", elapsedMs: 0 },
+    signal: { phase: "pedestrian-go", elapsedMs: 0 }
+  };
+  const result = attemptSafetyMove(state, "right");
+  assert.equal(result.state.ceremony, null);
+});
+
+test("tourActive 동안 이동은 무시된다", () => {
+  const state = {
+    ...createSafetyRouteState("easy", { seed: 1 }),
+    tourActive: true
+  };
+  const result = attemptSafetyMove(state, "right");
+  assert.equal(result.event.type, "ignored");
 });
