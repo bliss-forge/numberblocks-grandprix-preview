@@ -97,8 +97,10 @@ test("난이도별 생활안전 요소는 정해진 장애물과 이동 수단�
 
   assert.deepEqual(easy.hazards.map(item => item.type), ["manhole"]);
   assert.deepEqual(easy.patrols.map(item => item.type), ["scooter"]);
-  assert.deepEqual(steady.hazards.map(item => item.type).sort(), ["construction", "manhole"]);
-  assert.deepEqual(steady.patrols.map(item => item.type), ["scooter"]);
+  assert.deepEqual(steady.hazards.map(item => item.type).sort(), [
+    "construction", "manhole", "manhole"
+  ]);
+  assert.deepEqual(steady.patrols.map(item => item.type).sort(), ["bicycle", "scooter"]);
   assert.deepEqual(challenge.hazards.map(item => item.type).sort(), [
     "construction", "manhole", "manhole"
   ]);
@@ -456,4 +458,34 @@ test("킥보드·자전거는 한 줄의 빈 구간 전체를 왕복한다", () 
       }
     }
   }
+});
+
+test("난이도 3단계는 요소 수와 신호 유무로 차이가 난다", () => {
+  const easy = createSafetyRouteMap("easy", { seed: 2 });
+  const steady = createSafetyRouteMap("steady", { seed: 2 });
+  const challenge = createSafetyRouteMap("challenge", { seed: 2 });
+
+  assert.deepEqual(easy.hazards.map(item => item.type), ["manhole"]);
+  assert.deepEqual(easy.patrols.map(item => item.type), ["scooter"]);
+  assert.equal(easy.signalless, false);
+
+  assert.deepEqual(
+    steady.hazards.map(item => item.type).sort(),
+    ["construction", "manhole", "manhole"]
+  );
+  assert.deepEqual(
+    steady.patrols.map(item => item.type).sort(),
+    ["bicycle", "scooter"]
+  );
+  assert.equal(steady.signalless, false);
+
+  assert.deepEqual(
+    challenge.hazards.map(item => item.type).sort(),
+    ["construction", "manhole", "manhole"]
+  );
+  assert.deepEqual(
+    challenge.patrols.map(item => item.type).sort(),
+    ["bicycle", "scooter"]
+  );
+  assert.equal(challenge.signalless, true);
 });

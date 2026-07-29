@@ -11,15 +11,18 @@ const SHARED_SIGNAL_ID = "neighborhood-pedestrian-signal";
 const DIFFICULTY_CONTENT = Object.freeze({
   easy: Object.freeze({
     hazards: Object.freeze(["manhole"]),
-    patrols: Object.freeze(["scooter"])
+    patrols: Object.freeze(["scooter"]),
+    signalless: false
   }),
   steady: Object.freeze({
-    hazards: Object.freeze(["manhole", "construction"]),
-    patrols: Object.freeze(["scooter"])
+    hazards: Object.freeze(["manhole", "manhole", "construction"]),
+    patrols: Object.freeze(["scooter", "bicycle"]),
+    signalless: false
   }),
   challenge: Object.freeze({
     hazards: Object.freeze(["manhole", "manhole", "construction"]),
-    patrols: Object.freeze(["scooter", "bicycle"])
+    patrols: Object.freeze(["scooter", "bicycle"]),
+    signalless: true
   })
 });
 
@@ -388,6 +391,7 @@ function assembleCandidate(difficulty, random, layoutSource = "generated", seed 
     difficulty: normalized,
     layoutSource,
     seed,
+    signalless: content.signalless === true,
     width: WIDTH,
     height: HEIGHT,
     zones: {

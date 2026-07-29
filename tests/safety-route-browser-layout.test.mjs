@@ -79,7 +79,7 @@ test("1280×720 PC 안전길은 7×5칸을 자르지 않고 모바일 방향키�
   });
 
   const desktop = await browser.newPage({ viewport: { width: 1280, height: 720 } });
-  await openSafetyRoute(desktop, url, "challenge");
+  await openSafetyRoute(desktop, url, "steady");
   const desktopMetrics = await desktop.evaluate(() => {
     const viewport = document.querySelector(".safety-viewport");
     const world = document.querySelector(".safety-world");

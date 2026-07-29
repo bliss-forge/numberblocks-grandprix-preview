@@ -286,28 +286,31 @@ export function renderSafetyRouteScene(document, state, requestedView = {}) {
     world.append(routeCell(document, prop, `route-prop route-prop-${prop.type}`));
   });
 
-  const signalMarkers = state.map.signalMarkers?.length
-    ? state.map.signalMarkers.map(marker => {
-    const node = signalNode(
-      document,
-      state.signal.phase,
-      "route-signal-marker",
-      marker,
-      true
-    );
-    node.dataset.crossingId = marker.crossingId;
-    node.dataset.side = marker.side;
-    world.append(node);
-    return node;
-    })
-    : [signalNode(
-      document,
-      state.signal.phase,
-      "route-signal",
-      state.map.signalGate,
-      true
-    )];
-  if (!state.map.signalMarkers?.length) world.append(signalMarkers[0]);
+  let signalMarkers = [];
+  if (!state.map.signalless) {
+    signalMarkers = state.map.signalMarkers?.length
+      ? state.map.signalMarkers.map(marker => {
+        const node = signalNode(
+          document,
+          state.signal.phase,
+          "route-signal-marker",
+          marker,
+          true
+        );
+        node.dataset.crossingId = marker.crossingId;
+        node.dataset.side = marker.side;
+        world.append(node);
+        return node;
+      })
+      : [signalNode(
+        document,
+        state.signal.phase,
+        "route-signal",
+        state.map.signalGate,
+        true
+      )];
+    if (!state.map.signalMarkers?.length) world.append(signalMarkers[0]);
+  }
 
   state.map.hazards.forEach(hazard => {
     const cells = hazard.cells?.length ? hazard.cells : [hazard];

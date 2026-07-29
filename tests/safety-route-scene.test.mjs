@@ -108,9 +108,10 @@ test("난이도별 장애물과 두 차선 자동차를 장면에 표시한다",
     document,
     createSafetyRouteState("steady")
   );
-  assert.equal(byClass(steady, "route-manhole").length, 1);
+  assert.equal(byClass(steady, "route-manhole").length, 2);
   assert.equal(byClass(steady, "route-construction").length, 1);
   assert.equal(byClass(steady, "route-scooter").length, 1);
+  assert.equal(byClass(steady, "route-bicycle").length, 1);
 
   const challenge = renderSafetyRouteScene(
     document,
@@ -528,4 +529,20 @@ test("연출 상태가 플레이어 자세와 루트 데이터로 노출된다",
   assert.equal(scene.dataset.ceremony, "looking");
   updateSafetyRouteScene(scene, { ...state, ceremony: null });
   assert.equal(scene.dataset.ceremony, "");
+});
+
+test("도전 장면에는 신호등이 없고 미니맵 신호도 숨긴다", () => {
+  const challenge = renderSafetyRouteScene(
+    document,
+    createSafetyRouteState("challenge", { seed: 6 })
+  );
+  assert.equal(byClass(challenge, "route-signal-marker").length, 0);
+  assert.equal(byClass(challenge, "route-signal").length, 0);
+  assert.equal(byClass(challenge, "route-minimap-signal")[0].hidden, true);
+
+  const steady = renderSafetyRouteScene(
+    document,
+    createSafetyRouteState("steady", { seed: 6 })
+  );
+  assert.equal(byClass(steady, "route-signal-marker").length, 4);
 });

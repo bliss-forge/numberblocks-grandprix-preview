@@ -131,3 +131,9 @@ test("crossing-started 이벤트는 좌우 살피기 안내를 만든다", () =>
   assert.equal(cue.message, "멈춰요, 왼쪽 오른쪽을 봐요!");
   assert.equal(cue.tone, "safety");
 });
+
+test("car-close 사유는 차가 지나간 뒤 건너라는 안내를 만든다", () => {
+  const cue = safetyCueForEvent({ type: "blocked", reason: "car-close" }, 6);
+  assert.equal(cue.message, "차가 오고 있어요! 차가 지나간 다음에 건너요!");
+  assert.equal(cue.voiceKey, "safety-car");
+});

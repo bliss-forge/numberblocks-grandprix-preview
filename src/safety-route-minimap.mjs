@@ -77,5 +77,6 @@ export function updateMinimap(root, state) {
   placeDot(nodes.player, state.map, state.position);
   placeDot(nodes.target, state.map, minimapTarget(state));
   nodes.signal.dataset.phase = state.signal.phase;
+  nodes.signal.hidden = Boolean(state.map.signalless);
   return root;
 }

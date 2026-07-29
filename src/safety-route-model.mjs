@@ -80,6 +80,26 @@ function crossingForPoint(map, point) {
   ) ?? null;
 }
 
+const CAR_APPROACH_DISTANCE = 4;
+
+function carApproachingCrossing(state, crossing) {
+  const rows = crossing.cells.map(cell => cell.y);
+  const top = Math.min(...rows);
+  const bottom = Math.max(...rows);
+  return state.movers.some(mover => {
+    if (mover.type !== "car") return false;
+    const point = moverPoint(state.map, mover);
+    if (!point) return false;
+    if (point.y >= top && point.y <= bottom) return true;
+    if (point.y < top - CAR_APPROACH_DISTANCE ||
+      point.y > bottom + CAR_APPROACH_DISTANCE) {
+      return false;
+    }
+    return (mover.heading === "north" && point.y > bottom) ||
+      (mover.heading === "south" && point.y < top);
+  });
+}
+
 function transition(state, position, event, extra = {}) {
   return { state: { ...state, position, ...extra }, event };
 }
@@ -145,19 +165,29 @@ export function attemptSafetyMove(state, direction) {
       );
     }
     if (!state.crossingId) {
-      if (state.signal.phase !== "pedestrian-go") {
-        return transition(
-          state,
-          { ...state.position },
-          { type: "blocked", reason: "red-light" }
-        );
-      }
-      if (7000 - state.signal.elapsedMs <= 2000) {
-        return transition(
-          state,
-          { ...state.position },
-          { type: "blocked", reason: "green-ending" }
-        );
+      if (state.map.signalless) {
+        if (carApproachingCrossing(state, crossing)) {
+          return transition(
+            state,
+            { ...state.position },
+            { type: "blocked", reason: "car-close" }
+          );
+        }
+      } else {
+        if (state.signal.phase !== "pedestrian-go") {
+          return transition(
+            state,
+            { ...state.position },
+            { type: "blocked", reason: "red-light" }
+          );
+        }
+        if (7000 - state.signal.elapsedMs <= 2000) {
+          return transition(
+            state,
+            { ...state.position },
+            { type: "blocked", reason: "green-ending" }
+          );
+        }
       }
     }
   }
@@ -232,6 +262,39 @@ function advanceCarMover(definition, mover, signal) {
   });
 }
 
+const SIGNALLESS_CAR_INTERVAL_MS = 250;
+
+function advanceSignallessCarMover(definition, mover, { elapsedMs, player }) {
+  const direction = mover.direction === -1 ? -1 : 1;
+  const accumulated = (mover.elapsedMs ?? 0) + Math.max(0, elapsedMs);
+  if (accumulated < SIGNALLESS_CAR_INTERVAL_MS) {
+    return cloneMover(definition, {
+      ...mover,
+      elapsedMs: accumulated,
+      stopped: false,
+      heading: definition.headings?.[mover.pathIndex] ?? mover.heading
+    });
+  }
+  const pathIndex =
+    (mover.pathIndex + direction + definition.points.length) % definition.points.length;
+  if (player && samePoint(definition.points[pathIndex], player)) {
+    return cloneMover(definition, {
+      ...mover,
+      elapsedMs: SIGNALLESS_CAR_INTERVAL_MS,
+      stopped: true,
+      heading: definition.headings?.[mover.pathIndex] ?? mover.heading
+    });
+  }
+  return cloneMover(definition, {
+    ...mover,
+    pathIndex,
+    direction,
+    elapsedMs: accumulated - SIGNALLESS_CAR_INTERVAL_MS,
+    stopped: false,
+    heading: definition.headings?.[pathIndex] ?? mover.heading
+  });
+}
+
 function oppositeHeadings(left, right) {
   return Boolean(left?.heading) && OPPOSITE_HEADINGS[left.heading] === right?.heading;
 }
@@ -276,9 +339,17 @@ export function advanceSafetyWorld(state, elapsedMs = 100) {
         player: state.position
       });
     }
+    if (state.map.signalless) {
+      return advanceSignallessCarMover(definition, mover, {
+        elapsedMs: elapsed,
+        player: state.position
+      });
+    }
     return advanceCarMover(definition, mover, signal);
   });
-  const movers = synchronizeCarHeadings(state.movers, advancedMovers);
+  const movers = state.map.signalless
+    ? advancedMovers
+    : synchronizeCarHeadings(state.movers, advancedMovers);
   let ceremony = state.ceremony;
   if (ceremony && ceremony.stage !== "crossing") {
     const elapsedTotal = ceremony.elapsedMs + elapsed;

@@ -26,6 +26,10 @@ const BLOCKED_CUES = Object.freeze({
     message: "차가 나올 수 있어요. 잠깐 멈춰 좌우를 살펴요!",
     voiceKey: "safety-car"
   },
+  "car-close": {
+    message: "차가 오고 있어요! 차가 지나간 다음에 건너요!",
+    voiceKey: "safety-car"
+  },
   manhole: {
     message: "열린 맨홀이에요. 가까이 가지 말고 돌아가요!",
     voiceKey: "safety-manhole"
