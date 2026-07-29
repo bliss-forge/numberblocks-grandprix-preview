@@ -52,12 +52,34 @@ test("홈은 다섯 가지 놀이와 1~5 바로가기 키를 제공한다", () =
       new RegExp(`data-mode="${mode}"[^>]*aria-keyshortcuts="${key}"`)
     );
   }
-  assert.match(html, /assets\/characters\/one\.png/);
-  assert.match(html, /assets\/characters\/three\.png/);
-  assert.match(html, /assets\/characters\/five\.png/);
-  assert.match(html, /assets\/characters\/four\.png/);
   assert.match(html, /안전한 길찾기/);
   assert.match(html, /<kbd>5<\/kbd>/);
+});
+
+test("홈 카드 번호는 같은 번호의 블럭 친구를 사용한다", () => {
+  for (const [mode, key, asset] of [
+    ["count", "1", "one"],
+    ["add", "2", "two"],
+    ["sub", "3", "three"],
+    ["mul", "4", "four"],
+    ["safety", "5", "five"]
+  ]) {
+    const card = html.match(
+      new RegExp(
+        `<button class="[^"]*mode-card[^"]*"[^>]*data-mode="${mode}"[\\s\\S]*?<\\/button>`
+      )
+    )?.[0];
+
+    assert.ok(card, `${mode} card`);
+    assert.match(
+      card,
+      new RegExp(`<span class="card-number">${key}<\\/span>`)
+    );
+    assert.match(
+      card,
+      new RegExp(`<img src="assets/characters/${asset}\\.png" alt="">`)
+    );
+  }
 });
 
 test("길찾기는 모델, 장면, 키보드와 모바일 방향 버튼을 앱에 연결한다", () => {
