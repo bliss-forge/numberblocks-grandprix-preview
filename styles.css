@@ -3994,7 +3994,7 @@ body[data-mode="subway"] .stage-lights {
   left: var(--map-x, 50%);
   top: var(--map-y, 50%);
   z-index: 1;
-  width: clamp(42px, 6vw, 64px);
+  width: clamp(30px, 4.2vw, 46px);
   transform: translate(-50%, -58%);
   transition:
     left var(--motion-journey) cubic-bezier(.45, 0, .25, 1),

@@ -21,22 +21,47 @@ import {
 } from "./subway-art.mjs";
 
 const MAP_SCALE = 10;
-const MAP_PAD = 7;
+const MAP_PAD = 10;
 
 const RIVER_POINTS = [
-  [0, 55], [10, 56], [20, 57], [28, 60], [33, 61], [38, 59], [44, 57],
-  [50, 56], [56, 54], [62, 50], [68, 48], [74, 48], [80, 47], [88, 44],
-  [100, 42]
+  [-4, 53], [6, 55], [13, 57], [20, 57.5], [25, 59], [29, 61.5],
+  [33, 61.5], [36, 59.5], [40, 58], [44, 57], [48, 56.5], [52, 55.5],
+  [57, 53.5], [61, 51], [65, 48.5], [70, 47.5], [75, 48], [79, 47.5],
+  [84, 45.5], [90, 43], [96, 42.5], [104, 44]
+];
+const STREAMS = [
+  [[63, 38], [64, 42], [65, 46], [66, 48.5]],
+  [[24, 68], [23, 63], [21, 59], [20, 57.5]]
 ];
 const PARKS = [
-  { x: 49, y: 46.5, rx: 2.8, ry: 2.1 },
-  { x: 52, y: 33, rx: 2.1, ry: 1.7 },
-  { x: 66, y: 43.5, rx: 2.1, ry: 1.6 },
-  { x: 23, y: 42, rx: 2.3, ry: 1.8 },
-  { x: 74, y: 39, rx: 2, ry: 1.6 },
-  { x: 81, y: 51, rx: 2.2, ry: 1.7 },
-  { x: 46, y: 89, rx: 4.2, ry: 2.6 }
+  { x: 49, y: 46.5, rx: 3.2, ry: 2.3 },
+  { x: 52, y: 33, rx: 2.4, ry: 1.8 },
+  { x: 66, y: 43.5, rx: 2.4, ry: 1.7 },
+  { x: 23, y: 42, rx: 2.6, ry: 2 },
+  { x: 74, y: 39, rx: 2.2, ry: 1.7 },
+  { x: 81, y: 51, rx: 2.4, ry: 1.8 },
+  { x: 46, y: 89, rx: 4.6, ry: 2.8 },
+  { x: 42, y: 12, rx: 7, ry: 3.6 },
+  { x: 20, y: 22, rx: 4, ry: 2.6 },
+  { x: 38, y: 82, rx: 6, ry: 3.2 },
+  { x: 70, y: 74, rx: 5, ry: 3 },
+  { x: 88, y: 60, rx: 4.4, ry: 3 },
+  { x: 8, y: 36, rx: 4, ry: 2.8 },
+  { x: 90, y: 20, rx: 5, ry: 3.4 }
 ];
+
+function smoothPath(points) {
+  const scaled = points.map(([x, y]) => [x * MAP_SCALE, y * MAP_SCALE]);
+  let path = `M ${scaled[0][0]} ${scaled[0][1]}`;
+  for (let index = 1; index < scaled.length - 1; index += 1) {
+    const midX = (scaled[index][0] + scaled[index + 1][0]) / 2;
+    const midY = (scaled[index][1] + scaled[index + 1][1]) / 2;
+    path += ` Q ${scaled[index][0]} ${scaled[index][1]} ${midX} ${midY}`;
+  }
+  const last = scaled[scaled.length - 1];
+  path += ` L ${last[0]} ${last[1]}`;
+  return path;
+}
 
 const TRANSFER_LABELS = Object.freeze({
   0: "바로 가요",
@@ -146,8 +171,8 @@ export function renderSubwayPicker(document, destinations) {
   return root;
 }
 
-const MIN_SPAN_X = 44;
-const MIN_SPAN_Y = 28;
+const MIN_SPAN_X = 66;
+const MIN_SPAN_Y = 42;
 
 function routeBounds(state) {
   const points = state.legs.flatMap(leg =>
@@ -167,15 +192,15 @@ function routeBounds(state) {
     minY -= grow;
     maxY += grow;
   }
-  minX = Math.max(-4, minX);
-  maxX = Math.min(104, maxX);
-  minY = Math.max(-4, minY);
-  maxY = Math.min(104, maxY);
+  minX = Math.max(-6, minX);
+  maxX = Math.min(106, maxX);
+  minY = Math.max(-6, minY);
+  maxY = Math.min(106, maxY);
   return { minX, minY, width: maxX - minX, height: maxY - minY };
 }
 
 function boundsScale(bounds) {
-  return Math.max(0.55, Math.min(1.6, bounds.width / 62));
+  return Math.max(0.8, Math.min(1.15, bounds.width / 80));
 }
 
 function arcPath(cx, cy, radius, startAngle, endAngle) {
@@ -219,20 +244,26 @@ function mapSvg(state, bounds) {
     `${bounds.height * MAP_SCALE}" role="img" aria-hidden="true" ` +
     `preserveAspectRatio="xMidYMid meet" focusable="false">`
   );
-  parts.push(`<rect x="-200" y="-200" width="1400" height="1400" fill="#f2f7ef"/>`);
-  parts.push(
-    `<polyline class="subway-map-river" points="${RIVER_POINTS
-      .map(([x, y]) => `${x * MAP_SCALE},${y * MAP_SCALE}`).join(" ")}" ` +
-    `fill="none" stroke="#cfe4f4" stroke-width="${(30 * u).toFixed(1)}" ` +
-    `stroke-linecap="round" stroke-linejoin="round"/>`
-  );
+  parts.push(`<rect x="-200" y="-200" width="1500" height="1500" fill="#f3f7f0"/>`);
   PARKS.forEach(park => {
     parts.push(
       `<ellipse class="subway-map-park" cx="${park.x * MAP_SCALE}" ` +
       `cy="${park.y * MAP_SCALE}" rx="${park.rx * MAP_SCALE}" ` +
-      `ry="${park.ry * MAP_SCALE}" fill="#ddeecb"/>`
+      `ry="${park.ry * MAP_SCALE}" fill="#dcead0"/>`
     );
   });
+  STREAMS.forEach(stream => {
+    parts.push(
+      `<path class="subway-map-stream" d="${smoothPath(stream)}" ` +
+      `fill="none" stroke="#cfe3f2" stroke-width="${(7 * u).toFixed(1)}" ` +
+      `stroke-linecap="round"/>`
+    );
+  });
+  parts.push(
+    `<path class="subway-map-river" d="${smoothPath(RIVER_POINTS)}" ` +
+    `fill="none" stroke="#cfe3f2" stroke-width="${(32 * u).toFixed(1)}" ` +
+    `stroke-linecap="round" stroke-linejoin="round"/>`
+  );
   SUBWAY_LINES.forEach(line => {
     const names = line.loop
       ? [...line.stations, line.stations[0]]
@@ -246,10 +277,27 @@ function mapSvg(state, bounds) {
       `<polyline class="subway-line" data-line="${line.number}" ` +
       `data-active="${active}" points="${points}" fill="none" ` +
       `stroke="${line.color}" ` +
-      `stroke-width="${((active ? 12 : 5) * u).toFixed(1)}" ` +
+      `stroke-width="${((active ? 5.5 : 3) * u).toFixed(1)}" ` +
       `stroke-linecap="round" stroke-linejoin="round" ` +
-      `opacity="${active ? 1 : 0.3}"/>`
+      `opacity="${active ? 1 : 0.45}"/>`
     );
+    for (let index = 0; index < names.length - 1; index += 1) {
+      const from = STATION_COORDS[names[index]];
+      const to = STATION_COORDS[names[index + 1]];
+      const distance = Math.hypot(to.x - from.x, to.y - from.y);
+      const stops = Math.min(2, Math.floor(distance / 5));
+      for (let stop = 1; stop <= stops; stop += 1) {
+        const t = stop / (stops + 1);
+        parts.push(
+          `<circle class="subway-minor-stop" ` +
+          `cx="${((from.x + (to.x - from.x) * t) * MAP_SCALE).toFixed(1)}" ` +
+          `cy="${((from.y + (to.y - from.y) * t) * MAP_SCALE).toFixed(1)}" ` +
+          `r="${(2.6 * u).toFixed(1)}" fill="#fff" stroke="${line.color}" ` +
+          `stroke-width="${(1.6 * u).toFixed(1)}" ` +
+          `opacity="${active ? 0.9 : 0.45}"/>`
+        );
+      }
+    }
   });
   const drawn = new Set();
   SUBWAY_LINES.forEach(line => {
@@ -266,33 +314,41 @@ function mapSvg(state, bounds) {
         parts.push(
           `<circle class="subway-station-dot" data-station="${name}" ` +
           `data-on-route="${onRoute}" cx="${cx}" cy="${cy}" ` +
-          `r="${((onRoute ? 12 : 7) * u).toFixed(1)}" fill="#fff" ` +
-          `opacity="${onRoute ? 1 : 0.75}"/>`
+          `r="${((onRoute ? 6.5 : 4.5) * u).toFixed(1)}" fill="#fff" ` +
+          `opacity="${onRoute ? 1 : 0.85}"/>`
         );
         parts.push(transferRing(
           point,
           stationLines,
-          (onRoute ? 14 : 8) * u,
-          (onRoute ? 6 : 3.5) * u,
-          onRoute ? 1 : 0.5
+          (onRoute ? 8.5 : 6) * u,
+          (onRoute ? 3.6 : 2.4) * u,
+          onRoute ? 1 : 0.65
         ));
       } else {
         parts.push(
           `<circle class="subway-station-dot" data-station="${name}" ` +
           `data-on-route="${onRoute}" cx="${cx}" cy="${cy}" ` +
-          `r="${((onRoute ? 10 : 5) * u).toFixed(1)}" fill="#fff" ` +
+          `r="${((onRoute ? 5.5 : 3.6) * u).toFixed(1)}" fill="#fff" ` +
           `stroke="${stationLines[0].color}" ` +
-          `stroke-width="${((onRoute ? 5 : 2.6) * u).toFixed(1)}" ` +
-          `opacity="${onRoute ? 1 : 0.55}"/>`
+          `stroke-width="${((onRoute ? 3.4 : 2) * u).toFixed(1)}" ` +
+          `opacity="${onRoute ? 1 : 0.7}"/>`
         );
       }
       if (onRoute) {
-        const dy = ((routeOrder.get(name) ?? 0) % 2 === 0 ? -24 : 42) * u;
+        const dy = ((routeOrder.get(name) ?? 0) % 2 === 0 ? -14 : 26) * u;
         parts.push(
           `<text class="subway-station-name" x="${cx}" ` +
           `y="${(cy + dy).toFixed(1)}" text-anchor="middle" ` +
-          `font-size="${(18 * u).toFixed(1)}" font-weight="900" ` +
-          `fill="#31445b" stroke="#fff" stroke-width="${(6 * u).toFixed(1)}" ` +
+          `font-size="${(15 * u).toFixed(1)}" font-weight="900" ` +
+          `fill="#2b3a4e" stroke="#fff" stroke-width="${(5 * u).toFixed(1)}" ` +
+          `paint-order="stroke">${name}</text>`
+        );
+      } else {
+        parts.push(
+          `<text class="subway-station-name subway-station-name-minor" ` +
+          `x="${cx}" y="${(cy - 9 * u).toFixed(1)}" text-anchor="middle" ` +
+          `font-size="${(10 * u).toFixed(1)}" font-weight="700" ` +
+          `fill="#8a95a2" stroke="#fff" stroke-width="${(3.4 * u).toFixed(1)}" ` +
           `paint-order="stroke">${name}</text>`
         );
       }
