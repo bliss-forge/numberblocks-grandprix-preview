@@ -2,6 +2,7 @@ export const SRT_STATIONS = Object.freeze(["수서", "동탄", "대전", "대구
 export const SRT_CARS = 5;
 export const SEAT_ROWS = 4;
 export const SEAT_LETTERS = Object.freeze(["A", "B", "C", "D"]);
+export const TARGET_SEAT_LETTERS = Object.freeze(["B", "C"]);
 export const TRAIN_WIDTH = SRT_CARS * 5 + 1;
 export const TRAIN_HEIGHT = 5;
 export const CAR_SHAPES = Object.freeze([
@@ -112,7 +113,9 @@ export function createSrtJourney(seed = 0) {
     target: {
       car: 1 + Math.floor(random() * SRT_CARS),
       row: 1 + Math.floor(random() * SEAT_ROWS),
-      letter: SEAT_LETTERS[Math.floor(random() * SEAT_LETTERS.length)]
+      letter: TARGET_SEAT_LETTERS[
+        Math.floor(random() * TARGET_SEAT_LETTERS.length)
+      ]
     },
     targetStation: "부산",
     parking: buildParkingLot(random),

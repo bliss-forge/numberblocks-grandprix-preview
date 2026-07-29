@@ -28,8 +28,18 @@ test("같은 시드는 같은 좌석·차량 목표를 만든다", () => {
   assert.deepEqual(first.parking, second.parking);
   assert.ok(first.target.car >= 1 && first.target.car <= 5);
   assert.ok(first.target.row >= 1 && first.target.row <= 4);
-  assert.ok(["A", "B", "C", "D"].includes(first.target.letter));
+  assert.ok(["B", "C"].includes(first.target.letter));
   assert.equal(first.targetStation, "부산");
+});
+
+test("목표 좌석은 복도에서 바로 닿는 B·C 좌석만 나온다", () => {
+  for (let seed = 0; seed < 40; seed += 1) {
+    const journey = createSrtJourney(seed);
+    assert.ok(
+      ["B", "C"].includes(journey.target.letter),
+      `seed ${seed} picked ${journey.target.letter}`
+    );
+  }
 });
 
 test("수서역 스플래시는 3단계 안내를 거쳐 좌석 찾기로 넘어간다", () => {
