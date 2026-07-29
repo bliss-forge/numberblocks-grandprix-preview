@@ -219,10 +219,48 @@ export function renderSafetyRouteScene(document, state, requestedView = {}) {
 
   state.map.places.forEach(place => {
     const node = document.createElement("div");
-    node.className = `route-place route-place-${place.type}`;
-    node.textContent = place.label ?? PLACE_LABELS[place.type] ?? place.type;
-    node.setAttribute("aria-label", node.textContent);
-    world.append(placeAt(node, place));
+    node.className = `route-building route-building-${place.type}`;
+    node.style.setProperty("--route-x", place.x + 1);
+    node.style.setProperty("--route-y", place.y + 1);
+    node.style.setProperty("--route-width", place.width);
+    node.style.setProperty("--route-height", place.height);
+    node.setAttribute("role", "img");
+    node.setAttribute(
+      "aria-label",
+      place.label ?? PLACE_LABELS[place.type] ?? place.type
+    );
+
+    const roof = document.createElement("div");
+    roof.className = "route-building-roof";
+    roof.setAttribute("aria-hidden", "true");
+    const sign = document.createElement("div");
+    sign.className = "route-building-sign";
+    sign.textContent = place.label ?? PLACE_LABELS[place.type] ?? place.type;
+    sign.setAttribute("aria-hidden", "true");
+    const door = document.createElement("div");
+    door.className = "route-building-door";
+    door.setAttribute("aria-hidden", "true");
+    node.append(roof, sign, door);
+    for (let index = 0; index < 2; index += 1) {
+      const routeWindow = document.createElement("div");
+      routeWindow.className = "route-building-window";
+      routeWindow.setAttribute("aria-hidden", "true");
+      node.append(routeWindow);
+    }
+    if (place.type === "school") {
+      const clock = document.createElement("div");
+      clock.className = "route-building-school-clock";
+      clock.setAttribute("aria-hidden", "true");
+      const flag = document.createElement("div");
+      flag.className = "route-building-school-flag";
+      flag.setAttribute("aria-hidden", "true");
+      node.append(clock, flag);
+    }
+    world.append(node);
+  });
+
+  (state.map.props ?? []).forEach(prop => {
+    world.append(routeCell(document, prop, `route-prop route-prop-${prop.type}`));
   });
 
   const signalMarkers = state.map.signalMarkers?.length
@@ -323,11 +361,11 @@ export function renderSafetyRouteScene(document, state, requestedView = {}) {
   );
   world.append(placeAt(player, state.position));
 
-  const school = document.createElement("div");
-  school.className = "route-school-goal";
-  school.textContent = "도착";
-  school.setAttribute("aria-label", "학교 도착점");
-  world.append(placeAt(school, state.map.goal));
+  const goalMat = document.createElement("div");
+  goalMat.className = "route-goal-mat";
+  goalMat.textContent = "⭐ 도착";
+  goalMat.setAttribute("aria-label", "학교 도착점");
+  world.append(placeAt(goalMat, state.map.goal));
 
   const guidanceNodes = Array.from({ length: 3 }, () => {
     const node = routeCell(document, { x: 0, y: 0 }, "route-guidance-cell");

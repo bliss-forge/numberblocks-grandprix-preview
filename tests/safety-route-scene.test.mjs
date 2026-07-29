@@ -464,3 +464,26 @@ test("월드 틱 갱신 뒤에도 같은 장면과 방향 버튼이 유지되어
     marker => marker.attributes.get("aria-label") === "초록 신호"
   ));
 });
+
+test("건물은 풋프린트 블록으로 그려지고 학교는 랜드마크다", () => {
+  const state = createSafetyRouteState("easy", { seed: 3 });
+  const scene = renderSafetyRouteScene(document, state);
+  const buildings = byClass(scene, "route-building");
+  assert.equal(buildings.length, state.map.places.length);
+  buildings.forEach(node => {
+    assert.equal(byClass(node, "route-building-roof").length, 1);
+    assert.equal(byClass(node, "route-building-door").length, 1);
+    assert.ok(byClass(node, "route-building-sign")[0].textContent.length > 0);
+  });
+  const school = byClass(scene, "route-building-school")[0];
+  assert.equal(school.style.values.get("--route-width"), "3");
+  assert.equal(school.style.values.get("--route-height"), "3");
+  assert.equal(byClass(school, "route-building-school-clock").length, 1);
+  assert.equal(byClass(school, "route-building-school-flag").length, 1);
+  const mat = byClass(scene, "route-goal-mat")[0];
+  assert.equal(mat.textContent, "⭐ 도착");
+  assert.equal(mat.style.values.get("--route-x"), String(state.map.goal.x + 1));
+  assert.equal(byClass(scene, "route-place").length, 0);
+  assert.equal(byClass(scene, "route-school-goal").length, 0);
+  assert.equal(byClass(scene, "route-prop").length, state.map.props.length);
+});

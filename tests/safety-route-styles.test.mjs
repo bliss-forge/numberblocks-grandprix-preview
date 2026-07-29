@@ -97,14 +97,24 @@ test("PC 도로의 가장자리·횡단보도·신호 가구는 selector별 위�
 
 test("건물과 생활안전 요소를 입체 이미지 없이 평면 CSS 그림으로 표현한다", () => {
   for (const selector of [
-    ".route-place-home",
-    ".route-place-daycare",
-    ".route-place-shops",
-    ".route-place-park",
-    ".route-place-library",
-    ".route-place-bus-stop",
-    ".route-place-shop",
-    ".route-place-school",
+    ".route-building-home",
+    ".route-building-daycare",
+    ".route-building-shops",
+    ".route-building-park",
+    ".route-building-library",
+    ".route-building-bus-stop",
+    ".route-building-shop",
+    ".route-building-school",
+    ".route-building-roof",
+    ".route-building-sign",
+    ".route-building-door",
+    ".route-building-window",
+    ".route-building-school-clock",
+    ".route-building-school-flag",
+    ".route-goal-mat",
+    ".route-prop-tree::after",
+    ".route-prop-flowers::after",
+    ".route-prop-bench::before",
     ".route-manhole",
     ".route-construction",
     ".route-scooter",
@@ -113,12 +123,10 @@ test("건물과 생활안전 요소를 입체 이미지 없이 평면 CSS 그림
   ]) {
     assert.match(css, new RegExp(`\\${selector}\\s*\\{`), selector);
   }
-  assert.match(css, /\.route-place::before/);
-  assert.match(css, /\.route-car::before/);
-  assert.match(css, /\.route-bicycle::before/);
-  assert.match(css, /\.route-scooter::before/);
   assert.match(css, /\.route-manhole::after/);
   assert.match(css, /\.route-construction::after/);
+  assert.doesNotMatch(css, /\.route-place[\s{-]/);
+  assert.doesNotMatch(css, /\.route-school-goal/);
   assert.doesNotMatch(css, /\.safety-route[\s\S]*?perspective\s*:/);
 });
 

@@ -1880,14 +1880,18 @@ body[data-mode="safety"] .stage-lights {
 
 .route-zone,
 .route-cell,
-.route-place,
 .route-signal,
 .route-signal-marker,
 .route-hazard,
 .route-character,
-.route-school-goal {
+.route-goal-mat {
   grid-column: var(--route-x);
   grid-row: var(--route-y);
+}
+
+.route-building {
+  grid-column: var(--route-x) / span var(--route-width);
+  grid-row: var(--route-y) / span var(--route-height);
 }
 
 .route-zone {
@@ -2069,114 +2073,194 @@ body[data-mode="safety"] .stage-lights {
     inset 0 -3px rgba(166, 132, 79, .14);
 }
 
-.route-place {
+.route-building {
+  --roof: #f26d6d;
+  --wall: #ffb26b;
   position: relative;
   z-index: 3;
-  align-self: center;
-  justify-self: center;
-  display: grid;
-  place-items: end center;
-  width: 88%;
-  height: 76%;
-  padding-bottom: 3px;
-  border: 3px solid #fff;
-  border-radius: 8px 8px 3px 3px;
-  color: #fff;
-  font-size: clamp(7px, .72vw, 11px);
-  font-weight: 900;
-  line-height: 1;
-  text-shadow: 0 1px 0 rgba(37, 52, 93, .28);
-  background: #ff9b55;
-  box-shadow: 0 3px 0 rgba(37, 52, 93, .14);
+  align-self: stretch;
+  justify-self: stretch;
+  margin: 4% 5% 0;
+  display: flex;
+  flex-direction: column;
+  pointer-events: none;
+  filter: drop-shadow(0 4px 0 rgba(60, 90, 40, .22));
 }
 
-.route-place::before {
+.route-building-roof {
+  height: 30%;
+  border: 3px solid #fff;
+  border-bottom: none;
+  border-radius: 12px 12px 0 0;
+  background: var(--roof);
+}
+
+.route-building::after {
+  content: "";
+  flex: 1;
+  border: 3px solid #fff;
+  border-top: none;
+  border-radius: 0 0 8px 8px;
+  background: var(--wall);
+}
+
+.route-building-sign {
   position: absolute;
   left: 50%;
-  top: -27%;
-  width: 112%;
-  height: 40%;
-  border: 3px solid #fff;
-  border-radius: 5px 5px 2px 2px;
-  background: #f4515c;
-  content: "";
-  clip-path: polygon(50% 0, 100% 100%, 0 100%);
+  top: -9px;
+  z-index: 2;
   transform: translateX(-50%);
-}
-
-.route-place::after {
-  position: absolute;
-  left: 13%;
-  right: 13%;
-  top: 25%;
-  height: 29%;
-  border-radius: 3px;
-  background:
-    linear-gradient(90deg, #bcecff 0 42%, transparent 42% 58%, #bcecff 58%);
-  content: "";
-  box-shadow: inset 0 0 0 2px #fff;
-}
-
-.route-place-home {
-  background: #ff9b55;
-}
-
-.route-place-daycare {
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: #fff;
   color: var(--ink);
-  background: #ffd65b;
+  font-size: clamp(8px, .8vw, 12px);
+  font-weight: 900;
+  line-height: 1.5;
+  white-space: nowrap;
+  box-shadow: 0 2px 0 rgba(37, 52, 93, .16);
 }
 
-.route-place-daycare::before {
-  background: #e94d69;
+.route-building-door {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  z-index: 2;
+  transform: translateX(-50%);
+  width: 22%;
+  height: 32%;
+  border-radius: 8px 8px 0 0;
+  border: 3px solid #fff;
+  border-bottom: none;
+  background: #7b4f2c;
 }
 
-.route-place-shops {
-  background:
-    repeating-linear-gradient(90deg, #ff7e83 0 18%, #fff 18% 34%),
-    #45a8d8;
-  background-size: 100% 24%, auto;
-  background-repeat: no-repeat;
+.route-building-window {
+  position: absolute;
+  top: 40%;
+  z-index: 1;
+  width: 20%;
+  height: 22%;
+  border: 3px solid #fff;
+  border-radius: 4px;
+  background: #cfeafe;
 }
 
-.route-place-shop {
-  background:
-    repeating-linear-gradient(90deg, #ffd45f 0 18%, #fff 18% 34%),
-    #4ba67c;
-  background-size: 100% 24%, auto;
-  background-repeat: no-repeat;
+.route-building-window:nth-of-type(4) {
+  left: 9%;
 }
 
-.route-place-park {
-  border-radius: 50% 50% 16% 16%;
-  background: #55b966;
+.route-building-window:nth-of-type(5) {
+  right: 9%;
 }
 
-.route-place-bus-stop {
-  width: 52%;
-  border-radius: 5px;
+.route-building-home {
+  --roof: #f26d6d;
+  --wall: #ffb26b;
+}
+
+.route-building-daycare {
+  --roof: #ffd166;
+  --wall: #ffefc4;
+}
+
+.route-building-shops {
+  --roof: #5aa9e6;
+  --wall: #fde28a;
+}
+
+.route-building-library {
+  --roof: #7c5cd6;
+  --wall: #eae2ff;
+}
+
+.route-building-shop {
+  --roof: #7fd08a;
+  --wall: #eaf7dc;
+}
+
+.route-building-bus-stop {
+  --roof: #5aa9e6;
+  --wall: #dff1ff;
+}
+
+.route-building-bus-stop .route-building-door {
+  width: 40%;
   background: #3984cf;
 }
 
-.route-place-library {
-  background: #8b67c9;
+.route-building-park {
+  filter: none;
 }
 
-.route-place-school {
-  width: 105%;
-  background: #ef6d6e;
+.route-building-park .route-building-roof,
+.route-building-park::after {
+  border: 3px dashed #6fae52;
+  background: transparent;
 }
 
-.route-place-school::before {
-  background: #3f7fca;
+.route-building-park .route-building-roof {
+  border-bottom: none;
+  border-radius: 14px 14px 0 0;
 }
 
-.route-place-roadside,
-.route-place-construction,
-.route-place-crossing {
-  width: 65%;
-  height: 54%;
-  border-radius: 999px 999px 6px 6px;
-  background: #58ad60;
+.route-building-park .route-building-door {
+  border-color: #6fae52;
+  background: #55b966;
+}
+
+.route-building-park .route-building-window {
+  border-color: #6fae52;
+  border-radius: 50% 50% 6px 6px;
+  background: #55b966;
+}
+
+.route-building-school {
+  --roof: #e8564a;
+  --wall: #fdf0d5;
+  z-index: 4;
+}
+
+.route-building-school .route-building-door {
+  width: 26%;
+  border-color: #e8a300;
+  background: #ffc233;
+}
+
+.route-building-school-clock {
+  position: absolute;
+  left: 50%;
+  top: 6%;
+  z-index: 2;
+  transform: translateX(-50%);
+  width: 16%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  border: 3px solid #fff;
+  background:
+    conic-gradient(from 0deg, transparent 0 62%, #31445b 62% 66%, transparent 66%),
+    #fdf6e5;
+}
+
+.route-building-school-flag {
+  position: absolute;
+  right: 4%;
+  top: -18%;
+  z-index: 2;
+  width: 4%;
+  height: 26%;
+  background: #8d95a0;
+}
+
+.route-building-school-flag::after {
+  content: "";
+  position: absolute;
+  right: 100%;
+  top: 0;
+  width: 500%;
+  height: 46%;
+  border-radius: 3px;
+  background: #5aa9e6;
 }
 
 .route-character {
@@ -2606,18 +2690,94 @@ body[data-mode="safety"] .stage-lights {
   animation-play-state: paused;
 }
 
-.route-school-goal {
+.route-goal-mat {
   z-index: 8;
-  align-self: end;
-  justify-self: end;
-  margin: 3px;
-  padding: 3px 5px;
-  border: 2px solid #fff;
-  border-radius: 6px;
-  color: #fff;
-  font-size: clamp(7px, .7vw, 10px);
+  align-self: center;
+  justify-self: center;
+  display: grid;
+  place-items: center;
+  width: 94%;
+  height: 78%;
+  border: 3px dashed #e8a300;
+  border-radius: 10px;
+  color: #8a6500;
+  font-size: clamp(8px, .8vw, 12px);
   font-weight: 900;
-  background: #258a3b;
+  background: #ffe9a8;
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, .75);
+  animation: route-goal-glow 1.6s ease-in-out infinite;
+}
+
+@keyframes route-goal-glow {
+  0%, 100% { box-shadow: 0 0 0 3px rgba(255, 255, 255, .75); }
+  50% { box-shadow: 0 0 0 6px rgba(255, 213, 74, .85); }
+}
+
+.route-prop {
+  z-index: 2;
+  pointer-events: none;
+  position: relative;
+}
+
+.route-prop-tree::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: 12%;
+  transform: translateX(-50%);
+  width: 14%;
+  height: 26%;
+  border-radius: 3px;
+  background: #8a5a3b;
+}
+
+.route-prop-tree::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 6%;
+  transform: translateX(-50%);
+  width: 68%;
+  height: 62%;
+  border-radius: 50% 50% 44% 44%;
+  background: #55b966;
+  box-shadow: inset 0 -5px 0 rgba(38, 108, 56, .4), 0 0 0 3px rgba(255, 255, 255, .55);
+}
+
+.route-prop-flowers::after {
+  content: "";
+  position: absolute;
+  inset: 22%;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 30% 34%, #ef6aa0 0 16%, transparent 17%),
+    radial-gradient(circle at 68% 30%, #ffd166 0 16%, transparent 17%),
+    radial-gradient(circle at 50% 66%, #5aa9e6 0 16%, transparent 17%),
+    #7fd08a;
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, .55);
+}
+
+.route-prop-bench::before {
+  content: "";
+  position: absolute;
+  left: 16%;
+  right: 16%;
+  top: 38%;
+  height: 20%;
+  border-radius: 4px;
+  background: #b07a4d;
+  box-shadow: 0 0 0 2px #fff;
+}
+
+.route-prop-bench::after {
+  content: "";
+  position: absolute;
+  left: 22%;
+  right: 22%;
+  top: 58%;
+  height: 22%;
+  background:
+    linear-gradient(90deg, #8a5a3b 0 14%, transparent 14% 86%, #8a5a3b 86%);
 }
 
 .route-pad {
@@ -2818,10 +2978,9 @@ body[data-mode="safety"] .stage-lights {
     );
   }
 
-  .route-place {
-    width: 96%;
-    border-width: 2px;
-    font-size: 6px;
+  .route-building-sign {
+    font-size: 7px;
+    padding: 1px 5px;
   }
 
   .route-character,
