@@ -24,15 +24,15 @@ const DIFFICULTY_CONTENT = Object.freeze({
 });
 
 const FRIEND_CANDIDATES = Object.freeze({
-  2: Object.freeze([{ x: 1, y: 4 }, { x: 12, y: 4 }]),
-  3: Object.freeze([{ x: 2, y: 3 }, { x: 11, y: 3 }]),
+  2: Object.freeze([{ x: 5, y: 3 }, { x: 6, y: 3 }]),
+  3: Object.freeze([{ x: 7, y: 3 }, { x: 9, y: 3 }]),
   4: Object.freeze([{ x: 4, y: 10 }, { x: 9, y: 10 }]),
-  5: Object.freeze([{ x: 5, y: 11 }, { x: 8, y: 11 }]),
-  6: Object.freeze([{ x: 19, y: 4 }, { x: 30, y: 4 }]),
-  7: Object.freeze([{ x: 20, y: 3 }, { x: 29, y: 3 }]),
+  5: Object.freeze([{ x: 11, y: 11 }, { x: 12, y: 11 }]),
+  6: Object.freeze([{ x: 22, y: 11 }, { x: 23, y: 11 }]),
+  7: Object.freeze([{ x: 19, y: 3 }, { x: 20, y: 3 }]),
   8: Object.freeze([{ x: 22, y: 10 }, { x: 27, y: 10 }]),
-  9: Object.freeze([{ x: 23, y: 11 }, { x: 26, y: 11 }]),
-  10: Object.freeze([{ x: 24, y: 10 }, { x: 25, y: 10 }])
+  9: Object.freeze([{ x: 19, y: 11 }, { x: 26, y: 11 }]),
+  10: Object.freeze([{ x: 27, y: 11 }, { x: 29, y: 11 }])
 });
 
 const HAZARD_CANDIDATES = Object.freeze({
@@ -76,16 +76,18 @@ const HAZARD_CANDIDATES = Object.freeze({
 
 const PATROL_CANDIDATES = Object.freeze({
   scooter: Object.freeze([
-    { x: 9, y: 3, points: [{ x: 8, y: 3 }, { x: 9, y: 3 }, { x: 10, y: 3 }] },
-    { x: 12, y: 11, points: [{ x: 11, y: 11 }, { x: 12, y: 11 }, { x: 13, y: 11 }] },
-    { x: 27, y: 3, points: [{ x: 26, y: 3 }, { x: 27, y: 3 }, { x: 28, y: 3 }] },
+    { x: 2, y: 4, points: [{ x: 1, y: 4 }, { x: 2, y: 4 }, { x: 3, y: 4 }] },
+    { x: 12, y: 10, points: [{ x: 11, y: 10 }, { x: 12, y: 10 }, { x: 13, y: 10 }] },
+    { x: 29, y: 3, points: [{ x: 28, y: 3 }, { x: 29, y: 3 }, { x: 30, y: 3 }] },
     { x: 19, y: 10, points: [{ x: 18, y: 10 }, { x: 19, y: 10 }, { x: 20, y: 10 }] }
   ]),
   bicycle: Object.freeze([
     { x: 5, y: 4, points: [{ x: 4, y: 4 }, { x: 5, y: 4 }, { x: 6, y: 4 }] },
     { x: 10, y: 11, points: [{ x: 9, y: 11 }, { x: 10, y: 11 }, { x: 11, y: 11 }] },
-    { x: 27, y: 4, points: [{ x: 26, y: 4 }, { x: 27, y: 4 }, { x: 28, y: 4 }] },
-    { x: 19, y: 11, points: [{ x: 18, y: 11 }, { x: 19, y: 11 }, { x: 20, y: 11 }] }
+    { x: 24, y: 4, points: [{ x: 23, y: 4 }, { x: 24, y: 4 }, { x: 25, y: 4 }] },
+    { x: 19, y: 11, points: [{ x: 18, y: 11 }, { x: 19, y: 11 }, { x: 20, y: 11 }] },
+    { x: 2, y: 10, points: [{ x: 1, y: 10 }, { x: 2, y: 10 }, { x: 3, y: 10 }] },
+    { x: 30, y: 4, points: [{ x: 29, y: 4 }, { x: 30, y: 4 }, { x: 31, y: 4 }] }
   ])
 });
 
@@ -254,7 +256,7 @@ function assembleCandidate(difficulty, random, layoutSource = "generated", seed 
   const normalized = normalizeDifficulty(difficulty);
   const geometry = fixedGeometry();
   const start = { x: 0, y: 3 };
-  const goal = { x: 31, y: 10 };
+  const goal = { x: 28, y: 11 };
   const entrances = [
     { id: "left-home-entrance", x: 0, y: 10 },
     { id: "right-school-entrance", x: 31, y: 3 }
@@ -301,14 +303,32 @@ function assembleCandidate(difficulty, random, layoutSource = "generated", seed 
     return { ...patrol, id: `patrol-${index + 1}`, type, moving: true };
   });
   const places = [
-    { id: "left-home", type: "home", x: 1, y: 1, label: "우리 집" },
-    { id: "left-daycare", type: "daycare", x: 5, y: 1, label: "어린이집" },
-    { id: "left-shops", type: "shops", x: 9, y: 1, label: "상가" },
-    { id: "left-park", type: "park", x: 12, y: 12, label: "공원" },
-    { id: "right-library", type: "library", x: 19, y: 1, label: "도서관" },
-    { id: "right-bus-stop", type: "bus-stop", x: 22, y: 12, label: "버스 정류장" },
-    { id: "right-shop", type: "shop", x: 26, y: 1, label: "가게" },
-    { id: "right-school", type: "school", x: 30, y: 12, label: "학교" }
+    { id: "left-home", type: "home", x: 0, y: 1, width: 2, height: 2,
+      door: { x: 1, y: 3 }, label: "우리 집" },
+    { id: "left-daycare", type: "daycare", x: 5, y: 1, width: 2, height: 2,
+      door: { x: 5, y: 3 }, label: "어린이집" },
+    { id: "left-shops", type: "shops", x: 7, y: 1, width: 3, height: 2,
+      door: { x: 8, y: 3 }, label: "상가" },
+    { id: "left-park", type: "park", x: 11, y: 12, width: 2, height: 2,
+      door: { x: 11, y: 11 }, label: "공원" },
+    { id: "right-library", type: "library", x: 19, y: 1, width: 2, height: 2,
+      door: { x: 19, y: 3 }, label: "도서관" },
+    { id: "right-bus-stop", type: "bus-stop", x: 22, y: 12, width: 2, height: 1,
+      door: { x: 22, y: 11 }, label: "버스 정류장" },
+    { id: "right-shop", type: "shop", x: 25, y: 1, width: 2, height: 2,
+      door: { x: 25, y: 3 }, label: "가게" },
+    { id: "right-school", type: "school", x: 27, y: 12, width: 3, height: 3,
+      door: { x: 28, y: 11 }, label: "학교" }
+  ];
+  const props = [
+    { id: "prop-1", type: "tree", x: 3, y: 0 },
+    { id: "prop-2", type: "flowers", x: 12, y: 1 },
+    { id: "prop-3", type: "tree", x: 1, y: 13 },
+    { id: "prop-4", type: "bench", x: 5, y: 12 },
+    { id: "prop-5", type: "tree", x: 22, y: 0 },
+    { id: "prop-6", type: "flowers", x: 30, y: 1 },
+    { id: "prop-7", type: "bench", x: 19, y: 13 },
+    { id: "prop-8", type: "tree", x: 31, y: 13 }
   ];
   const signalMarkers = geometry.crossings.flatMap(crossing => {
     const markerY = Math.min(...crossing.cells.map(point => point.y));
@@ -356,6 +376,7 @@ function assembleCandidate(difficulty, random, layoutSource = "generated", seed 
     entrances,
     friends,
     places,
+    props,
     hazards,
     patrols,
     trafficPaths
@@ -467,6 +488,29 @@ export function validateCandidateLayout(map) {
       (rightPlace && place.x < ZONES.right.x) ||
       (!leftPlace && !rightPlace)) {
       errors.push(`place in wrong neighborhood: ${place.id ?? place.type}`);
+    }
+    if (!Number.isInteger(place.width) || !Number.isInteger(place.height) ||
+      place.width < 1 || place.height < 1 || !place.door ||
+      !walkable.has(pointKey(place.door))) {
+      errors.push(`place footprint/door invalid: ${place.id ?? place.type}`);
+      return;
+    }
+    rectangleCells(place.x, place.y, place.width, place.height).forEach(cell => {
+      if (!inBounds(cell)) {
+        errors.push(`place out of bounds: ${place.id ?? place.type}`);
+      }
+      if (walkable.has(pointKey(cell))) {
+        errors.push(`place overlaps walkway: ${place.id ?? place.type}`);
+      }
+    });
+  });
+  const buildingCells = new Set(places.flatMap(place =>
+    rectangleCells(place.x, place.y, place.width ?? 1, place.height ?? 1)
+  ).map(pointKey));
+  (map.props ?? []).forEach(prop => {
+    if (!inBounds(prop) || walkable.has(pointKey(prop)) ||
+      buildingCells.has(pointKey(prop))) {
+      errors.push(`prop misplaced: ${prop.id ?? pointKey(prop)}`);
     }
   });
 

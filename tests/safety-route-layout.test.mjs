@@ -291,6 +291,38 @@ test("생성 지도는 런타임 공용 필드와 보행 별칭 및 두 동네 �
   assert.ok(map.places.some(place => place.type === "school" && place.x >= 18));
 });
 
+test("건물은 풋프린트와 문을 가지고 잔디 위에만 있다", () => {
+  const map = createSafetyRouteMap("steady", { seed: 7 });
+  const walkable = new Set(map.pedestrianCells.map(pointKey));
+  assert.equal(map.places.length, 8);
+  map.places.forEach(place => {
+    assert.ok(place.width >= 1 && place.height >= 1, place.id);
+    assert.ok(place.door, place.id);
+    for (let dx = 0; dx < place.width; dx += 1) {
+      for (let dy = 0; dy < place.height; dy += 1) {
+        assert.ok(
+          !walkable.has(`${place.x + dx},${place.y + dy}`),
+          `${place.id} footprint on walkway`
+        );
+      }
+    }
+    assert.ok(
+      walkable.has(pointKey(place.door)),
+      `${place.id} door must face a walkway`
+    );
+  });
+  const school = map.places.find(place => place.type === "school");
+  assert.equal(school.width, 3);
+  assert.equal(school.height, 3);
+  assert.deepEqual(map.goal, { x: 28, y: 11 });
+  assert.deepEqual(school.door, map.goal);
+  assert.ok(map.props.length >= 8);
+  map.props.forEach(prop => {
+    assert.ok(["tree", "flowers", "bench"].includes(prop.type));
+    assert.ok(!walkable.has(pointKey(prop)), `prop on walkway: ${prop.id}`);
+  });
+});
+
 test("승인된 여덟 랜드마크는 올바른 동네와 접근 가능한 이름을 가진다", () => {
   const map = createSafetyRouteMap("steady", { seed: 12 });
 
