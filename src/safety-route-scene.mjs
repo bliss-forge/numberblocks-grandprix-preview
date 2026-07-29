@@ -6,6 +6,7 @@ import {
   excavatorSvg,
   scooterSvg
 } from "./safety-route-art.mjs";
+import { renderMinimap, updateMinimap } from "./safety-route-minimap.mjs";
 
 const MOVER_ART = Object.freeze({
   car: carSvg,
@@ -168,6 +169,8 @@ export function renderSafetyRouteScene(document, state, requestedView = {}) {
   const collected = document.createElement("div");
   collected.className = "safety-collected";
   top.append(collected);
+  const minimap = renderMinimap(document, state);
+  top.append(minimap);
   root.append(top);
 
   const viewport = document.createElement("div");
@@ -419,6 +422,7 @@ export function renderSafetyRouteScene(document, state, requestedView = {}) {
     document,
     goal,
     collected,
+    minimap,
     viewport,
     world,
     signalNodes: signalMarkers,
@@ -468,6 +472,7 @@ export function updateSafetyRouteScene(root, state, requestedView = {}) {
   nodes.viewport.style.setProperty("--viewport-cols", view.camera.width);
   nodes.viewport.style.setProperty("--viewport-rows", view.camera.height);
   setWorldCamera(nodes.world, view.camera);
+  updateMinimap(nodes.minimap, state);
 
   nodes.signalNodes.forEach(node => {
     node.dataset.phase = state.signal.phase;

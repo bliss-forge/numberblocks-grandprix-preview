@@ -2674,6 +2674,110 @@ body[data-mode="safety"] .stage-lights {
   50% { box-shadow: 0 0 0 6px rgba(255, 213, 74, .85); }
 }
 
+.route-minimap {
+  position: absolute;
+  top: calc(var(--safety-route-top-height, 64px) + 10px);
+  right: 10px;
+  z-index: 30;
+  width: 240px;
+  aspect-ratio: 2 / 1;
+  overflow: hidden;
+  display: grid;
+  grid-template-columns: 14fr 4fr 14fr;
+  border: 3px solid #fff;
+  border-radius: 12px;
+  background: #cde8a8;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, .2);
+  pointer-events: none;
+  opacity: .94;
+}
+
+.route-minimap-zone-left,
+.route-minimap-zone-right {
+  background: #cde8a8;
+}
+
+.route-minimap-zone-road {
+  background: #6b7480;
+}
+
+.route-minimap-band {
+  position: absolute;
+  left: calc(var(--mini-x) * 1%);
+  top: calc(var(--mini-y) * 1%);
+  width: calc(var(--mini-width) * 1%);
+  height: calc(var(--mini-height) * 1%);
+  background: rgba(236, 217, 184, .92);
+}
+
+.route-minimap-player,
+.route-minimap-target {
+  position: absolute;
+  left: calc(var(--mini-x) * 1%);
+  top: calc(var(--mini-y) * 1%);
+  width: 11px;
+  height: 11px;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  transform: translate(-30%, -30%);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, .3);
+}
+
+.route-minimap-player {
+  z-index: 3;
+  background: #e8433f;
+}
+
+.route-minimap-target {
+  z-index: 2;
+  background: #ffd54a;
+  animation: route-minimap-blink 1s ease-in-out infinite;
+}
+
+@keyframes route-minimap-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: .35; }
+}
+
+.route-minimap-school {
+  position: absolute;
+  left: calc(var(--mini-x) * 1%);
+  top: calc(var(--mini-y) * 1%);
+  z-index: 2;
+  font-size: 14px;
+  line-height: 1;
+  transform: translate(-30%, -40%);
+}
+
+.route-minimap-signal {
+  position: absolute;
+  left: 6px;
+  top: 6px;
+  z-index: 3;
+  width: 12px;
+  height: 12px;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  background: #ff4d54;
+}
+
+.route-minimap-signal[data-phase="pedestrian-go"] {
+  background: #48cf62;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .route-minimap-target {
+    animation: none;
+  }
+}
+
+@media (max-width: 640px) {
+  .route-minimap {
+    width: 150px;
+    right: 6px;
+  }
+}
+
 .route-prop {
   z-index: 2;
   pointer-events: none;
