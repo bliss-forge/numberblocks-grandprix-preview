@@ -35,6 +35,8 @@ KO_SAFETY = {
     "safety-car": "자동차가 지나가요. 안전한 곳에서 기다려요!",
     "safety-wrong-order": "반가운 친구예요. 하지만 순서대로 만나러 가요!",
     "safety-finish": "친구들을 모두 만났어요! 안전하게 도착했어요!",
+    "safety-look-both": "멈춰요, 왼쪽 오른쪽을 봐요!",
+    "safety-tour": "학교까지 안전하게 가 보자!",
 }
 EN_SAFETY = {
     "safety-next-2": "Let's visit Numberblock Two at the nursery.",
@@ -54,6 +56,8 @@ EN_SAFETY = {
     "safety-car": "A car is passing. Wait somewhere safe!",
     "safety-wrong-order": "Hello, friend! Let's meet everyone in number order.",
     "safety-finish": "We met all our friends and arrived safely!",
+    "safety-look-both": "Stop! Look left and right!",
+    "safety-tour": "Let's walk safely to school!",
 }
 KO_ONES = ["", "일", "이", "삼", "사", "오", "육", "칠", "팔", "구"]
 EN_ONES = [

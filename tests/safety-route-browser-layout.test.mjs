@@ -40,10 +40,11 @@ async function startStaticServer() {
     }
 
     try {
+      const body = await readFile(file);
       response.writeHead(200, {
         "content-type": contentTypes[extname(file)] ?? "application/octet-stream"
       });
-      response.end(await readFile(file));
+      response.end(body);
     } catch {
       response.writeHead(404).end();
     }

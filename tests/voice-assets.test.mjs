@@ -54,3 +54,20 @@ test("안전 안내 생성 문구는 한국어와 자연스러운 영국 영어�
   assert.match(generator, /"safety-red-light": "The light is red\./);
   assert.match(generator, /"safety-finish": "We met all our friends/);
 });
+
+test("안전 연출·투어 음성 키가 매니페스트와 생성 스크립트에 준비되어 있다", async () => {
+  const { VOICE } = await import("../src/audio-manifest.mjs");
+  assert.ok(VOICE["safety-look-both"].ko.endsWith("safety-look-both.mp3"));
+  assert.ok(VOICE["safety-look-both"].en.endsWith("safety-look-both.mp3"));
+  assert.ok(VOICE["safety-tour"].ko.endsWith("safety-tour.mp3"));
+  assert.ok(VOICE["safety-tour"].en.endsWith("safety-tour.mp3"));
+
+  const generator = await readFile(
+    new URL("../scripts/generate_voice_pack.py", import.meta.url),
+    "utf8"
+  );
+  assert.match(generator, /"safety-look-both": "멈춰요, 왼쪽 오른쪽을 봐요!"/);
+  assert.match(generator, /"safety-tour": "학교까지 안전하게 가 보자!"/);
+  assert.match(generator, /"safety-look-both": "Stop! Look left and right!"/);
+  assert.match(generator, /"safety-tour": "Let's walk safely to school!"/);
+});
