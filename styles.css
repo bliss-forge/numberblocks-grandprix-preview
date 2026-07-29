@@ -1743,8 +1743,9 @@ body[data-state="celebrating"] .answer-box {
 
 /* Safety route: flat picture-book neighborhood */
 .mode-grid {
-  grid-template-columns: repeat(6, minmax(140px, 205px));
-  width: min(97vw, 1330px);
+  grid-template-columns: repeat(6, minmax(0, 205px));
+  justify-content: center;
+  width: min(100%, 1330px);
 }
 
 .mode-card:nth-child(5) {
@@ -1757,6 +1758,11 @@ body[data-state="celebrating"] .answer-box {
   --card-color: #ffdfb8;
   --card-accent: #d9822b;
   transform: translateY(-6px) rotate(-.6deg);
+}
+
+.card-copy strong,
+.card-copy small {
+  word-break: keep-all;
 }
 
 body[data-mode="safety"] #game {

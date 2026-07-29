@@ -50,9 +50,11 @@ function routeBounds(state) {
 }
 
 function mapSvg(state, bounds) {
-  const routeStations = new Set(
-    state.legs.flatMap(leg => leg.stations)
-  );
+  const routeOrder = new Map();
+  state.legs.flatMap(leg => leg.stations).forEach(name => {
+    if (!routeOrder.has(name)) routeOrder.set(name, routeOrder.size);
+  });
+  const routeStations = new Set(routeOrder.keys());
   const activeLines = new Set(state.legs.map(leg => leg.line));
   const parts = [];
   parts.push(
@@ -95,10 +97,12 @@ function mapSvg(state, bounds) {
         `opacity="${onRoute ? 1 : 0.45}"/>`
       );
       if (onRoute) {
+        const dy = (routeOrder.get(name) ?? 0) % 2 === 0 ? -20 : 36;
         parts.push(
           `<text class="subway-station-name" x="${point.x * MAP_SCALE}" ` +
-          `y="${point.y * MAP_SCALE - 18}" text-anchor="middle" ` +
-          `font-size="17" font-weight="900" fill="#31445b">${name}</text>`
+          `y="${point.y * MAP_SCALE + dy}" text-anchor="middle" ` +
+          `font-size="17" font-weight="900" fill="#31445b" ` +
+          `stroke="#fff" stroke-width="5" paint-order="stroke">${name}</text>`
         );
       }
     });
