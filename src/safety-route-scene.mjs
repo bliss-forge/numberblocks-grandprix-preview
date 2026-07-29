@@ -1,5 +1,17 @@
 import { characterAsset } from "./character-spec.mjs";
 import { moverPoint } from "./safety-route-movers.mjs";
+import {
+  bicycleSvg,
+  carSvg,
+  excavatorSvg,
+  scooterSvg
+} from "./safety-route-art.mjs";
+
+const MOVER_ART = Object.freeze({
+  car: carSvg,
+  bicycle: bicycleSvg,
+  scooter: scooterSvg
+});
 
 const PLACE_LABELS = Object.freeze({
   home: "우리 집",
@@ -16,8 +28,8 @@ const PLACE_LABELS = Object.freeze({
 });
 
 const HAZARD_LABELS = Object.freeze({
-  manhole: "닫힌 맨홀 덮개",
-  construction: "공사 차단봉",
+  manhole: "열린 맨홀",
+  construction: "공사장",
   scooter: "헬멧을 쓴 어린이의 킥보드",
   bicycle: "헬멧을 쓴 어린이의 자전거",
   car: "도로 자동차"
@@ -108,6 +120,14 @@ function signalNode(document, phase, className, point, accessible = false) {
     );
   } else {
     signal.setAttribute("aria-hidden", "true");
+  }
+  if (className === "route-signal-marker") {
+    for (const lamp of ["stop", "go"]) {
+      const node = document.createElement("span");
+      node.className = `route-signal-lamp route-signal-lamp-${lamp}`;
+      node.setAttribute("aria-hidden", "true");
+      signal.append(node);
+    }
   }
   return placeAt(signal, point);
 }
@@ -314,6 +334,23 @@ export function renderSafetyRouteScene(document, state, requestedView = {}) {
     if (hazard.approachAnchor) {
       node.dataset.approachAnchor = pointKey(hazard.approachAnchor);
     }
+    if (hazard.type === "construction") {
+      node.innerHTML = excavatorSvg();
+      const sign = document.createElement("span");
+      sign.className = "route-construction-sign";
+      sign.textContent = "🚧 공사중";
+      sign.setAttribute("aria-hidden", "true");
+      node.append(sign);
+    }
+    if (hazard.type === "manhole") {
+      const lid = document.createElement("span");
+      lid.className = "route-manhole-lid";
+      lid.setAttribute("aria-hidden", "true");
+      const cone = document.createElement("span");
+      cone.className = "route-manhole-cone";
+      cone.setAttribute("aria-hidden", "true");
+      node.append(lid, cone);
+    }
     world.append(placeAt(node, hazard.approachAnchor ?? hazard));
   });
 
@@ -332,12 +369,7 @@ export function renderSafetyRouteScene(document, state, requestedView = {}) {
       HAZARD_LABELS[mover.type] ?? mover.type
     );
     node.setAttribute("role", "img");
-    if (mover.type === "scooter" || mover.type === "bicycle") {
-      const rider = document.createElement("span");
-      rider.className = "route-rider-person";
-      rider.setAttribute("aria-hidden", "true");
-      node.append(rider);
-    }
+    node.innerHTML = (MOVER_ART[mover.type] ?? carSvg)();
     world.append(placeAt(node, point));
     moverNodes.set(mover.id, node);
   });

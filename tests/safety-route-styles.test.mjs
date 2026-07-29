@@ -130,47 +130,43 @@ test("건물과 생활안전 요소를 입체 이미지 없이 평면 CSS 그림
   assert.doesNotMatch(css, /\.safety-route[\s\S]*?perspective\s*:/);
 });
 
-test("탑승자와 닫힌 맨홀과 공사 차단봉은 원본 CSS 그림을 사용한다", () => {
-  const riderHead = selectorBody(".route-rider-person::before");
-  const riderLimbs = selectorBody(".route-rider-person::after");
+test("열린 맨홀·포크레인 공사장·SVG 이동체는 원본 CSS/SVG 그림을 사용한다", () => {
   const manholeFootprint = selectorBody(".route-hazard-footprint-manhole");
-  const manhole = selectorBody(".route-manhole");
+  const manholeHole = selectorBody(".route-manhole::before");
+  const manholeLid = selectorBody(".route-manhole-lid");
+  const manholeCone = selectorBody(".route-manhole-cone");
   const construction = selectorBody(".route-construction");
-  const barrierBoard = selectorBody(".route-construction::before");
-  const barrierPosts = selectorBody(".route-construction::after");
+  const fences = selectorBody(".route-construction::before,\n.route-construction::after");
+  const constructionSign = selectorBody(".route-construction-sign");
   const reversedMover = selectorBody('.route-moving-rider[data-direction="-1"]');
+  const wheel = selectorBody(".route-wheel");
 
-  assert.match(riderHead, /border-radius:\s*50%;/);
-  assert.equal((riderLimbs.match(/#ffcf9f/g) ?? []).length, 2);
-  assert.match(riderLimbs, /left:\s*-9px;[^}]*width:\s*36px;[^}]*height:\s*31px;/s);
   assert.match(manholeFootprint, /border:\s*0;[^}]*background:\s*transparent;/s);
-  assert.match(manhole, /repeating-(?:linear|conic)-gradient/);
-  assert.match(construction, /height:\s*calc\(var\(--route-cell-size\)\s*\*\s*1\.2\);/);
-  assert.match(barrierBoard, /z-index:\s*2;[^}]*repeating-linear-gradient\([^}]*#f5c400[^}]*#171717/s);
-  assert.match(barrierPosts, /z-index:\s*1;/);
-  assert.match(barrierPosts, /10%\s+0\s*\/\s*16px\s+84%\s+no-repeat/);
-  assert.match(barrierPosts, /90%\s+0\s*\/\s*16px\s+84%\s+no-repeat/);
-  assert.equal((barrierPosts.match(
-    /linear-gradient\(#ef5a29 0 25%, #fff 25% 48%, #ef5a29 48% 73%, #fff 73%\)/g
-  ) ?? []).length, 2);
-  assert.match(barrierPosts, /0\s+100%\s*\/\s*42px\s+12px\s+no-repeat/);
-  assert.match(barrierPosts, /100%\s+100%\s*\/\s*42px\s+12px\s+no-repeat/);
+  assert.match(manholeHole, /border-radius:\s*50%;/);
+  assert.match(manholeHole, /#23292f/);
+  assert.match(manholeLid, /rotate\(14deg\)/);
+  assert.match(manholeCone, /clip-path/);
+  assert.match(
+    construction,
+    /height:\s*calc\(var\(--route-cell-size\)\s*\*\s*var\(--hazard-span,\s*1\)\);/
+  );
+  assert.match(fences, /repeating-linear-gradient\(45deg,\s*#ff9838 0 12px,\s*#fff 12px 24px\)/);
+  assert.match(constructionSign, /#ffd54a/);
   assert.match(reversedMover, /transform:\s*scaleX\(-1\);/);
+  assert.match(wheel, /animation:\s*route-wheel-spin/);
+  assert.match(css, /\.route-hazard\[data-stopped="true"\]\s+\.route-wheel\s*\{[^}]*animation-play-state:\s*paused;/s);
 
   for (const selector of [
-    ".route-rider-person",
-    ".route-rider-person::before",
-    ".route-rider-person::after",
     ".route-hazard-footprint-manhole",
-    ".route-manhole",
     ".route-manhole::before",
-    ".route-manhole::after",
+    ".route-manhole-lid",
+    ".route-manhole-cone",
     ".route-construction",
-    ".route-construction::before",
-    ".route-construction::after"
+    ".route-construction-sign"
   ]) {
     assert.doesNotMatch(selectorBody(selector), /url\s*\(/i, selector);
   }
+  assert.doesNotMatch(css, /\.route-rider-person/);
 });
 
 test("자동차 CSS는 북쪽과 남쪽 heading을 서로 반대로 그린다", () => {
@@ -181,7 +177,7 @@ test("자동차 CSS는 북쪽과 남쪽 heading을 서로 반대로 그린다", 
 test("줄인 동작은 장식 애니메이션과 카메라 이동만 끈다", () => {
   assert.match(
     css,
-    /@media\s*\(prefers-reduced-motion:\s*reduce\)\s*\{\s*\.safety-world\s*\{[^}]*transition:\s*none;[^}]*\}\s*\.route-player,\s*\.route-moving-rider,\s*\.route-moving-rider::before,\s*\.route-moving-rider::after\s*\{[^}]*animation:\s*none;[^}]*\}\s*\}/s
+    /@media\s*\(prefers-reduced-motion:\s*reduce\)\s*\{\s*\.safety-world\s*\{[^}]*transition:\s*none;[^}]*\}\s*\.route-player,\s*\.route-moving-rider,\s*\.route-wheel,\s*\.route-goal-mat\s*\{[^}]*animation:\s*none;[^}]*\}\s*\}/s
   );
   assert.doesNotMatch(
     css,

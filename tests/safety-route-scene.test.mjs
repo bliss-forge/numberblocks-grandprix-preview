@@ -130,16 +130,12 @@ test("킥보드와 자전거에는 헬멧을 쓴 탑승자가 함께 표시된�
     ["route-bicycle", "헬멧을 쓴 어린이의 자전거"]
   ]) {
     const vehicle = byClass(scene, vehicleClass)[0];
-    const directRiders = vehicle.children.filter(child =>
-      child.className.split(/\s+/).includes("route-rider-person")
-    );
-    assert.equal(directRiders.length, 1);
-    assert.equal(directRiders[0].attributes.get("aria-hidden"), "true");
+    assert.match(vehicle.innerHTML ?? "", /route-rider-helmet/);
     assert.equal(vehicle.attributes.get("aria-label"), label);
   }
   for (const [hazardClass, label] of [
-    ["route-manhole", "닫힌 맨홀 덮개"],
-    ["route-construction", "공사 차단봉"],
+    ["route-manhole", "열린 맨홀"],
+    ["route-construction", "공사장"],
     ["route-car", "도로 자동차"]
   ]) {
     assert.equal(
@@ -486,4 +482,36 @@ test("건물은 풋프린트 블록으로 그려지고 학교는 랜드마크다
   assert.equal(byClass(scene, "route-place").length, 0);
   assert.equal(byClass(scene, "route-school-goal").length, 0);
   assert.equal(byClass(scene, "route-prop").length, state.map.props.length);
+});
+
+test("신호등은 두 램프를 가진 보행자 신호등이다", () => {
+  const state = createSafetyRouteState("easy", { seed: 3 });
+  const scene = renderSafetyRouteScene(document, state);
+  const markers = byClass(scene, "route-signal-marker");
+  assert.equal(markers.length, 4);
+  markers.forEach(marker => {
+    assert.equal(byClass(marker, "route-signal-lamp").length, 2);
+    assert.equal(marker.dataset.phase, state.signal.phase);
+  });
+});
+
+test("이동체와 공사장은 svg 아트로 그려진다", () => {
+  const state = createSafetyRouteState("challenge", { seed: 5 });
+  const scene = renderSafetyRouteScene(document, state);
+  const riders = byClass(scene, "route-moving-rider");
+  assert.ok(riders.length >= 1);
+  riders.forEach(node => {
+    assert.match(node.innerHTML ?? "", /route-art-(bicycle|scooter)/);
+  });
+  const cars = byClass(scene, "route-car");
+  assert.equal(cars.length, 2);
+  cars.forEach(node => {
+    assert.match(node.innerHTML ?? "", /route-art-car/);
+  });
+  const construction = byClass(scene, "route-construction")[0];
+  assert.match(construction.innerHTML ?? "", /route-art-excavator/);
+  assert.equal(byClass(scene, "route-rider-person").length, 0);
+  const manhole = byClass(scene, "route-manhole")[0];
+  assert.equal(byClass(manhole, "route-manhole-lid").length, 1);
+  assert.equal(byClass(manhole, "route-manhole-cone").length, 1);
 });

@@ -143,16 +143,12 @@ test("1280×720 PC 안전길은 7×5칸을 자르지 않고 모바일 방향키�
     ];
     const riders = riderNodes.map(vehicle => {
       vehicle.dataset.direction = "-1";
-      const rider = vehicle.querySelector(":scope > .route-rider-person");
-      const torso = getComputedStyle(rider);
-      const limbs = getComputedStyle(rider, "::after");
+      const art = vehicle.querySelector(":scope > svg.route-art");
       return {
-        directChild: rider?.parentElement === vehicle,
+        directChild: art?.parentElement === vehicle,
         flip: getComputedStyle(vehicle).transform,
-        limbBackground: limbs.backgroundImage,
-        limbHeight: parseFloat(limbs.height),
-        limbWidth: parseFloat(limbs.width),
-        torsoWidth: parseFloat(torso.width)
+        helmets: vehicle.querySelectorAll(".route-rider-helmet").length,
+        wheels: vehicle.querySelectorAll(".route-wheel").length
       };
     });
     const constructionRect = construction.getBoundingClientRect();
@@ -167,8 +163,12 @@ test("1280×720 PC 안전길은 7×5칸을 자르지 않고 모바일 방향키�
     };
     const board = getComputedStyle(construction, "::before");
     const posts = getComputedStyle(construction, "::after");
+    const excavator = construction.querySelector("svg.route-art-excavator");
+    const constructionSign = construction.querySelector(".route-construction-sign");
 
     return {
+      constructionHasExcavator: Boolean(excavator),
+      constructionSignText: constructionSign?.textContent ?? "",
       cell,
       clientColumnsVisible: viewport.clientWidth / cell,
       clientRowsVisible: viewport.clientHeight / cell,
@@ -182,6 +182,7 @@ test("1280×720 PC 안전길은 7×5칸을 자르지 않고 모바일 방향키�
       worldColumns: columns,
       taskFour: {
         barrier: {
+          boardImage: board.backgroundImage,
           boardZIndex: board.zIndex,
           approachAnchor: construction.dataset.approachAnchor,
           artworkBottom: constructionRect.bottom,
@@ -191,9 +192,7 @@ test("1280×720 PC 안전길은 7×5칸을 자르지 않고 모바일 방향키�
           footprintCount: constructionFootprints.length,
           footprintTop: footprintBounds.top,
           heightInCells: constructionRect.height / cell,
-          postBackgroundImages: posts.backgroundImage,
-          postBackgroundPositions: posts.backgroundPosition,
-          postBackgroundSizes: posts.backgroundSize,
+          postImage: posts.backgroundImage,
           postsZIndex: posts.zIndex
         },
         riders
@@ -287,49 +286,38 @@ test("1280×720 PC 안전길은 7×5칸을 자르지 않고 모바일 방향키�
   );
   for (const rider of desktopMetrics.taskFour.riders) {
     assert.match(rider.flip, /^matrix\(-1, 0, 0, 1,/);
-    assert.equal(
-      (rider.limbBackground.match(/rgb\(255, 207, 159\)/g) ?? []).length,
-      4
-    );
-    assert.ok(rider.limbWidth >= rider.torsoWidth * 2);
-    assert.ok(rider.limbHeight > rider.torsoWidth);
+    assert.equal(rider.helmets, 1);
+    assert.equal(rider.wheels, 2);
   }
+  assert.equal(desktopMetrics.constructionHasExcavator, true);
+  assert.equal(desktopMetrics.constructionSignText, "🚧 공사중");
   assert.deepEqual(
     {
       boardZIndex: desktopMetrics.taskFour.barrier.boardZIndex,
       footprintCount: desktopMetrics.taskFour.barrier.footprintCount,
-      postBackgroundPositions:
-        desktopMetrics.taskFour.barrier.postBackgroundPositions,
-      postBackgroundSizes: desktopMetrics.taskFour.barrier.postBackgroundSizes,
       postsZIndex: desktopMetrics.taskFour.barrier.postsZIndex
     },
     {
       boardZIndex: "2",
       footprintCount: 5,
-      postBackgroundPositions: "10% 0px, 90% 0px, 0px 100%, 100% 100%",
-      postBackgroundSizes: "16px 84%, 16px 84%, 42px 12px, 42px 12px",
-      postsZIndex: "1"
+      postsZIndex: "2"
     }
   );
+  for (const fence of [
+    desktopMetrics.taskFour.barrier.boardImage,
+    desktopMetrics.taskFour.barrier.postImage
+  ]) {
+    assert.match(fence, /repeating-linear-gradient/);
+    assert.match(fence, /rgb\(255, 152, 56\)/);
+    assert.match(fence, /rgb\(255, 255, 255\)/);
+  }
   assert.match(desktopMetrics.taskFour.barrier.approachAnchor, /^\d+,5$/);
-  const barrierTopOverlap = (
-    desktopMetrics.taskFour.barrier.footprintTop -
-      desktopMetrics.taskFour.barrier.artworkTop
-  ) / desktopMetrics.cell;
-  assert.ok(barrierTopOverlap >= .09 && barrierTopOverlap <= .2);
   assert.ok(desktopMetrics.taskFour.barrier.artworkLeft >= 0);
   assert.ok(desktopMetrics.taskFour.barrier.artworkRight <= 1280);
-  assert.ok(desktopMetrics.taskFour.barrier.artworkBottom <= 720);
   assert.ok(
-    Math.abs(desktopMetrics.taskFour.barrier.heightInCells - 1.2) <= .02
+    Math.abs(desktopMetrics.taskFour.barrier.heightInCells - 5) <= .05,
+    `construction height in cells: ${desktopMetrics.taskFour.barrier.heightInCells}`
   );
-  const postPaintLayers = desktopMetrics.taskFour.barrier.postBackgroundImages
-    .split(/\),\s*linear-gradient\(/);
-  assert.equal(postPaintLayers.length, 4);
-  for (const postLayer of postPaintLayers.slice(0, 2)) {
-    assert.match(postLayer, /rgb\(239, 90, 41\)/);
-    assert.match(postLayer, /rgb\(255, 255, 255\)/);
-  }
 
   const mobile = await browser.newPage({ viewport: { width: 390, height: 844 } });
   await openSafetyRoute(mobile, url);

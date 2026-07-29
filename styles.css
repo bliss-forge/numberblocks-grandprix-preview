@@ -1921,7 +1921,10 @@ body[data-mode="safety"] .stage-lights {
   position: relative;
   overflow: hidden;
   border-inline: 5px solid #f7f2df;
-  background: var(--road-asphalt);
+  background:
+    radial-gradient(rgba(255, 255, 255, .05) 1px, transparent 1.4px),
+    var(--road-asphalt);
+  background-size: 12px 12px, auto;
   box-shadow:
     inset 8px 0 rgba(42, 54, 67, .12),
     inset -8px 0 rgba(42, 54, 67, .12);
@@ -2328,22 +2331,58 @@ body[data-mode="safety"] .stage-lights {
 }
 
 .route-signal-marker {
-  --signal-top: #8b959e;
-  --signal-bottom: #8b959e;
+  --signal-top: #2a3643;
+  --signal-bottom: #2a3643;
   position: relative;
   z-index: 10;
   align-self: start;
   justify-self: start;
-  width: 24px;
-  height: 40px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-evenly;
+  width: 26px;
+  height: 44px;
   margin: 0;
   border: 3px solid #f7f2df;
   border-radius: 7px;
-  background:
-    radial-gradient(circle at 50% 9px, var(--signal-top) 0 5px, transparent 6px),
-    radial-gradient(circle at 50% 25px, var(--signal-bottom) 0 5px, transparent 6px),
-    #34445b;
+  background: #34445b;
   translate: var(--signal-shift-x, 0) 6px;
+}
+
+.route-signal-lamp {
+  display: grid;
+  place-items: center;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  font-size: 9px;
+  line-height: 1;
+}
+
+.route-signal-lamp-stop {
+  background: var(--signal-top);
+}
+
+.route-signal-lamp-go {
+  background: var(--signal-bottom);
+}
+
+.route-signal-lamp-stop::after {
+  content: "🧍";
+  opacity: .9;
+}
+
+.route-signal-lamp-go::after {
+  content: "🚶";
+  opacity: .9;
+}
+
+.route-signal-marker[data-phase="pedestrian-go"] .route-signal-lamp-stop::after,
+.route-signal-marker[data-phase="vehicle-go"] .route-signal-lamp-go::after,
+.route-signal-marker[data-phase="vehicle-clearance"] .route-signal-lamp-go::after,
+.route-signal-marker[data-phase="pedestrian-clearance"] .route-signal-lamp-go::after {
+  opacity: .25;
 }
 
 .route-signal-marker[data-side="left"] {
@@ -2412,14 +2451,14 @@ body[data-mode="safety"] .stage-lights {
 
 .route-hazard-footprint {
   z-index: 9;
-  margin: 5%;
-  border: 3px dashed rgba(255, 255, 255, .92);
+  margin: 8%;
+  border: 3px dashed rgba(224, 112, 32, .55);
   border-radius: 9px;
   background:
     repeating-linear-gradient(
       -45deg,
-      rgba(255, 136, 42, .62) 0 7px,
-      rgba(255, 246, 210, .78) 7px 14px
+      rgba(224, 112, 32, .16) 0 8px,
+      rgba(255, 246, 210, .3) 8px 16px
     );
   pointer-events: none;
 }
@@ -2430,236 +2469,158 @@ body[data-mode="safety"] .stage-lights {
   background: transparent;
 }
 
-.route-manhole {
-  width: 58%;
-  height: auto;
-  aspect-ratio: 1;
-  border: 5px solid #4a5760;
-  border-radius: 50%;
-  background:
-    repeating-linear-gradient(0deg, transparent 0 7px, rgba(58, 69, 77, .5) 7px 9px),
-    repeating-linear-gradient(90deg, transparent 0 7px, rgba(58, 69, 77, .5) 7px 9px),
-    #7e8a91;
-  box-shadow:
-    inset 0 0 0 4px #aab2b6,
-    0 2px 0 rgba(37, 52, 93, .16);
+.route-art {
+  display: block;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
 }
 
-.route-manhole::before,
-.route-manhole::after {
-  position: absolute;
-  inset: 24% 20%;
-  content: "";
-  pointer-events: none;
+.route-wheel {
+  animation: route-wheel-spin 1.6s linear infinite;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+@keyframes route-wheel-spin {
+  to { transform: rotate(360deg); }
+}
+
+.route-hazard[data-stopped="true"] .route-wheel {
+  animation-play-state: paused;
+}
+
+.route-manhole {
+  width: 74%;
+  height: auto;
+  aspect-ratio: 1;
 }
 
 .route-manhole::before {
-  border: 2px solid rgba(226, 231, 233, .72);
+  position: absolute;
+  left: 0;
+  top: 8%;
+  width: 74%;
+  aspect-ratio: 1;
   border-radius: 50%;
+  border: 4px solid #8d95a0;
+  background:
+    repeating-linear-gradient(90deg, transparent 0 6px, rgba(255, 255, 255, .14) 6px 8px),
+    #23292f;
+  box-shadow:
+    inset 0 5px 8px rgba(0, 0, 0, .7),
+    0 0 0 3px #aab2bd;
+  content: "";
 }
 
 .route-manhole::after {
+  position: absolute;
+  inset: 0;
+  content: "";
+  pointer-events: none;
+}
+
+.route-manhole-lid {
+  position: absolute;
+  right: -6%;
+  top: -4%;
+  width: 62%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  border: 4px solid #5d6772;
   background:
-    radial-gradient(circle at 18% 50%, #39464e 0 2px, transparent 3px),
-    radial-gradient(circle at 82% 50%, #39464e 0 2px, transparent 3px);
-  clip-path: ellipse(50% 48% at 50% 50%);
+    radial-gradient(circle, transparent 0 34%, rgba(0, 0, 0, .22) 35% 42%, transparent 43%),
+    #78828e;
+  box-shadow: 0 3px 0 rgba(37, 52, 93, .25);
+  transform: rotate(14deg);
+}
+
+.route-manhole-cone {
+  position: absolute;
+  left: -18%;
+  bottom: -6%;
+  width: 34%;
+  height: 46%;
+  background:
+    linear-gradient(#ff7043 0 34%, #fff 34% 52%, #ff7043 52%) 50% 0 / 46% 82% no-repeat,
+    linear-gradient(#e05a30, #e05a30) 0 100% / 100% 18% no-repeat;
+  clip-path: polygon(50% 0, 66% 82%, 100% 82%, 100% 100%, 0 100%, 0 82%, 34% 82%);
 }
 
 .route-construction {
-  width: 84%;
-  height: calc(var(--route-cell-size) * 1.2);
+  width: 118%;
+  height: calc(var(--route-cell-size) * var(--hazard-span, 1));
+  align-self: start;
   border: 0;
   background: transparent;
   box-shadow: none;
+  display: grid;
+  place-items: center;
+}
+
+.route-construction .route-art-excavator {
+  width: 88%;
+  height: auto;
+  filter: drop-shadow(0 3px 0 rgba(37, 52, 93, .2));
+}
+
+.route-construction::before,
+.route-construction::after {
+  position: absolute;
+  left: -10%;
+  right: -10%;
+  z-index: 2;
+  height: 12%;
+  min-height: 14px;
+  border: 3px solid #e07020;
+  border-radius: 6px;
+  background: repeating-linear-gradient(45deg, #ff9838 0 12px, #fff 12px 24px);
+  box-shadow: 0 3px 0 rgba(37, 52, 93, .2);
+  content: "";
 }
 
 .route-construction::before {
-  position: absolute;
-  left: -14%;
-  right: -14%;
-  top: 34%;
-  z-index: 2;
-  height: 26%;
-  border: 4px solid #fff;
-  border-radius: 6px;
-  background: repeating-linear-gradient(
-    135deg,
-    #f5c400 0 15px,
-    #171717 15px 30px
-  );
-  box-shadow: 0 4px 0 rgba(37, 52, 93, .2);
-  content: "";
+  top: 0;
 }
 
 .route-construction::after {
+  bottom: 2%;
+}
+
+.route-construction-sign {
   position: absolute;
-  inset: 8% -8% 3%;
-  z-index: 1;
-  background:
-    linear-gradient(#ef5a29 0 25%, #fff 25% 48%, #ef5a29 48% 73%, #fff 73%) 10% 0 / 16px 84% no-repeat,
-    linear-gradient(#ef5a29 0 25%, #fff 25% 48%, #ef5a29 48% 73%, #fff 73%) 90% 0 / 16px 84% no-repeat,
-    linear-gradient(90deg, #c94722, #ef5a29, #c94722) 0 100% / 42px 12px no-repeat,
-    linear-gradient(90deg, #c94722, #ef5a29, #c94722) 100% 100% / 42px 12px no-repeat;
-  content: "";
-  filter: drop-shadow(0 2px 0 rgba(37, 52, 93, .18));
+  left: 50%;
+  top: -6%;
+  z-index: 3;
+  transform: translate(-50%, -100%);
+  padding: 2px 8px;
+  border: 3px solid #e8a300;
+  border-radius: 8px;
+  background: #ffd54a;
+  color: #6b4b00;
+  font-size: clamp(8px, .8vw, 12px);
+  font-weight: 900;
+  line-height: 1.4;
+  white-space: nowrap;
+  box-shadow: 0 2px 0 rgba(37, 52, 93, .2);
 }
 
 .route-scooter {
-  width: 76%;
-  height: 34%;
-  border-bottom: 7px solid #f05256;
-  border-radius: 0 0 7px 7px;
-  filter: drop-shadow(0 0 2px #fff) drop-shadow(0 2px 0 #fff);
-}
-
-.route-scooter::before {
-  position: absolute;
-  right: 8%;
-  bottom: -1px;
-  width: 7px;
-  height: calc(var(--route-cell-size) * .52);
-  border-radius: 5px;
-  background: #31445b;
-  box-shadow: -7px calc(var(--route-cell-size) * -.48) 0 -2px #31445b;
-  content: "";
-  transform: rotate(-5deg);
-  transform-origin: bottom;
-}
-
-.route-scooter::after {
-  position: absolute;
-  left: 6%;
-  right: 6%;
-  bottom: -9px;
-  height: 14px;
-  background:
-    radial-gradient(circle at 8% 50%, #fff 0 6px, #25345d 6px 10px, transparent 10px),
-    radial-gradient(circle at 92% 50%, #fff 0 6px, #25345d 6px 10px, transparent 10px);
-  content: "";
+  width: 88%;
+  height: 92%;
 }
 
 .route-bicycle {
-  width: 82%;
-  height: 58%;
-  background:
-    radial-gradient(circle at 20% 72%, transparent 0 10px, #fff 10px 12px, #31445b 12px 16px, transparent 16px),
-    radial-gradient(circle at 80% 72%, transparent 0 10px, #fff 10px 12px, #31445b 12px 16px, transparent 16px);
-  filter: drop-shadow(0 2px 0 rgba(37, 52, 93, .2));
-}
-
-.route-bicycle::before {
-  position: absolute;
-  left: 26%;
-  top: 31%;
-  width: 48%;
-  height: 40%;
-  background:
-    linear-gradient(58deg, transparent 44%, #f05256 45% 55%, transparent 56%),
-    linear-gradient(-58deg, transparent 44%, #f05256 45% 55%, transparent 56%),
-    linear-gradient(0deg, transparent 43%, #f05256 44% 57%, transparent 58%);
-  content: "";
-  filter: drop-shadow(0 0 1px #fff);
-}
-
-.route-bicycle::after {
-  position: absolute;
-  left: 42%;
-  top: 17%;
-  width: 38%;
-  height: 19%;
-  border-top: 5px solid #31445b;
-  border-right: 5px solid #31445b;
-  content: "";
-  box-shadow: -9px -3px 0 -2px #31445b;
-}
-
-.route-rider-person {
-  position: absolute;
-  left: 38%;
-  bottom: 44%;
-  z-index: 3;
-  width: 18px;
-  height: 27px;
-  border: 2px solid #fff;
-  border-radius: 7px 7px 5px 5px;
-  background: #2879df;
-  box-shadow: inset 0 -7px #1758aa;
-  pointer-events: none;
-  transform: rotate(-7deg);
-  transform-origin: 50% 100%;
-}
-
-.route-rider-person::before {
-  position: absolute;
-  left: 50%;
-  top: -20px;
-  width: 20px;
-  height: 20px;
-  border: 2px solid #fff;
-  border-radius: 50%;
-  background:
-    linear-gradient(180deg, #ffd83d 0 44%, #f05256 45% 52%, #ffcf9f 53%);
-  box-shadow: inset 0 4px #f05256;
-  content: "";
-  transform: translateX(-50%);
-}
-
-.route-rider-person::after {
-  position: absolute;
-  left: -9px;
-  top: 6px;
-  width: 36px;
-  height: 31px;
-  background:
-    linear-gradient(20deg, transparent 0 35%, #ffcf9f 36% 61%, transparent 62%) 0 0 / 18px 12px no-repeat,
-    linear-gradient(-20deg, transparent 0 35%, #ffcf9f 36% 61%, transparent 62%) 100% 0 / 18px 12px no-repeat,
-    linear-gradient(65deg, transparent 0 39%, #25345d 40% 62%, transparent 63%) 6px 13px / 16px 18px no-repeat,
-    linear-gradient(-65deg, transparent 0 39%, #25345d 40% 62%, transparent 63%) 100% 13px / 16px 18px no-repeat;
-  content: "";
-  pointer-events: none;
-}
-
-.route-bicycle .route-rider-person {
-  left: 41%;
-  bottom: 48%;
+  width: 100%;
+  height: 84%;
 }
 
 .route-car {
-  width: 62%;
-  height: 84%;
-  border: 4px solid #fff;
-  border-radius: 15px 15px 11px 11px;
-  background:
-    radial-gradient(ellipse at 24% 8%, #fff2a6 0 6%, transparent 7%),
-    radial-gradient(ellipse at 76% 8%, #fff2a6 0 6%, transparent 7%),
-    radial-gradient(ellipse at 24% 94%, #d3313e 0 5%, transparent 6%),
-    radial-gradient(ellipse at 76% 94%, #d3313e 0 5%, transparent 6%),
-    #4d91df;
-  box-shadow: 0 3px 0 rgba(37, 52, 93, .15);
-}
-
-.route-car::before {
-  position: absolute;
-  left: 15%;
-  right: 15%;
-  top: 20%;
-  bottom: 22%;
-  border: 3px solid #fff;
-  border-radius: 9px;
-  background:
-    linear-gradient(180deg, #bfeeff 0 38%, #326b9c 39% 47%, #89cbe7 48% 100%);
-  content: "";
-}
-
-.route-car::after {
-  position: absolute;
-  inset: -5px;
-  background:
-    radial-gradient(ellipse at 4% 23%, #263554 0 7%, transparent 8%),
-    radial-gradient(ellipse at 96% 23%, #263554 0 7%, transparent 8%),
-    radial-gradient(ellipse at 4% 77%, #263554 0 7%, transparent 8%),
-    radial-gradient(ellipse at 96% 77%, #263554 0 7%, transparent 8%);
-  content: "";
+  width: 58%;
+  height: 92%;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
 }
 
 .route-car[data-heading="north"] {
@@ -2919,8 +2880,8 @@ body[data-mode="safety"] .stage-lights {
 
   .route-player,
   .route-moving-rider,
-  .route-moving-rider::before,
-  .route-moving-rider::after {
+  .route-wheel,
+  .route-goal-mat {
     animation: none;
   }
 }
