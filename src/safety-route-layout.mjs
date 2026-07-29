@@ -12,18 +12,26 @@ const DIFFICULTY_CONTENT = Object.freeze({
   easy: Object.freeze({
     hazards: Object.freeze(["manhole"]),
     patrols: Object.freeze(["scooter"]),
-    signalless: false
+    signalless: false,
+    busMode: false
   }),
   steady: Object.freeze({
     hazards: Object.freeze(["manhole", "manhole", "construction"]),
     patrols: Object.freeze(["scooter", "bicycle"]),
-    signalless: false
+    signalless: true,
+    busMode: false
   }),
   challenge: Object.freeze({
     hazards: Object.freeze(["manhole", "manhole", "construction"]),
     patrols: Object.freeze(["scooter", "bicycle"]),
-    signalless: true
+    signalless: true,
+    busMode: true
   })
+});
+const BUS_NUMBERS = Object.freeze([11, 85, 101, 105]);
+const BUS_STOPS = Object.freeze({
+  board: Object.freeze({ x: 13, y: 4 }),
+  alight: Object.freeze({ x: 18, y: 4 })
 });
 
 const FRIEND_CANDIDATES = Object.freeze({
@@ -246,9 +254,45 @@ function carLoopForLane(lane) {
   return { points, headings, stopIndices };
 }
 
-function trafficPathsFor(lanes, patrols) {
+function busRing() {
+  const left = ROAD.x;
+  const right = ROAD.x + ROAD.width - 1;
+  const points = [];
+  for (let y = HEIGHT - 1; y >= 0; y -= 1) points.push({ x: left, y });
+  for (let x = left + 1; x <= right; x += 1) points.push({ x, y: 0 });
+  for (let y = 1; y <= HEIGHT - 1; y += 1) points.push({ x: right, y });
+  for (let x = right - 1; x > left; x -= 1) points.push({ x, y: HEIGHT - 1 });
+  return points;
+}
+
+function busPaths() {
+  const points = busRing();
+  const headings = points.map((point, index) =>
+    headingBetween(point, points[(index + 1) % points.length])
+  );
+  const spacing = Math.floor(points.length / BUS_NUMBERS.length);
+  const boardIndex = points.findIndex(point =>
+    point.x === ROAD.x && point.y === BUS_STOPS.board.y
+  );
+  const alightIndex = points.findIndex(point =>
+    point.x === ROAD.x + ROAD.width - 1 && point.y === BUS_STOPS.alight.y
+  );
+  return BUS_NUMBERS.map((number, index) => ({
+    id: `bus-${number}`,
+    type: "bus",
+    number,
+    points: points.map(point => ({ ...point })),
+    headings: [...headings],
+    startIndex: (index * spacing) % points.length,
+    boardIndex,
+    alightIndex,
+    stopIndex: 0
+  }));
+}
+
+function trafficPathsFor(lanes, patrols, busMode = false) {
   return [
-    ...lanes.map(lane => {
+    ...(busMode ? busPaths() : lanes.map(lane => {
       const { points, headings, stopIndices } = carLoopForLane(lane);
       return {
         id: `${lane.id}-car`,
@@ -259,7 +303,7 @@ function trafficPathsFor(lanes, patrols) {
         stopIndex: stopIndices[0],
         stopIndices
       };
-    }),
+    })),
     ...patrols.map(patrol => ({
       id: patrol.id,
       type: patrol.type,
@@ -282,6 +326,8 @@ function assembleCandidate(difficulty, random, layoutSource = "generated", seed 
   const forbidden = new Set([
     pointKey(start),
     pointKey(goal),
+    pointKey(BUS_STOPS.board),
+    pointKey(BUS_STOPS.alight),
     ...entrances.map(pointKey),
     ...geometry.crossings.flatMap(crossing => crossing.cells).map(pointKey)
   ]);
@@ -392,13 +438,22 @@ function assembleCandidate(difficulty, random, layoutSource = "generated", seed 
       }
     ];
   });
-  const trafficPaths = trafficPathsFor(geometry.lanes, patrols);
+  const busMode = content.busMode === true;
+  const trafficPaths = trafficPathsFor(geometry.lanes, patrols, busMode);
 
   return {
     difficulty: normalized,
     layoutSource,
     seed,
     signalless: content.signalless === true,
+    busMode,
+    busTarget: busMode
+      ? BUS_NUMBERS[Math.floor(random() * BUS_NUMBERS.length)]
+      : null,
+    busStops: {
+      board: { ...BUS_STOPS.board },
+      alight: { ...BUS_STOPS.alight }
+    },
     width: WIDTH,
     height: HEIGHT,
     zones: {
@@ -736,8 +791,34 @@ export function validateCandidateLayout(map) {
       if (!inBounds(point)) errors.push(`traffic path out of bounds: ${path.id}`);
     });
   });
-  if (trafficPaths.length !== lanes.length + (map.patrols ?? []).length) {
-    errors.push("traffic paths must include cars and patrols");
+  const expectedMoverCount =
+    (map.busMode ? BUS_NUMBERS.length : lanes.length) +
+    (map.patrols ?? []).length;
+  if (trafficPaths.length !== expectedMoverCount) {
+    errors.push("traffic paths must include road vehicles and patrols");
+  }
+  if (map.busMode) {
+    const buses = trafficPaths.filter(path => path.type === "bus");
+    const numbers = buses.map(bus => bus.number).sort((left, right) => left - right);
+    const road = new Set(rectangleCells(ROAD.x, 0, ROAD.width, HEIGHT).map(pointKey));
+    if (buses.length !== BUS_NUMBERS.length ||
+      JSON.stringify(numbers) !== JSON.stringify([...BUS_NUMBERS]) ||
+      !numbers.includes(map.busTarget)) {
+      errors.push("bus fleet must cycle 11/85/101/105 with a valid target");
+    }
+    buses.forEach(bus => {
+      if (!bus.points.every(point => road.has(pointKey(point))) ||
+        !Number.isInteger(bus.startIndex) ||
+        !Number.isInteger(bus.boardIndex) || bus.boardIndex < 0 ||
+        !Number.isInteger(bus.alightIndex) || bus.alightIndex < 0) {
+        errors.push(`invalid bus path: ${bus.id}`);
+      }
+    });
+    if (!map.busStops ||
+      !walkable.has(pointKey(map.busStops.board)) ||
+      !walkable.has(pointKey(map.busStops.alight))) {
+      errors.push("bus stops must be walkable");
+    }
   }
   const manholeBypassProtected = new Set([
     ...crossingCells,
@@ -769,7 +850,7 @@ export function validateCandidateLayout(map) {
       errors.push(`manhole bypass must remain open: ${pointKey(item)}`);
     }
   });
-  lanes.forEach(lane => {
+  (map.busMode ? [] : lanes).forEach(lane => {
     const lanePoints = Array.isArray(lane?.cells) ? lane.cells : [];
     const expectedPoints = new Set(lanePoints.map(pointKey));
     const cars = trafficPaths.filter(path => path.type === "car" && path.laneId === lane.id);

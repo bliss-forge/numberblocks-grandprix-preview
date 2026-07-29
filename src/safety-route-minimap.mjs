@@ -9,6 +9,10 @@ function placeDot(node, map, point) {
 }
 
 function minimapTarget(state) {
+  if (state.map.busMode && state.nextFriend > 5 && !state.riding &&
+    state.position.x < state.map.zones.road.x) {
+    return state.map.busStops.board;
+  }
   return state.map.friends.find(
     friend => friend.number === state.nextFriend
   ) ?? state.map.goal;

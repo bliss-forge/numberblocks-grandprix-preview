@@ -76,6 +76,25 @@ export function scooterSvg() {
   ].join(""));
 }
 
+export function busSvg(number) {
+  return wrap("bus", "0 0 104 200", [
+    `<rect x="4" y="4" width="96" height="192" rx="18" fill="#5aa9e6" ` +
+    `stroke="#fff" stroke-width="6"/>`,
+    `<rect class="route-car-light" x="16" y="6" width="18" height="9" rx="4" fill="#fff3ae"/>`,
+    `<rect class="route-car-light" x="70" y="6" width="18" height="9" rx="4" fill="#fff3ae"/>`,
+    `<rect class="route-car-glass" x="16" y="22" width="72" height="24" rx="9" fill="#bfe8ff"/>`,
+    `<rect class="route-car-roof" x="16" y="54" width="72" height="112" rx="12" fill="#8cc4ef"/>`,
+    `<circle cx="52" cy="110" r="30" fill="#fff"/>`,
+    `<text class="route-bus-number" x="52" y="123" text-anchor="middle" ` +
+    `font-family="inherit" font-size="36" font-weight="900" fill="#31445b">${number}</text>`,
+    `<rect x="16" y="174" width="72" height="14" rx="6" fill="#3f7fb8"/>`,
+    `<rect x="-3" y="34" width="10" height="30" rx="5" fill="#2c3440"/>`,
+    `<rect x="97" y="34" width="10" height="30" rx="5" fill="#2c3440"/>`,
+    `<rect x="-3" y="136" width="10" height="30" rx="5" fill="#2c3440"/>`,
+    `<rect x="97" y="136" width="10" height="30" rx="5" fill="#2c3440"/>`
+  ].join(""));
+}
+
 export function carSvg() {
   return wrap("car", "0 0 104 156", [
     `<rect x="6" y="6" width="92" height="144" rx="26" fill="#ff8f6b" ` +

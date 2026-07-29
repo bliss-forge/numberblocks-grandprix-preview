@@ -349,7 +349,7 @@ test("승인된 여덟 랜드마크는 올바른 동네와 접근 가능한 이�
 });
 
 test("교통 경로는 두 차선 자동차와 안전한 다점 순찰 경로를 함께 제공한다", () => {
-  const map = createSafetyRouteMap("challenge", { seed: 12 });
+  const map = createSafetyRouteMap("steady", { seed: 12 });
   const crossings = new Set(map.crossings.flatMap(item => item.cells).map(({ x, y }) => `${x},${y}`));
   const forbidden = new Set([
     ...map.friends,
@@ -477,7 +477,7 @@ test("난이도 3단계는 요소 수와 신호 유무로 차이가 난다", () 
     steady.patrols.map(item => item.type).sort(),
     ["bicycle", "scooter"]
   );
-  assert.equal(steady.signalless, false);
+  assert.equal(steady.signalless, true);
 
   assert.deepEqual(
     challenge.hazards.map(item => item.type).sort(),
@@ -488,4 +488,21 @@ test("난이도 3단계는 요소 수와 신호 유무로 차이가 난다", () 
     ["bicycle", "scooter"]
   );
   assert.equal(challenge.signalless, true);
+  assert.equal(challenge.busMode, true);
+  assert.equal(steady.busMode, false);
+
+  const buses = challenge.trafficPaths.filter(path => path.type === "bus");
+  assert.deepEqual(
+    buses.map(bus => bus.number).sort((left, right) => left - right),
+    [11, 85, 101, 105]
+  );
+  assert.ok([11, 85, 101, 105].includes(challenge.busTarget));
+  const road = new Set(challenge.roadCells.map(pointKey));
+  buses.forEach(bus => {
+    assert.ok(bus.points.every(point => road.has(pointKey(point))), bus.id);
+    assert.ok(bus.boardIndex >= 0 && bus.alightIndex >= 0, bus.id);
+  });
+  const walkable = new Set(challenge.pedestrianCells.map(pointKey));
+  assert.ok(walkable.has(pointKey(challenge.busStops.board)));
+  assert.ok(walkable.has(pointKey(challenge.busStops.alight)));
 });

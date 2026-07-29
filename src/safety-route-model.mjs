@@ -68,9 +68,13 @@ export function createSafetyRouteState(
     crossingId: null,
     checkedEntrance: null,
     ceremony: null,
+    riding: null,
     tourActive: Boolean(tourActive),
     tick: 0,
-    movers: map.trafficPaths.map(createPatrolMover)
+    movers: map.trafficPaths.map(path => ({
+      ...createPatrolMover(path),
+      pathIndex: path.startIndex ?? 0
+    }))
   };
 }
 
@@ -108,6 +112,7 @@ export function attemptSafetyMove(state, direction) {
   const offset = DIRECTIONS[direction];
   if (!offset) return { state, event: { type: "ignored" } };
   if (state.tourActive) return { state, event: { type: "ignored" } };
+  if (state.riding) return { state, event: { type: "ignored" } };
   if (state.ceremony && state.ceremony.stage !== "crossing") {
     return { state, event: { type: "ignored" } };
   }
@@ -165,6 +170,13 @@ export function attemptSafetyMove(state, direction) {
       );
     }
     if (!state.crossingId) {
+      if (state.map.busMode) {
+        return transition(
+          state,
+          { ...state.position },
+          { type: "blocked", reason: "take-the-bus" }
+        );
+      }
       if (state.map.signalless) {
         if (carApproachingCrossing(state, crossing)) {
           return transition(
@@ -263,6 +275,52 @@ function advanceCarMover(definition, mover, signal) {
 }
 
 const SIGNALLESS_CAR_INTERVAL_MS = 250;
+const BUS_INTERVAL_MS = 250;
+const BUS_STOP_PAUSE_MS = 2000;
+
+function advanceBusMover(definition, mover, { elapsedMs, ridingId }) {
+  const carrying = ridingId === definition.id;
+  if (mover.pathIndex === definition.boardIndex && !carrying) {
+    const pauseMs = (mover.pauseMs ?? 0) + Math.max(0, elapsedMs);
+    if (pauseMs < BUS_STOP_PAUSE_MS) {
+      return cloneMover(definition, {
+        ...mover,
+        pauseMs,
+        elapsedMs: 0,
+        stopped: true,
+        heading: definition.headings?.[mover.pathIndex] ?? mover.heading
+      });
+    }
+    const pathIndex = (mover.pathIndex + 1) % definition.points.length;
+    return cloneMover(definition, {
+      ...mover,
+      pathIndex,
+      pauseMs: 0,
+      elapsedMs: 0,
+      stopped: false,
+      heading: definition.headings?.[pathIndex] ?? mover.heading
+    });
+  }
+  const accumulated = (mover.elapsedMs ?? 0) + Math.max(0, elapsedMs);
+  if (accumulated < BUS_INTERVAL_MS) {
+    return cloneMover(definition, {
+      ...mover,
+      elapsedMs: accumulated,
+      pauseMs: 0,
+      stopped: false,
+      heading: definition.headings?.[mover.pathIndex] ?? mover.heading
+    });
+  }
+  const pathIndex = (mover.pathIndex + 1) % definition.points.length;
+  return cloneMover(definition, {
+    ...mover,
+    pathIndex,
+    elapsedMs: accumulated - BUS_INTERVAL_MS,
+    pauseMs: 0,
+    stopped: false,
+    heading: definition.headings?.[pathIndex] ?? mover.heading
+  });
+}
 
 function advanceSignallessCarMover(definition, mover, { elapsedMs, player }) {
   const direction = mover.direction === -1 ? -1 : 1;
@@ -339,6 +397,12 @@ export function advanceSafetyWorld(state, elapsedMs = 100) {
         player: state.position
       });
     }
+    if (definition.type === "bus") {
+      return advanceBusMover(definition, mover, {
+        elapsedMs: elapsed,
+        ridingId: state.riding
+      });
+    }
     if (state.map.signalless) {
       return advanceSignallessCarMover(definition, mover, {
         elapsedMs: elapsed,
@@ -347,7 +411,7 @@ export function advanceSafetyWorld(state, elapsedMs = 100) {
     }
     return advanceCarMover(definition, mover, signal);
   });
-  const movers = state.map.signalless
+  const movers = state.map.signalless || state.map.busMode
     ? advancedMovers
     : synchronizeCarHeadings(state.movers, advancedMovers);
   let ceremony = state.ceremony;
@@ -359,7 +423,34 @@ export function advanceSafetyWorld(state, elapsedMs = 100) {
         ? { stage: "looking", elapsedMs: elapsedTotal }
         : { stage: ceremony.stage, elapsedMs: elapsedTotal };
   }
-  return { ...state, tick, signal, movers, ceremony };
+  let riding = state.riding;
+  let position = state.position;
+  if (state.map.busMode) {
+    if (!riding && state.nextFriend > 5 &&
+      samePoint(position, state.map.busStops.board)) {
+      const targetPath = state.map.trafficPaths.find(path =>
+        path.type === "bus" && path.number === state.map.busTarget
+      );
+      const targetMover = targetPath &&
+        movers.find(mover => mover.id === targetPath.id);
+      if (targetMover && targetMover.stopped &&
+        targetMover.pathIndex === targetPath.boardIndex) {
+        riding = targetPath.id;
+      }
+    } else if (riding) {
+      const path = state.map.trafficPaths.find(item => item.id === riding);
+      const mover = movers.find(item => item.id === riding);
+      if (path && mover) {
+        if (mover.pathIndex === path.alightIndex) {
+          riding = null;
+          position = { ...state.map.busStops.alight };
+        } else {
+          position = { ...path.points[mover.pathIndex] };
+        }
+      }
+    }
+  }
+  return { ...state, tick, signal, movers, ceremony, riding, position };
 }
 
 function inBounds(map, point) {
@@ -455,6 +546,8 @@ export function validateSafetyRouteMap(map) {
         if (pedestrianKeys.has(key) && !crossingKeys.has(key)) {
           errors.push(`traffic overlaps sidewalk: ${key}`);
         }
+      } else if (path.type === "bus") {
+        if (!roadKeys.has(key)) errors.push(`bus outside road: ${key}`);
       } else if (path.type === "scooter" || path.type === "bicycle") {
         if (!pedestrianKeys.has(key) || crossingKeys.has(key)) {
           errors.push(`patrol leaves safe sidewalk: ${key}`);

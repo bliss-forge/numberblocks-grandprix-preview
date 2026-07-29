@@ -92,11 +92,11 @@ test("32×16 지도는 자동차 차도와 보행 순찰 경로를 구분한다"
     const crossings = new Set(map.crossings.flatMap(item => item.cells).map(pointKey));
     for (const path of map.trafficPaths) {
       for (const point of path.points) {
-        if (path.type === "car") {
+        if (path.type === "car" || path.type === "bus") {
           assert.equal(
             pedestrian.has(pointKey(point)) && !crossings.has(pointKey(point)),
             false,
-            `car ${pointKey(point)} overlaps a sidewalk`
+            `${path.type} ${pointKey(point)} overlaps a sidewalk`
           );
         } else {
           assert.ok(pedestrian.has(pointKey(point)), `${path.type} leaves the sidewalk`);
@@ -128,7 +128,7 @@ test("난이도별 생활안전 요소가 생성 지도에 반영된다", () => 
     "construction", "manhole", "manhole"
   ]);
   assert.deepEqual(SAFETY_ROUTE_MAPS.challenge.trafficPaths.map(item => item.type).sort(), [
-    "bicycle", "car", "car", "scooter"
+    "bicycle", "bus", "bus", "bus", "bus", "scooter"
   ]);
 });
 
@@ -252,7 +252,7 @@ test("장애물 발자국이 시작점을 덮으면 지도 검증이 거부한�
 });
 
 test("자동차 경로가 중앙 도로 밖으로 나가면 지도 검증이 거부한다", () => {
-  const map = structuredClone(createSafetyRouteState("challenge", { seed: 3 }).map);
+  const map = structuredClone(createSafetyRouteState("steady", { seed: 3 }).map);
   const car = map.trafficPaths.find(path => path.type === "car");
   car.points[0] = { x: 0, y: 0 };
 
@@ -276,14 +276,14 @@ test("출입구는 첫 입력에 좌우 확인하고 다음 입력에 통과한�
 });
 
 test("자동차는 신호에 멈추고 보행 순찰자는 느리게 한 칸씩 움직인다", () => {
-  const start = createSafetyRouteState("steady", { seed: 7 });
+  const start = createSafetyRouteState("easy", { seed: 7 });
   assert.equal(start.signal.phase, "vehicle-go");
-  assert.deepEqual(start.movers.map(mover => mover.pathIndex), [0, 0, 0, 0]);
+  assert.deepEqual(start.movers.map(mover => mover.pathIndex), [0, 0, 0]);
 
   const one = advanceSafetyWorld(start, 100);
   assert.equal(one.tick, 100);
   assert.equal(one.signal.phase, "vehicle-go");
-  assert.deepEqual(one.movers.map(mover => mover.pathIndex), [1, 1, 0, 0]);
+  assert.deepEqual(one.movers.map(mover => mover.pathIndex), [1, 1, 0]);
 
   let walking = one;
   for (let elapsed = 100; elapsed < 6000; elapsed += 100) {
@@ -450,8 +450,8 @@ test("tourActive 동안 이동은 무시된다", () => {
   assert.equal(result.event.type, "ignored");
 });
 
-test("도전 지도는 신호등이 없고 차 접근 시 횡단 진입을 막는다", () => {
-  const base = createSafetyRouteState("challenge", { seed: 4 });
+test("차근차근 지도는 신호등이 없고 차 접근 시 횡단 진입을 막는다", () => {
+  const base = createSafetyRouteState("steady", { seed: 4 });
   assert.equal(base.map.signalless, true);
   assert.equal(createSafetyRouteState("easy", { seed: 4 }).map.signalless, false);
 
@@ -494,8 +494,8 @@ test("도전 지도는 신호등이 없고 차 접근 시 횡단 진입을 막�
   assert.equal(allowed.event.type, "crossing-started");
 });
 
-test("도전 자동차는 정지선에 멈추지 않고 느리게 순환하며 플레이어에게 양보한다", () => {
-  const base = createSafetyRouteState("challenge", { seed: 4 });
+test("차근차근 무신호 자동차는 정지선에 멈추지 않고 느리게 순환하며 플레이어에게 양보한다", () => {
+  const base = createSafetyRouteState("steady", { seed: 4 });
   const withSignalStop = {
     ...base,
     signal: { phase: "pedestrian-go", elapsedMs: 0 }
@@ -524,4 +524,86 @@ test("도전 자동차는 정지선에 멈추지 않고 느리게 순환하며 �
   const yielding = next.movers.find(mover => mover.id === carPath.id);
   assert.equal(yielding.pathIndex, 0, "car waits for player");
   assert.equal(yielding.stopped, true);
+});
+
+test("도전 지도는 버스 함대와 목표 번호를 제공하고 횡단보도를 막는다", () => {
+  const state = createSafetyRouteState("challenge", { seed: 9 });
+  assert.equal(state.map.busMode, true);
+  assert.ok([11, 85, 101, 105].includes(state.map.busTarget));
+  assert.equal(
+    state.map.trafficPaths.filter(path => path.type === "bus").length,
+    4
+  );
+
+  const crossing = state.map.crossings[0];
+  const crossingCell = crossing.cells
+    .find(cell => cell.x === state.map.zones.road.x);
+  const entry = {
+    ...state,
+    nextFriend: 6,
+    position: { x: crossingCell.x - 1, y: crossingCell.y }
+  };
+  const blocked = attemptSafetyMove(entry, "right");
+  assert.deepEqual(blocked.event, { type: "blocked", reason: "take-the-bus" });
+});
+
+test("정류장에서 목표 버스가 서면 타고, 하차 정류장에 내린다", () => {
+  const base = createSafetyRouteState("challenge", { seed: 9 });
+  const targetPath = base.map.trafficPaths.find(path =>
+    path.type === "bus" && path.number === base.map.busTarget
+  );
+  const otherPath = base.map.trafficPaths.find(path =>
+    path.type === "bus" && path.number !== base.map.busTarget
+  );
+
+  const waiting = {
+    ...base,
+    nextFriend: 6,
+    position: { ...base.map.busStops.board },
+    movers: base.movers.map(mover =>
+      mover.id === targetPath.id
+        ? { ...mover, pathIndex: targetPath.boardIndex, stopped: true, pauseMs: 100 }
+        : mover
+    )
+  };
+  const boarded = advanceSafetyWorld(waiting, 100);
+  assert.equal(boarded.riding, targetPath.id);
+
+  let riding = boarded;
+  for (let tick = 0; tick < 200 && riding.riding; tick += 1) {
+    riding = advanceSafetyWorld(riding, 250);
+  }
+  assert.equal(riding.riding, null);
+  assert.deepEqual(riding.position, base.map.busStops.alight);
+
+  const wrongWaiting = {
+    ...base,
+    nextFriend: 6,
+    position: { ...base.map.busStops.board },
+    movers: base.movers.map(mover =>
+      mover.id === otherPath.id
+        ? { ...mover, pathIndex: otherPath.boardIndex, stopped: true, pauseMs: 100 }
+        : mover
+    )
+  };
+  const notBoarded = advanceSafetyWorld(wrongWaiting, 100);
+  assert.equal(notBoarded.riding, null);
+});
+
+test("친구 2~5를 만나기 전에는 버스에 타지 않는다", () => {
+  const base = createSafetyRouteState("challenge", { seed: 9 });
+  const targetPath = base.map.trafficPaths.find(path =>
+    path.type === "bus" && path.number === base.map.busTarget
+  );
+  const early = {
+    ...base,
+    nextFriend: 3,
+    position: { ...base.map.busStops.board },
+    movers: base.movers.map(mover =>
+      mover.id === targetPath.id
+        ? { ...mover, pathIndex: targetPath.boardIndex, stopped: true, pauseMs: 100 }
+        : mover
+    )
+  };
+  assert.equal(advanceSafetyWorld(early, 100).riding, null);
 });

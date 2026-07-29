@@ -118,13 +118,18 @@ test("난이도별 장애물과 두 차선 자동차를 장면에 표시한다",
     createSafetyRouteState("challenge")
   );
   assert.equal(byClass(challenge, "route-bicycle").length, 1);
-  assert.equal(byClass(challenge, "route-car").length, 2);
+  assert.equal(byClass(challenge, "route-bus").length, 4);
+  assert.equal(byClass(challenge, "route-bus-stop-marker").length, 2);
+  byClass(challenge, "route-bus").forEach(node => {
+    assert.match(node.innerHTML ?? "", /route-art-bus/);
+    assert.match(node.attributes.get("aria-label"), /^\d+번 버스$/);
+  });
 });
 
 test("킥보드와 자전거에는 헬멧을 쓴 탑승자가 함께 표시된다", () => {
   const scene = renderSafetyRouteScene(
     document,
-    createSafetyRouteState("challenge", { seed: 3 })
+    createSafetyRouteState("steady", { seed: 3 })
   );
   for (const [vehicleClass, label] of [
     ["route-scooter", "헬멧을 쓴 어린이의 킥보드"],
@@ -147,7 +152,7 @@ test("킥보드와 자전거에는 헬멧을 쓴 탑승자가 함께 표시된�
 });
 
 test("장면은 보도와 차도를 별도 레이어로 만들고 카메라 값을 노출한다", () => {
-  const state = createSafetyRouteState("challenge");
+  const state = createSafetyRouteState("steady");
   const scene = renderSafetyRouteScene(document, state, {
     camera: { x: 3, y: 2, width: 7, height: 5 },
     guidance: [
@@ -497,7 +502,7 @@ test("신호등은 두 램프를 가진 보행자 신호등이다", () => {
 });
 
 test("이동체와 공사장은 svg 아트로 그려진다", () => {
-  const state = createSafetyRouteState("challenge", { seed: 5 });
+  const state = createSafetyRouteState("steady", { seed: 5 });
   const scene = renderSafetyRouteScene(document, state);
   const riders = byClass(scene, "route-moving-rider");
   assert.ok(riders.length >= 1);
@@ -529,18 +534,20 @@ test("연출 상태가 플레이어 자세와 루트 데이터로 노출된다",
   assert.equal(scene.dataset.ceremony, "");
 });
 
-test("도전 장면에는 신호등이 없고 미니맵 신호도 숨긴다", () => {
-  const challenge = renderSafetyRouteScene(
-    document,
-    createSafetyRouteState("challenge", { seed: 6 })
-  );
-  assert.equal(byClass(challenge, "route-signal-marker").length, 0);
-  assert.equal(byClass(challenge, "route-signal").length, 0);
-  assert.equal(byClass(challenge, "route-minimap-signal")[0].hidden, true);
+test("무신호 난이도 장면에는 신호등이 없고 미니맵 신호도 숨긴다", () => {
+  for (const difficulty of ["steady", "challenge"]) {
+    const scene = renderSafetyRouteScene(
+      document,
+      createSafetyRouteState(difficulty, { seed: 6 })
+    );
+    assert.equal(byClass(scene, "route-signal-marker").length, 0, difficulty);
+    assert.equal(byClass(scene, "route-signal").length, 0, difficulty);
+    assert.equal(byClass(scene, "route-minimap-signal")[0].hidden, true, difficulty);
+  }
 
-  const steady = renderSafetyRouteScene(
+  const easy = renderSafetyRouteScene(
     document,
-    createSafetyRouteState("steady", { seed: 6 })
+    createSafetyRouteState("easy", { seed: 6 })
   );
-  assert.equal(byClass(steady, "route-signal-marker").length, 4);
+  assert.equal(byClass(easy, "route-signal-marker").length, 4);
 });

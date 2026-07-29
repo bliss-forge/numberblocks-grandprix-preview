@@ -2,6 +2,7 @@ import { characterAsset } from "./character-spec.mjs";
 import { moverPoint } from "./safety-route-movers.mjs";
 import {
   bicycleSvg,
+  busSvg,
   carSvg,
   scooterSvg
 } from "./safety-route-art.mjs";
@@ -355,21 +356,47 @@ export function renderSafetyRouteScene(document, state, requestedView = {}) {
   state.movers.forEach(mover => {
     const point = moverPoint(state.map, mover);
     if (!point) return;
+    const definition = state.map.trafficPaths.find(
+      path => path.id === mover.id
+    );
     const node = document.createElement("div");
     const riderClass = mover.type === "scooter" || mover.type === "bicycle"
       ? " route-moving-rider"
       : "";
     node.className = `route-hazard route-${mover.type}${riderClass}`;
     node.dataset.hazard = mover.type;
-    node.setAttribute(
-      "aria-label",
-      HAZARD_LABELS[mover.type] ?? mover.type
-    );
+    if (mover.type === "bus") {
+      node.dataset.busNumber = String(definition?.number ?? "");
+      node.setAttribute("aria-label", `${definition?.number}번 버스`);
+      node.innerHTML = busSvg(definition?.number ?? "");
+    } else {
+      node.setAttribute(
+        "aria-label",
+        HAZARD_LABELS[mover.type] ?? mover.type
+      );
+      node.innerHTML = (MOVER_ART[mover.type] ?? carSvg)();
+    }
     node.setAttribute("role", "img");
-    node.innerHTML = (MOVER_ART[mover.type] ?? carSvg)();
     world.append(placeAt(node, point));
     moverNodes.set(mover.id, node);
   });
+
+  if (state.map.busMode && state.map.busStops) {
+    for (const [stopName, stopPoint] of [
+      ["board", state.map.busStops.board],
+      ["alight", state.map.busStops.alight]
+    ]) {
+      const stop = document.createElement("div");
+      stop.className = `route-bus-stop-marker route-bus-stop-${stopName}`;
+      stop.textContent = "🚏";
+      stop.setAttribute("role", "img");
+      stop.setAttribute(
+        "aria-label",
+        stopName === "board" ? "버스 타는 정류장" : "버스 내리는 정류장"
+      );
+      world.append(placeAt(stop, stopPoint));
+    }
+  }
 
   const friendNodes = new Map();
   state.map.friends.forEach(friend => {
@@ -457,10 +484,16 @@ export function updateSafetyRouteScene(root, state, requestedView = {}) {
   const view = resolvedView(state, requestedView);
   root.dataset.difficulty = state.difficulty;
   root.dataset.ceremony = state.ceremony?.stage ?? "";
-  nodes.goal.textContent =
-    state.nextFriend <= 10
-      ? `다음은 ${state.nextFriend} 친구를 만나러 가요!`
-      : "친구들과 학교로 가요!";
+  const waitingForBus = state.map.busMode && state.nextFriend > 5 &&
+    !state.riding && state.position.x < state.map.zones.road.x;
+  nodes.goal.textContent = state.riding
+    ? "버스를 타고 가요!"
+    : waitingForBus
+      ? `${state.map.busTarget}번 버스를 타요!`
+      : state.nextFriend <= 10
+        ? `다음은 ${state.nextFriend} 친구를 만나러 가요!`
+        : "친구들과 학교로 가요!";
+  root.dataset.riding = state.riding ? "true" : "";
 
   const collectedKey = state.collected.join(",");
   if (nodes.collected.dataset.numbers !== collectedKey) {

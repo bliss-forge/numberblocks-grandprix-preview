@@ -483,10 +483,17 @@ function scheduleSafetyWorldTick(previousMs = performance.now()) {
       return;
     }
     const nowMs = performance.now();
+    const wasRiding = state.safety.riding;
     state.safety = advanceSafetyWorld(
       state.safety,
       Math.min(250, nowMs - previousMs)
     );
+    if (!wasRiding && state.safety.riding) {
+      audio.playSfx("key");
+      showHint(`${state.safety.map.busTarget}번 버스를 탔어요!`);
+    } else if (wasRiding && !state.safety.riding) {
+      showHint("정류장에 도착했어요! 이제 친구들을 만나러 가요");
+    }
     renderSafetyRoute();
     scheduleSafetyWorldTick(nowMs);
   }, 100);
@@ -616,6 +623,10 @@ async function completeSafetyRoute() {
 }
 
 function safetyTarget(safety = state.safety) {
+  if (safety?.map.busMode && safety.nextFriend > 5 && !safety.riding &&
+    safety.position.x < safety.map.zones.road.x) {
+    return safety.map.busStops.board;
+  }
   return safety?.map.friends.find(
     friend => friend.number === safety.nextFriend
   ) ?? safety?.map.goal ?? null;
