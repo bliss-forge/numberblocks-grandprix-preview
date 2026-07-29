@@ -224,3 +224,24 @@ test("PC 안전길은 7×5 지도를 크게 쓰고 방향키는 기본 상태에
   assert.match(desktop, /body\[data-mode="safety"\]\s+\.route-pad:focus-within,[\s\S]*?body\[data-mode="safety"\]\s+\.route-pad:hover\s*\{[^}]*opacity:\s*1;/s);
   assert.match(desktop, /body\[data-mode="safety"\]\s+\.route-pad button\s*\{[^}]*min-width:\s*44px;[^}]*min-height:\s*44px;[^}]*font-size:\s*23px;/s);
 });
+
+test("리뉴얼 신규 요소의 CSS 계약이 존재한다", () => {
+  for (const selector of [
+    ".route-minimap",
+    ".route-minimap-player",
+    ".route-minimap-target",
+    ".route-minimap-signal",
+    ".route-signal-lamp",
+    ".route-player-wrap",
+    ".route-player-hand"
+  ]) {
+    assert.match(css, new RegExp(`\\${selector}\\s*[,{]`), selector);
+  }
+  assert.match(css, /\[data-ceremony="looking"\][^{]*\{/);
+  assert.match(css, /\[data-ceremony="crossing"\][^{]*\{/);
+  const reducedBlocks = css.split("@media (prefers-reduced-motion: reduce)");
+  const reduced = reducedBlocks.slice(1).join(" ");
+  for (const name of ["route-wheel", "route-minimap-target", "route-player-hand"]) {
+    assert.match(reduced, new RegExp(name), name);
+  }
+});
