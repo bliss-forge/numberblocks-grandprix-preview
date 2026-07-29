@@ -45,7 +45,7 @@ const FRIEND_CANDIDATES = Object.freeze({
   6: Object.freeze([{ x: 22, y: 11 }, { x: 23, y: 11 }]),
   7: Object.freeze([{ x: 19, y: 3 }, { x: 20, y: 3 }]),
   8: Object.freeze([{ x: 25, y: 3 }, { x: 26, y: 3 }]),
-  9: Object.freeze([{ x: 30, y: 3 }, { x: 26, y: 11 }]),
+  9: Object.freeze([{ x: 18, y: 3 }, { x: 18, y: 11 }]),
   10: Object.freeze([{ x: 27, y: 11 }, { x: 29, y: 11 }])
 });
 const RETURN_FRIEND_10_CANDIDATES = Object.freeze([

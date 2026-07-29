@@ -3484,85 +3484,40 @@ body[data-mode="safety"] .stage-lights {
 
 .srt-parking-row,
 .srt-parking-walk {
-  --srt-cell: clamp(64px, 13vw, 110px);
+  --srt-cell: clamp(44px, 11.4vw, 116px);
   display: grid;
-  grid-template-columns: repeat(5, var(--srt-cell));
+  grid-template-columns: repeat(8, var(--srt-cell));
   gap: 0;
+}
+
+.srt-parking-row {
+  border-radius: 14px 14px 0 0;
+  overflow: hidden;
+  background: #8d99a6;
+  box-shadow: inset 0 -6px 0 #7c8896;
 }
 
 .srt-parking-slot {
   grid-column: var(--srt-x);
   display: grid;
-  place-items: center;
-  height: calc(var(--srt-cell) * .8);
-  border-bottom: 4px dashed #c4aa78;
+  place-items: end center;
+  height: calc(var(--srt-cell) * .82);
+  padding-bottom: 5px;
+}
+
+.srt-parking-slot + .srt-parking-slot {
+  border-inline-start: 3px dashed #f5f7fa;
 }
 
 .srt-parking-walk {
-  height: calc(var(--srt-cell) * .8);
+  height: calc(var(--srt-cell) * .74);
   border-radius: 0 0 12px 12px;
   background: #ecd9b8;
 }
 
 .srt-parking-walk .srt-player {
   grid-row: 1;
-  width: calc(var(--srt-cell) * .5);
-}
-
-.srt-car-shape {
-  position: relative;
-  display: inline-block;
-  width: calc(var(--srt-cell, 90px) * .82);
-  height: calc(var(--srt-cell, 90px) * .4);
-  background: #e8564a;
-}
-
-.srt-car-shape::after {
-  content: "";
-  position: absolute;
-  left: 12%;
-  right: 12%;
-  bottom: -12%;
-  height: 24%;
-  background:
-    radial-gradient(circle at 15% 50%, #2c3440 0 42%, transparent 45%),
-    radial-gradient(circle at 85% 50%, #2c3440 0 42%, transparent 45%);
-}
-
-.srt-shape-sedan {
-  border-radius: 46% 46% 12% 12% / 90% 90% 12% 12%;
-  background: #5aa9e6;
-}
-
-.srt-shape-suv {
-  height: calc(var(--srt-cell, 90px) * .48);
-  border-radius: 24% 24% 10% 10% / 40% 40% 10% 10%;
-  background: #7fd08a;
-}
-
-.srt-shape-van {
-  height: calc(var(--srt-cell, 90px) * .52);
-  border-radius: 30% 8% 8% 8% / 45% 12% 12% 12%;
-  background: #ffd166;
-}
-
-.srt-shape-truck {
-  height: calc(var(--srt-cell, 90px) * .46);
-  border-radius: 8%;
-  background: #b07a4d;
-  clip-path: polygon(0 100%, 0 30%, 34% 30%, 44% 0, 100% 0, 100% 100%);
-}
-
-.srt-shape-sports {
-  height: calc(var(--srt-cell, 90px) * .3);
-  border-radius: 60% 70% 14% 14% / 100% 100% 20% 20%;
-  background: #ef6aa0;
-}
-
-.srt-car-shadow,
-.srt-car-shadow::after {
-  background: #31445b !important;
-  filter: brightness(.35);
+  width: calc(var(--srt-cell) * .52);
 }
 
 .srt-journey .route-pad {
@@ -3744,7 +3699,7 @@ body[data-mode="safety"] .stage-lights {
 }
 
 .srt-car-shadow {
-  width: 120px;
+  width: clamp(110px, 18vw, 150px);
 }
 
 .srt-car-shadow svg * {
@@ -3754,20 +3709,6 @@ body[data-mode="safety"] .stage-lights {
 
 .srt-car-shadow svg text {
   display: none;
-}
-
-.srt-parking-row,
-.srt-parking-walk {
-  grid-template-columns: repeat(8, var(--srt-cell));
-}
-
-.srt-parking-row .srt-parking-slot {
-  height: calc(var(--srt-cell) * .66);
-}
-
-.srt-parking-row,
-.srt-parking-walk {
-  --srt-cell: clamp(52px, 10.5vw, 96px);
 }
 
 .srt-ending-wrap {

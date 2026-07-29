@@ -118,9 +118,9 @@ export function parkingCarSvg(shape, plate) {
     `<circle cx="42" cy="76" r="6" fill="${SPOKE}"/>`,
     `<circle cx="120" cy="76" r="14" fill="${TIRE}"/>`,
     `<circle cx="120" cy="76" r="6" fill="${SPOKE}"/>`,
-    `<rect class="route-plate" x="58" y="58" width="46" height="16" rx="4" ` +
+    `<rect class="route-plate" x="52" y="55" width="58" height="21" rx="5" ` +
     `fill="#fff" stroke="#31445b" stroke-width="2.5"/>`,
-    `<text x="81" y="71" text-anchor="middle" font-size="13" ` +
+    `<text x="81" y="71" text-anchor="middle" font-size="16" ` +
     `font-weight="900" fill="#31445b">${plate ?? ""}</text>`
   ].join(""));
 }

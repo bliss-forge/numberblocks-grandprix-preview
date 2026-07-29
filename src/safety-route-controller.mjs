@@ -75,9 +75,18 @@ export function safetyCueForEvent(event, nextFriend) {
 
   if (event.type === "bus-stop") {
     return {
-      message: `${event.target}번 버스를 타면 건너갈 수 있어요!`,
+      message:
+        `${event.target}번 버스가 서면 버스 쪽으로 방향키를 눌러 타요!`,
       voiceKey: null,
       tone: "guide"
+    };
+  }
+
+  if (event.type === "bus-boarded") {
+    return {
+      message: `${event.number}번 버스를 탔어요!`,
+      voiceKey: null,
+      tone: "success"
     };
   }
 

@@ -180,6 +180,25 @@ export function attemptSafetyMove(state, direction) {
     );
   }
 
+  if (state.map.busMode && !state.riding && state.nextFriend > 5) {
+    const targetPath = state.map.trafficPaths.find(path =>
+      path.type === "bus" && path.number === state.map.busTarget
+    );
+    const targetMover = targetPath &&
+      state.movers.find(mover => mover.id === targetPath.id);
+    if (targetMover?.stopped &&
+      samePoint(targetPath.points[targetMover.pathIndex], candidate)) {
+      const boardingBack = targetMover.pathIndex === targetPath.alightIndex;
+      return transition(state, { ...state.position }, {
+        type: "bus-boarded",
+        number: state.map.busTarget
+      }, {
+        riding: targetPath.id,
+        ridingDest: boardingBack ? "board" : "alight"
+      });
+    }
+  }
+
   const crossing = crossingForPoint(state.map, candidate);
   if (crossing) {
     const firstRoadColumn = Math.min(...crossing.cells.map(cell => cell.x));
@@ -465,28 +484,7 @@ export function advanceSafetyWorld(state, elapsedMs = 100) {
   let ridingDest = state.ridingDest ?? null;
   let position = state.position;
   if (state.map.busMode) {
-    const pendingStop = pendingBusStop(
-      state.map,
-      state.nextFriend,
-      riding,
-      position
-    );
-    if (!riding && pendingStop && samePoint(position, pendingStop)) {
-      const boardingBack = samePoint(pendingStop, state.map.busStops.alight);
-      const targetPath = state.map.trafficPaths.find(path =>
-        path.type === "bus" && path.number === state.map.busTarget
-      );
-      const stopIndex = boardingBack
-        ? targetPath?.alightIndex
-        : targetPath?.boardIndex;
-      const targetMover = targetPath &&
-        movers.find(mover => mover.id === targetPath.id);
-      if (targetMover && targetMover.stopped &&
-        targetMover.pathIndex === stopIndex) {
-        riding = targetPath.id;
-        ridingDest = boardingBack ? "board" : "alight";
-      }
-    } else if (riding) {
+    if (riding) {
       const path = state.map.trafficPaths.find(item => item.id === riding);
       const mover = movers.find(item => item.id === riding);
       if (path && mover) {

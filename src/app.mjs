@@ -502,10 +502,7 @@ function scheduleSafetyWorldTick(previousMs = performance.now()) {
       state.safety,
       Math.min(250, nowMs - previousMs)
     );
-    if (!wasRiding && state.safety.riding) {
-      audio.playSfx("key");
-      showHint(`${state.safety.map.busTarget}번 버스를 탔어요!`);
-    } else if (wasRiding && !state.safety.riding) {
+    if (wasRiding && !state.safety.riding) {
       showHint("정류장에 도착했어요! 이제 친구들을 만나러 가요");
     }
     renderSafetyRoute();

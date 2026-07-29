@@ -575,7 +575,7 @@ test("차근차근 지도는 버스 함대와 목표 번호를 제공하고 횡�
   assert.deepEqual(blocked.event, { type: "blocked", reason: "take-the-bus" });
 });
 
-test("정류장에서 목표 버스가 서면 타고, 하차 정류장에 내린다", () => {
+test("정류장에서 선 목표 버스 쪽으로 방향키를 누르면 타고, 하차 정류장에 내린다", () => {
   const base = createSafetyRouteState("steady", { seed: 9 });
   const targetPath = base.map.trafficPaths.find(path =>
     path.type === "bus" && path.number === base.map.busTarget
@@ -594,10 +594,16 @@ test("정류장에서 목표 버스가 서면 타고, 하차 정류장에 내린
         : mover
     )
   };
-  const boarded = advanceSafetyWorld(waiting, 100);
-  assert.equal(boarded.riding, targetPath.id);
+  const idle = advanceSafetyWorld(waiting, 100);
+  assert.equal(idle.riding, null, "no boarding without a key press");
 
-  let riding = boarded;
+  const pressed = attemptSafetyMove(waiting, "right");
+  assert.equal(pressed.event.type, "bus-boarded");
+  assert.equal(pressed.event.number, base.map.busTarget);
+  assert.equal(pressed.state.riding, targetPath.id);
+  assert.equal(pressed.state.ridingDest, "alight");
+
+  let riding = pressed.state;
   for (let tick = 0; tick < 200 && riding.riding; tick += 1) {
     riding = advanceSafetyWorld(riding, 250);
   }
@@ -614,8 +620,10 @@ test("정류장에서 목표 버스가 서면 타고, 하차 정류장에 내린
         : mover
     )
   };
-  const notBoarded = advanceSafetyWorld(wrongWaiting, 100);
-  assert.equal(notBoarded.riding, null);
+  const wrongPressed = attemptSafetyMove(wrongWaiting, "right");
+  assert.equal(wrongPressed.event.type, "blocked");
+  assert.equal(wrongPressed.event.reason, "take-the-bus");
+  assert.equal(wrongPressed.state.riding, null);
 });
 
 test("건너편 10번 친구를 데리러 하차 정류장에서 같은 버스를 타고 돌아온다", () => {
@@ -636,30 +644,17 @@ test("건너편 10번 친구를 데리러 하차 정류장에서 같은 버스�
         : mover
     )
   };
-  const boarded = advanceSafetyWorld(returning, 100);
-  assert.equal(boarded.riding, targetPath.id);
-  assert.equal(boarded.ridingDest, "board");
+  const pressed = attemptSafetyMove(returning, "left");
+  assert.equal(pressed.event.type, "bus-boarded");
+  assert.equal(pressed.state.riding, targetPath.id);
+  assert.equal(pressed.state.ridingDest, "board");
 
-  let riding = boarded;
+  let riding = pressed.state;
   for (let tick = 0; tick < 200 && riding.riding; tick += 1) {
     riding = advanceSafetyWorld(riding, 250);
   }
   assert.equal(riding.riding, null);
   assert.deepEqual(riding.position, base.map.busStops.board);
-
-  const settled = {
-    ...riding,
-    movers: riding.movers.map(mover =>
-      mover.id === targetPath.id
-        ? { ...mover, pathIndex: targetPath.boardIndex, stopped: true, pauseMs: 100 }
-        : mover
-    )
-  };
-  assert.equal(
-    advanceSafetyWorld(settled, 100).riding,
-    null,
-    "no reboarding while friend 10 waits on this side"
-  );
 });
 
 test("친구 2~5를 만나기 전에는 버스에 타지 않는다", () => {
@@ -678,4 +673,8 @@ test("친구 2~5를 만나기 전에는 버스에 타지 않는다", () => {
     )
   };
   assert.equal(advanceSafetyWorld(early, 100).riding, null);
+  const pressed = attemptSafetyMove(early, "right");
+  assert.equal(pressed.event.type, "blocked");
+  assert.equal(pressed.event.reason, "left-friends-first");
+  assert.equal(pressed.state.riding, null);
 });

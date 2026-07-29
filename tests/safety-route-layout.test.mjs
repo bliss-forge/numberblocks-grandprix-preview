@@ -507,6 +507,9 @@ test("난이도 3단계는 무신호 도보, 버스, SRT 여정으로 차이가 
     steadyFriendTen.x < steady.zones.road.x,
     "steady friend 10 waits across for the return bus"
   );
+  const steadyFriendNine = steady.friends.find(friend => friend.number === 9);
+  assert.equal(steadyFriendNine.x, 18, "friend 9 stands beside the crossing");
+  assert.ok([3, 11].includes(steadyFriendNine.y));
 
   assert.equal(challenge.srtMode, true);
   assert.equal(challenge.busMode, false);
