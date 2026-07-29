@@ -1,4 +1,5 @@
 import {
+  STATION_COORDS,
   SUBWAY_LINES,
   SUBWAY_PLACES,
   lineByNumber,
@@ -28,9 +29,13 @@ export function subwayDestinations() {
 export const TRAIN_APPROACH_MS = 1600;
 export const TRAIN_STOP_MS = 3200;
 export const TRAIN_LEAVE_MS = 900;
-export const RIDE_TRAVEL_MS = 2200;
-export const RIDE_STOP_MS = 3400;
 export const TRANSFER_SPLASH_MS = 2400;
+export const DIRECTION_ARROWS = Object.freeze({
+  up: "↑",
+  down: "↓",
+  left: "←",
+  right: "→"
+});
 
 const MAX_LEG_HOPS = 7;
 const MAX_TOTAL_HOPS = 14;
@@ -199,6 +204,7 @@ export function createSubwayJourney(placeId, seed = 0) {
     phase: "platform",
     platform: makePlatform(picked.route.legs[0], picked.start, random),
     ride: null,
+    passengers: [],
     transferMs: 0
   };
 }
@@ -221,6 +227,18 @@ export function rideStation(state) {
   return leg.stations[state.ride.stopIndex];
 }
 
+export function requiredDirection(state) {
+  const leg = currentLeg(state);
+  if (!leg || !state.ride) return null;
+  if (state.ride.stopIndex >= leg.stations.length - 1) return null;
+  const from = STATION_COORDS[leg.stations[state.ride.stopIndex]];
+  const to = STATION_COORDS[leg.stations[state.ride.stopIndex + 1]];
+  const dx = to.x - from.x;
+  const dy = to.y - from.y;
+  if (Math.abs(dx) >= Math.abs(dy)) return dx >= 0 ? "right" : "left";
+  return dy >= 0 ? "down" : "up";
+}
+
 export function attemptSubwayMove(state, direction) {
   const ignored = { state, event: { type: "ignored" } };
   if (!["up", "down", "left", "right"].includes(direction)) return ignored;
@@ -237,7 +255,7 @@ export function attemptSubwayMove(state, direction) {
           ...state,
           phase: "ride",
           platform: null,
-          ride: { stopIndex: 0, moving: true, doorOpen: false, phaseMs: 0 }
+          ride: { stopIndex: 0 }
         },
         event: { type: "boarded", line: leg.line }
       };
@@ -248,36 +266,59 @@ export function attemptSubwayMove(state, direction) {
     };
   }
 
-  if (state.phase === "ride" && direction === "down") {
-    if (!state.ride.doorOpen) {
-      return { state, event: { type: "door-closed" } };
-    }
+  if (state.phase === "ride") {
     const station = rideStation(state);
     const lastIndex = leg.stations.length - 1;
-    if (state.ride.stopIndex !== lastIndex) {
-      return { state, event: { type: "not-yet", station } };
-    }
-    const nextIndex = state.legIndex + 1;
-    if (nextIndex >= state.legs.length) {
+    const need = requiredDirection(state);
+
+    if (need === null) {
+      if (direction !== "down") {
+        return { state, event: { type: "time-to-alight", station } };
+      }
+      const nextIndex = state.legIndex + 1;
+      if (nextIndex >= state.legs.length) {
+        return {
+          state: { ...state, phase: "arrived", ride: null },
+          event: { type: "arrived", station, place: state.place }
+        };
+      }
       return {
-        state: { ...state, phase: "arrived", ride: null },
-        event: { type: "arrived", station, place: state.place }
+        state: {
+          ...state,
+          phase: "transfer",
+          ride: null,
+          legIndex: nextIndex,
+          transferMs: 0
+        },
+        event: {
+          type: "transfer",
+          station,
+          nextLine: state.legs[nextIndex].line
+        }
       };
     }
-    return {
-      state: {
-        ...state,
-        phase: "transfer",
-        ride: null,
-        legIndex: nextIndex,
-        transferMs: 0
-      },
-      event: {
-        type: "transfer",
-        station,
-        nextLine: state.legs[nextIndex].line
+
+    if (direction === need) {
+      const nextIndex = state.ride.stopIndex + 1;
+      const nextStation = leg.stations[nextIndex];
+      const atAlight = nextIndex === lastIndex;
+      let passengers = state.passengers;
+      let passenger = null;
+      if (!atAlight) {
+        passenger = 2 + (passengers.length % 9);
+        passengers = [...passengers, passenger];
       }
-    };
+      return {
+        state: {
+          ...state,
+          passengers,
+          ride: { ...state.ride, stopIndex: nextIndex }
+        },
+        event: { type: "drove", station: nextStation, passenger, atAlight }
+      };
+    }
+
+    return { state, event: { type: "wrong-way", need, station } };
   }
 
   return ignored;
@@ -303,27 +344,6 @@ export function advanceSubwayWorld(state, elapsedMs = 100) {
       }
     }
     return { ...state, platform };
-  }
-
-  if (state.phase === "ride" && state.ride) {
-    const leg = currentLeg(state);
-    const ride = { ...state.ride, phaseMs: state.ride.phaseMs + elapsed };
-    const lastIndex = leg.stations.length - 1;
-    if (ride.moving && ride.phaseMs >= RIDE_TRAVEL_MS) {
-      ride.stopIndex = Math.min(ride.stopIndex + 1, lastIndex);
-      ride.moving = false;
-      ride.doorOpen = true;
-      ride.phaseMs = 0;
-    } else if (!ride.moving && ride.phaseMs >= RIDE_STOP_MS) {
-      if (ride.stopIndex < lastIndex) {
-        ride.moving = true;
-        ride.doorOpen = false;
-        ride.phaseMs = 0;
-      } else {
-        ride.phaseMs = RIDE_STOP_MS;
-      }
-    }
-    return { ...state, ride };
   }
 
   if (state.phase === "transfer") {
@@ -352,13 +372,12 @@ export function subwayAnnouncement(state) {
   if (state.phase === "ride") {
     const leg = currentLeg(state);
     const station = rideStation(state);
-    if (state.ride.moving) {
-      const next = leg.stations[
-        Math.min(state.ride.stopIndex + 1, leg.stations.length - 1)
-      ];
-      return `다음 역은 ${next}입니다`;
+    const need = requiredDirection(state);
+    if (need === null) {
+      return `${station}역입니다. 여기서 내려요!`;
     }
-    return `${station}역입니다. 문이 열렸어요`;
+    const next = leg.stations[state.ride.stopIndex + 1];
+    return `${station}역 — 다음은 ${next} ${DIRECTION_ARROWS[need]}`;
   }
   if (state.phase === "transfer") {
     const leg = currentLeg(state);

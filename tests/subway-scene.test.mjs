@@ -8,7 +8,10 @@ import {
   currentLeg,
   currentTrain
 } from "../src/subway-journey.mjs";
-import { subwayDestinations } from "../src/subway-journey.mjs";
+import {
+  requiredDirection,
+  subwayDestinations
+} from "../src/subway-journey.mjs";
 import {
   renderSubwayJourney,
   renderSubwayPicker,
@@ -132,7 +135,7 @@ test("승강장 장면은 역명판, 목표 호선 뱃지, 열차와 이동 패�
   assert.match(mission.textContent, /에 가요!/);
 });
 
-test("탑승 장면은 노선도와 플레이어 점, 문 상태를 그리고 갱신한다", () => {
+test("탑승 장면은 노선도, 운전 안내와 친구 스트립을 그리고 갱신한다", () => {
   const state = boardedState(3);
   const scene = renderSubwayJourney(document, state);
   assert.equal(scene.dataset.phase, "ride");
@@ -141,11 +144,13 @@ test("탑승 장면은 노선도와 플레이어 점, 문 상태를 그리고 �
   assert.match(map.innerHTML, /subway-station-dot/);
   const marker = byClass(scene, "subway-map-player")[0];
   assert.match(marker.style.values.get("--map-x"), /%$/);
-  const door = byClass(scene, "subway-door-state")[0];
-  assert.equal(door.dataset.open, "false");
+  const guide = byClass(scene, "subway-drive-guide")[0];
+  assert.match(guide.textContent, /(쪽으로 운전해요|↓ 키로 내려요)/);
+  const strip = byClass(scene, "subway-passenger-strip")[0];
+  assert.equal(strip.dataset.count, "0");
 
-  const arrivedAtStop = advanceSubwayWorld(state, 2200);
-  updateSubwayJourney(scene, arrivedAtStop);
+  const driven = attemptSubwayMove(state, requiredDirection(state));
+  updateSubwayJourney(scene, driven.state);
   assert.equal(scene.dataset.phase, "ride");
 });
 

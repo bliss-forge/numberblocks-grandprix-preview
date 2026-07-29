@@ -78,12 +78,12 @@ import {
   updateSrtJourney
 } from "./srt-journey-scene.mjs";
 import {
+  DIRECTION_ARROWS,
   advanceSubwayWorld,
   attemptSubwayMove,
   createSubwayJourney,
   currentLeg,
   currentTrain,
-  rideStation,
   subwayDestinations
 } from "./subway-journey.mjs";
 import {
@@ -934,23 +934,10 @@ function scheduleSubwayTick(previousMs = performance.now()) {
       state.subway.platform.stage === "stopped") {
       const train = currentTrain(state.subway);
       const target = currentLeg(state.subway).line;
-      audio.playSfx("key");
+      audio.playSfx(train.line === target ? "door" : "key");
       showHint(train.line === target
         ? `${train.line}호선 열차예요! ↑ 키로 타요`
         : `${train.line}호선 열차는 그냥 보내요`);
-    }
-    if (previous.phase === "ride" && state.subway.phase === "ride" &&
-      !previous.ride.doorOpen && state.subway.ride.doorOpen) {
-      const leg = currentLeg(state.subway);
-      const station = rideStation(state.subway);
-      audio.playSfx("key");
-      if (station === leg.stations[leg.stations.length - 1]) {
-        showHint(`${station}역이에요! ↓ 키로 내려요`);
-        audio.cancel();
-        void audio.playPrompt("subway-stop-check");
-      } else {
-        showHint(`${station}역이에요. 아직 더 가요`);
-      }
     }
     if (previous.phase === "transfer" && state.subway.phase === "platform") {
       showHint(`${currentLeg(state.subway).line}호선 승강장이에요!`);
@@ -974,25 +961,40 @@ function moveSubway(direction) {
   updateSubwayJourney(state.subwayScene, state.subway);
   const event = result.event;
   if (event.type === "boarded") {
-    audio.playSfx("win");
-    showHint(`${event.line}호선을 탔어요! 출발해요`);
+    audio.playSfx("bell");
+    showHint(`${event.line}호선 출발! 화살표로 운전해요`);
     audio.cancel();
     void audio.playPrompt("subway-board");
   } else if (event.type === "wrong-line") {
+    audio.playSfx("wrong");
     showHint(`그건 ${event.line}호선이에요! ${event.target}호선을 기다려요`);
     audio.cancel();
     void audio.playPrompt("subway-wrong-line");
   } else if (event.type === "no-train") {
     showHint("열차가 완전히 설 때까지 기다려요");
-  } else if (event.type === "door-closed") {
-    showHint("문이 닫혀 있어요. 역에 서면 내릴 수 있어요");
-  } else if (event.type === "not-yet") {
-    showHint(`여기는 ${event.station}역이에요. 아직 아니에요!`);
+  } else if (event.type === "drove") {
+    if (event.atAlight) {
+      audio.playSfx("door");
+      showHint(`${event.station}역이에요! ↓ 키로 내려요`);
+      audio.cancel();
+      void audio.playPrompt("subway-stop-check");
+    } else if (event.passenger) {
+      audio.playSfx("pop");
+      showHint(`${event.station}역 — ${event.passenger} 친구가 탔어요!`);
+      audio.cancel();
+      void audio.playPrompt(`number-${event.passenger}`);
+    }
+  } else if (event.type === "wrong-way") {
+    audio.playSfx("wrong");
+    showHint(`그쪽 아니에요! ${DIRECTION_ARROWS[event.need]} 쪽으로 가요`);
+  } else if (event.type === "time-to-alight") {
+    audio.playSfx("door");
+    showHint("여기서 내려요! ↓ 키를 눌러요. 발빠짐 주의!");
     audio.cancel();
-    void audio.playPrompt("subway-wrong-stop");
+    void audio.playPrompt("subway-mind-gap");
   } else if (event.type === "transfer") {
-    audio.playSfx("win");
-    showHint(`${event.station}역이에요! ${event.nextLine}호선으로 갈아타요`);
+    audio.playSfx("jingle");
+    showHint(`${event.station}역이에요! ${event.nextLine}호선으로 갈아타요. 발빠짐 주의!`);
     audio.cancel();
     void audio.playPrompt("subway-transfer");
   } else if (event.type === "arrived") {

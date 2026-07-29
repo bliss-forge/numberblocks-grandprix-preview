@@ -19,6 +19,24 @@ const SFX = Object.freeze({
     duration: 0.16,
     gain: 0.04,
     wave: "sine"
+  },
+  door: {
+    notes: [987.77, 783.99],
+    duration: 0.24,
+    gain: 0.06,
+    wave: "sine"
+  },
+  bell: {
+    notes: [659.25, 659.25, 880.0],
+    duration: 0.12,
+    gain: 0.05,
+    wave: "triangle"
+  },
+  jingle: {
+    notes: [523.25, 587.33, 659.25, 783.99, 659.25],
+    duration: 0.14,
+    gain: 0.06,
+    wave: "triangle"
   }
 });
 

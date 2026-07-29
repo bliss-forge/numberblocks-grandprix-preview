@@ -114,6 +114,7 @@ test("지하철 여행 음성 키가 매니페스트와 생성 스크립트에 �
   const keys = [
     "subway-board", "subway-wrong-line", "subway-stop-check",
     "subway-wrong-stop", "subway-transfer", "subway-arrive",
+    "subway-mind-gap",
     ...SUBWAY_PLACES.map(place => place.voiceKey)
   ];
   for (const key of keys) {

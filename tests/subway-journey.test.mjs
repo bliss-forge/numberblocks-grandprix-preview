@@ -1,16 +1,15 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
-  RIDE_STOP_MS,
-  RIDE_TRAVEL_MS,
+  DIRECTION_ARROWS,
   TRAIN_APPROACH_MS,
-  TRAIN_STOP_MS,
   TRANSFER_SPLASH_MS,
   advanceSubwayWorld,
   attemptSubwayMove,
   createSubwayJourney,
   currentLeg,
   currentTrain,
+  requiredDirection,
   rideStation,
   routeBetween,
   subwayAnnouncement,
@@ -31,15 +30,18 @@ function stopTargetTrain(state) {
   throw new Error("target train never stopped");
 }
 
-function rideToStop(state, stopIndex) {
+function driveToEnd(state) {
   let current = state;
-  for (let guard = 0; guard < 400; guard += 1) {
-    if (!current.ride.moving && current.ride.stopIndex === stopIndex) {
-      return current;
+  for (let guard = 0; guard < 40; guard += 1) {
+    const need = requiredDirection(current);
+    if (need === null) return current;
+    const result = attemptSubwayMove(current, need);
+    if (result.event.type !== "drove") {
+      throw new Error(`unexpected ${result.event.type}`);
     }
-    current = advanceSubwayWorld(current, 200);
+    current = result.state;
   }
-  throw new Error(`never reached stop ${stopIndex}`);
+  throw new Error("never reached leg end");
 }
 
 test("경로 탐색은 실제 환승역을 거치는 이어진 구간을 만든다", () => {
@@ -113,47 +115,63 @@ test("승강장에서는 목표 호선 열차가 섰을 때만 위 방향키로 
   assert.equal(boarded.state.ride.stopIndex, 0);
 });
 
-test("타는 동안 역마다 정차하고, 아직인 역에서 내리면 계속 탄다", () => {
+test("탑승 후에는 지도 방향키로 운전하고 친구를 태우며 간다", () => {
   const journey = createSubwayJourney("hanriver", 3);
   let state = stopTargetTrain(advanceSubwayWorld(journey, TRAIN_APPROACH_MS));
   state = attemptSubwayMove(state, "up").state;
   const leg = currentLeg(state);
 
-  state = advanceSubwayWorld(state, RIDE_TRAVEL_MS);
-  assert.equal(state.ride.stopIndex, 1);
-  assert.equal(state.ride.doorOpen, true);
-  assert.equal(subwayAnnouncement(state), `${leg.stations[1]}역입니다. 문이 열렸어요`);
+  const need = requiredDirection(state);
+  assert.ok(["up", "down", "left", "right"].includes(need));
+  const wrongDirection = need === "up" ? "left" : "up";
+  const wrong = attemptSubwayMove(state, wrongDirection);
+  assert.equal(wrong.event.type, "wrong-way");
+  assert.equal(wrong.event.need, need);
+  assert.equal(wrong.state.ride.stopIndex, 0, "wrong key does not move");
 
+  const first = attemptSubwayMove(state, need);
+  assert.equal(first.event.type, "drove");
+  assert.equal(first.state.ride.stopIndex, 1);
   if (leg.stations.length > 2) {
-    const early = attemptSubwayMove(state, "down");
-    assert.equal(early.event.type, "not-yet");
-    assert.equal(early.state.phase, "ride");
+    assert.equal(first.event.passenger, 2, "first pickup is friend 2");
+    assert.deepEqual(first.state.passengers, [2]);
+    assert.match(
+      subwayAnnouncement(first.state),
+      new RegExp(DIRECTION_ARROWS[requiredDirection(first.state)] + "$")
+    );
+  } else {
+    assert.equal(first.event.atAlight, true);
   }
 
+  state = driveToEnd(first.state);
   const lastIndex = leg.stations.length - 1;
-  state = rideToStop(state, lastIndex);
   assert.equal(rideStation(state), leg.stations[lastIndex]);
-  const terminalWait = advanceSubwayWorld(state, RIDE_STOP_MS * 3);
-  assert.equal(terminalWait.ride.doorOpen, true, "terminal door stays open");
+  assert.equal(requiredDirection(state), null);
+  assert.equal(state.passengers.length, Math.max(0, lastIndex - 1));
 
-  const alight = attemptSubwayMove(terminalWait, "down");
+  const early = attemptSubwayMove(state, "right");
+  assert.equal(early.event.type, "time-to-alight");
+
+  const alight = attemptSubwayMove(state, "down");
   assert.equal(alight.event.type, "arrived");
   assert.equal(alight.state.phase, "arrived");
   assert.equal(alight.event.place.id, journey.place.id);
+  assert.deepEqual(alight.state.passengers, state.passengers);
 });
 
-test("차근차근은 환승역 하차 후 다음 호선 승강장으로 이어진다", () => {
+test("환승역 하차 후 다음 호선 승강장으로 이어지고 태운 친구는 유지된다", () => {
   const journey = createSubwayJourney("zoo", 5);
   let state = stopTargetTrain(advanceSubwayWorld(journey, TRAIN_APPROACH_MS));
   state = attemptSubwayMove(state, "up").state;
-  const firstLeg = currentLeg(state);
-  state = rideToStop(state, firstLeg.stations.length - 1);
+  state = driveToEnd(state);
+  const carried = state.passengers.length;
 
   const alight = attemptSubwayMove(state, "down");
   assert.equal(alight.event.type, "transfer");
   assert.equal(alight.event.nextLine, journey.legs[1].line);
   state = alight.state;
   assert.equal(state.phase, "transfer");
+  assert.equal(state.passengers.length, carried, "passengers ride along");
   assert.equal(subwayAnnouncement(state), `${journey.legs[1].line}호선으로 갈아타요!`);
 
   state = advanceSubwayWorld(state, TRANSFER_SPLASH_MS);
@@ -164,12 +182,4 @@ test("차근차근은 환승역 하차 후 다음 호선 승강장으로 이어�
   const boarded = attemptSubwayMove(state, "up");
   assert.equal(boarded.event.type, "boarded");
   assert.equal(boarded.event.line, journey.legs[1].line);
-});
-
-test("문이 닫혀 있으면 내릴 수 없다", () => {
-  const journey = createSubwayJourney("namsan", 7);
-  let state = stopTargetTrain(advanceSubwayWorld(journey, TRAIN_APPROACH_MS));
-  state = attemptSubwayMove(state, "up").state;
-  assert.equal(state.ride.moving, true);
-  assert.equal(attemptSubwayMove(state, "down").event.type, "door-closed");
 });

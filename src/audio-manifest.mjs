@@ -41,6 +41,7 @@ const subway = Object.fromEntries(
     "subway-wrong-stop",
     "subway-transfer",
     "subway-arrive",
+    "subway-mind-gap",
     "subway-place-zoo",
     "subway-place-lunapark",
     "subway-place-baseball",

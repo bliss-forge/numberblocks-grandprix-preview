@@ -6,8 +6,10 @@ import {
   lineByNumber
 } from "./subway-map-data.mjs";
 import {
+  DIRECTION_ARROWS,
   currentLeg,
   currentTrain,
+  requiredDirection,
   rideStation,
   subwayAnnouncement
 } from "./subway-journey.mjs";
@@ -48,6 +50,35 @@ function playerImage(document) {
   image.src = `assets/characters/${characterAsset(1)}`;
   image.alt = "숫자 1 블록 친구";
   return image;
+}
+
+function passengerImage(document, number) {
+  const image = document.createElement("img");
+  image.className = "subway-passenger";
+  image.src = `assets/characters/${characterAsset(number)}`;
+  image.alt = `숫자 ${number} 블록 친구`;
+  return image;
+}
+
+function driveGuideText(state) {
+  const need = requiredDirection(state);
+  return need === null
+    ? "🚪 ↓ 키로 내려요!"
+    : `${DIRECTION_ARROWS[need]} 쪽으로 운전해요!`;
+}
+
+function fillPassengerStrip(document, strip, passengers) {
+  strip.dataset.count = String(passengers.length);
+  const label = document.createElement("span");
+  label.className = "subway-passenger-label";
+  label.textContent = passengers.length === 0
+    ? "친구들을 태우러 가요!"
+    : `함께 가는 친구 ${passengers.length}명`;
+  strip.replaceChildren(
+    label,
+    ...passengers.slice(-8).map(number => passengerImage(document, number))
+  );
+  return strip;
 }
 
 function missionText(state) {
@@ -115,15 +146,36 @@ export function renderSubwayPicker(document, destinations) {
   return root;
 }
 
+const MIN_SPAN_X = 44;
+const MIN_SPAN_Y = 28;
+
 function routeBounds(state) {
   const points = state.legs.flatMap(leg =>
     leg.stations.map(name => STATION_COORDS[name])
   );
-  const minX = Math.max(0, Math.min(...points.map(p => p.x)) - MAP_PAD);
-  const maxX = Math.min(100, Math.max(...points.map(p => p.x)) + MAP_PAD);
-  const minY = Math.max(0, Math.min(...points.map(p => p.y)) - MAP_PAD);
-  const maxY = Math.min(100, Math.max(...points.map(p => p.y)) + MAP_PAD);
+  let minX = Math.min(...points.map(p => p.x)) - MAP_PAD;
+  let maxX = Math.max(...points.map(p => p.x)) + MAP_PAD;
+  let minY = Math.min(...points.map(p => p.y)) - MAP_PAD;
+  let maxY = Math.max(...points.map(p => p.y)) + MAP_PAD;
+  if (maxX - minX < MIN_SPAN_X) {
+    const grow = (MIN_SPAN_X - (maxX - minX)) / 2;
+    minX -= grow;
+    maxX += grow;
+  }
+  if (maxY - minY < MIN_SPAN_Y) {
+    const grow = (MIN_SPAN_Y - (maxY - minY)) / 2;
+    minY -= grow;
+    maxY += grow;
+  }
+  minX = Math.max(-4, minX);
+  maxX = Math.min(104, maxX);
+  minY = Math.max(-4, minY);
+  maxY = Math.min(104, maxY);
   return { minX, minY, width: maxX - minX, height: maxY - minY };
+}
+
+function boundsScale(bounds) {
+  return Math.max(0.55, Math.min(1.6, bounds.width / 62));
 }
 
 function arcPath(cx, cy, radius, startAngle, endAngle) {
@@ -159,6 +211,7 @@ function mapSvg(state, bounds) {
   });
   const routeStations = new Set(routeOrder.keys());
   const activeLines = new Set(state.legs.map(leg => leg.line));
+  const u = boundsScale(bounds);
   const parts = [];
   parts.push(
     `<svg class="subway-map-art" viewBox="${bounds.minX * MAP_SCALE} ` +
@@ -170,7 +223,7 @@ function mapSvg(state, bounds) {
   parts.push(
     `<polyline class="subway-map-river" points="${RIVER_POINTS
       .map(([x, y]) => `${x * MAP_SCALE},${y * MAP_SCALE}`).join(" ")}" ` +
-    `fill="none" stroke="#cfe4f4" stroke-width="30" ` +
+    `fill="none" stroke="#cfe4f4" stroke-width="${(30 * u).toFixed(1)}" ` +
     `stroke-linecap="round" stroke-linejoin="round"/>`
   );
   PARKS.forEach(park => {
@@ -192,7 +245,8 @@ function mapSvg(state, bounds) {
     parts.push(
       `<polyline class="subway-line" data-line="${line.number}" ` +
       `data-active="${active}" points="${points}" fill="none" ` +
-      `stroke="${line.color}" stroke-width="${active ? 12 : 5}" ` +
+      `stroke="${line.color}" ` +
+      `stroke-width="${((active ? 12 : 5) * u).toFixed(1)}" ` +
       `stroke-linecap="round" stroke-linejoin="round" ` +
       `opacity="${active ? 1 : 0.3}"/>`
     );
@@ -212,30 +266,33 @@ function mapSvg(state, bounds) {
         parts.push(
           `<circle class="subway-station-dot" data-station="${name}" ` +
           `data-on-route="${onRoute}" cx="${cx}" cy="${cy}" ` +
-          `r="${onRoute ? 12 : 7}" fill="#fff" opacity="${onRoute ? 1 : 0.75}"/>`
+          `r="${((onRoute ? 12 : 7) * u).toFixed(1)}" fill="#fff" ` +
+          `opacity="${onRoute ? 1 : 0.75}"/>`
         );
         parts.push(transferRing(
           point,
           stationLines,
-          onRoute ? 14 : 8,
-          onRoute ? 6 : 3.5,
+          (onRoute ? 14 : 8) * u,
+          (onRoute ? 6 : 3.5) * u,
           onRoute ? 1 : 0.5
         ));
       } else {
         parts.push(
           `<circle class="subway-station-dot" data-station="${name}" ` +
           `data-on-route="${onRoute}" cx="${cx}" cy="${cy}" ` +
-          `r="${onRoute ? 10 : 5}" fill="#fff" ` +
+          `r="${((onRoute ? 10 : 5) * u).toFixed(1)}" fill="#fff" ` +
           `stroke="${stationLines[0].color}" ` +
-          `stroke-width="${onRoute ? 5 : 2.6}" opacity="${onRoute ? 1 : 0.55}"/>`
+          `stroke-width="${((onRoute ? 5 : 2.6) * u).toFixed(1)}" ` +
+          `opacity="${onRoute ? 1 : 0.55}"/>`
         );
       }
       if (onRoute) {
-        const dy = (routeOrder.get(name) ?? 0) % 2 === 0 ? -24 : 42;
+        const dy = ((routeOrder.get(name) ?? 0) % 2 === 0 ? -24 : 42) * u;
         parts.push(
-          `<text class="subway-station-name" x="${cx}" y="${cy + dy}" ` +
-          `text-anchor="middle" font-size="18" font-weight="900" ` +
-          `fill="#31445b" stroke="#fff" stroke-width="6" ` +
+          `<text class="subway-station-name" x="${cx}" ` +
+          `y="${(cy + dy).toFixed(1)}" text-anchor="middle" ` +
+          `font-size="${(18 * u).toFixed(1)}" font-weight="900" ` +
+          `fill="#31445b" stroke="#fff" stroke-width="${(6 * u).toFixed(1)}" ` +
           `paint-order="stroke">${name}</text>`
         );
       }
@@ -313,6 +370,10 @@ function renderPlatformPhase(document, state, stage) {
   edge.className = "subway-platform-edge";
   platform.append(edge);
 
+  const waiting = playerImage(document);
+  waiting.className = "subway-player subway-platform-player";
+  platform.append(waiting);
+
   stage.append(platform);
   return platform;
 }
@@ -344,17 +405,25 @@ function renderRidePhase(document, state, stage) {
   const overlay = document.createElement("div");
   overlay.className = "subway-overlay";
 
+  const strip = fillPassengerStrip(
+    document,
+    document.createElement("div"),
+    state.passengers
+  );
+  strip.className = "subway-passenger-strip";
+  overlay.append(strip);
+
   const banner = document.createElement("div");
   banner.className = "subway-ride-banner";
   const announcement = document.createElement("span");
   announcement.className = "subway-announcement";
   announcement.setAttribute("role", "status");
   announcement.textContent = subwayAnnouncement(state);
-  const door = document.createElement("span");
-  door.className = "subway-door-state";
-  door.dataset.open = String(Boolean(state.ride.doorOpen));
-  door.textContent = state.ride.doorOpen ? "🚪 열림 — ↓ 키로 내려요" : "🚪 닫힘";
-  banner.append(announcement, door);
+  const guide = document.createElement("span");
+  guide.className = "subway-drive-guide";
+  guide.dataset.alight = String(requiredDirection(state) === null);
+  guide.textContent = driveGuideText(state);
+  banner.append(announcement, guide);
   overlay.append(banner);
 
   const texts = capsuleTexts(state);
@@ -418,7 +487,16 @@ function renderArrivedPhase(document, state, stage) {
   hearts.className = "subway-arrived-hearts";
   hearts.textContent = "💛 💚 💙";
   hearts.setAttribute("aria-hidden", "true");
-  ending.append(hearts, icon, hero);
+  const friends = document.createElement("div");
+  friends.className = "subway-arrived-friends";
+  friends.setAttribute(
+    "aria-label",
+    `함께 온 친구 ${state.passengers.length}명`
+  );
+  state.passengers.slice(-8).forEach(number => {
+    friends.append(passengerImage(document, number));
+  });
+  ending.append(hearts, icon, hero, friends);
   stage.append(ending);
   return ending;
 }
@@ -494,12 +572,14 @@ export function updateSubwayJourney(root, state) {
     if (marker) placeDot(marker, bounds, rideStation(state));
     const announcement = root.querySelector?.(".subway-announcement");
     if (announcement) announcement.textContent = subwayAnnouncement(state);
-    const door = root.querySelector?.(".subway-door-state");
-    if (door) {
-      door.dataset.open = String(Boolean(state.ride.doorOpen));
-      door.textContent = state.ride.doorOpen
-        ? "🚪 열림 — ↓ 키로 내려요"
-        : "🚪 닫힘";
+    const guide = root.querySelector?.(".subway-drive-guide");
+    if (guide) {
+      guide.dataset.alight = String(requiredDirection(state) === null);
+      guide.textContent = driveGuideText(state);
+    }
+    const strip = root.querySelector?.(".subway-passenger-strip");
+    if (strip && strip.dataset.count !== String(state.passengers.length)) {
+      fillPassengerStrip(view.document, strip, state.passengers);
     }
     const texts = capsuleTexts(state);
     const prev = root.querySelector?.(".subway-capsule-prev");
