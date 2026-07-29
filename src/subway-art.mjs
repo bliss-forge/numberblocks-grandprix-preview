@@ -22,6 +22,20 @@ export function subwayTrainSvg(lineNumber, color) {
   ].join("");
 }
 
+export function mapTrainSvg(color) {
+  return [
+    `<svg class="route-art route-art-map-train" viewBox="0 0 84 52" ` +
+    `role="img" aria-hidden="true" focusable="false">`,
+    `<rect x="4" y="6" width="76" height="40" rx="14" fill="#fff" ` +
+    `stroke="#31445b" stroke-width="4"/>`,
+    `<rect x="4" y="30" width="76" height="16" rx="8" fill="${color}"/>`,
+    `<rect x="14" y="14" width="16" height="12" rx="4" fill="#bfe8ff"/>`,
+    `<rect x="34" y="14" width="16" height="12" rx="4" fill="#bfe8ff"/>`,
+    `<rect x="54" y="14" width="16" height="12" rx="4" fill="#bfe8ff"/>`,
+    `</svg>`
+  ].join("");
+}
+
 export function lineBadgeSvg(lineNumber, color) {
   return [
     `<svg class="route-art route-art-line-badge" viewBox="0 0 48 48" ` +

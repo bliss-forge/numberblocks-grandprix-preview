@@ -13,7 +13,8 @@ import {
   currentTrain,
   rideStation,
   routeBetween,
-  subwayAnnouncement
+  subwayAnnouncement,
+  subwayDestinations
 } from "../src/subway-journey.mjs";
 import { linesAtStation } from "../src/subway-map-data.mjs";
 
@@ -57,20 +58,24 @@ test("경로 탐색은 실제 환승역을 거치는 이어진 구간을 만든�
   assert.equal(second.stations[second.stations.length - 1], "대공원");
 });
 
-test("같은 시드는 같은 여정을 만들고 난이도가 환승 횟수를 정한다", () => {
-  for (const [difficulty, transfers] of [
-    ["easy", 0], ["steady", 1], ["challenge", 2]
-  ]) {
-    for (let seed = 0; seed < 8; seed += 1) {
-      const journey = createSubwayJourney(difficulty, seed);
-      const again = createSubwayJourney(difficulty, seed);
-      assert.deepEqual(journey.legs, again.legs, `${difficulty} seed ${seed}`);
-      assert.equal(journey.place.id, again.place.id);
-      assert.equal(journey.legs.length, transfers + 1, `${difficulty} seed ${seed}`);
+test("목적지 선택이 난이도를 정하고 모든 목적지는 유효한 여정을 가진다", () => {
+  const destinations = subwayDestinations();
+  assert.equal(destinations.length, 10);
+  assert.deepEqual(
+    destinations.map(({ transfers }) => transfers).sort(),
+    [0, 0, 0, 0, 1, 1, 1, 1, 2, 2].sort()
+  );
+  for (const { place, transfers } of destinations) {
+    for (let seed = 0; seed < 4; seed += 1) {
+      const journey = createSubwayJourney(place.id, seed);
+      const again = createSubwayJourney(place.id, seed);
+      assert.deepEqual(journey.legs, again.legs, `${place.id} seed ${seed}`);
+      assert.equal(journey.transfers, transfers);
+      assert.equal(journey.legs.length, transfers + 1, `${place.id} seed ${seed}`);
       const lastLeg = journey.legs[journey.legs.length - 1];
       assert.equal(
         lastLeg.stations[lastLeg.stations.length - 1],
-        journey.place.station
+        place.station
       );
       journey.legs.forEach(leg => assert.ok(leg.stations.length >= 2));
       for (let index = 1; index < journey.legs.length; index += 1) {
@@ -85,7 +90,7 @@ test("같은 시드는 같은 여정을 만들고 난이도가 환승 횟수를 
 });
 
 test("승강장에서는 목표 호선 열차가 섰을 때만 위 방향키로 탈 수 있다", () => {
-  const journey = createSubwayJourney("easy", 3);
+  const journey = createSubwayJourney("hanriver", 3);
   assert.equal(journey.phase, "platform");
   assert.equal(
     attemptSubwayMove(journey, "up").event.type,
@@ -109,7 +114,7 @@ test("승강장에서는 목표 호선 열차가 섰을 때만 위 방향키로 
 });
 
 test("타는 동안 역마다 정차하고, 아직인 역에서 내리면 계속 탄다", () => {
-  const journey = createSubwayJourney("easy", 3);
+  const journey = createSubwayJourney("hanriver", 3);
   let state = stopTargetTrain(advanceSubwayWorld(journey, TRAIN_APPROACH_MS));
   state = attemptSubwayMove(state, "up").state;
   const leg = currentLeg(state);
@@ -138,7 +143,7 @@ test("타는 동안 역마다 정차하고, 아직인 역에서 내리면 계속
 });
 
 test("차근차근은 환승역 하차 후 다음 호선 승강장으로 이어진다", () => {
-  const journey = createSubwayJourney("steady", 5);
+  const journey = createSubwayJourney("zoo", 5);
   let state = stopTargetTrain(advanceSubwayWorld(journey, TRAIN_APPROACH_MS));
   state = attemptSubwayMove(state, "up").state;
   const firstLeg = currentLeg(state);
@@ -162,7 +167,7 @@ test("차근차근은 환승역 하차 후 다음 호선 승강장으로 이어�
 });
 
 test("문이 닫혀 있으면 내릴 수 없다", () => {
-  const journey = createSubwayJourney("easy", 7);
+  const journey = createSubwayJourney("namsan", 7);
   let state = stopTargetTrain(advanceSubwayWorld(journey, TRAIN_APPROACH_MS));
   state = attemptSubwayMove(state, "up").state;
   assert.equal(state.ride.moving, true);

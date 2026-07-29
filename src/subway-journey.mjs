@@ -5,11 +5,25 @@ import {
   linesAtStation
 } from "./subway-map-data.mjs";
 
-export const TRANSFERS_BY_DIFFICULTY = Object.freeze({
-  easy: 0,
-  steady: 1,
-  challenge: 2
+export const PLACE_TRANSFERS = Object.freeze({
+  lunapark: 0,
+  baseball: 0,
+  hanriver: 0,
+  namsan: 0,
+  zoo: 1,
+  palace: 1,
+  skypark: 1,
+  childpark: 1,
+  lake: 2,
+  assembly: 2
 });
+
+export function subwayDestinations() {
+  return SUBWAY_PLACES.map(place => ({
+    place,
+    transfers: PLACE_TRANSFERS[place.id] ?? 0
+  }));
+}
 
 export const TRAIN_APPROACH_MS = 1600;
 export const TRAIN_STOP_MS = 3200;
@@ -165,29 +179,28 @@ function makePlatform(leg, boardStation, random) {
   };
 }
 
-export function createSubwayJourney(difficulty = "easy", seed = 0) {
-  const targetTransfers = TRANSFERS_BY_DIFFICULTY[difficulty] ?? 0;
+export function createSubwayJourney(placeId, seed = 0) {
+  const place = SUBWAY_PLACES.find(item => item.id === placeId);
+  if (!place) throw new Error(`unknown subway place: ${placeId}`);
+  const targetTransfers = PLACE_TRANSFERS[place.id] ?? 0;
   const random = seededRandom(seed);
-  const placeOffset = Math.floor(random() * SUBWAY_PLACES.length);
-  for (let attempt = 0; attempt < SUBWAY_PLACES.length; attempt += 1) {
-    const place = SUBWAY_PLACES[(placeOffset + attempt) % SUBWAY_PLACES.length];
-    const candidates = journeyCandidates(place, targetTransfers);
-    if (candidates.length === 0) continue;
-    const picked = candidates[Math.floor(random() * candidates.length)];
-    return {
-      difficulty,
-      seed,
-      place,
-      start: picked.start,
-      legs: picked.route.legs,
-      legIndex: 0,
-      phase: "platform",
-      platform: makePlatform(picked.route.legs[0], picked.start, random),
-      ride: null,
-      transferMs: 0
-    };
+  const candidates = journeyCandidates(place, targetTransfers);
+  if (candidates.length === 0) {
+    throw new Error(`no subway journey for ${placeId}`);
   }
-  throw new Error(`no subway journey for ${difficulty}`);
+  const picked = candidates[Math.floor(random() * candidates.length)];
+  return {
+    seed,
+    place,
+    transfers: targetTransfers,
+    start: picked.start,
+    legs: picked.route.legs,
+    legIndex: 0,
+    phase: "platform",
+    platform: makePlatform(picked.route.legs[0], picked.start, random),
+    ride: null,
+    transferMs: 0
+  };
 }
 
 export function currentLeg(state) {

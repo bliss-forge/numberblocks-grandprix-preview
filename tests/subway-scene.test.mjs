@@ -8,8 +8,10 @@ import {
   currentLeg,
   currentTrain
 } from "../src/subway-journey.mjs";
+import { subwayDestinations } from "../src/subway-journey.mjs";
 import {
   renderSubwayJourney,
+  renderSubwayPicker,
   updateSubwayJourney
 } from "../src/subway-scene.mjs";
 
@@ -69,7 +71,7 @@ function byClass(root, className) {
 
 function boardedState(seed = 3) {
   let state = advanceSubwayWorld(
-    createSubwayJourney("easy", seed),
+    createSubwayJourney("hanriver", seed),
     TRAIN_APPROACH_MS
   );
   for (let guard = 0; guard < 40; guard += 1) {
@@ -82,8 +84,39 @@ function boardedState(seed = 3) {
   throw new Error("boarding failed");
 }
 
+test("목적지 선택 화면은 숫자키 카드 10장과 환승 난이도 칩을 그린다", () => {
+  const picker = renderSubwayPicker(document, subwayDestinations());
+  const cards = byClass(picker, "subway-place-card");
+  assert.equal(cards.length, 10);
+  assert.deepEqual(
+    byClass(picker, "subway-place-key").map(node => node.textContent),
+    ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0"]
+  );
+  const chips = byClass(picker, "subway-transfer-chip");
+  assert.equal(chips.length, 10);
+  for (const chip of chips) {
+    assert.match(chip.textContent, /^(바로 가요|1번 갈아타요|2번 갈아타요)$/);
+  }
+  for (const card of cards) {
+    assert.ok(card.dataset.placeId, "card carries place id");
+  }
+});
+
+test("탑승 장면은 하단 역 캡슐에 이전·현재·다음 역을 보여준다", () => {
+  const state = boardedState(3);
+  const scene = renderSubwayJourney(document, state);
+  assert.equal(byClass(scene, "subway-capsule").length, 1);
+  assert.equal(byClass(scene, "subway-capsule-prev")[0].textContent, "출발");
+  assert.ok(byClass(scene, "subway-capsule-name")[0].textContent.length > 0);
+  assert.match(
+    byClass(scene, "subway-capsule-remaining")[0].textContent,
+    /정거장|내려요/
+  );
+  assert.match(byClass(scene, "subway-map")[0].innerHTML, /subway-map-river/);
+});
+
 test("승강장 장면은 역명판, 목표 호선 뱃지, 열차와 이동 패드를 그린다", () => {
-  const state = createSubwayJourney("easy", 3);
+  const state = createSubwayJourney("hanriver", 3);
   const scene = renderSubwayJourney(document, state);
   assert.equal(scene.dataset.phase, "platform");
   assert.match(
@@ -117,7 +150,7 @@ test("탑승 장면은 노선도와 플레이어 점, 문 상태를 그리고 �
 });
 
 test("단계가 바뀌면 장면을 다시 세워 환승·도착을 표현한다", () => {
-  const steady = createSubwayJourney("steady", 5);
+  const steady = createSubwayJourney("zoo", 5);
   const scene = renderSubwayJourney(document, steady);
   const transferState = { ...steady, phase: "transfer", legIndex: 1, ride: null };
   updateSubwayJourney(scene, transferState);

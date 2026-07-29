@@ -83,10 +83,12 @@ import {
   createSubwayJourney,
   currentLeg,
   currentTrain,
-  rideStation
+  rideStation,
+  subwayDestinations
 } from "./subway-journey.mjs";
 import {
   renderSubwayJourney,
+  renderSubwayPicker,
   updateSubwayJourney
 } from "./subway-scene.mjs";
 
@@ -882,18 +884,31 @@ function startSubwayJourney() {
   state.round += 1;
   state.problem = null;
   state.buffer = "";
-  const seed = Math.floor(Math.random() * 0x100000000);
-  state.subway = createSubwayJourney(state.difficulty, seed);
-  state.subwayScene = renderSubwayJourney(document, state.subway);
+  state.subway = null;
+  state.subwayChoosing = true;
+  state.subwayScene = renderSubwayPicker(document, subwayDestinations());
   dom.stage.replaceChildren(state.subwayScene);
-  dom.problem.textContent =
-    `${state.subway.place.icon} ${state.subway.place.label}에 가요!`;
+  dom.problem.textContent = "🚇 어디로 갈까요?";
   dom.cheer.classList.remove("show");
   dom.hint.className = "toast";
   dom.hint.textContent = "";
   setPhase("playing");
   audio.playSfx("win");
+  showHint("가고 싶은 곳을 숫자키로 골라요!");
+}
+
+function startSubwayRide(placeId) {
+  if (state.mode !== "subway") return;
+  state.subwayChoosing = false;
+  const seed = Math.floor(Math.random() * 0x100000000);
+  state.subway = createSubwayJourney(placeId, seed);
+  state.subwayScene = renderSubwayJourney(document, state.subway);
+  dom.stage.replaceChildren(state.subwayScene);
+  dom.problem.textContent =
+    `${state.subway.place.icon} ${state.subway.place.label}에 가요!`;
+  audio.playSfx("win");
   showHint(`${currentLeg(state.subway).line}호선을 찾아 타요!`);
+  audio.cancel();
   void audio.playPrompt(state.subway.place.voiceKey);
   scheduleSubwayTick(performance.now());
 }
@@ -1117,6 +1132,7 @@ function startMode(mode) {
   state.srtScene = null;
   state.subway = null;
   state.subwayScene = null;
+  state.subwayChoosing = false;
   if (mode === "safety") {
     startSafetyRoute();
   } else if (mode === "subway") {
@@ -1146,6 +1162,7 @@ function goHome() {
   state.srtScene = null;
   state.subway = null;
   state.subwayScene = null;
+  state.subwayChoosing = false;
   state.buffer = "";
   setMode(null);
   dom.cheer.classList.remove("show");
@@ -1193,6 +1210,12 @@ dom.stage.addEventListener("pointerdown", event => {
   startSafetyHold(button.dataset.routeDirection);
 });
 dom.stage.addEventListener("click", event => {
+  const card = event.target.closest("[data-place-id]");
+  if (card && state.mode === "subway" && state.subwayChoosing) {
+    audio.playSfx("key");
+    startSubwayRide(card.dataset.placeId);
+    return;
+  }
   const button = event.target.closest("[data-route-direction]");
   if (!button || event.detail !== 0) return;
   if (state.subway) moveSubway(button.dataset.routeDirection);
@@ -1274,6 +1297,20 @@ document.addEventListener("keydown", event => {
 
   const digit = /^[0-9]$/.test(event.key) ? event.key : null;
   if (digit === null || event.repeat) return;
+
+  if (state.phase === "playing" && state.mode === "subway") {
+    if (state.subwayChoosing) {
+      event.preventDefault();
+      const destinations = subwayDestinations();
+      const index = digit === "0" ? 9 : Number(digit) - 1;
+      const choice = destinations[index];
+      if (choice) {
+        audio.playSfx("key");
+        startSubwayRide(choice.place.id);
+      }
+    }
+    return;
+  }
 
   if (state.phase === "home") {
     const difficulties = { 7: "easy", 8: "steady", 9: "challenge" };
