@@ -3,16 +3,14 @@ import assert from "node:assert/strict";
 import {
   carSvg,
   bicycleSvg,
-  scooterSvg,
-  excavatorSvg
+  scooterSvg
 } from "../src/safety-route-art.mjs";
 
 test("모든 아트는 aria-hidden 처리된 svg 문자열이다", () => {
   const builders = [
     ["car", carSvg],
     ["bicycle", bicycleSvg],
-    ["scooter", scooterSvg],
-    ["excavator", excavatorSvg]
+    ["scooter", scooterSvg]
   ];
   builders.forEach(([name, build]) => {
     const svg = build();

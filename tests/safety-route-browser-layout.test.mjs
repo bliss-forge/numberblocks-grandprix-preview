@@ -164,12 +164,8 @@ test("1280×720 PC 안전길은 7×5칸을 자르지 않고 모바일 방향키�
     };
     const board = getComputedStyle(construction, "::before");
     const posts = getComputedStyle(construction, "::after");
-    const excavator = construction.querySelector("svg.route-art-excavator");
-    const constructionSign = construction.querySelector(".route-construction-sign");
 
     return {
-      constructionHasExcavator: Boolean(excavator),
-      constructionSignText: constructionSign?.textContent ?? "",
       cell,
       clientColumnsVisible: viewport.clientWidth / cell,
       clientRowsVisible: viewport.clientHeight / cell,
@@ -183,7 +179,6 @@ test("1280×720 PC 안전길은 7×5칸을 자르지 않고 모바일 방향키�
       worldColumns: columns,
       taskFour: {
         barrier: {
-          boardImage: board.backgroundImage,
           boardZIndex: board.zIndex,
           approachAnchor: construction.dataset.approachAnchor,
           artworkBottom: constructionRect.bottom,
@@ -193,7 +188,9 @@ test("1280×720 PC 안전길은 7×5칸을 자르지 않고 모바일 방향키�
           footprintCount: constructionFootprints.length,
           footprintTop: footprintBounds.top,
           heightInCells: constructionRect.height / cell,
-          postImage: posts.backgroundImage,
+          postBackgroundImages: posts.backgroundImage,
+          postBackgroundPositions: posts.backgroundPosition,
+          postBackgroundSizes: posts.backgroundSize,
           postsZIndex: posts.zIndex
         },
         riders
@@ -290,35 +287,42 @@ test("1280×720 PC 안전길은 7×5칸을 자르지 않고 모바일 방향키�
     assert.equal(rider.helmets, 1);
     assert.equal(rider.wheels, 2);
   }
-  assert.equal(desktopMetrics.constructionHasExcavator, true);
-  assert.equal(desktopMetrics.constructionSignText, "🚧 공사중");
   assert.deepEqual(
     {
       boardZIndex: desktopMetrics.taskFour.barrier.boardZIndex,
       footprintCount: desktopMetrics.taskFour.barrier.footprintCount,
+      postBackgroundPositions:
+        desktopMetrics.taskFour.barrier.postBackgroundPositions,
+      postBackgroundSizes: desktopMetrics.taskFour.barrier.postBackgroundSizes,
       postsZIndex: desktopMetrics.taskFour.barrier.postsZIndex
     },
     {
       boardZIndex: "2",
       footprintCount: 5,
-      postsZIndex: "2"
+      postBackgroundPositions: "10% 0px, 90% 0px, 0px 100%, 100% 100%",
+      postBackgroundSizes: "16px 84%, 16px 84%, 42px 12px, 42px 12px",
+      postsZIndex: "1"
     }
   );
-  for (const fence of [
-    desktopMetrics.taskFour.barrier.boardImage,
-    desktopMetrics.taskFour.barrier.postImage
-  ]) {
-    assert.match(fence, /repeating-linear-gradient/);
-    assert.match(fence, /rgb\(255, 152, 56\)/);
-    assert.match(fence, /rgb\(255, 255, 255\)/);
-  }
   assert.match(desktopMetrics.taskFour.barrier.approachAnchor, /^\d+,5$/);
+  const barrierTopOverlap = (
+    desktopMetrics.taskFour.barrier.footprintTop -
+      desktopMetrics.taskFour.barrier.artworkTop
+  ) / desktopMetrics.cell;
+  assert.ok(barrierTopOverlap >= .09 && barrierTopOverlap <= .2);
   assert.ok(desktopMetrics.taskFour.barrier.artworkLeft >= 0);
   assert.ok(desktopMetrics.taskFour.barrier.artworkRight <= 1280);
+  assert.ok(desktopMetrics.taskFour.barrier.artworkBottom <= 720);
   assert.ok(
-    Math.abs(desktopMetrics.taskFour.barrier.heightInCells - 5) <= .05,
-    `construction height in cells: ${desktopMetrics.taskFour.barrier.heightInCells}`
+    Math.abs(desktopMetrics.taskFour.barrier.heightInCells - 1.2) <= .02
   );
+  const postPaintLayers = desktopMetrics.taskFour.barrier.postBackgroundImages
+    .split(/\),\s*linear-gradient\(/);
+  assert.equal(postPaintLayers.length, 4);
+  for (const postLayer of postPaintLayers.slice(0, 2)) {
+    assert.match(postLayer, /rgb\(239, 90, 41\)/);
+    assert.match(postLayer, /rgb\(255, 255, 255\)/);
+  }
 
   const mobile = await browser.newPage({ viewport: { width: 390, height: 844 } });
   await openSafetyRoute(mobile, url);

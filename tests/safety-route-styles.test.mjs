@@ -136,8 +136,8 @@ test("열린 맨홀·포크레인 공사장·SVG 이동체는 원본 CSS/SVG 그
   const manholeLid = selectorBody(".route-manhole-lid");
   const manholeCone = selectorBody(".route-manhole-cone");
   const construction = selectorBody(".route-construction");
-  const fences = selectorBody(".route-construction::before,\n.route-construction::after");
-  const constructionSign = selectorBody(".route-construction-sign");
+  const barrierBoard = selectorBody(".route-construction::before");
+  const barrierPosts = selectorBody(".route-construction::after");
   const reversedMover = selectorBody('.route-moving-rider[data-direction="-1"]');
   const wheel = selectorBody(".route-wheel");
 
@@ -148,10 +148,13 @@ test("열린 맨홀·포크레인 공사장·SVG 이동체는 원본 CSS/SVG 그
   assert.match(manholeCone, /clip-path/);
   assert.match(
     construction,
-    /height:\s*calc\(var\(--route-cell-size\)\s*\*\s*var\(--hazard-span,\s*1\)\);/
+    /height:\s*calc\(var\(--route-cell-size\)\s*\*\s*1\.2\);/
   );
-  assert.match(fences, /repeating-linear-gradient\(45deg,\s*#ff9838 0 12px,\s*#fff 12px 24px\)/);
-  assert.match(constructionSign, /#ffd54a/);
+  assert.match(
+    barrierBoard,
+    /repeating-linear-gradient\([^}]*#f5c400[^}]*#171717/s
+  );
+  assert.match(barrierPosts, /#ef5a29/);
   assert.match(reversedMover, /transform:\s*scaleX\(-1\);/);
   assert.match(wheel, /animation:\s*route-wheel-spin/);
   assert.match(css, /\.route-hazard\[data-stopped="true"\]\s+\.route-wheel\s*\{[^}]*animation-play-state:\s*paused;/s);
@@ -162,7 +165,8 @@ test("열린 맨홀·포크레인 공사장·SVG 이동체는 원본 CSS/SVG 그
     ".route-manhole-lid",
     ".route-manhole-cone",
     ".route-construction",
-    ".route-construction-sign"
+    ".route-construction::before",
+    ".route-construction::after"
   ]) {
     assert.doesNotMatch(selectorBody(selector), /url\s*\(/i, selector);
   }

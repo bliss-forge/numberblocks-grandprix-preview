@@ -136,7 +136,7 @@ test("킥보드와 자전거에는 헬멧을 쓴 탑승자가 함께 표시된�
   }
   for (const [hazardClass, label] of [
     ["route-manhole", "열린 맨홀"],
-    ["route-construction", "공사장"],
+    ["route-construction", "공사 차단봉"],
     ["route-car", "도로 자동차"]
   ]) {
     assert.equal(
@@ -509,8 +509,6 @@ test("이동체와 공사장은 svg 아트로 그려진다", () => {
   cars.forEach(node => {
     assert.match(node.innerHTML ?? "", /route-art-car/);
   });
-  const construction = byClass(scene, "route-construction")[0];
-  assert.match(construction.innerHTML ?? "", /route-art-excavator/);
   assert.equal(byClass(scene, "route-rider-person").length, 0);
   const manhole = byClass(scene, "route-manhole")[0];
   assert.equal(byClass(manhole, "route-manhole-lid").length, 1);

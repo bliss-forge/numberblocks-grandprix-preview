@@ -92,18 +92,3 @@ export function carSvg() {
   ].join(""));
 }
 
-export function excavatorSvg() {
-  return wrap("excavator", "0 0 120 90", [
-    `<rect x="6" y="70" width="76" height="18" rx="9" fill="#2c3440"/>`,
-    `<circle cx="20" cy="79" r="5" fill="${HUB}"/>`,
-    `<circle cx="44" cy="79" r="5" fill="${HUB}"/>`,
-    `<circle cx="68" cy="79" r="5" fill="${HUB}"/>`,
-    `<rect x="10" y="34" width="56" height="38" rx="9" fill="#ffc233" ` +
-    `stroke="#fff" stroke-width="4"/>`,
-    `<rect x="18" y="42" width="20" height="15" rx="4" fill="#cfeafe" ` +
-    `stroke="#fff" stroke-width="3"/>`,
-    `<rect x="60" y="30" width="44" height="11" rx="5" fill="#e8a300" ` +
-    `transform="rotate(-24 62 36)"/>`,
-    `<path d="M98 14 L112 14 L112 30 Q105 36 98 30 Z" fill="#8d6e1f"/>`
-  ].join(""));
-}

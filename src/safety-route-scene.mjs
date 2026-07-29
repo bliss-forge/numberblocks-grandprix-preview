@@ -3,7 +3,6 @@ import { moverPoint } from "./safety-route-movers.mjs";
 import {
   bicycleSvg,
   carSvg,
-  excavatorSvg,
   scooterSvg
 } from "./safety-route-art.mjs";
 import { renderMinimap, updateMinimap } from "./safety-route-minimap.mjs";
@@ -30,7 +29,7 @@ const PLACE_LABELS = Object.freeze({
 
 const HAZARD_LABELS = Object.freeze({
   manhole: "열린 맨홀",
-  construction: "공사장",
+  construction: "공사 차단봉",
   scooter: "헬멧을 쓴 어린이의 킥보드",
   bicycle: "헬멧을 쓴 어린이의 자전거",
   car: "도로 자동차"
@@ -339,14 +338,6 @@ export function renderSafetyRouteScene(document, state, requestedView = {}) {
     node.setAttribute("role", "img");
     if (hazard.approachAnchor) {
       node.dataset.approachAnchor = pointKey(hazard.approachAnchor);
-    }
-    if (hazard.type === "construction") {
-      node.innerHTML = excavatorSvg();
-      const sign = document.createElement("span");
-      sign.className = "route-construction-sign";
-      sign.textContent = "🚧 공사중";
-      sign.setAttribute("aria-hidden", "true");
-      node.append(sign);
     }
     if (hazard.type === "manhole") {
       const lid = document.createElement("span");
