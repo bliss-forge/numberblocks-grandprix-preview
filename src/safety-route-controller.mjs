@@ -65,6 +65,14 @@ export function acceptSafetyRepeat({
 export function safetyCueForEvent(event, nextFriend) {
   if (!event) return null;
 
+  if (event.type === "crossing-started") {
+    return {
+      message: "멈춰요, 왼쪽 오른쪽을 봐요!",
+      voiceKey: "safety-look-both",
+      tone: "safety"
+    };
+  }
+
   if (event.type === "friend") {
     return nextFriend <= 10
       ? {

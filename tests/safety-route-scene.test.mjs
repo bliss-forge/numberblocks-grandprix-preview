@@ -515,3 +515,17 @@ test("이동체와 공사장은 svg 아트로 그려진다", () => {
   assert.equal(byClass(manhole, "route-manhole-lid").length, 1);
   assert.equal(byClass(manhole, "route-manhole-cone").length, 1);
 });
+
+test("연출 상태가 플레이어 자세와 루트 데이터로 노출된다", () => {
+  const state = createSafetyRouteState("easy", { seed: 3 });
+  const scene = renderSafetyRouteScene(document, state);
+  assert.equal(byClass(scene, "route-player-wrap").length, 1);
+  assert.equal(byClass(scene, "route-player-hand").length, 1);
+  updateSafetyRouteScene(scene, {
+    ...state,
+    ceremony: { stage: "looking", elapsedMs: 700 }
+  });
+  assert.equal(scene.dataset.ceremony, "looking");
+  updateSafetyRouteScene(scene, { ...state, ceremony: null });
+  assert.equal(scene.dataset.ceremony, "");
+});

@@ -590,7 +590,7 @@ function startSafetyHold(direction) {
   if (!state.safetyView) return;
   state.safetyView.heldDirection = direction;
   const event = moveSafetyRoute(direction);
-  if (event?.type !== "moved") {
+  if (event?.type !== "moved" && event?.type !== "crossing-started") {
     stopSafetyHold();
     return;
   }

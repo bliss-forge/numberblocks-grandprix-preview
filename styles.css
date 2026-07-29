@@ -2674,6 +2674,61 @@ body[data-mode="safety"] .stage-lights {
   50% { box-shadow: 0 0 0 6px rgba(255, 213, 74, .85); }
 }
 
+.route-player-wrap {
+  grid-column: var(--route-x);
+  grid-row: var(--route-y);
+  position: relative;
+  z-index: 12;
+  display: grid;
+  place-items: center;
+}
+
+.route-player-hand {
+  display: none;
+  position: absolute;
+  top: -12%;
+  right: -6%;
+  z-index: 13;
+  font-size: calc(var(--route-cell-size) * .34);
+  line-height: 1;
+  filter: drop-shadow(0 1px 0 rgba(37, 52, 93, .3));
+}
+
+[data-ceremony="crossing"] .route-player-hand {
+  display: block;
+  animation: route-hand-wave .8s ease-in-out infinite alternate;
+}
+
+@keyframes route-hand-wave {
+  from { transform: rotate(-8deg); }
+  to { transform: rotate(12deg); }
+}
+
+[data-ceremony="stopping"] .route-player-wrap .route-character {
+  animation: route-ceremony-stop .6s ease-in-out;
+}
+
+@keyframes route-ceremony-stop {
+  0%, 100% { transform: scale(1); }
+  40% { transform: scale(.92); }
+}
+
+[data-ceremony="looking"] .route-player-wrap .route-character {
+  animation: route-look .7s ease-in-out infinite alternate;
+}
+
+@keyframes route-look {
+  from { transform: translateX(-9%); }
+  to { transform: translateX(9%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .route-player-wrap .route-character,
+  .route-player-hand {
+    animation: none;
+  }
+}
+
 .route-minimap {
   position: absolute;
   top: calc(var(--safety-route-top-height, 64px) + 10px);

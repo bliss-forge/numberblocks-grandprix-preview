@@ -389,12 +389,19 @@ export function renderSafetyRouteScene(document, state, requestedView = {}) {
     friendNodes.set(friend.number, image);
   });
 
+  const playerWrap = document.createElement("div");
+  playerWrap.className = "route-player-wrap";
   const player = characterImage(
     document,
     1,
     "route-character route-player"
   );
-  world.append(placeAt(player, state.position));
+  const playerHand = document.createElement("span");
+  playerHand.className = "route-player-hand";
+  playerHand.textContent = "✋";
+  playerHand.setAttribute("aria-hidden", "true");
+  playerWrap.append(player, playerHand);
+  world.append(placeAt(playerWrap, state.position));
 
   const goalMat = document.createElement("div");
   goalMat.className = "route-goal-mat";
@@ -428,7 +435,7 @@ export function renderSafetyRouteScene(document, state, requestedView = {}) {
     signalNodes: signalMarkers,
     moverNodes,
     friendNodes,
-    player,
+    player: playerWrap,
     guidanceNodes,
     arrow,
     pad
@@ -455,6 +462,7 @@ export function updateSafetyRouteScene(root, state, requestedView = {}) {
   if (!nodes) throw new TypeError("A mounted safety route scene is required");
   const view = resolvedView(state, requestedView);
   root.dataset.difficulty = state.difficulty;
+  root.dataset.ceremony = state.ceremony?.stage ?? "";
   nodes.goal.textContent =
     state.nextFriend <= 10
       ? `다음은 ${state.nextFriend} 친구를 만나러 가요!`

@@ -124,3 +124,10 @@ test("순서와 완주 안내를 제공한다", () => {
     }
   );
 });
+
+test("crossing-started 이벤트는 좌우 살피기 안내를 만든다", () => {
+  const cue = safetyCueForEvent({ type: "crossing-started" }, 6);
+  assert.equal(cue.voiceKey, "safety-look-both");
+  assert.equal(cue.message, "멈춰요, 왼쪽 오른쪽을 봐요!");
+  assert.equal(cue.tone, "safety");
+});
