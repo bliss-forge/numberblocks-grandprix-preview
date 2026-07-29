@@ -294,7 +294,10 @@ test("자동차는 신호에 멈추고 보행 순찰자는 느리게 한 칸씩 
   assert.ok(walking.movers.filter(mover => mover.type === "car").every(mover => mover.stopped));
   assert.ok(walking.movers
     .filter(mover => mover.type !== "car")
-    .every(mover => mover.pathIndex >= 0 && mover.pathIndex <= 2));
+    .every(mover => {
+      const path = walking.map.trafficPaths.find(item => item.id === mover.id);
+      return mover.pathIndex >= 0 && mover.pathIndex < path.points.length;
+    }));
 });
 
 test("차량 신호가 멈추면 자동차는 현재 위치 다음 횡단보도 정지선까지 접근한다", () => {

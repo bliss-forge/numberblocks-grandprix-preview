@@ -74,22 +74,21 @@ const HAZARD_CANDIDATES = Object.freeze({
   ])
 });
 
-const PATROL_CANDIDATES = Object.freeze({
+const PATROL_ROWS = Object.freeze({
   scooter: Object.freeze([
-    { x: 2, y: 4, points: [{ x: 1, y: 4 }, { x: 2, y: 4 }, { x: 3, y: 4 }] },
-    { x: 12, y: 10, points: [{ x: 11, y: 10 }, { x: 12, y: 10 }, { x: 13, y: 10 }] },
-    { x: 29, y: 3, points: [{ x: 28, y: 3 }, { x: 29, y: 3 }, { x: 30, y: 3 }] },
-    { x: 19, y: 10, points: [{ x: 18, y: 10 }, { x: 19, y: 10 }, { x: 20, y: 10 }] }
+    { zone: "left", y: 4 },
+    { zone: "right", y: 3 },
+    { zone: "left", y: 10 },
+    { zone: "right", y: 11 }
   ]),
   bicycle: Object.freeze([
-    { x: 5, y: 4, points: [{ x: 4, y: 4 }, { x: 5, y: 4 }, { x: 6, y: 4 }] },
-    { x: 10, y: 11, points: [{ x: 9, y: 11 }, { x: 10, y: 11 }, { x: 11, y: 11 }] },
-    { x: 24, y: 4, points: [{ x: 23, y: 4 }, { x: 24, y: 4 }, { x: 25, y: 4 }] },
-    { x: 19, y: 11, points: [{ x: 18, y: 11 }, { x: 19, y: 11 }, { x: 20, y: 11 }] },
-    { x: 2, y: 10, points: [{ x: 1, y: 10 }, { x: 2, y: 10 }, { x: 3, y: 10 }] },
-    { x: 30, y: 4, points: [{ x: 29, y: 4 }, { x: 30, y: 4 }, { x: 31, y: 4 }] }
+    { zone: "right", y: 4 },
+    { zone: "left", y: 11 },
+    { zone: "right", y: 10 },
+    { zone: "left", y: 3 }
   ])
 });
+const MINIMUM_PATROL_LENGTH = 5;
 
 const DIRECTIONS = Object.freeze([
   Object.freeze({ x: 1, y: 0 }),
@@ -143,6 +142,22 @@ function selectCandidates(candidates, count, random, forbidden) {
     [available[index], available[choice]] = [available[choice], available[index]];
   }
   return available.slice(0, count);
+}
+
+function longestFreeRun(zone, y, forbidden) {
+  const range = ZONES[zone];
+  let best = [];
+  let current = [];
+  for (let x = range.x; x < range.x + range.width; x += 1) {
+    if (forbidden.has(pointKey({ x, y }))) {
+      if (current.length > best.length) best = current;
+      current = [];
+    } else {
+      current.push({ x, y });
+    }
+  }
+  if (current.length > best.length) best = current;
+  return best;
 }
 
 function fixedGeometry() {
@@ -295,12 +310,30 @@ function assembleCandidate(difficulty, random, layoutSource = "generated", seed 
     };
   });
   const patrols = content.patrols.map((type, index) => {
-    const candidates = PATROL_CANDIDATES[type].filter(candidate =>
-      candidate.points.every(point => !forbidden.has(pointKey(point)))
-    );
-    const patrol = selectCandidates(candidates, 1, random, forbidden)[0];
-    patrol.points.forEach(point => forbidden.add(pointKey(point)));
-    return { ...patrol, id: `patrol-${index + 1}`, type, moving: true };
+    const rows = [...PATROL_ROWS[type]];
+    for (let position = rows.length - 1; position > 0; position -= 1) {
+      const choice = Math.floor(random() * (position + 1));
+      [rows[position], rows[choice]] = [rows[choice], rows[position]];
+    }
+    let points = [];
+    for (const row of rows) {
+      const run = longestFreeRun(row.zone, row.y, forbidden);
+      if (run.length >= MINIMUM_PATROL_LENGTH) {
+        points = run;
+        break;
+      }
+      if (run.length > points.length) points = run;
+    }
+    points.forEach(point => forbidden.add(pointKey(point)));
+    const anchor = points[Math.floor(points.length / 2)] ?? { x: 0, y: 0 };
+    return {
+      x: anchor.x,
+      y: anchor.y,
+      points,
+      id: `patrol-${index + 1}`,
+      type,
+      moving: true
+    };
   });
   const places = [
     { id: "left-home", type: "home", x: 0, y: 1, width: 2, height: 2,

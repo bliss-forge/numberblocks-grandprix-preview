@@ -436,3 +436,24 @@ test("자동차 정지선은 각 횡단보도의 실제 접근 방향 앞에 놓
     ]
   );
 });
+
+test("킥보드·자전거는 한 줄의 빈 구간 전체를 왕복한다", () => {
+  for (const difficulty of ["easy", "steady", "challenge"]) {
+    for (let seed = 0; seed < 20; seed += 1) {
+      const map = createSafetyRouteMap(difficulty, { seed });
+      for (const patrol of map.patrols) {
+        const path = map.trafficPaths.find(item => item.id === patrol.id);
+        const rows = new Set(path.points.map(point => point.y));
+        assert.equal(rows.size, 1, `${difficulty}/${seed} patrol spans one row`);
+        assert.ok(
+          path.points.length >= 5,
+          `${difficulty}/${seed} patrol length ${path.points.length}`
+        );
+        const xs = path.points.map(point => point.x);
+        for (let index = 1; index < xs.length; index += 1) {
+          assert.equal(xs[index], xs[index - 1] + 1, "contiguous run");
+        }
+      }
+    }
+  }
+});
