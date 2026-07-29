@@ -2,7 +2,8 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   cameraOffset,
-  targetArrow
+  targetArrow,
+  tourCameraPath
 } from "../src/safety-route-camera.mjs";
 import { createSafetyRouteState } from "../src/safety-route-model.mjs";
 
@@ -96,4 +97,30 @@ test("여덟 랜드마크는 모바일 카메라로 접근 가능한 보행길�
       `${place.id} is outside the nearest mobile camera`
     );
   }
+});
+
+test("투어 경로는 시작과 학교를 잇고 경계를 벗어나지 않는다", () => {
+  const world = { width: 32, height: 16 };
+  const viewport = { width: 7, height: 5 };
+  const path = tourCameraPath({
+    world,
+    viewport,
+    start: { x: 0, y: 3 },
+    goal: { x: 28, y: 11 },
+    steps: 6
+  });
+  assert.equal(path.length, 6);
+  assert.deepEqual(
+    path[0],
+    cameraOffset({ world, viewport, player: { x: 0, y: 3 } })
+  );
+  assert.deepEqual(
+    path[path.length - 1],
+    cameraOffset({ world, viewport, player: { x: 28, y: 11 } })
+  );
+  path.forEach(offset => {
+    assert.ok(offset.x >= 0 && offset.x <= world.width - viewport.width);
+    assert.ok(offset.y >= 0 && offset.y <= world.height - viewport.height);
+    assert.ok(Number.isInteger(offset.x) && Number.isInteger(offset.y));
+  });
 });

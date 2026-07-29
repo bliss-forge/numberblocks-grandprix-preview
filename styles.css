@@ -2040,7 +2040,7 @@ body[data-mode="safety"] .stage-lights {
   z-index: 3;
   background:
     repeating-linear-gradient(
-      180deg,
+      90deg,
       #fff 0 22%,
       var(--road-asphalt, #4d5965) 22% 38%
     );

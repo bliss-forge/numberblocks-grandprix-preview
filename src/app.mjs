@@ -60,7 +60,8 @@ import {
 } from "./safety-route-guidance.mjs";
 import {
   cameraOffset,
-  targetArrow
+  targetArrow,
+  tourCameraPath
 } from "./safety-route-camera.mjs";
 
 const audio = new AudioManager();
@@ -426,15 +427,17 @@ function renderSafetyRoute() {
     ) ?? state.safety.map.goal;
   const previousCamera = state.safetyView.camera;
   const animateCamera = state.safetyView.cameraRendered;
-  state.safetyView.camera = {
-    ...cameraOffset({
-      world: state.safety.map,
-      viewport,
-      player: state.safety.position,
-      previous: state.safetyView.camera
-    }),
-    ...viewport
-  };
+  state.safetyView.camera = state.safety.tourActive
+    ? { ...state.safetyView.camera, ...viewport }
+    : {
+      ...cameraOffset({
+        world: state.safety.map,
+        viewport,
+        player: state.safety.position,
+        previous: state.safetyView.camera
+      }),
+      ...viewport
+    };
   const nowMs = performance.now();
   const guidance = guidanceCells(
     state.safetyView.guidance,
@@ -497,7 +500,10 @@ function startSafetyRoute() {
   state.problem = null;
   state.buffer = "";
   const seed = Math.floor(Math.random() * 0x100000000);
-  state.safety = createSafetyRouteState(state.difficulty, { seed });
+  state.safety = createSafetyRouteState(state.difficulty, {
+    seed,
+    tourActive: true
+  });
   const mobile = window.innerWidth <= 640;
   state.safetyView = {
     camera: {
@@ -511,14 +517,65 @@ function startSafetyRoute() {
     guidance: createGuidanceState(performance.now()),
     lastMoveAt: 0,
     heldDirection: null,
-    holdTimer: 0
+    holdTimer: 0,
+    tourTimer: 0
   };
   dom.cheer.classList.remove("show");
   dom.hint.className = "toast";
   dom.hint.textContent = "";
   setPhase("playing");
   renderSafetyRoute();
+  void audio.playPrompt("safety-tour");
+  runSafetyTour();
+}
+
+function runSafetyTour() {
+  if (!state.safety || !state.safetyView) return;
+  const viewport = {
+    width: state.safetyView.camera.width,
+    height: state.safetyView.camera.height
+  };
+  const waypoints = tourCameraPath({
+    world: state.safety.map,
+    viewport,
+    start: state.safety.map.start,
+    goal: state.safety.map.goal
+  });
+  let index = 0;
+  const advance = () => {
+    if (
+      state.phase !== "playing" ||
+      state.mode !== "safety" ||
+      !state.safety?.tourActive
+    ) {
+      return;
+    }
+    if (index >= waypoints.length) {
+      endSafetyTour();
+      return;
+    }
+    state.safetyView.camera = { ...waypoints[index], ...viewport };
+    index += 1;
+    renderSafetyRoute();
+    state.safetyView.tourTimer = schedule(
+      advance,
+      index >= waypoints.length ? 800 : 500
+    );
+  };
+  advance();
+}
+
+function endSafetyTour() {
+  if (!state.safety) return;
+  if (state.safetyView?.tourTimer) {
+    clearTimeout(state.safetyView.tourTimer);
+    state.timers.delete(state.safetyView.tourTimer);
+    state.safetyView.tourTimer = 0;
+  }
+  state.safety = { ...state.safety, tourActive: false };
+  audio.cancel();
   void audio.playPrompt("safety-next-2");
+  renderSafetyRoute();
   scheduleSafetyWorldTick(performance.now());
 }
 
@@ -808,6 +865,10 @@ dom.stage.addEventListener("pointerdown", event => {
   const button = event.target.closest("[data-route-direction]");
   if (!button) return;
   event.preventDefault();
+  if (state.mode === "safety" && state.safety?.tourActive) {
+    endSafetyTour();
+    return;
+  }
   button.setPointerCapture?.(event.pointerId);
   startSafetyHold(button.dataset.routeDirection);
 });
@@ -837,6 +898,11 @@ document.addEventListener("keydown", event => {
     state.phase === "playing" &&
     state.mode === "safety"
   ) {
+    if (state.safety?.tourActive) {
+      event.preventDefault();
+      endSafetyTour();
+      return;
+    }
     const direction = directionForKey(event.key);
     const nowMs = performance.now();
     if (direction) {

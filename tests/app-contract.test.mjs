@@ -123,7 +123,10 @@ test("길찾기는 모델, 장면, 키보드와 모바일 방향 버튼을 앱�
 
 test("길찾기 라운드는 난수 시드를 만들고 월드 시간을 제한한다", () => {
   assert.match(app, /const seed = Math\.floor\(Math\.random\(\) \* 0x100000000\);/);
-  assert.match(app, /createSafetyRouteState\(state\.difficulty,\s*\{ seed \}\)/);
+  assert.match(
+    app,
+    /createSafetyRouteState\(state\.difficulty,\s*\{\s*seed,\s*tourActive:\s*true\s*\}\)/
+  );
   assert.match(app, /Math\.min\(250,\s*nowMs - previousMs\)/);
 });
 

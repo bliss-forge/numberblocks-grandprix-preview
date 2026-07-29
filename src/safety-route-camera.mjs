@@ -16,6 +16,19 @@ export function cameraOffset({ world, viewport, player }) {
   };
 }
 
+export function tourCameraPath({ world, viewport, start, goal, steps = 6 }) {
+  const from = cameraOffset({ world, viewport, player: start });
+  const to = cameraOffset({ world, viewport, player: goal });
+  const count = Math.max(1, Math.floor(steps));
+  return Array.from({ length: count }, (_, index) => {
+    const ratio = count === 1 ? 1 : index / (count - 1);
+    return {
+      x: Math.round(from.x + (to.x - from.x) * ratio),
+      y: Math.round(from.y + (to.y - from.y) * ratio)
+    };
+  });
+}
+
 export function targetArrow({ viewport, camera, target }) {
   const local = {
     x: target.x - camera.x,
