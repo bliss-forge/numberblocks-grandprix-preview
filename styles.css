@@ -1334,7 +1334,7 @@ body[data-state="celebrating"] .answer-box {
   }
 
   .mode-card:nth-child(4) {
-    grid-column: 2;
+    grid-column: auto;
   }
 
   .card-copy strong {
@@ -1743,14 +1743,20 @@ body[data-state="celebrating"] .answer-box {
 
 /* Safety route: flat picture-book neighborhood */
 .mode-grid {
-  grid-template-columns: repeat(5, minmax(155px, 230px));
-  width: min(96vw, 1260px);
+  grid-template-columns: repeat(6, minmax(140px, 205px));
+  width: min(97vw, 1330px);
 }
 
 .mode-card:nth-child(5) {
   --card-color: #d8cffb;
   --card-accent: #6847bd;
   transform: rotate(.8deg);
+}
+
+.mode-card:nth-child(6) {
+  --card-color: #ffdfb8;
+  --card-accent: #d9822b;
+  transform: translateY(-6px) rotate(-.6deg);
 }
 
 body[data-mode="safety"] #game {
@@ -3245,7 +3251,7 @@ body[data-mode="safety"] .stage-lights {
 
 @media (max-width: 900px) and (max-height: 500px) {
   .mode-grid {
-    grid-template-columns: repeat(5, minmax(0, 1fr));
+    grid-template-columns: repeat(6, minmax(0, 1fr));
   }
 
   body[data-mode="safety"] #game {
@@ -3752,6 +3758,305 @@ body[data-mode="safety"] .stage-lights {
   .srt-splash-banner,
   .srt-ending-hearts,
   .srt-ending-player {
+    animation: none;
+  }
+}
+
+/* Subway journey: Seoul metro adventure */
+body[data-mode="subway"] #game {
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 8px;
+  padding: 74px 2vw 14px;
+}
+
+body[data-mode="subway"] .answer-dock,
+body[data-mode="subway"] .number-pad,
+body[data-mode="subway"] .game-keyboard-note {
+  display: none;
+}
+
+body[data-mode="subway"] .stage-frame {
+  width: min(96vw, 1280px);
+  background: #eef3f8;
+}
+
+body[data-mode="subway"] .stage,
+body[data-mode="subway"] .subway-journey {
+  width: 100%;
+  height: 100%;
+}
+
+body[data-mode="subway"] .stage {
+  padding: 0;
+}
+
+body[data-mode="subway"] .stage-curtain,
+body[data-mode="subway"] .stage-floor,
+body[data-mode="subway"] .stage-lights {
+  display: none;
+}
+
+.subway-journey {
+  position: relative;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 10px;
+  padding: 12px 14px 14px;
+}
+
+.subway-journey .route-pad {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+}
+
+.subway-mission {
+  justify-self: center;
+  padding: 8px 18px;
+  border-radius: 999px;
+  border: 3px solid #31445b;
+  background: #fff;
+  color: #31445b;
+  font-size: clamp(15px, 1.8vw, 21px);
+  font-weight: 900;
+}
+
+.subway-stage {
+  display: grid;
+  place-items: center;
+  min-height: 0;
+}
+
+.subway-platform {
+  display: grid;
+  gap: 12px;
+  justify-items: center;
+  width: min(94%, 780px);
+}
+
+.subway-station-sign {
+  padding: 6px 22px;
+  border-radius: 12px;
+  border: 4px solid #31445b;
+  background: #fff;
+  color: #31445b;
+  font-size: clamp(18px, 2.4vw, 28px);
+  font-weight: 900;
+}
+
+.subway-line-goal {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: #fff8dd;
+  border: 3px solid #f4c542;
+  color: #31445b;
+  font-weight: 900;
+  font-size: clamp(13px, 1.6vw, 18px);
+}
+
+.subway-line-badge svg {
+  display: block;
+  width: clamp(34px, 4.4vw, 46px);
+  height: clamp(34px, 4.4vw, 46px);
+}
+
+.subway-track {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: clamp(120px, 26vh, 200px);
+  overflow: hidden;
+  border-radius: 16px;
+  background:
+    linear-gradient(#39424e 0 78%, #2c333d 78% 100%);
+}
+
+.subway-track::after {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 12%;
+  height: 5px;
+  background: #566270;
+  content: "";
+}
+
+.subway-train {
+  z-index: 1;
+  width: min(78%, 430px);
+}
+
+.subway-train svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.subway-train[data-stage="approaching"] {
+  animation: subway-approach 1.6s ease-out forwards;
+}
+
+.subway-train[data-stage="stopped"] {
+  transform: translateX(0);
+}
+
+.subway-train[data-stage="leaving"] {
+  animation: subway-leave .9s ease-in forwards;
+}
+
+@keyframes subway-approach {
+  from { transform: translateX(-130%); }
+  to { transform: translateX(0); }
+}
+
+@keyframes subway-leave {
+  from { transform: translateX(0); }
+  to { transform: translateX(135%); }
+}
+
+.subway-platform-edge {
+  width: 100%;
+  height: 16px;
+  border-radius: 6px;
+  background:
+    repeating-linear-gradient(90deg, #f7c948 0 26px, #59636f 26px 52px);
+}
+
+.subway-ride {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  gap: 10px;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+}
+
+.subway-map {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  border-radius: 16px;
+  border: 4px solid #dbe6f0;
+  background: #f7fafc;
+}
+
+.subway-map-art {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.subway-map-player {
+  position: absolute;
+  left: var(--map-x, 50%);
+  top: var(--map-y, 50%);
+  z-index: 1;
+  width: clamp(30px, 4.6vw, 46px);
+  transform: translate(-50%, -60%);
+  transition: left .9s ease, top .9s ease;
+}
+
+.subway-map-player img {
+  display: block;
+  width: 100%;
+  filter: drop-shadow(0 4px 4px rgba(37, 52, 93, .35));
+}
+
+.subway-ride-banner {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 16px;
+  border-radius: 999px;
+  border: 3px solid #31445b;
+  background: #fff;
+  color: #31445b;
+  font-size: clamp(13px, 1.7vw, 19px);
+  font-weight: 900;
+}
+
+.subway-door-state {
+  color: #8a94a3;
+}
+
+.subway-door-state[data-open="true"] {
+  color: #1c8a3c;
+}
+
+.subway-transfer {
+  display: grid;
+  gap: 16px;
+  justify-items: center;
+  animation: srt-splash-in .6s ease-out;
+}
+
+.subway-transfer-badge svg {
+  width: clamp(64px, 9vw, 92px);
+  height: clamp(64px, 9vw, 92px);
+}
+
+.subway-transfer-text {
+  color: #31445b;
+  font-size: clamp(18px, 2.6vw, 30px);
+  font-weight: 900;
+}
+
+.subway-arrived {
+  display: grid;
+  gap: 10px;
+  justify-items: center;
+}
+
+.subway-place-icon {
+  font-size: clamp(64px, 13vw, 130px);
+  line-height: 1;
+}
+
+.subway-arrived-player {
+  width: clamp(70px, 10vw, 110px);
+}
+
+.subway-arrived-hearts {
+  font-size: clamp(20px, 3vw, 32px);
+  animation: srt-splash-in .8s ease-out;
+}
+
+@media (max-width: 640px) {
+  .subway-journey {
+    padding: 8px;
+  }
+
+  .subway-ride-banner {
+    border-radius: 16px;
+  }
+
+  .subway-journey .route-pad {
+    right: 8px;
+    bottom: 8px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .subway-train[data-stage="approaching"],
+  .subway-train[data-stage="leaving"] {
+    animation: none;
+    transform: translateX(0);
+  }
+
+  .subway-map-player {
+    transition: none;
+  }
+
+  .subway-transfer,
+  .subway-arrived-hearts {
     animation: none;
   }
 }

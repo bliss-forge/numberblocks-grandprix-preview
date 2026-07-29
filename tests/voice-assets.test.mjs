@@ -107,3 +107,26 @@ test("SRT 여정 음성 키가 매니페스트와 생성 스크립트에 준비�
   assert.match(generator, /render_pack\("ko", KO_SRT/);
   assert.match(generator, /render_pack\("en", EN_SRT/);
 });
+
+test("지하철 여행 음성 키가 매니페스트와 생성 스크립트에 준비되어 있다", async () => {
+  const { VOICE } = await import("../src/audio-manifest.mjs");
+  const { SUBWAY_PLACES } = await import("../src/subway-map-data.mjs");
+  const keys = [
+    "subway-board", "subway-wrong-line", "subway-stop-check",
+    "subway-wrong-stop", "subway-transfer", "subway-arrive",
+    ...SUBWAY_PLACES.map(place => place.voiceKey)
+  ];
+  for (const key of keys) {
+    assert.ok(VOICE[key]?.ko.endsWith(`${key}.mp3`), `ko ${key}`);
+    assert.ok(VOICE[key]?.en.endsWith(`${key}.mp3`), `en ${key}`);
+  }
+
+  const generator = await readFile(
+    new URL("../scripts/generate_voice_pack.py", import.meta.url),
+    "utf8"
+  );
+  assert.match(generator, /"subway-transfer": "갈아타는 역이에요! 다음 열차를 찾아요!"/);
+  assert.match(generator, /"subway-place-zoo": "동물원에 가요!"/);
+  assert.match(generator, /render_pack\("ko", KO_SUBWAY/);
+  assert.match(generator, /render_pack\("en", EN_SUBWAY/);
+});

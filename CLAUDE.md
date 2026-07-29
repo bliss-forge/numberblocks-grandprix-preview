@@ -17,8 +17,9 @@
 | 3 | `sub` | 빼기 블록 | `assets/characters/three.png` |
 | 4 | `mul` | 곱하기 블록 | `assets/characters/four.png` |
 | 5 | `safety` | 안전한 길찾기 | `assets/characters/five.png` |
+| 6 | `subway` | 지하철 여행 | `assets/characters/six.png` |
 
-- 카드 순서는 1→5이며 `aria-keyshortcuts`도 같은 숫자를 유지한다.
+- 카드 순서는 1→6이며 `aria-keyshortcuts`도 같은 숫자를 유지한다.
 - 한국어 제목과 부제는 사용자의 명시적 승인 없이 바꾸지 않는다.
 - 카드 번호와 캐릭터 번호는 항상 일치해야 한다.
 

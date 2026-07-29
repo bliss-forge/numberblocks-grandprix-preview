@@ -89,6 +89,42 @@ EN_SRT = {
     "srt-wrong-car": "That is not the car. Look at the shape and the number plate again!",
     "srt-grandparents": "We met Grandma and Grandpa! Well done!",
 }
+KO_SUBWAY = {
+    "subway-board": "지하철을 탔어요! 출발해요!",
+    "subway-wrong-line": "그 호선이 아니에요. 번호를 잘 보고 기다려요!",
+    "subway-stop-check": "역에 도착했어요. 내릴 역이에요!",
+    "subway-wrong-stop": "여기가 아니에요. 조금 더 가요!",
+    "subway-transfer": "갈아타는 역이에요! 다음 열차를 찾아요!",
+    "subway-arrive": "목적지에 도착했어요! 정말 잘했어요!",
+    "subway-place-zoo": "동물원에 가요!",
+    "subway-place-lunapark": "놀이공원에 가요!",
+    "subway-place-baseball": "야구장에 가요!",
+    "subway-place-palace": "경복궁에 가요!",
+    "subway-place-namsan": "남산타워에 가요!",
+    "subway-place-hanriver": "한강공원에 가요!",
+    "subway-place-skypark": "하늘공원에 가요!",
+    "subway-place-childpark": "어린이대공원에 가요!",
+    "subway-place-lake": "석촌호수에 가요!",
+    "subway-place-assembly": "국회의사당에 가요!",
+}
+EN_SUBWAY = {
+    "subway-board": "We are on the subway! Off we go!",
+    "subway-wrong-line": "That is not our line. Check the number and wait!",
+    "subway-stop-check": "We have arrived. This is our stop!",
+    "subway-wrong-stop": "Not this station. A little further!",
+    "subway-transfer": "This is our transfer station! Find the next train!",
+    "subway-arrive": "We have arrived! Well done!",
+    "subway-place-zoo": "Let's go to the zoo!",
+    "subway-place-lunapark": "Let's go to the theme park!",
+    "subway-place-baseball": "Let's go to the baseball park!",
+    "subway-place-palace": "Let's go to the palace!",
+    "subway-place-namsan": "Let's go to Namsan Tower!",
+    "subway-place-hanriver": "Let's go to the river park!",
+    "subway-place-skypark": "Let's go to the sky park!",
+    "subway-place-childpark": "Let's go to the children's park!",
+    "subway-place-lake": "Let's go to the lake!",
+    "subway-place-assembly": "Let's go to the assembly hall!",
+}
 KO_ONES = ["", "일", "이", "삼", "사", "오", "육", "칠", "팔", "구"]
 EN_ONES = [
     "", "one", "two", "three", "four", "five", "six", "seven",
@@ -172,9 +208,11 @@ async def main():
     await render_pack("ko", KO_RETRIES, KO_VOICE, "-8%", "-2Hz")
     await render_pack("ko", KO_SAFETY, KO_VOICE, "-5%", "+2Hz")
     await render_pack("ko", KO_SRT, KO_VOICE, "-5%", "+2Hz")
+    await render_pack("ko", KO_SUBWAY, KO_VOICE, "-5%", "+2Hz")
     await render_pack("en", EN_PROMPTS, EN_VOICE, "-4%", "+0Hz")
     await render_pack("en", EN_SAFETY, EN_VOICE, "-5%", "+2Hz")
     await render_pack("en", EN_SRT, EN_VOICE, "-5%", "+2Hz")
+    await render_pack("en", EN_SUBWAY, EN_VOICE, "-5%", "+2Hz")
     await render_pack("en", EN, EN_VOICE, "+4%", "+7Hz")
 
 

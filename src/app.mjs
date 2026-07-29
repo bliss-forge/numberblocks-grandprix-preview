@@ -77,6 +77,18 @@ import {
   renderSrtJourney,
   updateSrtJourney
 } from "./srt-journey-scene.mjs";
+import {
+  advanceSubwayWorld,
+  attemptSubwayMove,
+  createSubwayJourney,
+  currentLeg,
+  currentTrain,
+  rideStation
+} from "./subway-journey.mjs";
+import {
+  renderSubwayJourney,
+  updateSubwayJourney
+} from "./subway-scene.mjs";
 
 const audio = new AudioManager();
 const $ = id => document.getElementById(id);
@@ -112,7 +124,7 @@ const state = {
   safetyView: null,
   buffer: "",
   stars: 0,
-  streak: { count: 0, add: 0, sub: 0, mul: 0, safety: 0 },
+  streak: { count: 0, add: 0, sub: 0, mul: 0, safety: 0, subway: 0 },
   wrongCount: 0,
   round: 0,
   hintTimer: 0,
@@ -663,6 +675,10 @@ function stopSafetyHold() {
 
 function startSafetyHold(direction) {
   stopSafetyHold();
+  if (state.subway) {
+    moveSubway(direction);
+    return;
+  }
   if (state.srt) {
     moveSrt(direction);
     return;
@@ -859,6 +875,141 @@ async function completeSrtJourney() {
   }, 1800);
 }
 
+function startSubwayJourney() {
+  stopSafetyHold();
+  clearTimers();
+  audio.cancel();
+  state.round += 1;
+  state.problem = null;
+  state.buffer = "";
+  const seed = Math.floor(Math.random() * 0x100000000);
+  state.subway = createSubwayJourney(state.difficulty, seed);
+  state.subwayScene = renderSubwayJourney(document, state.subway);
+  dom.stage.replaceChildren(state.subwayScene);
+  dom.problem.textContent =
+    `${state.subway.place.icon} ${state.subway.place.label}에 가요!`;
+  dom.cheer.classList.remove("show");
+  dom.hint.className = "toast";
+  dom.hint.textContent = "";
+  setPhase("playing");
+  audio.playSfx("win");
+  showHint(`${currentLeg(state.subway).line}호선을 찾아 타요!`);
+  void audio.playPrompt(state.subway.place.voiceKey);
+  scheduleSubwayTick(performance.now());
+}
+
+function scheduleSubwayTick(previousMs = performance.now()) {
+  schedule(() => {
+    if (
+      state.phase !== "playing" ||
+      state.mode !== "subway" ||
+      !state.subway
+    ) {
+      return;
+    }
+    const nowMs = performance.now();
+    const previous = state.subway;
+    state.subway = advanceSubwayWorld(
+      state.subway,
+      Math.min(400, nowMs - previousMs)
+    );
+    if (previous.phase === "platform" && state.subway.phase === "platform" &&
+      previous.platform.stage !== "stopped" &&
+      state.subway.platform.stage === "stopped") {
+      const train = currentTrain(state.subway);
+      const target = currentLeg(state.subway).line;
+      audio.playSfx("key");
+      showHint(train.line === target
+        ? `${train.line}호선 열차예요! ↑ 키로 타요`
+        : `${train.line}호선 열차는 그냥 보내요`);
+    }
+    if (previous.phase === "ride" && state.subway.phase === "ride" &&
+      !previous.ride.doorOpen && state.subway.ride.doorOpen) {
+      const leg = currentLeg(state.subway);
+      const station = rideStation(state.subway);
+      audio.playSfx("key");
+      if (station === leg.stations[leg.stations.length - 1]) {
+        showHint(`${station}역이에요! ↓ 키로 내려요`);
+        audio.cancel();
+        void audio.playPrompt("subway-stop-check");
+      } else {
+        showHint(`${station}역이에요. 아직 더 가요`);
+      }
+    }
+    if (previous.phase === "transfer" && state.subway.phase === "platform") {
+      showHint(`${currentLeg(state.subway).line}호선 승강장이에요!`);
+    }
+    updateSubwayJourney(state.subwayScene, state.subway);
+    scheduleSubwayTick(nowMs);
+  }, 150);
+}
+
+function moveSubway(direction) {
+  if (
+    state.phase !== "playing" ||
+    state.mode !== "subway" ||
+    !state.subway
+  ) {
+    return;
+  }
+  audio.playSfx("key");
+  const result = attemptSubwayMove(state.subway, direction);
+  state.subway = result.state;
+  updateSubwayJourney(state.subwayScene, state.subway);
+  const event = result.event;
+  if (event.type === "boarded") {
+    audio.playSfx("win");
+    showHint(`${event.line}호선을 탔어요! 출발해요`);
+    audio.cancel();
+    void audio.playPrompt("subway-board");
+  } else if (event.type === "wrong-line") {
+    showHint(`그건 ${event.line}호선이에요! ${event.target}호선을 기다려요`);
+    audio.cancel();
+    void audio.playPrompt("subway-wrong-line");
+  } else if (event.type === "no-train") {
+    showHint("열차가 완전히 설 때까지 기다려요");
+  } else if (event.type === "door-closed") {
+    showHint("문이 닫혀 있어요. 역에 서면 내릴 수 있어요");
+  } else if (event.type === "not-yet") {
+    showHint(`여기는 ${event.station}역이에요. 아직 아니에요!`);
+    audio.cancel();
+    void audio.playPrompt("subway-wrong-stop");
+  } else if (event.type === "transfer") {
+    audio.playSfx("win");
+    showHint(`${event.station}역이에요! ${event.nextLine}호선으로 갈아타요`);
+    audio.cancel();
+    void audio.playPrompt("subway-transfer");
+  } else if (event.type === "arrived") {
+    audio.playSfx("win");
+    showHint(`${state.subway.place.label}에 도착했어요!`);
+    schedule(() => {
+      void completeSubwayJourney();
+    }, 2000);
+  }
+}
+
+async function completeSubwayJourney() {
+  const round = state.round;
+  setPhase("celebrating");
+  clearTimers();
+  audio.cancel();
+  state.stars += 1;
+  state.streak.subway += 1;
+  dom.stars.textContent = String(state.stars);
+  dom.cheer.textContent =
+    `${state.subway.place.icon} ${state.subway.place.label}에 도착했어요!`;
+  dom.cheer.classList.add("show");
+  audio.playSfx("win");
+  await audio.playPrompt("subway-arrive");
+  if (state.phase !== "celebrating" || state.round !== round) return;
+  schedule(() => {
+    dom.cheer.classList.remove("show");
+    state.subway = null;
+    state.subwayScene = null;
+    goHome();
+  }, 1800);
+}
+
 function scheduleCountHint(answer) {
   schedule(() => {
     if (state.phase !== "playing" || state.problem?.answer !== answer) return;
@@ -964,8 +1115,14 @@ function startMode(mode) {
   setMode(mode);
   state.srt = null;
   state.srtScene = null;
+  state.subway = null;
+  state.subwayScene = null;
   if (mode === "safety") {
     startSafetyRoute();
+  } else if (mode === "subway") {
+    state.safety = null;
+    state.safetyView = null;
+    startSubwayJourney();
   } else {
     state.safety = null;
     state.safetyView = null;
@@ -987,6 +1144,8 @@ function goHome() {
   state.safetyView = null;
   state.srt = null;
   state.srtScene = null;
+  state.subway = null;
+  state.subwayScene = null;
   state.buffer = "";
   setMode(null);
   dom.cheer.classList.remove("show");
@@ -1036,7 +1195,8 @@ dom.stage.addEventListener("pointerdown", event => {
 dom.stage.addEventListener("click", event => {
   const button = event.target.closest("[data-route-direction]");
   if (!button || event.detail !== 0) return;
-  if (state.srt) moveSrt(button.dataset.routeDirection);
+  if (state.subway) moveSubway(button.dataset.routeDirection);
+  else if (state.srt) moveSrt(button.dataset.routeDirection);
   else moveSafetyRoute(button.dataset.routeDirection);
 });
 document.addEventListener("pointerup", stopSafetyHold);
@@ -1054,6 +1214,15 @@ document.addEventListener("keydown", event => {
     event.preventDefault();
     goHome();
     return;
+  }
+
+  if (state.phase === "playing" && state.mode === "subway" && state.subway) {
+    const direction = directionForKey(event.key);
+    if (direction) {
+      event.preventDefault();
+      if (!event.repeat) moveSubway(direction);
+      return;
+    }
   }
 
   if (
@@ -1120,7 +1289,8 @@ document.addEventListener("keydown", event => {
       2: "add",
       3: "sub",
       4: "mul",
-      5: "safety"
+      5: "safety",
+      6: "subway"
     };
     if (modes[digit]) {
       event.preventDefault();

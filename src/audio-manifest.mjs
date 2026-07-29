@@ -33,6 +33,33 @@ const safety = Object.fromEntries(
   ])
 );
 
+const subway = Object.fromEntries(
+  [
+    "subway-board",
+    "subway-wrong-line",
+    "subway-stop-check",
+    "subway-wrong-stop",
+    "subway-transfer",
+    "subway-arrive",
+    "subway-place-zoo",
+    "subway-place-lunapark",
+    "subway-place-baseball",
+    "subway-place-palace",
+    "subway-place-namsan",
+    "subway-place-hanriver",
+    "subway-place-skypark",
+    "subway-place-childpark",
+    "subway-place-lake",
+    "subway-place-assembly"
+  ].map(key => [
+    key,
+    {
+      ko: `assets/audio/voice/ko/${key}.mp3`,
+      en: `assets/audio/voice/en/${key}.mp3`
+    }
+  ])
+);
+
 const srt = Object.fromEntries(
   [
     "srt-arrive",
@@ -67,6 +94,7 @@ export const VOICE = Object.freeze({
   "prompt-mul": { ko: "assets/audio/voice/ko/prompt-mul.mp3" },
   ...safety,
   ...srt,
+  ...subway,
   ...numbers,
   ...Object.fromEntries(
     Array.from({ length: 4 }, (_, index) => [

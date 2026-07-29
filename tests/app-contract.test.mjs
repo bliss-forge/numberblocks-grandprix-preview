@@ -38,14 +38,15 @@ test("게임 화면은 화면 전환 뒤 프로그램 방식으로 포커스를 
   );
 });
 
-test("홈은 다섯 가지 놀이와 1~5 바로가기 키를 제공한다", () => {
-  assert.equal((html.match(/class="mode-card(?: [^"]*)?"/g) ?? []).length, 5);
+test("홈은 여섯 가지 놀이와 1~6 바로가기 키를 제공한다", () => {
+  assert.equal((html.match(/class="mode-card(?: [^"]*)?"/g) ?? []).length, 6);
   for (const [mode, key] of [
     ["count", "1"],
     ["add", "2"],
     ["sub", "3"],
     ["mul", "4"],
-    ["safety", "5"]
+    ["safety", "5"],
+    ["subway", "6"]
   ]) {
     assert.match(
       html,
@@ -53,7 +54,9 @@ test("홈은 다섯 가지 놀이와 1~5 바로가기 키를 제공한다", () =
     );
   }
   assert.match(html, /안전한 길찾기/);
+  assert.match(html, /지하철 여행/);
   assert.match(html, /<kbd>5<\/kbd>/);
+  assert.match(html, /<kbd>6<\/kbd>/);
 });
 
 test("홈 카드 번호는 같은 번호의 블럭 친구를 사용한다", () => {
@@ -62,7 +65,8 @@ test("홈 카드 번호는 같은 번호의 블럭 친구를 사용한다", () =
     ["add", "2", "two"],
     ["sub", "3", "three"],
     ["mul", "4", "four"],
-    ["safety", "5", "five"]
+    ["safety", "5", "five"],
+    ["subway", "6", "six"]
   ]) {
     const card = html.match(
       new RegExp(
