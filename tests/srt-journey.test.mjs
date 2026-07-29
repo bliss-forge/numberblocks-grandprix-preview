@@ -2,7 +2,6 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   SRT_STATIONS,
-  CAR_SHAPES,
   RIDE_DOOR,
   RIDE_SEAT,
   advanceSrtWorld,
@@ -21,12 +20,36 @@ test("역 순서는 수서-동탄-대전-대구-부산이다", () => {
 test("같은 시드는 같은 좌석·차량 목표를 만든다", () => {
   const first = createSrtJourney(77);
   const second = createSrtJourney(77);
+  assert.equal(first.phase, "station");
   assert.deepEqual(first.target, second.target);
-  assert.equal(first.carShapeIndex, second.carShapeIndex);
+  assert.deepEqual(first.parking, second.parking);
   assert.ok(first.target.car >= 1 && first.target.car <= 5);
   assert.ok(first.target.row >= 1 && first.target.row <= 4);
   assert.ok(["A", "B", "C", "D"].includes(first.target.letter));
   assert.equal(first.targetStation, "부산");
+});
+
+test("수서역 스플래시는 잠시 뒤 좌석 찾기로 넘어간다", () => {
+  let state = createSrtJourney(5);
+  assert.equal(attemptSrtMove(state, "right").event.type, "ignored");
+  state = advanceSrtWorld(state, 2800);
+  assert.equal(state.phase, "seat");
+});
+
+test("주차장에는 8대가 서 있고 목표 모양 함정이 2대 이상 있다", () => {
+  const { parking } = createSrtJourney(13);
+  assert.equal(parking.cars.length, 8);
+  const sameShape = parking.cars.filter(
+    car => car.shape === parking.targetShape
+  );
+  assert.ok(sameShape.length >= 3, "target + at least two decoys");
+  assert.equal(
+    sameShape.filter(car => car.plate === parking.targetPlate).length,
+    1
+  );
+  const plates = new Set(parking.cars.map(car => car.plate));
+  assert.equal(plates.size, parking.cars.length, "plates are unique");
+  parking.cars.forEach(car => assert.match(car.plate, /^\d{4}$/));
 });
 
 test("좌석 좌표와 이름이 서로 일치한다", () => {
@@ -45,7 +68,7 @@ test("좌석 좌표와 이름이 서로 일치한다", () => {
 });
 
 test("목표 좌석에 앉으면 탑승 단계로, 다른 좌석은 안내만 한다", () => {
-  const journey = createSrtJourney(3);
+  const journey = { ...createSrtJourney(3), phase: "seat" };
   const cell = seatCell(journey.target);
   const beside = { x: cell.x, y: 2 };
   const direction = cell.y < 2 ? "up" : "down";
@@ -105,22 +128,37 @@ test("기차는 4초 이동 후 정차하고 부산이 아니면 다시 태운�
   assert.equal(arrived.state.phase, "parking");
 });
 
-test("그림자와 같은 모양 차를 고르면 성공한다", () => {
+test("모양과 번호판이 모두 맞는 차를 골라야 성공한다", () => {
   const journey = { ...createSrtJourney(11), phase: "parking" };
-  const wrongIndex = (journey.carShapeIndex + 1) % CAR_SHAPES.length;
+  const { cars, targetShape, targetPlate } = journey.parking;
+  const targetIndex = cars.findIndex(car =>
+    car.shape === targetShape && car.plate === targetPlate
+  );
+  const decoyIndex = cars.findIndex(car =>
+    car.shape === targetShape && car.plate !== targetPlate
+  );
+  const otherIndex = cars.findIndex(car => car.shape !== targetShape);
 
-  const wrong = attemptSrtMove(
-    { ...journey, position: { x: wrongIndex, y: 1 } },
+  const decoy = attemptSrtMove(
+    { ...journey, position: { x: decoyIndex, y: 1 } },
     "up"
   );
-  assert.equal(wrong.event.type, "wrong-car");
-  assert.equal(wrong.state.phase, "parking");
+  assert.equal(decoy.event.type, "wrong-car");
+  assert.equal(decoy.event.shapeMatches, true);
+  assert.equal(decoy.state.phase, "parking");
+
+  const other = attemptSrtMove(
+    { ...journey, position: { x: otherIndex, y: 1 } },
+    "up"
+  );
+  assert.equal(other.event.type, "wrong-car");
+  assert.equal(other.event.shapeMatches, false);
 
   const found = attemptSrtMove(
-    { ...journey, position: { x: journey.carShapeIndex, y: 1 } },
+    { ...journey, position: { x: targetIndex, y: 1 } },
     "up"
   );
   assert.equal(found.event.type, "car-found");
-  assert.equal(found.event.shape, CAR_SHAPES[journey.carShapeIndex]);
+  assert.equal(found.event.plate, targetPlate);
   assert.equal(found.state.phase, "done");
 });

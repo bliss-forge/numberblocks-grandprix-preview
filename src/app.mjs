@@ -741,7 +741,7 @@ function startSrtJourney() {
   dom.stage.replaceChildren(state.srtScene);
   dom.problem.textContent = "SRT를 타고 할아버지 할머니댁에 가요!";
   audio.playSfx("win");
-  showHint(`수서역이에요! ${targetSeatName(state.srt)} 좌석을 찾아요!`);
+  showHint("수서역에 도착했어요!");
   scheduleSrtTick(performance.now());
 }
 
@@ -755,12 +755,16 @@ function scheduleSrtTick(previousMs = performance.now()) {
       return;
     }
     const nowMs = performance.now();
-    if (state.srt.phase === "ride") {
+    if (state.srt.phase === "station" || state.srt.phase === "ride") {
+      const wasPhase = state.srt.phase;
       const wasOpen = state.srt.ride.doorOpen;
       state.srt = advanceSrtWorld(
         state.srt,
         Math.min(400, nowMs - previousMs)
       );
+      if (wasPhase === "station" && state.srt.phase === "seat") {
+        showHint(`${targetSeatName(state.srt)} 좌석을 찾아요!`);
+      }
       if (!wasOpen && state.srt.ride.doorOpen) {
         audio.playSfx("key");
         showHint(
@@ -797,9 +801,15 @@ function moveSrt(direction) {
     audio.playSfx("win");
     showHint(`${event.station}역에 내렸어요! 할아버지 할머니 차를 찾아요!`);
   } else if (event.type === "wrong-car") {
-    showHint("이 차가 아니에요. 그림자 모양을 잘 봐요!");
+    showHint(event.shapeMatches
+      ? `모양은 맞아요! 번호판 ${state.srt.parking.targetPlate}를 찾아요!`
+      : "이 모양이 아니에요. 그림자를 잘 봐요!");
   } else if (event.type === "car-found") {
-    void completeSrtJourney();
+    audio.playSfx("win");
+    showHint("차를 찾았어요! 할아버지 할머니예요!");
+    schedule(() => {
+      void completeSrtJourney();
+    }, 2400);
   }
 }
 

@@ -1,6 +1,5 @@
 import { characterAsset } from "./character-spec.mjs";
 import {
-  CAR_SHAPES,
   CAR_SHAPE_LABELS,
   RIDE_DOOR,
   SRT_CARS,
@@ -12,6 +11,11 @@ import {
   targetSeatName,
   trainWalkable
 } from "./srt-journey.mjs";
+import {
+  grandmaSvg,
+  grandpaSvg,
+  parkingCarSvg
+} from "./safety-route-art.mjs";
 
 function playerImage(document) {
   const image = document.createElement("img");
@@ -22,6 +26,9 @@ function playerImage(document) {
 }
 
 function missionText(state) {
+  if (state.phase === "station") {
+    return "수서역에 도착했어요!";
+  }
   if (state.phase === "seat") {
     return `${targetSeatName(state)} 좌석을 찾아요!`;
   }
@@ -29,9 +36,36 @@ function missionText(state) {
     return `${state.targetStation}역에 내려야 해요!`;
   }
   if (state.phase === "parking") {
-    return "할아버지 할머니 차를 찾아보아요!";
+    return `이 모양의 ${state.parking.targetPlate} 번호 차를 찾아보아요!`;
   }
   return "할아버지 할머니를 만났어요!";
+}
+
+function renderStationPhase(document, state, stage) {
+  const splash = document.createElement("div");
+  splash.className = "srt-station-splash";
+
+  const facade = document.createElement("div");
+  facade.className = "srt-splash-facade";
+  const canopy = document.createElement("div");
+  canopy.className = "srt-splash-canopy";
+  const glass = document.createElement("div");
+  glass.className = "srt-splash-glass";
+  const sign = document.createElement("div");
+  sign.className = "srt-splash-sign";
+  sign.textContent = "수서역";
+  const logo = document.createElement("div");
+  logo.className = "srt-splash-logo";
+  logo.textContent = "SRT";
+  facade.append(canopy, glass, sign, logo);
+
+  const banner = document.createElement("div");
+  banner.className = "srt-splash-banner";
+  banner.textContent = "🚄 SRT를 타고 할아버지 할머니댁에 가요!";
+
+  splash.append(facade, banner);
+  stage.append(splash);
+  return null;
 }
 
 function renderSeatPhase(document, state, stage) {
@@ -75,9 +109,22 @@ function renderSeatPhase(document, state, stage) {
 function renderRidePhase(document, state, stage) {
   const room = document.createElement("div");
   room.className = "srt-ride";
+  room.dataset.moving = String(Boolean(state.ride.moving));
 
-  const windowStrip = document.createElement("div");
-  windowStrip.className = "srt-window";
+  const trainWindow = document.createElement("div");
+  trainWindow.className = "srt-window";
+  const scenery = document.createElement("div");
+  scenery.className = "srt-scenery";
+  scenery.setAttribute("aria-hidden", "true");
+  const platform = document.createElement("div");
+  platform.className = "srt-platform";
+  platform.textContent =
+    `${SRT_STATIONS[state.ride.stationIndex]}역`;
+  trainWindow.append(scenery, platform);
+  room.append(trainWindow);
+
+  const stationStrip = document.createElement("div");
+  stationStrip.className = "srt-station-strip";
   SRT_STATIONS.forEach((station, index) => {
     const stop = document.createElement("span");
     stop.className = "srt-station";
@@ -85,9 +132,9 @@ function renderRidePhase(document, state, stage) {
     stop.textContent = `${station}`;
     if (index === state.ride.stationIndex) stop.dataset.current = "true";
     if (station === state.targetStation) stop.dataset.target = "true";
-    windowStrip.append(stop);
+    stationStrip.append(stop);
   });
-  room.append(windowStrip);
+  room.append(stationStrip);
 
   const announcement = document.createElement("div");
   announcement.className = "srt-announcement";
@@ -122,26 +169,31 @@ function renderParkingPhase(document, state, stage) {
   const silhouette = document.createElement("div");
   silhouette.className = "srt-silhouette";
   const shadow = document.createElement("span");
-  shadow.className =
-    `srt-car-shape srt-car-shadow srt-shape-${CAR_SHAPES[state.carShapeIndex]}`;
+  shadow.className = "srt-car-shadow";
   shadow.setAttribute("role", "img");
   shadow.setAttribute("aria-label", "찾아야 하는 차 그림자");
+  shadow.innerHTML = parkingCarSvg(state.parking.targetShape, "");
   const hint = document.createElement("span");
   hint.className = "srt-silhouette-hint";
-  hint.textContent = "이 그림자와 같은 차를 찾아요";
+  hint.textContent =
+    `이 모양의 ${state.parking.targetPlate} 번호 차를 찾아보아요`;
   silhouette.append(shadow, hint);
   lot.append(silhouette);
 
   const row = document.createElement("div");
   row.className = "srt-parking-row";
-  CAR_SHAPES.forEach((shape, index) => {
+  state.parking.cars.forEach((car, index) => {
     const slot = document.createElement("div");
     slot.className = "srt-parking-slot";
     slot.style.setProperty("--srt-x", index + 1);
     const art = document.createElement("span");
-    art.className = `srt-car-shape srt-shape-${shape}`;
+    art.className = `srt-parked-car srt-shape-${car.shape}`;
     art.setAttribute("role", "img");
-    art.setAttribute("aria-label", CAR_SHAPE_LABELS[shape]);
+    art.setAttribute(
+      "aria-label",
+      `${CAR_SHAPE_LABELS[car.shape]} ${car.plate}`
+    );
+    art.innerHTML = parkingCarSvg(car.shape, car.plate);
     slot.append(art);
     row.append(slot);
   });
@@ -152,6 +204,38 @@ function renderParkingPhase(document, state, stage) {
   lot.append(walk);
   stage.append(lot);
   return walk;
+}
+
+function renderDonePhase(document, state, stage) {
+  const ending = document.createElement("div");
+  ending.className = "srt-ending";
+
+  const grandpa = document.createElement("span");
+  grandpa.className = "srt-elder srt-grandpa";
+  grandpa.setAttribute("role", "img");
+  grandpa.setAttribute("aria-label", "할아버지 넘버블록");
+  grandpa.innerHTML = grandpaSvg();
+
+  const hero = playerImage(document);
+  hero.className = "srt-player srt-ending-player";
+
+  const grandma = document.createElement("span");
+  grandma.className = "srt-elder srt-grandma";
+  grandma.setAttribute("role", "img");
+  grandma.setAttribute("aria-label", "할머니 넘버블록");
+  grandma.innerHTML = grandmaSvg();
+
+  const hearts = document.createElement("div");
+  hearts.className = "srt-ending-hearts";
+  hearts.textContent = "💛 💚 💙";
+  hearts.setAttribute("aria-hidden", "true");
+
+  ending.append(grandpa, hero, grandma);
+  const wrap = document.createElement("div");
+  wrap.className = "srt-ending-wrap";
+  wrap.append(hearts, ending);
+  stage.append(wrap);
+  return null;
 }
 
 export function renderSrtJourney(document, state) {
@@ -169,9 +253,11 @@ export function renderSrtJourney(document, state) {
   root.append(stage);
 
   let playerLayer = null;
-  if (state.phase === "seat") playerLayer = renderSeatPhase(document, state, stage);
+  if (state.phase === "station") playerLayer = renderStationPhase(document, state, stage);
+  else if (state.phase === "seat") playerLayer = renderSeatPhase(document, state, stage);
   else if (state.phase === "ride") playerLayer = renderRidePhase(document, state, stage);
   else if (state.phase === "parking") playerLayer = renderParkingPhase(document, state, stage);
+  else if (state.phase === "done") playerLayer = renderDonePhase(document, state, stage);
 
   const pad = document.createElement("div");
   pad.className = "route-pad";
@@ -195,7 +281,6 @@ export function renderSrtJourney(document, state) {
   player.style.setProperty("--srt-x", state.position.x + 1);
   player.style.setProperty("--srt-y", state.position.y + 1);
   if (playerLayer) playerLayer.append(player);
-  else stage.append(player);
 
   root._srtView = { document, mission, stage, player, phase: state.phase };
   updateSrtJourney(root, state);
@@ -224,6 +309,12 @@ export function updateSrtJourney(root, state) {
   if (state.phase === "ride") {
     const announcement = root.querySelector?.(".srt-announcement");
     if (announcement) announcement.textContent = rideAnnouncement(state);
+    const room = root.querySelector?.(".srt-ride");
+    if (room) room.dataset.moving = String(Boolean(state.ride.moving));
+    const platform = root.querySelector?.(".srt-platform");
+    if (platform) {
+      platform.textContent = `${SRT_STATIONS[state.ride.stationIndex]}역`;
+    }
     const door = root.querySelector?.(".srt-door");
     if (door) {
       door.dataset.open = String(Boolean(state.ride.doorOpen));

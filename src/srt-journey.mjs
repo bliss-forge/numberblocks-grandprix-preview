@@ -5,18 +5,21 @@ export const SEAT_LETTERS = Object.freeze(["A", "B", "C", "D"]);
 export const TRAIN_WIDTH = SRT_CARS * 5 + 1;
 export const TRAIN_HEIGHT = 5;
 export const CAR_SHAPES = Object.freeze([
-  "sedan", "suv", "van", "truck", "sports"
+  "sedan", "suv", "van", "truck", "sports", "hatchback"
 ]);
 export const CAR_SHAPE_LABELS = Object.freeze({
   sedan: "세단",
   suv: "SUV",
   van: "미니밴",
   truck: "트럭",
-  sports: "스포츠카"
+  sports: "스포츠카",
+  hatchback: "해치백"
 });
+export const PARKING_SLOTS = 8;
 
 const TRAVEL_MS = 4000;
 const STOP_MS = 5000;
+const STATION_SPLASH_MS = 2800;
 const LETTER_ROWS = Object.freeze({ A: 0, B: 1, C: 3, D: 4 });
 const ROW_LETTERS = Object.freeze({ 0: "A", 1: "B", 3: "C", 4: "D" });
 export const RIDE_DOOR = Object.freeze({ x: 2, y: 2 });
@@ -61,18 +64,52 @@ export function trainWalkable(x, y) {
   return x % 5 !== 0;
 }
 
+function buildParkingLot(random) {
+  const targetShape = CAR_SHAPES[Math.floor(random() * CAR_SHAPES.length)];
+  const plates = new Set();
+  const nextPlate = () => {
+    let plate;
+    do {
+      plate = String(1000 + Math.floor(random() * 9000));
+    } while (plates.has(plate));
+    plates.add(plate);
+    return plate;
+  };
+  const targetPlate = nextPlate();
+  const slots = Array.from({ length: PARKING_SLOTS }, () => null);
+  const openSlots = () => slots.flatMap(
+    (slot, index) => (slot === null ? [index] : [])
+  );
+  const takeSlot = () => {
+    const open = openSlots();
+    return open[Math.floor(random() * open.length)];
+  };
+  slots[takeSlot()] = { shape: targetShape, plate: targetPlate };
+  for (let decoy = 0; decoy < 2; decoy += 1) {
+    slots[takeSlot()] = { shape: targetShape, plate: nextPlate() };
+  }
+  openSlots().forEach(index => {
+    slots[index] = {
+      shape: CAR_SHAPES[Math.floor(random() * CAR_SHAPES.length)],
+      plate: nextPlate()
+    };
+  });
+  return { cars: slots, targetShape, targetPlate };
+}
+
 export function createSrtJourney(seed = 0) {
   const random = seededRandom(seed);
   return {
-    phase: "seat",
+    phase: "station",
     seed,
+    introMs: 0,
     target: {
       car: 1 + Math.floor(random() * SRT_CARS),
       row: 1 + Math.floor(random() * SEAT_ROWS),
       letter: SEAT_LETTERS[Math.floor(random() * SEAT_LETTERS.length)]
     },
     targetStation: "부산",
-    carShapeIndex: Math.floor(random() * CAR_SHAPES.length),
+    parking: buildParkingLot(random),
     position: { x: 0, y: 2 },
     ride: { stationIndex: 0, moving: true, doorOpen: false, phaseMs: 0 }
   };
@@ -88,7 +125,7 @@ function move(state, position, event, extra = {}) {
 
 export function attemptSrtMove(state, direction) {
   const offset = DIRECTIONS[direction];
-  if (!offset || state.phase === "done") {
+  if (!offset || state.phase === "done" || state.phase === "station") {
     return { state, event: { type: "ignored" } };
   }
   const next = {
@@ -142,21 +179,25 @@ export function attemptSrtMove(state, direction) {
   }
 
   if (state.phase === "parking") {
-    if (next.x < 0 || next.x > 4 || next.y < 0 || next.y > 1) {
+    if (next.x < 0 || next.x >= PARKING_SLOTS || next.y < 0 || next.y > 1) {
       return move(state, { ...state.position }, { type: "blocked" });
     }
     if (next.y === 0) {
-      if (next.x === state.carShapeIndex) {
+      const car = state.parking.cars[next.x];
+      if (car.shape === state.parking.targetShape &&
+        car.plate === state.parking.targetPlate) {
         return move(state, next, {
           type: "car-found",
-          shape: CAR_SHAPES[next.x]
+          shape: car.shape,
+          plate: car.plate
         }, { phase: "done" });
       }
-      return move(
-        state,
-        { ...state.position },
-        { type: "wrong-car", shape: CAR_SHAPES[next.x] }
-      );
+      return move(state, { ...state.position }, {
+        type: "wrong-car",
+        shape: car.shape,
+        plate: car.plate,
+        shapeMatches: car.shape === state.parking.targetShape
+      });
     }
     return move(state, next, { type: "moved" });
   }
@@ -165,8 +206,15 @@ export function attemptSrtMove(state, direction) {
 }
 
 export function advanceSrtWorld(state, elapsedMs = 100) {
-  if (state.phase !== "ride") return state;
   const elapsed = Number.isFinite(elapsedMs) ? Math.max(0, elapsedMs) : 0;
+  if (state.phase === "station") {
+    const introMs = (state.introMs ?? 0) + elapsed;
+    if (introMs >= STATION_SPLASH_MS) {
+      return { ...state, phase: "seat", introMs, position: { x: 0, y: 2 } };
+    }
+    return { ...state, introMs };
+  }
+  if (state.phase !== "ride") return state;
   const ride = { ...state.ride, phaseMs: state.ride.phaseMs + elapsed };
   if (ride.moving && ride.phaseMs >= TRAVEL_MS) {
     ride.stationIndex += 1;
