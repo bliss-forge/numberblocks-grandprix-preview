@@ -975,7 +975,7 @@ function scheduleSubwayTick(previousMs = performance.now()) {
       previous.platform.stage !== "stopped" &&
       state.subway.platform.stage === "stopped") {
       audio.playSfx("door");
-      showHint(`${state.subway.line}호선 열차예요! ↑ 키로 타요`);
+      showHint(`${state.subway.line}호선 열차예요! ⎵ 키로 타요`);
     }
     if (previous.phase === "arriving" && state.subway.phase === "arriving" &&
       previous.arriving?.stage === "melody" &&
@@ -1042,14 +1042,12 @@ function moveSubway(direction) {
     const compass = subwayCompass(state.subway);
     if (event.atDest) {
       audio.playSfx("door");
-      showHint(`⭐ ${stationLabel(event.station)}이에요! ↓ 눌러서 내려요`);
-      audio.cancel();
-      playStationSound(event.station, "subway-stop-check");
+      showHint(`⭐ ${stationLabel(event.station)}이에요! ⎵ 눌러서 내려요`);
+      playSubwayReal("mind-gap", "subway-stop-check");
     } else if (compass?.hopsToAlight === 0) {
       audio.playSfx("door");
-      showHint(`🔔 ${stationLabel(event.station)}이에요! ↓ 눌러서 갈아타요`);
-      audio.cancel();
-      playStationSound(event.station, "subway-transfer");
+      showHint(`🔔 ${stationLabel(event.station)}이에요! ⎵ 눌러서 갈아타요`);
+      playSubwayReal("mind-gap", "subway-transfer");
     } else if (compass?.hopsToAlight === 1) {
       showHint(
         `${stationLabel(event.station)} — 다음 ${compass.alightAt}에서 내려요!`
@@ -1083,10 +1081,16 @@ function moveSubway(direction) {
     audio.cancel();
     playStationSound(event.station, "subway-transfer");
   } else if (event.type === "arriving") {
-    playSubwayReal("arrive-melody", null);
+    playSubwayReal(
+      state.subway.travelSide === "back"
+        ? "arrive-melody-up"
+        : "arrive-melody-down",
+      null
+    );
     audio.playSfx("win");
     showHint("도착 멜로디가 나와요! 곧 문이 열려요");
   } else if (event.type === "blocked-person") {
+    audio.playSfx("pop");
     showHint("\"실례합니다!\" 한 번 더 누르면 비켜줘요");
   } else if (event.type === "alighted") {
     audio.playSfx("win");
@@ -1344,7 +1348,7 @@ document.addEventListener("keydown", event => {
 
   if (state.phase === "playing" && state.mode === "subway" && state.subway) {
     if ((event.key === " " || event.key === "Spacebar") &&
-      state.subway.phase === "ride") {
+      ["gate", "platform", "ride", "arriving"].includes(state.subway.phase)) {
       event.preventDefault();
       if (!event.repeat) moveSubway("space");
       return;

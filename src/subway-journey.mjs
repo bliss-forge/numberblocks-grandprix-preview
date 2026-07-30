@@ -274,7 +274,8 @@ export function createSubwayJourney(placeId, seed = 0) {
     showRecommended: false,
     visited: [start],
     passengers: [],
-    pendingFriend: null
+    pendingFriend: null,
+    travelSide: "forward"
   };
 }
 
@@ -412,6 +413,7 @@ function walkResult(state, step) {
         ...room,
         facing,
         entering: false,
+        bump: true,
         people: room.people.map(item =>
           item === person ? { ...item, stepped: true } : item
         )
@@ -428,6 +430,7 @@ function walkResult(state, step) {
       walkX: target,
       facing,
       entering: false,
+      bump: false,
       friend: friend ? null : room.friend
     }
   };
@@ -454,6 +457,7 @@ function departTo(state, station, side) {
     state: {
       ...state,
       station,
+      travelSide: side,
       lastStation: state.station,
       moveCount,
       strayStreak,
@@ -640,7 +644,7 @@ export function attemptSubwayMove(state, input) {
       return { state: moved, event: { type: "walked", x: outcome.room.walkX } };
     }
 
-    if (input === "up") {
+    if (input === "up" || (input === "space" && state.phase !== "ride")) {
       if (state.phase === "gate") {
         return {
           state,
@@ -748,7 +752,7 @@ export function subwayAnnouncement(state) {
   if (state.phase === "ride") {
     const compass = subwayCompass(state);
     if (compass?.hopsToAlight === 0) {
-      return `${stationLabel(state.station)}입니다. ↓ 키로 내려요!`;
+      return `${stationLabel(state.station)}입니다. ⎵ 키로 내려요!`;
     }
     if (compass?.hopsToAlight === 1) {
       return `다음 역은 ${stationLabel(compass.alightAt)}입니다. 내릴 준비를 해요`;

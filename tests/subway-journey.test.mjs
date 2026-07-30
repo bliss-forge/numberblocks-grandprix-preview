@@ -354,6 +354,25 @@ test("많이 헤매면 지도에 추천 경로 안내가 켜진다", () => {
   assert.equal(state.showRecommended, true);
 });
 
+test("승강장에서 ⎵는 ↑와 똑같이 열차를 탄다", () => {
+  const platform = passGate(createSubwayJourney("hanriver", 3));
+  assert.equal(attemptSubwayMove(platform, "space").event.type, "no-train");
+  const stopped = advanceSubwayWorld(platform, TRAIN_APPROACH_MS);
+  const boarded = attemptSubwayMove(stopped, "space");
+  assert.equal(boarded.event.type, "boarded");
+  assert.equal(boarded.state.phase, "ride");
+});
+
+test("이동 방향을 기억해 상행·하행 도착 멜로디를 고를 수 있다", () => {
+  const riding = boardTrain(passGate(createSubwayJourney("hanriver", 3)));
+  const forward = driveOneStop(riding, "forward");
+  if (forward.event.type === "departed") {
+    assert.equal(forward.state.travelSide, "forward");
+    const back = driveOneStop(forward.state, "back");
+    assert.equal(back.state.travelSide, "back");
+  }
+});
+
 test("내릴 역이 아니면 ↓와 ⎵가 똑같이 동작한다", () => {
   const riding = boardTrain(passGate(createSubwayJourney("hanriver", 3)));
   const single = linesAtStation(riding.station).length === 1;

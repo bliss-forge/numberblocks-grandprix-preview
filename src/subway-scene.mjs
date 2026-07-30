@@ -347,15 +347,15 @@ function guideText(state, compass) {
     return `→ ${state.room.chosen}호선 계단으로 내려가요`;
   }
   if (state.phase === "platform") {
-    return `${state.line}호선 열차가 서면 ↑ 키로 타요`;
+    return `${state.line}호선 열차가 서면 ⎵ 키로 타요`;
   }
   if (state.phase === "corridor") {
     return "→ 걸어서 환승 게이트를 통과해요";
   }
   if (state.phase === "ride") {
-    if (compass?.arrived) return "⭐ 도착역이에요! ↓ 눌러서 내려요";
+    if (compass?.arrived) return "⭐ 도착역이에요! ⎵ 눌러서 내려요";
     if (compass?.hopsToAlight === 0) {
-      return `🔔 여기서 내려요! ↓ 눌러서 ${compass.line}호선으로 갈아타요`;
+      return `🔔 여기서 내려요! ⎵ 눌러서 ${compass.line}호선으로 갈아타요`;
     }
     if (compass?.hopsToAlight === 1 && compass.side) {
       return `🔔 다음 역 ${compass.alightAt}에서 내려요! ` +
@@ -515,6 +515,7 @@ function renderRoom(document, state, stage, compass) {
   const painted = stationSceneSvg(room.kind, {
     width: room.width,
     stairsFrom: room.stairsFrom ?? undefined,
+    lineNumber: state.line ?? 0,
     lineColor: state.line ? lineByNumber(state.line).color : undefined
   });
   wrap.dataset.painted = String(Boolean(painted));
@@ -683,6 +684,18 @@ function renderRoom(document, state, stage, compass) {
     lane.append(friend);
   }
 
+  if (room.bump) {
+    const bubble = roomCell(
+      document,
+      "subway-room-bubble",
+      room.walkX,
+      room.width,
+      "실례합니다!"
+    );
+    bubble.setAttribute("aria-hidden", "true");
+    lane.append(bubble);
+  }
+
   const player = playerImage(document, "subway-room-player");
   player.style.setProperty(
     "--room-x",
@@ -780,6 +793,7 @@ function renderArrivingPhase(document, state, stage) {
   art.className = "subway-room-scene";
   art.setAttribute("aria-hidden", "true");
   art.innerHTML = stationSceneSvg("train", {
+    lineNumber: state.line ?? 0,
     lineColor: state.line ? lineByNumber(state.line).color : undefined
   });
   room.append(art);
@@ -937,6 +951,7 @@ function roomKey(state) {
     room?.kind,
     room?.walkX,
     room?.facing,
+    room?.bump,
     room?.tapped,
     room?.chosen,
     room?.friend ? room.friend.number : "-",
@@ -975,7 +990,7 @@ export function renderSubwayJourney(document, state) {
     ["left", "왼쪽으로 걷기", "←"],
     ["down", "내리기", "↓"],
     ["right", "오른쪽으로 걷기", "→"],
-    ["space", "내리기 (환승)", "⎵"]
+    ["space", "타기 · 내리기", "⎵"]
   ]) {
     const button = document.createElement("button");
     button.type = "button";

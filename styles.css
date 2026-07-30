@@ -4247,12 +4247,43 @@ body[data-mode="subway"] .toast {
 .subway-room-sign,
 .subway-room-stair,
 .subway-room-target,
+.subway-room-bubble,
 .subway-room-person,
 .subway-room-friend,
 .subway-room-player {
   position: absolute;
   left: var(--room-x, 50%);
   transform: translateX(-50%);
+}
+
+/* "실례합니다!" pops out of the hero while a bumped commuter steps aside. */
+.subway-room-bubble {
+  bottom: 46%;
+  z-index: 3;
+  padding: 5px 12px 6px;
+  border-radius: 14px;
+  border: 3px solid #31445b;
+  background: #fff;
+  color: #31445b;
+  font-size: clamp(12px, 1.4vw, 17px);
+  font-weight: 900;
+  white-space: nowrap;
+  animation: subway-bubble-pop .4s var(--motion-ease-settle);
+}
+
+.subway-room-bubble::after {
+  position: absolute;
+  bottom: -12px;
+  left: 50%;
+  border: 6px solid transparent;
+  border-top-color: #31445b;
+  transform: translateX(-50%);
+  content: "";
+}
+
+@keyframes subway-bubble-pop {
+  from { transform: translateX(-50%) scale(.4); opacity: 0; }
+  to { transform: translateX(-50%) scale(1); opacity: 1; }
 }
 
 .subway-room-door {
@@ -5005,6 +5036,7 @@ body[data-mode="subway"] .toast {
   .subway-room-gate[data-tapped="true"] .subway-gate-caption,
   .subway-gate-ping,
   .subway-room-target,
+  .subway-room-bubble,
   .subway-room-friend,
   .subway-plan-step[data-current="true"],
   .subway-capsule-remaining[data-alight="true"],
