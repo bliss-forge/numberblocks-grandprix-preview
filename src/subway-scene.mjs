@@ -26,8 +26,9 @@ import {
 } from "./subway-station-art.mjs";
 
 const MAP_SCALE = 10;
-const MIN_SPAN_X = 66;
-const MIN_SPAN_Y = 40;
+const MIN_SPAN_X = 30;
+const MIN_SPAN_Y = 30;
+const MAP_ASPECT = 8 / 5;
 
 const RIVER_POINTS = [
   [-4, 53], [6, 55], [13, 57], [20, 57.5], [25, 59], [29, 61.5],
@@ -154,10 +155,10 @@ function rideBounds(state) {
     STATION_COORDS[state.station],
     STATION_COORDS[state.place.station]
   ];
-  let minX = Math.min(...points.map(p => p.x)) - 10;
-  let maxX = Math.max(...points.map(p => p.x)) + 10;
-  let minY = Math.min(...points.map(p => p.y)) - 10;
-  let maxY = Math.max(...points.map(p => p.y)) + 10;
+  let minX = Math.min(...points.map(p => p.x)) - 9;
+  let maxX = Math.max(...points.map(p => p.x)) + 9;
+  let minY = Math.min(...points.map(p => p.y)) - 9;
+  let maxY = Math.max(...points.map(p => p.y)) + 9;
   if (maxX - minX < MIN_SPAN_X) {
     const grow = (MIN_SPAN_X - (maxX - minX)) / 2;
     minX -= grow;
@@ -165,6 +166,19 @@ function rideBounds(state) {
   }
   if (maxY - minY < MIN_SPAN_Y) {
     const grow = (MIN_SPAN_Y - (maxY - minY)) / 2;
+    minY -= grow;
+    maxY += grow;
+  }
+  // Fit the crop to the 8/5 box by growing only the short axis, so `meet`
+  // never letterboxes and every map pixel carries map.
+  const spanX = maxX - minX;
+  const spanY = maxY - minY;
+  if (spanX / spanY < MAP_ASPECT) {
+    const grow = (spanY * MAP_ASPECT - spanX) / 2;
+    minX -= grow;
+    maxX += grow;
+  } else {
+    const grow = (spanX / MAP_ASPECT - spanY) / 2;
     minY -= grow;
     maxY += grow;
   }

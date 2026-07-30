@@ -3861,19 +3861,24 @@ body[data-mode="subway"] .stage-lights {
   display: grid;
   place-items: center;
   min-height: 0;
+  /* Lets the layout cap its height in container units (cqw/cqh below). */
+  container-type: size;
 }
 
 /* Two panes: the illustrated room plays on the left, everything the child
    only reads is stacked in the right rail. Nothing overlaps the scene. */
 .subway-layout {
   position: relative;
-  align-self: stretch;
+  align-self: center;
   justify-self: stretch;
   display: grid;
   grid-template-columns: minmax(0, 1fr) var(--subway-rail);
   gap: 10px;
   width: 100%;
-  height: 100%;
+  /* The scene art is painted for a wide room. On tall windows an unbounded
+     height stretches it into mush, so the layout never grows taller than
+     54% of its own width — extra vertical space becomes margin instead. */
+  height: min(100cqh, 54cqw);
   min-height: 0;
 }
 
