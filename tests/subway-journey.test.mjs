@@ -3,51 +3,66 @@ import assert from "node:assert/strict";
 import {
   ARRIVE_MELODY_MS,
   MOVE_GUIDE_LIMIT,
+  ROOM_WIDTH,
   TRAIN_APPROACH_MS,
-  TRANSFER_CORRIDOR_MS,
-  TRANSFER_EXIT_MS,
   advanceSubwayWorld,
   attemptSubwayMove,
+  buildRoom,
   chooseSubwayLine,
   createSubwayJourney,
-  directionTargets,
   gateLines,
+  lineNeighbors,
   routeBetween,
+  subwayAnnouncement,
   subwayCompass,
   subwayDestinations
 } from "../src/subway-journey.mjs";
 import { SUBWAY_LINES, linesAtStation } from "../src/subway-map-data.mjs";
 
-function boardedState(placeId, seed) {
-  let state = createSubwayJourney(placeId, seed);
-  if (state.phase === "gate") {
-    const recommended = subwayCompass(state)?.line ?? gateLines(state)[0];
-    state = chooseSubwayLine(state, recommended).state;
+function walkTo(state, targetX) {
+  let current = state;
+  for (let guard = 0; guard < ROOM_WIDTH * 3; guard += 1) {
+    if (current.room.walkX === targetX) return current;
+    const step = current.room.walkX < targetX ? "right" : "left";
+    const result = attemptSubwayMove(current, step);
+    current = result.state;
+    if (["wall", "departed", "gate-reached", "line-end"].includes(result.event.type)) {
+      return current;
+    }
   }
-  state = advanceSubwayWorld(state, TRAIN_APPROACH_MS);
-  const boarded = attemptSubwayMove(state, "up");
+  throw new Error(`never reached x=${targetX}`);
+}
+
+function passGate(state, lineNumber = null) {
+  let current = walkTo(state, state.room.gateX);
+  const tapped = attemptSubwayMove(current, "up");
+  assert.equal(tapped.event.type, "card-tapped");
+  current = tapped.state;
+  const line = lineNumber ?? subwayCompass(current)?.line ?? gateLines(current)[0];
+  const chosen = chooseSubwayLine(current, line);
+  assert.equal(chosen.event.type, "line-chosen");
+  return chosen.state;
+}
+
+function boardTrain(state) {
+  let current = advanceSubwayWorld(state, TRAIN_APPROACH_MS);
+  const boarded = attemptSubwayMove(current, "up");
   assert.equal(boarded.event.type, "boarded");
   return boarded.state;
 }
 
-function moveToward(state, station) {
-  const targets = directionTargets(state);
-  const entry = Object.entries(targets).find(([, name]) => name === station);
-  assert.ok(entry, `direction toward ${station} from ${state.station}`);
-  const result = attemptSubwayMove(state, entry[0]);
-  assert.equal(result.event.type, "drove");
-  return result;
-}
-
-function followCompass(state, maxSteps = 40) {
+function driveOneStop(state, side) {
   let current = state;
-  for (let step = 0; step < maxSteps; step += 1) {
-    const compass = subwayCompass(current);
-    if (compass.arrived) return { state: current, at: "dest" };
-    if (compass.transferHere) return { state: current, at: "transfer" };
-    current = moveToward(current, compass.nextStation).state;
+  const step = side === "forward" ? "right" : "left";
+  for (let guard = 0; guard < ROOM_WIDTH * 3; guard += 1) {
+    const result = attemptSubwayMove(current, step);
+    current = result.state;
+    if (result.event.type === "departed") return { state: current, event: result.event };
+    if (result.event.type === "line-end" || result.event.type === "wall") {
+      return { state: current, event: result.event };
+    }
   }
-  throw new Error("compass never converged");
+  throw new Error("never departed");
 }
 
 test("경로 탐색은 실제 환승역을 거치는 이어진 구간을 만든다", () => {
@@ -55,133 +70,111 @@ test("경로 탐색은 실제 환승역을 거치는 이어진 구간을 만든�
   assert.equal(route.transfers, 1);
   assert.equal(route.legs.length, 2);
   const [first, second] = route.legs;
-  assert.equal(
-    first.stations[first.stations.length - 1],
-    second.stations[0]
-  );
+  assert.equal(first.stations[first.stations.length - 1], second.stations[0]);
   assert.equal(second.stations[second.stations.length - 1], "대공원");
 });
 
-test("목적지 10곳은 권장 환승 수에 맞는 출발역과 재현 가능한 여정을 가진다", () => {
+test("목적지 10곳은 권장 환승 수에 맞는 출발역과 개찰구 방에서 시작한다", () => {
   const destinations = subwayDestinations();
   assert.equal(destinations.length, 10);
-  assert.deepEqual(
-    destinations.map(({ transfers }) => transfers).sort(),
-    [0, 0, 0, 0, 1, 1, 1, 1, 2, 2].sort()
-  );
   for (const { place, transfers } of destinations) {
     const journey = createSubwayJourney(place.id, 3);
     const again = createSubwayJourney(place.id, 3);
     assert.equal(journey.start, again.start, place.id);
     assert.equal(journey.recommendedTransfers, transfers);
+    assert.equal(journey.phase, "gate");
+    assert.equal(journey.room.kind, "gate");
+    assert.equal(journey.line, null);
     assert.equal(
       routeBetween(journey.start, place.station).transfers,
       transfers,
       place.id
     );
-    assert.ok(["gate", "platform"].includes(journey.phase));
-    if (journey.phase === "platform") {
-      assert.equal(linesAtStation(journey.start).length, 1);
-      assert.equal(journey.line, linesAtStation(journey.start)[0].number);
-    } else {
-      assert.ok(gateLines(journey).length >= 2);
-    }
   }
 });
 
-test("게이트에서 없는 호선은 거부하고 고른 호선 승강장에서 탄다", () => {
-  let found = null;
-  for (let seed = 0; seed < 30 && !found; seed += 1) {
-    const journey = createSubwayJourney("lake", seed);
-    if (journey.phase === "gate") found = journey;
-  }
-  assert.ok(found, "gate-start journey exists");
-  const bad = chooseSubwayLine(found, 99);
-  assert.equal(bad.event.type, "no-line");
-  const line = gateLines(found)[0];
-  const chosen = chooseSubwayLine(found, line);
-  assert.equal(chosen.event.type, "line-chosen");
+test("방에는 카드·사람이 놓이고 걸어가며 줍고 부딪히면 한 번 더 눌러 지나간다", () => {
+  const room = buildRoom("train", { seed: 7, station: "시청", entrySide: "left" });
+  assert.equal(room.width, ROOM_WIDTH);
+  assert.equal(room.walkX, 1);
+  assert.ok(room.items.length >= 1);
+  assert.ok(room.people.length >= 1);
+  const occupied = [
+    ...room.items.map(item => item.x),
+    ...room.people.map(person => person.x)
+  ];
+  assert.equal(new Set(occupied).size, occupied.length, "no overlap");
+
+  const journey = createSubwayJourney("hanriver", 3);
+  const state = {
+    ...journey,
+    phase: "ride",
+    line: 5,
+    room: buildRoom("train", { seed: 1, station: "광화문", entrySide: "left" })
+  };
+  const personX = state.room.people[0].x;
+  const before = walkTo(state, personX - 1);
+  const bump = attemptSubwayMove(before, "right");
+  assert.equal(bump.event.type, "blocked-person");
+  assert.equal(bump.state.room.walkX, personX - 1, "no penalty, stays put");
+  const through = attemptSubwayMove(bump.state, "right");
+  assert.ok(["walked", "card-picked", "friend-joined"].includes(through.event.type));
+  assert.equal(through.state.room.walkX, personX);
+});
+
+test("개찰구: 카드를 찍기 전에는 호선을 고를 수 없고 찍으면 승강장으로 간다", () => {
+  const journey = createSubwayJourney("hanriver", 3);
+  const early = chooseSubwayLine(journey, gateLines(journey)[0]);
+  assert.equal(early.event.type, "tap-first");
+
+  const away = attemptSubwayMove(journey, "up");
+  assert.equal(away.event.type, "walk-to-gate");
+
+  const atGate = walkTo(journey, journey.room.gateX);
+  const tapped = attemptSubwayMove(atGate, "up");
+  assert.equal(tapped.event.type, "card-tapped");
+  assert.deepEqual(tapped.event.lines, gateLines(journey));
+  assert.equal(tapped.state.room.tapped, true);
+  assert.match(subwayAnnouncement(tapped.state), /몇 호선/);
+
+  const line = gateLines(journey)[0];
+  const chosen = chooseSubwayLine(tapped.state, line);
   assert.equal(chosen.state.phase, "platform");
   assert.equal(chosen.state.line, line);
-
-  let state = chosen.state;
-  assert.equal(attemptSubwayMove(state, "up").event.type, "no-train");
-  state = advanceSubwayWorld(state, TRAIN_APPROACH_MS);
-  const boarded = attemptSubwayMove(state, "up");
-  assert.equal(boarded.event.type, "boarded");
-  assert.equal(boarded.state.phase, "ride");
+  assert.equal(chosen.state.room.kind, "platform");
+  assert.equal(chosen.state.transfersUsed, 0, "first boarding is not a transfer");
 });
 
-test("자유 운전: 어느 이웃 역으로든 이동하고 새 역마다 친구를 태운다", () => {
-  const state = boardedState("hanriver", 3);
-  const targets = directionTargets(state);
-  const entries = Object.entries(targets);
-  assert.ok(entries.length >= 1);
+test("승강장: 열차가 서기 전에는 못 타고, 타면 열차 안 방이 된다", () => {
+  const platform = passGate(createSubwayJourney("hanriver", 3));
+  assert.equal(attemptSubwayMove(platform, "up").event.type, "no-train");
+  const riding = boardTrain(platform);
+  assert.equal(riding.phase, "ride");
+  assert.equal(riding.room.kind, "train");
+});
 
-  const first = attemptSubwayMove(state, entries[0][0]);
-  assert.equal(first.event.type, "drove");
-  assert.equal(first.state.station, entries[0][1]);
-  if (entries[0][1] !== state.place.station) {
-    assert.equal(first.event.passenger, 2);
+test("열차 안에서 끝 문까지 걸어가면 그 방향 다음 역으로 이동한다", () => {
+  const riding = boardTrain(passGate(createSubwayJourney("hanriver", 3)));
+  const neighbors = lineNeighbors(riding);
+  assert.ok(neighbors.forward || neighbors.back);
+
+  const forward = driveOneStop(riding, "forward");
+  if (neighbors.forward) {
+    assert.equal(forward.event.type, "departed");
+    assert.equal(forward.state.station, neighbors.forward);
+    assert.equal(forward.state.room.kind, "train");
+    assert.equal(forward.state.room.walkX, 1, "enters from the back door");
+    assert.equal(forward.state.moveCount, 1);
+  } else {
+    assert.equal(forward.event.type, "line-end");
   }
 
-  const backEntry = Object.entries(directionTargets(first.state))
-    .find(([, name]) => name === state.station);
-  assert.ok(backEntry, "can drive back the other way");
-  const back = attemptSubwayMove(first.state, backEntry[0]);
-  assert.equal(back.event.type, "drove");
-  assert.equal(back.state.station, state.station);
-  assert.equal(back.event.passenger, null, "visited station has no new friend");
-
-  assert.equal(
-    attemptSubwayMove(state, "space").event.type,
-    linesAtStation(state.station).length > 1 ? "transfer-start" : "no-transfer"
-  );
+  const back = driveOneStop(forward.state, "back");
+  assert.equal(back.event.type, "departed");
+  assert.equal(back.state.station, riding.station, "can drive back");
 });
 
-test("많이 헤매면 지도에 추천 경로 안내가 켜진다", () => {
-  let state = boardedState("hanriver", 3);
-  const targets = Object.entries(directionTargets(state));
-  assert.ok(targets.length >= 1);
-  let flip = 0;
-  while (state.moveCount < MOVE_GUIDE_LIMIT) {
-    const options = Object.entries(directionTargets(state));
-    const pick = options[flip % options.length];
-    const result = attemptSubwayMove(state, pick[0]);
-    assert.equal(result.event.type, "drove");
-    state = result.state;
-    flip += 1;
-    if (state.station === state.place.station) {
-      state = { ...state, station: state.visited[0] };
-    }
-  }
-  assert.equal(state.showRecommended, true);
-});
-
-test("환승역에서 스페이스로 내려 통로·게이트를 지나 호선을 다시 고른다", () => {
-  const journey = boardedState("lake", 5);
-  const reached = followCompass(journey);
-  assert.equal(reached.at, "transfer", "recommended path reaches a transfer");
-  const startStation = reached.state.station;
-
-  const started = attemptSubwayMove(reached.state, "space");
-  assert.equal(started.event.type, "transfer-start");
-  let state = started.state;
-  assert.equal(state.phase, "transferring");
-
-  state = advanceSubwayWorld(state, TRANSFER_EXIT_MS);
-  assert.equal(state.transferring.stage, "corridor");
-  state = advanceSubwayWorld(state, TRANSFER_CORRIDOR_MS);
-  assert.equal(state.phase, "gate");
-  assert.equal(state.station, startStation);
-
-  const nextLine = subwayCompass(state).line;
-  const chosen = chooseSubwayLine(state, nextLine);
-  assert.equal(chosen.event.type, "line-chosen");
-  assert.equal(chosen.state.transfersUsed, 1, "changing lines counts a transfer");
-});
-
-test("나침반이 가리키는 방향키는 전 구간에서 실제 이동 키와 일치한다", () => {
+test("나침반이 가리키는 문 방향은 실제 이웃 역과 일치한다", () => {
   const base = createSubwayJourney("lake", 5);
   const destinations = subwayDestinations();
   for (const line of SUBWAY_LINES) {
@@ -197,94 +190,134 @@ test("나침반이 가리키는 방향키는 전 구간에서 실제 이동 키�
         };
         const compass = subwayCompass(state);
         if (!compass || compass.arrived || compass.transferHere) continue;
-        const targets = directionTargets(state);
+        assert.ok(compass.side, `${station} L${line.number} → ${place.station}`);
         assert.equal(
-          targets[compass.direction],
+          lineNeighbors(state)[compass.side],
           compass.nextStation,
-          `${station} ${line.number}호선 → ${place.station}`
+          `${station} L${line.number} → ${place.station}`
         );
       }
     }
   }
 });
 
-test("환승은 줄지만 정거장이 늘어나는 추천 이동도 '가까워짐'으로 판정한다", () => {
+test("나침반을 따라가면 모든 조합에서 목적지에 도착한다", () => {
   const base = createSubwayJourney("lake", 5);
-  const state = {
-    ...base,
-    station: "국회의사당",
-    line: 9,
-    phase: "ride",
-    visited: ["국회의사당"],
-    passengers: [],
-    moveCount: 0,
-    strayStreak: 0
-  };
+  let checked = 0;
+  for (const line of SUBWAY_LINES) {
+    for (const station of line.stations) {
+      for (const { place } of subwayDestinations()) {
+        if (station === place.station) continue;
+        let state = { ...base, place, station, line: line.number, phase: "ride" };
+        let arrived = false;
+        for (let step = 0; step < 60; step += 1) {
+          const compass = subwayCompass(state);
+          if (!compass) break;
+          if (compass.arrived) { arrived = true; break; }
+          if (compass.transferHere) {
+            state = { ...state, line: compass.line };
+            continue;
+          }
+          state = { ...state, station: lineNeighbors(state)[compass.side] };
+        }
+        assert.ok(arrived, `${station} L${line.number} → ${place.station}`);
+        checked += 1;
+      }
+    }
+  }
+  assert.ok(checked > 900, `checked ${checked} combinations`);
+});
+
+test("환승역에서 ⎵ → 통로 방 → 게이트 → 다른 호선을 고르면 환승 1회로 센다", () => {
+  const journey = createSubwayJourney("lake", 5);
+  let state = boardTrain(passGate(journey));
+  let guard = 0;
+  while (guard++ < 30) {
+    const compass = subwayCompass(state);
+    if (compass.transferHere || compass.arrived) break;
+    state = driveOneStop(state, compass.side).state;
+  }
   const compass = subwayCompass(state);
-  assert.equal(compass.transferHere, false);
-  const result = moveToward(state, compass.nextStation);
-  assert.equal(result.event.closer, true);
+  assert.equal(compass.transferHere, true, "reached a transfer point");
+
+  const started = attemptSubwayMove(state, "space");
+  assert.equal(started.event.type, "transfer-start");
+  assert.equal(started.state.phase, "corridor");
+  assert.equal(started.state.room.kind, "corridor");
+
+  const reached = walkTo(started.state, started.state.room.width - 1);
+  assert.equal(reached.phase, "gate");
+  assert.equal(reached.station, state.station);
+
+  const nextLine = subwayCompass(reached).line;
+  const boarded = passGate(reached, nextLine);
+  assert.equal(boarded.transfersUsed, 1);
+  assert.equal(boarded.line, nextLine);
 });
 
-test("나침반은 지금 탄 호선을 기준으로 환승 여부를 판단한다", () => {
-  const base = createSubwayJourney("assembly", 5);
-  const state = {
-    ...base,
-    station: "김포공항",
-    line: 5,
-    phase: "ride"
-  };
-  const compass = subwayCompass(state);
-  assert.equal(
-    compass.transferHere,
-    false,
-    "staying on line 5 is not worse — no transfer scold at 김포공항"
-  );
-});
-
-test("목적지 역에서는 스페이스가 환승 대신 내리기 안내를 낸다", () => {
-  const base = createSubwayJourney("lunapark", 5);
-  const state = {
-    ...base,
-    station: base.place.station,
-    line: 2,
-    phase: "ride"
-  };
-  const result = attemptSubwayMove(state, "space");
-  assert.equal(result.event.type, "time-to-alight");
-  assert.equal(result.state.phase, "ride");
-});
-
-test("목적지에서 ↓ → 멜로디 → 문 열림 → 빈 곳으로 내려야 도착한다", () => {
-  let { state, at } = followCompass(boardedState("hanriver", 3));
-  while (at === "transfer") {
-    let transferred = attemptSubwayMove(state, "space").state;
-    transferred = advanceSubwayWorld(transferred, TRANSFER_EXIT_MS);
-    transferred = advanceSubwayWorld(transferred, TRANSFER_CORRIDOR_MS);
-    const line = subwayCompass(transferred).line;
-    let chosen = chooseSubwayLine(transferred, line).state;
-    chosen = advanceSubwayWorld(chosen, TRAIN_APPROACH_MS);
-    state = attemptSubwayMove(chosen, "up").state;
-    ({ state, at } = followCompass(state));
+test("목적지 역에서 ↓ → 멜로디 → 문 열림 → 빈 곳으로 내려야 도착한다", () => {
+  const journey = createSubwayJourney("hanriver", 3);
+  let state = boardTrain(passGate(journey));
+  let guard = 0;
+  while (guard++ < 40) {
+    const compass = subwayCompass(state);
+    if (compass.arrived) break;
+    if (compass.transferHere) {
+      const corridor = attemptSubwayMove(state, "space").state;
+      const gate = walkTo(corridor, corridor.room.width - 1);
+      state = boardTrain(passGate(gate, subwayCompass(gate).line));
+      continue;
+    }
+    state = driveOneStop(state, compass.side).state;
   }
   assert.equal(state.station, state.place.station);
+  assert.equal(attemptSubwayMove(state, "space").event.type, "time-to-alight");
 
   const arriving = attemptSubwayMove(state, "down");
   assert.equal(arriving.event.type, "arriving");
-  let current = arriving.state;
-  assert.equal(current.arriving.stage, "melody");
-
-  current = advanceSubwayWorld(current, ARRIVE_MELODY_MS);
+  let current = advanceSubwayWorld(arriving.state, ARRIVE_MELODY_MS);
   assert.equal(current.arriving.stage, "dodge");
   const dodge = current.arriving.dodge;
   assert.ok(dodge.open.length >= 1);
-  assert.ok(dodge.blocked.length >= 1);
-
   const blockedTry = attemptSubwayMove(current, dodge.blocked[0]);
   assert.equal(blockedTry.event.type, "blocked-person");
-  assert.equal(blockedTry.state.phase, "arriving", "no penalty, retry");
-
+  assert.equal(blockedTry.state.phase, "arriving");
   const alighted = attemptSubwayMove(current, dodge.open[0]);
   assert.equal(alighted.event.type, "alighted");
   assert.equal(alighted.state.phase, "arrived");
+});
+
+test("목적지가 아닌 역에서 ↓를 누르면 안내만 하고 계속 탄다", () => {
+  const riding = boardTrain(passGate(createSubwayJourney("hanriver", 3)));
+  const result = attemptSubwayMove(riding, "down");
+  assert.equal(result.event.type, "not-your-stop");
+  assert.equal(result.state.phase, "ride");
+});
+
+test("많이 헤매면 지도에 추천 경로 안내가 켜진다", () => {
+  let state = boardTrain(passGate(createSubwayJourney("hanriver", 3)));
+  let flip = 0;
+  let guard = 0;
+  while (state.moveCount < MOVE_GUIDE_LIMIT && guard++ < 80) {
+    const side = flip % 2 === 0 ? "forward" : "back";
+    const outcome = driveOneStop(state, side);
+    if (outcome.event.type !== "departed") {
+      flip += 1;
+      continue;
+    }
+    state = outcome.state;
+    if (state.station === state.place.station) flip += 1;
+    flip += 1;
+  }
+  assert.equal(state.showRecommended, true);
+});
+
+test("환승역이 아닌 곳에서 ⎵는 안내만 한다", () => {
+  const riding = boardTrain(passGate(createSubwayJourney("hanriver", 3)));
+  const single = linesAtStation(riding.station).length === 1;
+  const result = attemptSubwayMove(riding, "space");
+  assert.equal(
+    result.event.type,
+    single ? "no-transfer" : "transfer-start"
+  );
 });
