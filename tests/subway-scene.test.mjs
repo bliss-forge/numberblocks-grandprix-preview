@@ -1,15 +1,14 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
+  ARRIVE_MELODY_MS,
   TRAIN_APPROACH_MS,
   advanceSubwayWorld,
   attemptSubwayMove,
+  chooseSubwayLine,
   createSubwayJourney,
-  currentLeg,
-  currentTrain
-} from "../src/subway-journey.mjs";
-import {
-  requiredDirection,
+  gateLines,
+  subwayCompass,
   subwayDestinations
 } from "../src/subway-journey.mjs";
 import {
@@ -52,6 +51,8 @@ class FakeElement {
     this.attributes.set(name, String(value));
   }
 
+  classList = { add: () => {}, remove: () => {} };
+
   addEventListener() {}
 }
 
@@ -72,22 +73,16 @@ function byClass(root, className) {
   );
 }
 
-function boardedState(seed = 3) {
-  let state = advanceSubwayWorld(
-    createSubwayJourney("hanriver", seed),
-    TRAIN_APPROACH_MS
-  );
-  for (let guard = 0; guard < 40; guard += 1) {
-    if (state.platform.stage === "stopped" &&
-      currentTrain(state).line === currentLeg(state).line) {
-      return attemptSubwayMove(state, "up").state;
-    }
-    state = advanceSubwayWorld(state, 200);
+function boardedState(placeId = "hanriver", seed = 3) {
+  let state = createSubwayJourney(placeId, seed);
+  if (state.phase === "gate") {
+    state = chooseSubwayLine(state, gateLines(state)[0]).state;
   }
-  throw new Error("boarding failed");
+  state = advanceSubwayWorld(state, TRAIN_APPROACH_MS);
+  return attemptSubwayMove(state, "up").state;
 }
 
-test("목적지 선택 화면은 숫자키 카드 10장과 환승 난이도 칩을 그린다", () => {
+test("목적지 선택 화면은 숫자키 카드 10장과 권장 환승 칩을 그린다", () => {
   const picker = renderSubwayPicker(document, subwayDestinations());
   const cards = byClass(picker, "subway-place-card");
   assert.equal(cards.length, 10);
@@ -95,82 +90,110 @@ test("목적지 선택 화면은 숫자키 카드 10장과 환승 난이도 칩�
     byClass(picker, "subway-place-key").map(node => node.textContent),
     ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0"]
   );
-  const chips = byClass(picker, "subway-transfer-chip");
-  assert.equal(chips.length, 10);
-  for (const chip of chips) {
-    assert.match(chip.textContent, /^(바로 가요|🚶 1번 갈아타요|🚶🚶 2번 갈아타요)$/);
-  }
-  for (const card of cards) {
-    assert.ok(card.dataset.placeId, "card carries place id");
+  for (const chip of byClass(picker, "subway-transfer-chip")) {
+    assert.match(chip.textContent, /^권장: /);
   }
 });
 
-test("탑승 장면은 하단 역 캡슐에 이전·현재·다음 역을 보여준다", () => {
-  const state = boardedState(3);
-  const scene = renderSubwayJourney(document, state);
-  assert.equal(byClass(scene, "subway-capsule").length, 1);
-  assert.equal(byClass(scene, "subway-capsule-prev")[0].textContent, "출발");
-  assert.ok(byClass(scene, "subway-capsule-name")[0].textContent.length > 0);
-  assert.match(
-    byClass(scene, "subway-capsule-remaining")[0].textContent,
-    /정거장|내려요/
-  );
-  assert.match(byClass(scene, "subway-map")[0].innerHTML, /subway-map-river/);
+test("게이트 화면은 역명판과 호선 선택 버튼을 그린다", () => {
+  let gate = null;
+  for (let seed = 0; seed < 30 && !gate; seed += 1) {
+    const journey = createSubwayJourney("lake", seed);
+    if (journey.phase === "gate") gate = journey;
+  }
+  assert.ok(gate);
+  const scene = renderSubwayJourney(document, gate);
+  assert.equal(scene.dataset.phase, "gate");
+  const buttons = byClass(scene, "subway-gate-line");
+  assert.equal(buttons.length, gateLines(gate).length);
+  for (const button of buttons) {
+    assert.ok(button.dataset.lineNumber);
+  }
 });
 
-test("승강장 장면은 역명판, 목표 호선 뱃지, 열차와 이동 패드를 그린다", () => {
-  const state = createSubwayJourney("hanriver", 3);
-  const scene = renderSubwayJourney(document, state);
-  assert.equal(scene.dataset.phase, "platform");
-  assert.match(
-    byClass(scene, "subway-station-sign")[0].textContent,
-    /역$/
-  );
-  assert.equal(byClass(scene, "subway-line-badge").length, 1);
-  const train = byClass(scene, "subway-train")[0];
-  assert.match(train.innerHTML, /route-art-subway/);
-  assert.equal(train.dataset.stage, "approaching");
-  assert.equal(byClass(scene, "route-pad").length, 1);
-  const mission = byClass(scene, "subway-mission")[0];
-  assert.match(mission.textContent, /에 가요!/);
-});
-
-test("탑승 장면은 노선도, 운전 안내와 친구 스트립을 그리고 갱신한다", () => {
-  const state = boardedState(3);
+test("탑승 장면은 전체 노선도, 나침반, 양방향 캡슐, 환승 힌트를 그린다", () => {
+  const state = boardedState();
   const scene = renderSubwayJourney(document, state);
   assert.equal(scene.dataset.phase, "ride");
-  const map = byClass(scene, "subway-map")[0];
-  assert.match(map.innerHTML, /subway-line/);
-  assert.match(map.innerHTML, /subway-station-dot/);
+  const canvas = byClass(scene, "subway-map-canvas")[0];
+  assert.match(canvas.innerHTML, /subway-line/);
+  assert.match(canvas.innerHTML, /subway-map-river/);
+  assert.match(canvas.innerHTML, /subway-dest-star/);
   const marker = byClass(scene, "subway-map-player")[0];
   assert.match(marker.style.values.get("--map-x"), /%$/);
   const guide = byClass(scene, "subway-drive-guide")[0];
-  assert.match(guide.textContent, /(쪽으로 운전해요|↓ 키로 내려요)/);
-  const strip = byClass(scene, "subway-passenger-strip")[0];
-  assert.equal(strip.dataset.count, "0");
-
-  const driven = attemptSubwayMove(state, requiredDirection(state));
-  updateSubwayJourney(scene, driven.state);
-  assert.equal(scene.dataset.phase, "ride");
+  assert.match(guide.textContent, /(추천|환승|내려요)/);
+  assert.equal(byClass(scene, "subway-capsule").length, 1);
+  assert.equal(byClass(scene, "subway-space-hint").length, 1);
+  assert.equal(byClass(scene, "subway-passenger-strip")[0].dataset.count, "0");
+  assert.equal(byClass(scene, "subway-space-button").length, 1);
 });
 
-test("단계가 바뀌면 장면을 다시 세워 환승·도착을 표현한다", () => {
-  const steady = createSubwayJourney("zoo", 5);
-  const scene = renderSubwayJourney(document, steady);
-  const transferState = { ...steady, phase: "transfer", legIndex: 1, ride: null };
-  updateSubwayJourney(scene, transferState);
-  assert.equal(scene.dataset.phase, "transfer");
-  assert.match(
-    byClass(scene, "subway-transfer-text")[0].textContent,
-    /호선으로 갈아타요/
+test("운전으로 역이 바뀌면 지도와 캡슐이 갱신된다", () => {
+  const state = boardedState();
+  const scene = renderSubwayJourney(document, state);
+  const compass = subwayCompass(state);
+  if (compass.arrived || compass.transferHere) return;
+  const targets = byClass(scene, "subway-capsule-name")[0].textContent;
+  assert.equal(targets, state.station);
+  const moved = attemptSubwayMove(state, compass.direction);
+  if (moved.event.type !== "drove") return;
+  updateSubwayJourney(scene, moved.state);
+  assert.equal(
+    byClass(scene, "subway-capsule-name")[0].textContent,
+    moved.state.station
+  );
+});
+
+test("도착 단계는 멜로디 후 문이 열리고 빈 칸·사람 칸을 구분해 그린다", () => {
+  const base = boardedState();
+  const arriving = {
+    ...base,
+    station: base.place.station,
+    phase: "arriving",
+    arriving: { stage: "melody", phaseMs: 0, dodge: null }
+  };
+  const scene = renderSubwayJourney(document, arriving);
+  assert.equal(scene.dataset.phase, "arriving");
+  assert.equal(
+    byClass(scene, "subway-arriving-door")[0].dataset.open,
+    "false"
   );
 
-  const arrivedState = { ...steady, phase: "arrived", ride: null };
-  updateSubwayJourney(scene, arrivedState);
+  const opened = advanceSubwayWorld(arriving, ARRIVE_MELODY_MS);
+  updateSubwayJourney(scene, opened);
+  const door = byClass(scene, "subway-arriving-door")[0];
+  assert.equal(door.dataset.open, "true");
+  const lanes = byClass(scene, "subway-door-lane");
+  assert.equal(lanes.length, 3);
+  assert.ok(lanes.some(lane => lane.dataset.blocked === "true"));
+  assert.ok(lanes.some(lane => lane.dataset.blocked === "false"));
+});
+
+test("환승·도착 화면 전환과 도착 통계를 그린다", () => {
+  const base = boardedState();
+  const scene = renderSubwayJourney(document, base);
+  const transferring = {
+    ...base,
+    phase: "transferring",
+    transferring: { stage: "exit", phaseMs: 0 }
+  };
+  updateSubwayJourney(scene, transferring);
+  assert.equal(scene.dataset.phase, "transferring");
+  assert.equal(byClass(scene, "subway-corridor").length, 1);
+
+  const arrived = {
+    ...base,
+    phase: "arrived",
+    transfersUsed: 2,
+    moveCount: 9,
+    passengers: [2, 3, 4]
+  };
+  updateSubwayJourney(scene, arrived);
   assert.equal(scene.dataset.phase, "arrived");
-  assert.equal(
-    byClass(scene, "subway-place-icon")[0].textContent,
-    steady.place.icon
+  assert.match(
+    byClass(scene, "subway-arrived-stats")[0].textContent,
+    /환승 2번 · 9정거장/
   );
-  assert.equal(byClass(scene, "subway-arrived-player").length, 1);
+  assert.equal(byClass(scene, "subway-arrived-friends")[0].children.length, 3);
 });

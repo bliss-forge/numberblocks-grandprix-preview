@@ -3973,6 +3973,11 @@ body[data-mode="subway"] .stage-lights {
   background: #f7fafc;
 }
 
+.subway-map-canvas {
+  position: absolute;
+  inset: 0;
+}
+
 .subway-map-art {
   display: block;
   width: 100%;
@@ -4390,5 +4395,222 @@ body[data-mode="subway"] .stage-lights {
   .subway-transfer,
   .subway-arrived-hearts {
     animation: none;
+  }
+}
+
+/* Subway free-roam: gate, corridor, arriving */
+.subway-space-button {
+  grid-column: 1 / -1;
+  min-height: 40px;
+  font-size: 17px;
+  background: #2fa25c;
+  box-shadow: inset 0 -5px #1c7a3e;
+}
+
+.subway-space-hint {
+  padding: 5px 14px;
+  border-radius: 999px;
+  background: #2fa25c;
+  color: #fff;
+  font-size: clamp(12px, 1.4vw, 15px);
+  font-weight: 900;
+  animation: subway-idle 2s ease-in-out infinite;
+}
+
+.subway-space-hint[data-show="false"] {
+  display: none;
+}
+
+.subway-gate {
+  position: relative;
+  display: grid;
+  gap: clamp(10px, 2vh, 20px);
+  justify-items: center;
+  align-content: center;
+  width: min(94%, 720px);
+}
+
+.subway-gate-note {
+  margin: 0;
+  color: #31445b;
+  font-size: clamp(14px, 1.8vw, 20px);
+  font-weight: 900;
+}
+
+.subway-gate-lines {
+  display: flex;
+  gap: clamp(10px, 2vw, 22px);
+}
+
+.subway-gate-line {
+  display: grid;
+  gap: 6px;
+  justify-items: center;
+  padding: clamp(10px, 2vh, 18px) clamp(14px, 2.4vw, 26px);
+  border: 4px solid #fff;
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: 0 6px 0 rgba(37, 52, 93, .12);
+  color: #31445b;
+  font-weight: 900;
+  cursor: pointer;
+  transition:
+    transform var(--motion-quick) var(--motion-ease-settle),
+    box-shadow var(--motion-quick) var(--motion-ease-settle);
+}
+
+.subway-gate-line:hover,
+.subway-gate-line:focus-visible {
+  transform: translateY(-5px);
+  box-shadow: 0 10px 0 rgba(37, 52, 93, .14);
+}
+
+.subway-gate-line:focus-visible {
+  outline: 4px solid #31445b;
+  outline-offset: 2px;
+}
+
+.subway-gate-line .subway-line-badge svg {
+  width: clamp(44px, 5.6vw, 60px);
+  height: clamp(44px, 5.6vw, 60px);
+}
+
+.subway-gate-line-label {
+  font-size: clamp(13px, 1.6vw, 17px);
+}
+
+.subway-gate-player {
+  width: clamp(52px, 7vw, 80px);
+  animation: subway-idle 2s ease-in-out infinite;
+}
+
+.subway-corridor {
+  display: grid;
+  gap: 16px;
+  justify-items: center;
+  align-content: center;
+  width: min(94%, 760px);
+}
+
+.subway-corridor-sign {
+  padding: 8px 22px;
+  border-radius: 12px;
+  border: 4px solid #31445b;
+  background: #fff;
+  color: #31445b;
+  font-size: clamp(16px, 2.2vw, 24px);
+  font-weight: 900;
+}
+
+.subway-corridor-walkway {
+  position: relative;
+  width: 100%;
+  height: clamp(120px, 24vh, 190px);
+  overflow: hidden;
+  border-radius: 16px;
+  background:
+    repeating-linear-gradient(90deg,
+      #e8edf3 0 60px, #dde4ec 60px 120px);
+}
+
+.subway-corridor-gate {
+  position: absolute;
+  top: 50%;
+  right: 6%;
+  display: grid;
+  place-items: center;
+  width: clamp(90px, 14vw, 140px);
+  height: clamp(70px, 14vh, 110px);
+  transform: translateY(-50%);
+  border: 5px solid #2fa25c;
+  border-radius: 14px;
+  background: #eafaf0;
+  color: #1c7a3e;
+  font-size: clamp(12px, 1.5vw, 16px);
+  font-weight: 900;
+}
+
+.subway-corridor-player {
+  position: absolute;
+  bottom: 14%;
+  left: 8%;
+  width: clamp(48px, 6.6vw, 76px);
+}
+
+.subway-corridor[data-stage="corridor"] .subway-corridor-player {
+  animation: subway-corridor-walk 2.2s ease-in-out forwards;
+}
+
+@keyframes subway-corridor-walk {
+  from { left: 8%; }
+  to { left: 72%; }
+}
+
+.subway-arriving {
+  display: grid;
+  gap: 14px;
+  justify-items: center;
+  align-content: center;
+  width: min(94%, 720px);
+}
+
+.subway-arriving-note {
+  margin: 0;
+  color: #31445b;
+  font-size: clamp(14px, 1.8vw, 20px);
+  font-weight: 900;
+}
+
+.subway-arriving-door {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  width: min(100%, 560px);
+  padding: 14px;
+  border-radius: 18px;
+  background: #39424e;
+}
+
+.subway-arriving-door[data-open="false"] .subway-door-lane {
+  background: #59636f;
+}
+
+.subway-door-lane {
+  display: grid;
+  place-items: center;
+  height: clamp(90px, 18vh, 150px);
+  border-radius: 12px;
+  background: #eef3f8;
+  font-size: clamp(26px, 4.4vh, 44px);
+  font-weight: 900;
+  color: #1c6fd6;
+}
+
+.subway-door-lane[data-blocked="true"] {
+  background: #ffe2e6;
+}
+
+.subway-arriving-player {
+  width: clamp(48px, 6.6vw, 72px);
+}
+
+.subway-arrived-stats {
+  padding: 5px 14px;
+  border-radius: 999px;
+  background: #fff3cd;
+  color: #8a5b00;
+  font-size: clamp(13px, 1.6vw, 17px);
+  font-weight: 900;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .subway-space-hint,
+  .subway-gate-player,
+  .subway-corridor[data-stage="corridor"] .subway-corridor-player {
+    animation: none;
+  }
+
+  .subway-corridor[data-stage="corridor"] .subway-corridor-player {
+    left: 72%;
   }
 }

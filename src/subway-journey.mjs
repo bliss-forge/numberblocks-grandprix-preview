@@ -2,6 +2,7 @@ import {
   STATION_COORDS,
   SUBWAY_LINES,
   SUBWAY_PLACES,
+  isTransferStation,
   lineByNumber,
   linesAtStation
 } from "./subway-map-data.mjs";
@@ -29,7 +30,11 @@ export function subwayDestinations() {
 export const TRAIN_APPROACH_MS = 1600;
 export const TRAIN_STOP_MS = 3200;
 export const TRAIN_LEAVE_MS = 900;
-export const TRANSFER_SPLASH_MS = 2400;
+export const TRANSFER_EXIT_MS = 1300;
+export const TRANSFER_CORRIDOR_MS = 2200;
+export const ARRIVE_MELODY_MS = 2000;
+export const STRAY_LIMIT = 3;
+export const MOVE_GUIDE_LIMIT = 30;
 export const DIRECTION_ARROWS = Object.freeze({
   up: "↑",
   down: "↓",
@@ -39,6 +44,12 @@ export const DIRECTION_ARROWS = Object.freeze({
 
 const MAX_LEG_HOPS = 7;
 const MAX_TOTAL_HOPS = 14;
+const DODGE_LANES = Object.freeze(["left", "down", "right"]);
+const DODGE_LANE_LABELS = Object.freeze({
+  left: "왼쪽",
+  down: "가운데",
+  right: "오른쪽"
+});
 
 function seededRandom(seed) {
   let value = (Number(seed) || 0) >>> 0;
@@ -161,27 +172,13 @@ function journeyCandidates(place, targetTransfers) {
     if (route.legs.length !== targetTransfers + 1) return;
     if (route.hops > MAX_TOTAL_HOPS) return;
     if (route.legs.some(leg => leg.stations.length - 1 > MAX_LEG_HOPS)) return;
-    results.push({ start, route });
+    results.push(start);
   });
-  return results.sort((left, right) => left.start.localeCompare(right.start, "ko"));
+  return results.sort((left, right) => left.localeCompare(right, "ko"));
 }
 
-function makePlatform(leg, boardStation, random) {
-  const targetLine = leg.line;
-  const local = linesAtStation(boardStation).map(line => line.number);
-  const decoys = local.filter(number => number !== targetLine);
-  while (decoys.length < 2) {
-    const extra = SUBWAY_LINES[Math.floor(random() * SUBWAY_LINES.length)].number;
-    if (extra !== targetLine && !decoys.includes(extra)) decoys.push(extra);
-  }
-  const queue = [decoys[0], targetLine, decoys[1], targetLine];
-  return {
-    station: boardStation,
-    queue,
-    index: 0,
-    stage: "approaching",
-    phaseMs: 0
-  };
+function makePlatform(lineNumber) {
+  return { line: lineNumber, stage: "approaching", phaseMs: 0 };
 }
 
 export function createSubwayJourney(placeId, seed = 0) {
@@ -193,132 +190,214 @@ export function createSubwayJourney(placeId, seed = 0) {
   if (candidates.length === 0) {
     throw new Error(`no subway journey for ${placeId}`);
   }
-  const picked = candidates[Math.floor(random() * candidates.length)];
+  const start = candidates[Math.floor(random() * candidates.length)];
+  const lines = linesAtStation(start);
+  const singleLine = lines.length === 1 ? lines[0].number : null;
   return {
     seed,
     place,
-    transfers: targetTransfers,
-    start: picked.start,
-    legs: picked.route.legs,
-    legIndex: 0,
-    phase: "platform",
-    platform: makePlatform(picked.route.legs[0], picked.start, random),
-    ride: null,
-    passengers: [],
-    transferMs: 0
+    recommendedTransfers: targetTransfers,
+    start,
+    station: start,
+    line: singleLine,
+    phase: singleLine === null ? "gate" : "platform",
+    platform: singleLine === null ? null : makePlatform(singleLine),
+    transferring: null,
+    arriving: null,
+    transfersUsed: 0,
+    moveCount: 0,
+    strayStreak: 0,
+    showRecommended: false,
+    visited: [start],
+    passengers: []
   };
 }
 
-export function currentLeg(state) {
-  return state.legs[state.legIndex] ?? null;
+export function gateLines(state) {
+  return linesAtStation(state.station).map(line => line.number);
 }
 
-export function currentTrain(state) {
-  if (state.phase !== "platform" || !state.platform) return null;
-  const number = state.platform.queue[
-    state.platform.index % state.platform.queue.length
-  ];
-  return { line: number, color: lineByNumber(number).color };
+export function directionTargets(state) {
+  const line = lineByNumber(state.line);
+  if (!line) return {};
+  const index = line.stations.indexOf(state.station);
+  if (index === -1) return {};
+  const here = STATION_COORDS[state.station];
+  const targets = {};
+  neighborsOnLine(line, index).forEach(neighborIndex => {
+    const station = line.stations[neighborIndex];
+    const point = STATION_COORDS[station];
+    const dx = point.x - here.x;
+    const dy = point.y - here.y;
+    const primary = Math.abs(dx) >= Math.abs(dy)
+      ? (dx >= 0 ? "right" : "left")
+      : (dy >= 0 ? "down" : "up");
+    const secondary = Math.abs(dx) >= Math.abs(dy)
+      ? (dy >= 0 ? "down" : "up")
+      : (dx >= 0 ? "right" : "left");
+    const slot = targets[primary] ? secondary : primary;
+    if (!targets[slot]) targets[slot] = station;
+  });
+  return targets;
 }
 
-export function rideStation(state) {
-  const leg = currentLeg(state);
-  if (!leg || !state.ride) return null;
-  return leg.stations[state.ride.stopIndex];
+export function subwayCompass(state) {
+  const destination = state.place.station;
+  if (state.station === destination) {
+    return { arrived: true, hops: 0 };
+  }
+  const route = routeBetween(state.station, destination);
+  if (!route) return null;
+  const leg = route.legs[0];
+  const transferHere = state.line !== null && leg.line !== state.line;
+  const nextStation = leg.stations[1];
+  const here = STATION_COORDS[state.station];
+  const there = STATION_COORDS[nextStation];
+  const dx = there.x - here.x;
+  const dy = there.y - here.y;
+  const direction = Math.abs(dx) >= Math.abs(dy)
+    ? (dx >= 0 ? "right" : "left")
+    : (dy >= 0 ? "down" : "up");
+  return {
+    arrived: false,
+    line: leg.line,
+    nextStation,
+    direction,
+    hops: route.hops,
+    transfers: route.transfers,
+    transferHere,
+    route
+  };
 }
 
-export function requiredDirection(state) {
-  const leg = currentLeg(state);
-  if (!leg || !state.ride) return null;
-  if (state.ride.stopIndex >= leg.stations.length - 1) return null;
-  const from = STATION_COORDS[leg.stations[state.ride.stopIndex]];
-  const to = STATION_COORDS[leg.stations[state.ride.stopIndex + 1]];
-  const dx = to.x - from.x;
-  const dy = to.y - from.y;
-  if (Math.abs(dx) >= Math.abs(dy)) return dx >= 0 ? "right" : "left";
-  return dy >= 0 ? "down" : "up";
+export function chooseSubwayLine(state, lineNumber) {
+  if (state.phase !== "gate") {
+    return { state, event: { type: "ignored" } };
+  }
+  if (!gateLines(state).includes(lineNumber)) {
+    return { state, event: { type: "no-line", line: lineNumber } };
+  }
+  const changed = state.line !== null && state.line !== lineNumber;
+  return {
+    state: {
+      ...state,
+      line: lineNumber,
+      phase: "platform",
+      platform: makePlatform(lineNumber),
+      transfersUsed: state.transfersUsed + (changed ? 1 : 0)
+    },
+    event: { type: "line-chosen", line: lineNumber }
+  };
 }
 
-export function attemptSubwayMove(state, direction) {
+function makeDodge(state) {
+  const random = seededRandom(state.seed + state.moveCount * 131);
+  const blockedCount = 1 + Math.floor(random() * 2);
+  const blocked = [];
+  while (blocked.length < blockedCount) {
+    const lane = DODGE_LANES[Math.floor(random() * DODGE_LANES.length)];
+    if (!blocked.includes(lane)) blocked.push(lane);
+  }
+  const open = DODGE_LANES.filter(lane => !blocked.includes(lane));
+  return { blocked, open };
+}
+
+export function dodgeLaneLabel(lane) {
+  return DODGE_LANE_LABELS[lane] ?? lane;
+}
+
+export function attemptSubwayMove(state, input) {
   const ignored = { state, event: { type: "ignored" } };
-  if (!["up", "down", "left", "right"].includes(direction)) return ignored;
-  const leg = currentLeg(state);
 
-  if (state.phase === "platform" && direction === "up") {
+  if (state.phase === "platform" && input === "up") {
     if (state.platform.stage !== "stopped") {
       return { state, event: { type: "no-train" } };
     }
-    const train = currentTrain(state);
-    if (train.line === leg.line) {
-      return {
-        state: {
-          ...state,
-          phase: "ride",
-          platform: null,
-          ride: { stopIndex: 0 }
-        },
-        event: { type: "boarded", line: leg.line }
-      };
-    }
     return {
-      state,
-      event: { type: "wrong-line", line: train.line, target: leg.line }
+      state: { ...state, phase: "ride", platform: null },
+      event: { type: "boarded", line: state.line }
     };
   }
 
   if (state.phase === "ride") {
-    const station = rideStation(state);
-    const lastIndex = leg.stations.length - 1;
-    const need = requiredDirection(state);
-
-    if (need === null) {
-      if (direction !== "down") {
-        return { state, event: { type: "time-to-alight", station } };
-      }
-      const nextIndex = state.legIndex + 1;
-      if (nextIndex >= state.legs.length) {
+    if (input === "space") {
+      if (isTransferStation(state.station) && gateLines(state).length > 1) {
         return {
-          state: { ...state, phase: "arrived", ride: null },
-          event: { type: "arrived", station, place: state.place }
+          state: {
+            ...state,
+            phase: "transferring",
+            transferring: { stage: "exit", phaseMs: 0 }
+          },
+          event: { type: "transfer-start", station: state.station }
         };
       }
+      return { state, event: { type: "no-transfer", station: state.station } };
+    }
+
+    if (input === "down" && state.station === state.place.station) {
       return {
         state: {
           ...state,
-          phase: "transfer",
-          ride: null,
-          legIndex: nextIndex,
-          transferMs: 0
+          phase: "arriving",
+          arriving: { stage: "melody", phaseMs: 0, dodge: null }
         },
-        event: {
-          type: "transfer",
-          station,
-          nextLine: state.legs[nextIndex].line
-        }
+        event: { type: "arriving", station: state.station }
       };
     }
 
-    if (direction === need) {
-      const nextIndex = state.ride.stopIndex + 1;
-      const nextStation = leg.stations[nextIndex];
-      const atAlight = nextIndex === lastIndex;
-      let passengers = state.passengers;
-      let passenger = null;
-      if (!atAlight) {
-        passenger = 2 + (passengers.length % 9);
-        passengers = [...passengers, passenger];
+    const targets = directionTargets(state);
+    const target = targets[input];
+    if (!target) {
+      return { state, event: { type: "no-track", direction: input } };
+    }
+    const before = routeBetween(state.station, state.place.station)?.hops ?? 0;
+    const after = target === state.place.station
+      ? 0
+      : routeBetween(target, state.place.station)?.hops ?? 0;
+    const closer = after < before;
+    const isNew = !state.visited.includes(target);
+    let passengers = state.passengers;
+    let passenger = null;
+    if (isNew && target !== state.place.station) {
+      passenger = 2 + (passengers.length % 9);
+      passengers = [...passengers, passenger];
+    }
+    const moveCount = state.moveCount + 1;
+    const strayStreak = closer ? 0 : state.strayStreak + 1;
+    return {
+      state: {
+        ...state,
+        station: target,
+        moveCount,
+        strayStreak,
+        showRecommended: state.showRecommended ||
+          strayStreak >= STRAY_LIMIT || moveCount >= MOVE_GUIDE_LIMIT,
+        visited: isNew ? [...state.visited, target] : state.visited,
+        passengers
+      },
+      event: {
+        type: "drove",
+        station: target,
+        passenger,
+        closer,
+        atDest: target === state.place.station,
+        transferHere: isTransferStation(target)
       }
+    };
+  }
+
+  if (state.phase === "arriving" && state.arriving?.stage === "dodge") {
+    if (!DODGE_LANES.includes(input)) return ignored;
+    if (state.arriving.dodge.open.includes(input)) {
       return {
-        state: {
-          ...state,
-          passengers,
-          ride: { ...state.ride, stopIndex: nextIndex }
-        },
-        event: { type: "drove", station: nextStation, passenger, atAlight }
+        state: { ...state, phase: "arrived", arriving: null },
+        event: { type: "alighted", place: state.place }
       };
     }
-
-    return { state, event: { type: "wrong-way", need, station } };
+    return {
+      state,
+      event: { type: "blocked-person", lane: input }
+    };
   }
 
   return ignored;
@@ -336,52 +415,72 @@ export function advanceSubwayWorld(state, elapsedMs = 100) {
     };
     while (platform.phaseMs >= limits[platform.stage]) {
       platform.phaseMs -= limits[platform.stage];
-      if (platform.stage === "approaching") platform.stage = "stopped";
-      else if (platform.stage === "stopped") platform.stage = "leaving";
-      else {
-        platform.stage = "approaching";
-        platform.index += 1;
-      }
+      platform.stage = platform.stage === "approaching"
+        ? "stopped"
+        : platform.stage === "stopped" ? "leaving" : "approaching";
     }
     return { ...state, platform };
   }
 
-  if (state.phase === "transfer") {
-    const transferMs = state.transferMs + elapsed;
-    if (transferMs >= TRANSFER_SPLASH_MS) {
-      const leg = currentLeg(state);
-      const random = seededRandom(state.seed + state.legIndex * 977);
+  if (state.phase === "transferring" && state.transferring) {
+    const transferring = {
+      ...state.transferring,
+      phaseMs: state.transferring.phaseMs + elapsed
+    };
+    if (transferring.stage === "exit" &&
+      transferring.phaseMs >= TRANSFER_EXIT_MS) {
+      transferring.stage = "corridor";
+      transferring.phaseMs = 0;
+    } else if (transferring.stage === "corridor" &&
+      transferring.phaseMs >= TRANSFER_CORRIDOR_MS) {
       return {
         ...state,
-        phase: "platform",
-        transferMs,
-        platform: makePlatform(leg, leg.stations[0], random)
+        phase: "gate",
+        transferring: null,
+        platform: null
       };
     }
-    return { ...state, transferMs };
+    return { ...state, transferring };
+  }
+
+  if (state.phase === "arriving" && state.arriving) {
+    const arriving = {
+      ...state.arriving,
+      phaseMs: state.arriving.phaseMs + elapsed
+    };
+    if (arriving.stage === "melody" && arriving.phaseMs >= ARRIVE_MELODY_MS) {
+      arriving.stage = "dodge";
+      arriving.phaseMs = 0;
+      arriving.dodge = makeDodge(state);
+    }
+    return { ...state, arriving };
   }
 
   return state;
 }
 
 export function subwayAnnouncement(state) {
+  if (state.phase === "gate") {
+    return `${state.station}역 — 몇 호선을 탈까요?`;
+  }
   if (state.phase === "platform") {
-    const leg = currentLeg(state);
-    return `${leg.line}호선을 타요!`;
+    return `${state.line}호선을 기다려요`;
   }
   if (state.phase === "ride") {
-    const leg = currentLeg(state);
-    const station = rideStation(state);
-    const need = requiredDirection(state);
-    if (need === null) {
-      return `${station}역입니다. 여기서 내려요!`;
+    if (state.station === state.place.station) {
+      return `${state.station}역입니다. ↓ 키로 내려요!`;
     }
-    const next = leg.stations[state.ride.stopIndex + 1];
-    return `${station}역 — 다음은 ${next} ${DIRECTION_ARROWS[need]}`;
+    return `${state.station}역입니다`;
   }
-  if (state.phase === "transfer") {
-    const leg = currentLeg(state);
-    return `${leg.line}호선으로 갈아타요!`;
+  if (state.phase === "transferring") {
+    return state.transferring?.stage === "exit"
+      ? "열차에서 내려요"
+      : "환승 통로를 지나 게이트로 가요";
+  }
+  if (state.phase === "arriving") {
+    return state.arriving?.stage === "melody"
+      ? "도착 멜로디가 나와요"
+      : "사람들을 피해서 내려요!";
   }
   return `${state.place.label}에 도착했어요!`;
 }
