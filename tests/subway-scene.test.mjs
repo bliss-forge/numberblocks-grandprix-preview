@@ -51,6 +51,22 @@ class FakeElement {
     this.attributes.set(name, String(value));
   }
 
+  querySelector(selector) {
+    const className = selector.replace(/^\./, "");
+    const walk = node => {
+      for (const child of node.children ?? []) {
+        if (typeof child.className === "string" &&
+          child.className.split(" ").includes(className)) {
+          return child;
+        }
+        const found = walk(child);
+        if (found) return found;
+      }
+      return null;
+    };
+    return walk(this);
+  }
+
   classList = { add: () => {}, remove: () => {} };
 
   addEventListener() {}

@@ -718,10 +718,10 @@ export function renderSubwayJourney(document, state) {
   pad.setAttribute("role", "group");
   pad.setAttribute("aria-label", "지하철 이동");
   for (const [direction, label, symbol] of [
-    ["up", "타요", "↑"],
-    ["left", "왼쪽", "←"],
-    ["down", "내려요", "↓"],
-    ["right", "오른쪽", "→"],
+    ["up", "위로", "↑"],
+    ["left", "왼쪽으로", "←"],
+    ["down", "아래로", "↓"],
+    ["right", "오른쪽으로", "→"],
     ["space", "환승", "⎵"]
   ]) {
     const button = document.createElement("button");

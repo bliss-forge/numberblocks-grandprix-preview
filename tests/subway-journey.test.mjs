@@ -16,7 +16,7 @@ import {
   subwayCompass,
   subwayDestinations
 } from "../src/subway-journey.mjs";
-import { linesAtStation } from "../src/subway-map-data.mjs";
+import { SUBWAY_LINES, linesAtStation } from "../src/subway-map-data.mjs";
 
 function boardedState(placeId, seed) {
   let state = createSubwayJourney(placeId, seed);
@@ -179,6 +179,80 @@ test("환승역에서 스페이스로 내려 통로·게이트를 지나 호선�
   const chosen = chooseSubwayLine(state, nextLine);
   assert.equal(chosen.event.type, "line-chosen");
   assert.equal(chosen.state.transfersUsed, 1, "changing lines counts a transfer");
+});
+
+test("나침반이 가리키는 방향키는 전 구간에서 실제 이동 키와 일치한다", () => {
+  const base = createSubwayJourney("lake", 5);
+  const destinations = subwayDestinations();
+  for (const line of SUBWAY_LINES) {
+    for (const station of line.stations) {
+      for (const { place } of destinations) {
+        if (station === place.station) continue;
+        const state = {
+          ...base,
+          place,
+          station,
+          line: line.number,
+          phase: "ride"
+        };
+        const compass = subwayCompass(state);
+        if (!compass || compass.arrived || compass.transferHere) continue;
+        const targets = directionTargets(state);
+        assert.equal(
+          targets[compass.direction],
+          compass.nextStation,
+          `${station} ${line.number}호선 → ${place.station}`
+        );
+      }
+    }
+  }
+});
+
+test("환승은 줄지만 정거장이 늘어나는 추천 이동도 '가까워짐'으로 판정한다", () => {
+  const base = createSubwayJourney("lake", 5);
+  const state = {
+    ...base,
+    station: "국회의사당",
+    line: 9,
+    phase: "ride",
+    visited: ["국회의사당"],
+    passengers: [],
+    moveCount: 0,
+    strayStreak: 0
+  };
+  const compass = subwayCompass(state);
+  assert.equal(compass.transferHere, false);
+  const result = moveToward(state, compass.nextStation);
+  assert.equal(result.event.closer, true);
+});
+
+test("나침반은 지금 탄 호선을 기준으로 환승 여부를 판단한다", () => {
+  const base = createSubwayJourney("assembly", 5);
+  const state = {
+    ...base,
+    station: "김포공항",
+    line: 5,
+    phase: "ride"
+  };
+  const compass = subwayCompass(state);
+  assert.equal(
+    compass.transferHere,
+    false,
+    "staying on line 5 is not worse — no transfer scold at 김포공항"
+  );
+});
+
+test("목적지 역에서는 스페이스가 환승 대신 내리기 안내를 낸다", () => {
+  const base = createSubwayJourney("lunapark", 5);
+  const state = {
+    ...base,
+    station: base.place.station,
+    line: 2,
+    phase: "ride"
+  };
+  const result = attemptSubwayMove(state, "space");
+  assert.equal(result.event.type, "time-to-alight");
+  assert.equal(result.state.phase, "ride");
 });
 
 test("목적지에서 ↓ → 멜로디 → 문 열림 → 빈 곳으로 내려야 도착한다", () => {

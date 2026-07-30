@@ -71,7 +71,7 @@ function neighborsOnLine(line, index) {
   return result;
 }
 
-export function routeBetween(startStation, endStation) {
+export function routeBetween(startStation, endStation, startLine = null) {
   if (startStation === endStation) return null;
   const states = [];
   const stateIndex = new Map();
@@ -86,10 +86,11 @@ export function routeBetween(startStation, endStation) {
     hops: Infinity,
     prev: -1
   }));
-  const startIds = linesAtStation(startStation).map(line =>
-    stateIndex.get(`${line.number}:${startStation}`)
+  const startLines = linesAtStation(startStation).filter(line =>
+    startLine === null || line.number === startLine
   );
-  startIds.forEach(id => {
+  startLines.forEach(line => {
+    const id = stateIndex.get(`${line.number}:${startStation}`);
     best[id] = { transfers: 0, hops: 0, prev: -1 };
   });
   const better = (a, b) =>
@@ -246,18 +247,27 @@ export function subwayCompass(state) {
   if (state.station === destination) {
     return { arrived: true, hops: 0 };
   }
-  const route = routeBetween(state.station, destination);
+  const route = routeBetween(state.station, destination, state.line);
   if (!route) return null;
   const leg = route.legs[0];
   const transferHere = state.line !== null && leg.line !== state.line;
   const nextStation = leg.stations[1];
-  const here = STATION_COORDS[state.station];
-  const there = STATION_COORDS[nextStation];
-  const dx = there.x - here.x;
-  const dy = there.y - here.y;
-  const direction = Math.abs(dx) >= Math.abs(dy)
-    ? (dx >= 0 ? "right" : "left")
-    : (dy >= 0 ? "down" : "up");
+  const targetEntry = state.line !== null && !transferHere
+    ? Object.entries(directionTargets(state))
+      .find(([, station]) => station === nextStation)
+    : null;
+  let direction;
+  if (targetEntry) {
+    direction = targetEntry[0];
+  } else {
+    const here = STATION_COORDS[state.station];
+    const there = STATION_COORDS[nextStation];
+    const dx = there.x - here.x;
+    const dy = there.y - here.y;
+    direction = Math.abs(dx) >= Math.abs(dy)
+      ? (dx >= 0 ? "right" : "left")
+      : (dy >= 0 ? "down" : "up");
+  }
   return {
     arrived: false,
     line: leg.line,
@@ -321,6 +331,12 @@ export function attemptSubwayMove(state, input) {
 
   if (state.phase === "ride") {
     if (input === "space") {
+      if (state.station === state.place.station) {
+        return {
+          state,
+          event: { type: "time-to-alight", station: state.station }
+        };
+      }
       if (isTransferStation(state.station) && gateLines(state).length > 1) {
         return {
           state: {
@@ -350,11 +366,17 @@ export function attemptSubwayMove(state, input) {
     if (!target) {
       return { state, event: { type: "no-track", direction: input } };
     }
-    const before = routeBetween(state.station, state.place.station)?.hops ?? 0;
+    const before = routeBetween(
+      state.station,
+      state.place.station,
+      state.line
+    ) ?? { transfers: 0, hops: 0 };
     const after = target === state.place.station
-      ? 0
-      : routeBetween(target, state.place.station)?.hops ?? 0;
-    const closer = after < before;
+      ? { transfers: 0, hops: 0 }
+      : routeBetween(target, state.place.station, state.line) ??
+        { transfers: 0, hops: 0 };
+    const closer = after.transfers < before.transfers ||
+      (after.transfers === before.transfers && after.hops < before.hops);
     const isNew = !state.visited.includes(target);
     let passengers = state.passengers;
     let passenger = null;

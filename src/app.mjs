@@ -911,8 +911,13 @@ function playSubwayReal(key, fallback) {
   }
 }
 
-function playStationSound(station) {
-  void audio.playFile(stationSoundSrc(station));
+function playStationSound(station, followUpKey = null) {
+  const playback = audio.playFile(stationSoundSrc(station));
+  if (followUpKey) {
+    void playback.then(() => audio.playPrompt(followUpKey));
+  } else {
+    void playback;
+  }
 }
 
 function startSubwayRide(placeId) {
@@ -998,11 +1003,11 @@ function moveSubway(direction) {
   ) {
     return;
   }
-  audio.playSfx("key");
   const result = attemptSubwayMove(state.subway, direction);
   state.subway = result.state;
   updateSubwayJourney(state.subwayScene, state.subway);
   const event = result.event;
+  if (event.type !== "ignored") audio.playSfx("key");
   if (event.type === "boarded") {
     audio.playSfx("bell");
     playSubwayReal("door-close", "subway-board");
@@ -1014,8 +1019,7 @@ function moveSubway(direction) {
       audio.playSfx("door");
       showHint(`⭐ ${event.station}역이에요! ↓ 키로 내려요`);
       audio.cancel();
-      playStationSound(event.station);
-      void audio.playPrompt("subway-stop-check");
+      playStationSound(event.station, "subway-stop-check");
     } else if (event.transferHere) {
       showHint(`${event.station}역 — ⎵ 스페이스로 환승할 수 있어요`);
       audio.cancel();
@@ -1033,12 +1037,13 @@ function moveSubway(direction) {
     showHint(`${DIRECTION_ARROWS[event.direction]} 쪽에는 선로가 없어요`);
   } else if (event.type === "no-transfer") {
     showHint("여기는 환승역이 아니에요. 환승역에서 ⎵를 눌러요");
+  } else if (event.type === "time-to-alight") {
+    showHint("여기가 목적지예요! ↓ 키로 내려요");
   } else if (event.type === "transfer-start") {
     audio.playSfx("jingle");
     showHint("내려서 환승 통로로 가요! 발빠짐 주의!");
     audio.cancel();
-    playStationSound(event.station);
-    void audio.playPrompt("subway-transfer");
+    playStationSound(event.station, "subway-transfer");
   } else if (event.type === "arriving") {
     playSubwayReal("arrive-melody", null);
     audio.playSfx("win");
@@ -1301,7 +1306,8 @@ document.addEventListener("keydown", event => {
   }
 
   if (state.phase === "playing" && state.mode === "subway" && state.subway) {
-    if (event.key === " " || event.key === "Spacebar") {
+    if ((event.key === " " || event.key === "Spacebar") &&
+      state.subway.phase === "ride") {
       event.preventDefault();
       if (!event.repeat) moveSubway("space");
       return;
