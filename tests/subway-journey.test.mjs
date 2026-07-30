@@ -3,6 +3,9 @@ import assert from "node:assert/strict";
 import {
   ARRIVE_MELODY_MS,
   GATE_ROOM_WIDTH,
+  HOP_PERIOD_MS,
+  hopInWindow,
+  hopMarker,
   MOVE_GUIDE_LIMIT,
   ROOM_WIDTH,
   TRAIN_APPROACH_MS,
@@ -300,7 +303,7 @@ test("환승역에서 ⎵ → 통로 방 → 게이트 → 다른 호선을 고�
   assert.equal(boarded.line, nextLine);
 });
 
-test("목적지 역에서 ↓ → 멜로디 → 문 열림 → 빈 곳으로 내려야 도착한다", () => {
+test("목적지 역에서 ⎵ → 멜로디 → 문 열림 → 노란 창에 맞춰 폴짝 내린다", () => {
   const journey = createSubwayJourney("hanriver", 3);
   let state = boardTrain(passGate(journey));
   let guard = 0;
@@ -325,15 +328,57 @@ test("목적지 역에서 ↓ → 멜로디 → 문 열림 → 빈 곳으로 내
   const arriving = attemptSubwayMove(state, "down");
   assert.equal(arriving.event.type, "arriving");
   let current = advanceSubwayWorld(arriving.state, ARRIVE_MELODY_MS);
-  assert.equal(current.arriving.stage, "dodge");
-  const dodge = current.arriving.dodge;
-  assert.ok(dodge.open.length >= 1);
-  const blockedTry = attemptSubwayMove(current, dodge.blocked[0]);
-  assert.equal(blockedTry.event.type, "blocked-person");
-  assert.equal(blockedTry.state.phase, "arriving");
-  const alighted = attemptSubwayMove(current, dodge.open[0]);
+  assert.equal(current.arriving.stage, "hop");
+
+  // marker at the far left (phase 0) is outside the window: no penalty
+  const early = attemptSubwayMove(current, "space");
+  assert.equal(early.event.type, "hop-miss");
+  assert.equal(early.state.phase, "arriving");
+
+  // arrows do not jump — the hop is a spacebar moment
+  assert.equal(attemptSubwayMove(current, "left").event.type, "hop-wait");
+
+  // advance a quarter period: the marker sits dead centre, jump lands
+  current = advanceSubwayWorld(current, HOP_PERIOD_MS / 4);
+  assert.equal(hopInWindow(current.arriving.phaseMs), true);
+  const alighted = attemptSubwayMove(current, "space");
   assert.equal(alighted.event.type, "alighted");
   assert.equal(alighted.state.phase, "arrived");
+});
+
+test("네 번째 시도는 항상 성공하고, 보조 모드는 언제나 내려준다", () => {
+  const base = createSubwayJourney("hanriver", 3);
+  let state = {
+    ...base,
+    station: base.place.station,
+    phase: "arriving",
+    arriving: { stage: "hop", phaseMs: 0 }
+  };
+  assert.equal(
+    attemptSubwayMove(state, "space", { assist: true }).event.type,
+    "alighted",
+    "reduced-motion assist always lands"
+  );
+  for (let miss = 0; miss < 3; miss += 1) {
+    const result = attemptSubwayMove(state, "space");
+    assert.equal(result.event.type, "hop-miss", `miss ${miss + 1}`);
+    state = result.state;
+  }
+  assert.equal(
+    attemptSubwayMove(state, "space").event.type,
+    "alighted",
+    "pity rule: the fourth jump lands"
+  );
+});
+
+test("발빠짐 마커는 삼각파로 왕복하고 창 안일 때만 참이다", () => {
+  assert.equal(hopMarker(0), 0);
+  assert.equal(hopMarker(HOP_PERIOD_MS / 4), 0.5);
+  assert.equal(hopMarker(HOP_PERIOD_MS / 2), 1);
+  assert.equal(hopMarker((HOP_PERIOD_MS * 3) / 4), 0.5);
+  assert.equal(hopInWindow(0), false);
+  assert.equal(hopInWindow(HOP_PERIOD_MS / 4), true);
+  assert.equal(hopInWindow(HOP_PERIOD_MS / 2), false);
 });
 
 test("많이 헤매면 지도에 추천 경로 안내가 켜진다", () => {

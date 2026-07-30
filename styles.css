@@ -4831,12 +4831,6 @@ body[data-mode="subway"] .toast {
   z-index: 2;
 }
 
-.subway-door-lane .subway-person-art {
-  display: inline-block;
-  width: 34%;
-  height: auto;
-  vertical-align: bottom;
-}
 
 .subway-station-sign {
   padding: 6px 22px;
@@ -4856,33 +4850,106 @@ body[data-mode="subway"] .toast {
 }
 
 .subway-arriving-door {
+  position: relative;
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
-  width: min(100%, 560px);
-  padding: 14px;
+  grid-template-columns: minmax(0, 1fr) clamp(120px, 18vw, 190px) minmax(0, 1fr);
+  align-items: stretch;
+  width: min(100%, 620px);
+  height: clamp(110px, 22vh, 180px);
+  padding: 10px;
   border-radius: 18px;
   background: #39424e;
 }
 
-.subway-arriving-door[data-open="false"] .subway-door-lane {
-  background: #59636f;
+/* Door leaves slide apart when the doors open. */
+.subway-hop-leaf {
+  border-radius: 10px;
+  background: #eef3f8;
+  border: 4px solid #cdd7e2;
+  transition: transform var(--motion-journey) var(--motion-ease-settle);
 }
 
-.subway-door-lane {
+.subway-arriving-door[data-open="true"] .subway-hop-leaf[data-side="left"] {
+  transform: translateX(-26%);
+}
+
+.subway-arriving-door[data-open="true"] .subway-hop-leaf[data-side="right"] {
+  transform: translateX(26%);
+}
+
+/* The gap between train and platform: dark drop with yellow nosings. */
+.subway-hop-gap {
+  position: relative;
   display: grid;
   place-items: end center;
-  height: clamp(90px, 18vh, 150px);
-  border-radius: 12px;
-  background: #eef3f8;
-  font-size: clamp(26px, 4.4vh, 44px);
-  font-weight: 900;
-  color: #1c6fd6;
+  border-radius: 8px;
+  background: #2c3440;
+  box-shadow: inset 0 8px 12px rgba(0, 0, 0, .5);
+  border-inline: 6px solid #f4c542;
 }
 
-.subway-door-lane[data-blocked="true"] {
-  background: #ffe2e6;
+.subway-hop-gap-label {
+  margin-bottom: 8px;
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: #f4c542;
+  color: #4a3400;
+  font-size: clamp(11px, 1.3vw, 15px);
+  font-weight: 900;
+  white-space: nowrap;
 }
+
+/* Timing meter: the marker sweeps; jump while it crosses the yellow window. */
+.subway-hop-meter {
+  position: relative;
+  width: min(100%, 620px);
+  height: clamp(30px, 5vh, 44px);
+  border-radius: 999px;
+  border: 4px solid #fff;
+  background: #dfe6ee;
+  box-shadow: 0 4px 12px rgba(37, 52, 93, .18);
+  overflow: hidden;
+}
+
+.subway-hop-meter[data-active="false"] {
+  visibility: hidden;
+}
+
+.subway-hop-safe {
+  position: absolute;
+  inset: 0 auto;
+  left: 33%;
+  width: 34%;
+  background: #ffd54d;
+  border-inline: 3px solid #f4a532;
+}
+
+.subway-hop-marker {
+  position: absolute;
+  inset: 3px auto;
+  left: 0;
+  width: clamp(14px, 2vw, 20px);
+  border-radius: 999px;
+  background: #e8564a;
+  box-shadow: 0 0 0 3px #fff;
+  animation: subway-hop-sweep var(--hop-period, 2000ms) linear infinite
+    alternate;
+}
+
+@keyframes subway-hop-sweep {
+  from { left: 0; }
+  to { left: calc(100% - clamp(14px, 2vw, 20px)); }
+}
+
+.subway-arriving-player[data-hopping="true"] {
+  animation: subway-hop-ready .9s ease-in-out infinite;
+}
+
+@keyframes subway-hop-ready {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-7px); }
+}
+
 
 .subway-arriving-player {
   width: clamp(48px, 6.6vw, 72px);
@@ -5050,6 +5117,20 @@ body[data-mode="subway"] .toast {
   }
 
   .subway-room-player {
+    transition: none;
+  }
+
+  /* The sweep stops in the safe window, so the jump always succeeds. */
+  .subway-hop-marker {
+    animation: none;
+    left: calc(50% - clamp(7px, 1vw, 10px));
+  }
+
+  .subway-arriving-player[data-hopping="true"] {
+    animation: none;
+  }
+
+  .subway-hop-leaf {
     transition: none;
   }
 }

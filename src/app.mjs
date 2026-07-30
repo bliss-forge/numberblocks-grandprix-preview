@@ -133,6 +133,7 @@ const state = {
   stars: 0,
   streak: { count: 0, add: 0, sub: 0, mul: 0, safety: 0, subway: 0 },
   subwayWalkMs: 0,
+  subwayTickMs: 0,
   wrongCount: 0,
   round: 0,
   hintTimer: 0,
@@ -979,14 +980,19 @@ function scheduleSubwayTick(previousMs = performance.now()) {
     }
     if (previous.phase === "arriving" && state.subway.phase === "arriving" &&
       previous.arriving?.stage === "melody" &&
-      state.subway.arriving?.stage === "dodge") {
+      state.subway.arriving?.stage === "hop") {
       audio.playSfx("door");
-      playSubwayReal("mind-gap", "subway-mind-gap");
-      showHint("문이 열렸어요! 빈 곳 방향키로 내려요");
+      showHint("문이 열렸어요! 노란 불일 때 ⎵로 폴짝!");
     }
+    state.subwayTickMs = nowMs;
     updateSubwayJourney(state.subwayScene, state.subway);
     scheduleSubwayTick(nowMs);
   }, 150);
+}
+
+function prefersReducedMotion() {
+  return typeof matchMedia === "function" &&
+    matchMedia("(prefers-reduced-motion: reduce)").matches;
 }
 
 function moveSubway(direction) {
@@ -997,7 +1003,16 @@ function moveSubway(direction) {
   ) {
     return;
   }
-  const result = attemptSubwayMove(state.subway, direction);
+  if (state.subway.phase === "arriving" && state.subwayTickMs) {
+    // Sync the marker to the wall clock before judging the jump, so the
+    // judgement matches what the CSS-animated marker is showing.
+    const nowMs = performance.now();
+    state.subway = advanceSubwayWorld(state.subway, nowMs - state.subwayTickMs);
+    state.subwayTickMs = nowMs;
+  }
+  const result = attemptSubwayMove(state.subway, direction, {
+    assist: prefersReducedMotion()
+  });
   state.subway = result.state;
   updateSubwayJourney(state.subwayScene, state.subway);
   const event = result.event;
@@ -1089,6 +1104,11 @@ function moveSubway(direction) {
     );
     audio.playSfx("win");
     showHint("도착 멜로디가 나와요! 곧 문이 열려요");
+  } else if (event.type === "hop-miss") {
+    audio.playSfx("pop");
+    showHint("아직! 표시가 가운데 노란 칸에 올 때 ⎵");
+  } else if (event.type === "hop-wait") {
+    showHint("⎵ 스페이스로 폴짝 뛰어 내려요!");
   } else if (event.type === "blocked-person") {
     audio.playSfx("pop");
     showHint("\"실례합니다!\" 한 번 더 누르면 비켜줘요");
@@ -1347,8 +1367,8 @@ document.addEventListener("keydown", event => {
   }
 
   if (state.phase === "playing" && state.mode === "subway" && state.subway) {
-    if ((event.key === " " || event.key === "Spacebar") &&
-      ["gate", "platform", "ride", "arriving"].includes(state.subway.phase)) {
+    if (event.key === " " || event.key === "Spacebar") {
+      // every subway phase owns the spacebar — it must never scroll the page
       event.preventDefault();
       if (!event.repeat) moveSubway("space");
       return;

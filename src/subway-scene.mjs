@@ -8,7 +8,7 @@ import {
 } from "./subway-map-data.mjs";
 import {
   DIRECTION_ARROWS,
-  dodgeLaneLabel,
+  HOP_PERIOD_MS,
   gateLines,
   lineNeighbors,
   subwayAnnouncement,
@@ -803,38 +803,56 @@ function renderArrivingPhase(document, state, stage) {
   sign.textContent = stationLabel(state.station);
   room.append(sign);
 
+  const hopping = state.arriving?.stage === "hop";
   const note = document.createElement("p");
   note.className = "subway-arriving-note";
-  note.textContent = state.arriving?.stage === "dodge"
-    ? "빈 곳 방향키를 눌러 사람들을 피해서 내려요!"
+  note.textContent = hopping
+    ? "노란 불일 때 ⎵를 눌러 폴짝! 발빠짐 조심"
     : "🎵 도착 멜로디 — 곧 문이 열려요";
   room.append(note);
 
-  const door = document.createElement("div");
-  door.className = "subway-arriving-door";
-  door.dataset.open = String(state.arriving?.stage === "dodge");
-  ["left", "down", "right"].forEach(lane => {
-    const slot = document.createElement("div");
-    slot.className = "subway-door-lane";
-    slot.dataset.lane = lane;
-    const blocked = state.arriving?.dodge?.blocked.includes(lane) ?? false;
-    slot.dataset.blocked = String(blocked);
-    slot.setAttribute(
-      "aria-label",
-      `${dodgeLaneLabel(lane)} ${blocked ? "사람 있음" : "비어 있음"}`
-    );
-    if (state.arriving?.stage === "dodge") {
-      if (blocked) {
-        slot.innerHTML = passengerSvg(lane.length + 2, false) +
-          passengerSvg(lane.length + 5, false);
-      } else {
-        slot.textContent = DIRECTION_ARROWS[lane];
-      }
-    }
-    door.append(slot);
-  });
-  room.append(door);
-  room.append(playerImage(document, "subway-player subway-arriving-player"));
+  // The open doorway with the platform gap under it: train floor on the
+  // right, platform on the left, the dark gap with yellow nosings between.
+  const doorway = document.createElement("div");
+  doorway.className = "subway-arriving-door";
+  doorway.dataset.open = String(hopping);
+  const leftLeaf = document.createElement("span");
+  leftLeaf.className = "subway-hop-leaf";
+  leftLeaf.dataset.side = "left";
+  const rightLeaf = document.createElement("span");
+  rightLeaf.className = "subway-hop-leaf";
+  rightLeaf.dataset.side = "right";
+  const gap = document.createElement("div");
+  gap.className = "subway-hop-gap";
+  gap.setAttribute("role", "img");
+  gap.setAttribute("aria-label", "열차와 승강장 사이 틈");
+  const gapLabel = document.createElement("span");
+  gapLabel.className = "subway-hop-gap-label";
+  gapLabel.textContent = "발빠짐 주의";
+  gap.append(gapLabel);
+  doorway.append(leftLeaf, gap, rightLeaf);
+  room.append(doorway);
+
+  // The timing meter: a marker sweeps side to side; the centre window is the
+  // safe moment to jump. CSS animates the sweep with the model's period.
+  const meter = document.createElement("div");
+  meter.className = "subway-hop-meter";
+  meter.dataset.active = String(hopping);
+  meter.setAttribute(
+    "aria-label",
+    "발빠짐 타이밍 — 표시가 가운데 노란 칸일 때 스페이스"
+  );
+  const safe = document.createElement("span");
+  safe.className = "subway-hop-safe";
+  const marker = document.createElement("span");
+  marker.className = "subway-hop-marker";
+  marker.style.setProperty("--hop-period", `${HOP_PERIOD_MS}ms`);
+  meter.append(safe, marker);
+  room.append(meter);
+
+  const hero = playerImage(document, "subway-player subway-arriving-player");
+  hero.dataset.hopping = String(hopping);
+  room.append(hero);
   stage.append(room);
   return room;
 }
