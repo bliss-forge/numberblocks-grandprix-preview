@@ -205,3 +205,9 @@ export function linesAtStation(station) {
 export function isTransferStation(station) {
   return linesAtStation(station).length >= 2;
 }
+
+// 서울역 already ends in 역; appending another one gives "서울역역".
+export function stationLabel(name) {
+  const text = String(name);
+  return text.endsWith("역") ? text : `${text}역`;
+}

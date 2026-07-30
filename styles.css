@@ -4098,7 +4098,10 @@ body[data-mode="subway"] .stage-lights {
 }
 
 .subway-room[data-kind="platform"] .subway-train {
-  width: min(92%, 620px);
+  /* Sized to land inside the painted tunnel mouth rather than swallow the
+     whole wall: 335px wide -> 128px tall -> scene y 104..246 against the
+     mouth's 96..248. */
+  width: min(46%, 420px);
 }
 
 .subway-room-floor {
@@ -4199,6 +4202,21 @@ body[data-mode="subway"] .toast {
   animation: subway-scene-nudge 1.8s ease-in-out infinite;
 }
 
+.subway-scene-flow {
+  animation: subway-scene-march 1.7s ease-in-out infinite;
+}
+
+.subway-scene-hangsign {
+  transform-box: fill-box;
+  transform-origin: 50% 0;
+  animation: subway-scene-sway 4.2s ease-in-out infinite;
+}
+
+@keyframes subway-scene-march {
+  0%, 100% { transform: translateX(0); }
+  50% { transform: translateX(13px); }
+}
+
 @keyframes subway-scene-drift {
   to { transform: translateX(-170px); }
 }
@@ -4213,7 +4231,9 @@ body[data-mode="subway"] .toast {
   50% { transform: translateY(9px); opacity: 1; }
 }
 
-.subway-room-scene ~ .subway-room-floor {
+/* The per-kind floor rules are more specific than a sibling selector, so the
+   painted floor was being covered. Match their specificity and win on order. */
+.subway-room[data-painted="true"] .subway-room-floor {
   background: transparent;
   box-shadow: none;
 }
@@ -4250,31 +4270,66 @@ body[data-mode="subway"] .toast {
   font-weight: 900;
 }
 
+/* The gate is drawn art now, not a bordered box: a turnstile with a caption. */
 .subway-room-gate {
-  bottom: 22%;
+  bottom: 21%;
   display: grid;
-  place-items: center;
-  width: clamp(62px, 9vw, 108px);
-  height: clamp(64px, 13vh, 104px);
-  border-radius: 12px;
-  border: 5px solid #2fa25c;
-  background: #eafaf0;
+  justify-items: center;
+  gap: 3px;
+  width: clamp(58px, 8.4vw, 104px);
   color: #1c7a3e;
-  font-size: clamp(11px, 1.4vw, 15px);
+  font-size: clamp(10px, 1.2vw, 14px);
   font-weight: 900;
   text-align: center;
 }
 
+.subway-gate-art-box {
+  display: block;
+  width: 100%;
+  line-height: 0;
+}
+
+.subway-gate-art {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.subway-gate-caption {
+  padding: 2px 9px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, .94);
+  box-shadow: 0 2px 0 rgba(37, 52, 93, .14);
+  white-space: nowrap;
+}
+
 .subway-room-gate[data-gate="out"] {
-  border-color: #e8894a;
-  background: #fdeee2;
   color: #b3561c;
 }
 
-.subway-room-gate[data-tapped="true"] {
-  border-color: #1c7a3e;
+/* Barrier flaps fold away once the card is tapped. */
+.subway-gate-flap {
+  transform-origin: 50% 100%;
+  transition: transform var(--motion-gentle) var(--motion-ease-settle);
+}
+
+.subway-gate-flap[data-open="true"] {
+  transform: scaleX(.14);
+}
+
+.subway-gate-ping {
+  transform-origin: 96px 60px;
+  animation: subway-gate-ping 1.4s ease-out infinite;
+}
+
+@keyframes subway-gate-ping {
+  0% { transform: scale(.55); opacity: .95; }
+  100% { transform: scale(1.35); opacity: 0; }
+}
+
+.subway-room-gate[data-tapped="true"] .subway-gate-caption {
   background: #d7f5e3;
-  animation: subway-door-pop .5s var(--motion-ease-settle) 2;
+  animation: subway-guide-pop .5s var(--motion-ease-settle) 2;
 }
 
 .subway-room-sign {
@@ -4714,11 +4769,43 @@ body[data-mode="subway"] .toast {
 
 /* Arriving: melody, doors, dodge */
 .subway-arriving {
+  position: relative;
   display: grid;
   gap: 14px;
   justify-items: center;
   align-content: center;
-  width: min(94%, 720px);
+  align-self: stretch;
+  justify-self: stretch;
+  width: 100%;
+  height: 100%;
+  /* Clears the toast band, which sits in the upper wall of every room. */
+  padding: clamp(96px, 24vh, 178px) 12px clamp(12px, 3vh, 26px);
+  overflow: hidden;
+  border-radius: 16px;
+  border: 4px solid #fff;
+}
+
+.subway-arriving > :not(.subway-room-scene) {
+  position: relative;
+  z-index: 1;
+}
+
+/* The station sign is the anchor for the step, so give it the top-left slot
+   the room title occupies elsewhere. */
+.subway-arriving .subway-station-sign {
+  justify-self: start;
+  align-self: start;
+  position: absolute;
+  top: 10px;
+  left: 14px;
+  z-index: 2;
+}
+
+.subway-door-lane .subway-person-art {
+  display: inline-block;
+  width: 34%;
+  height: auto;
+  vertical-align: bottom;
 }
 
 .subway-station-sign {
@@ -4754,7 +4841,7 @@ body[data-mode="subway"] .toast {
 
 .subway-door-lane {
   display: grid;
-  place-items: center;
+  place-items: end center;
   height: clamp(90px, 18vh, 150px);
   border-radius: 12px;
   background: #eef3f8;
@@ -4870,6 +4957,18 @@ body[data-mode="subway"] .toast {
     right: 0;
   }
 
+  /* The two-pane grid left the room column at 8px on a phone. Stack instead;
+     full mobile polish is a separate pass. */
+  .subway-layout {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr) auto;
+  }
+
+  .subway-rail {
+    grid-template-rows: auto auto auto;
+    gap: 6px;
+  }
+
   .subway-plan-step:not([data-current="true"]) {
     display: none;
   }
@@ -4901,9 +5000,12 @@ body[data-mode="subway"] .toast {
   .subway-scene-scroll,
   .subway-scene-strap,
   .subway-scene-chevrons,
+  .subway-scene-flow,
+  .subway-scene-hangsign,
   .subway-room-window,
   .subway-train[data-stage="stopped"] svg,
-  .subway-room-gate[data-tapped="true"],
+  .subway-room-gate[data-tapped="true"] .subway-gate-caption,
+  .subway-gate-ping,
   .subway-room-target,
   .subway-room-friend,
   .subway-plan-step[data-current="true"],

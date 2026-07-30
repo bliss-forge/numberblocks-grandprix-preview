@@ -3,7 +3,8 @@ import {
   STATION_COORDS,
   SUBWAY_LINES,
   linesAtStation,
-  lineByNumber
+  lineByNumber,
+  stationLabel
 } from "./subway-map-data.mjs";
 import {
   DIRECTION_ARROWS,
@@ -18,7 +19,11 @@ import {
   lineTextColor,
   subwayTrainSvg
 } from "./subway-art.mjs";
-import { passengerSvg, stationSceneSvg } from "./subway-station-art.mjs";
+import {
+  fareGateSvg,
+  passengerSvg,
+  stationSceneSvg
+} from "./subway-station-art.mjs";
 
 const MAP_SCALE = 10;
 const MIN_SPAN_X = 66;
@@ -456,6 +461,21 @@ function collectStrip(document, state) {
   return strip;
 }
 
+function fareGate(document, room, direction, label) {
+  const x = direction === "in" ? room.inGateX : room.outGateX;
+  const node = roomCell(document, "subway-room-gate", x, room.width);
+  node.dataset.gate = direction;
+  node.setAttribute("role", "img");
+  const art = document.createElement("span");
+  art.className = "subway-gate-art-box";
+  art.innerHTML = fareGateSvg(direction, direction === "in" && room.tapped);
+  const caption = document.createElement("span");
+  caption.className = "subway-gate-caption";
+  caption.textContent = label;
+  node.append(art, caption);
+  return node;
+}
+
 function roomCell(document, className, x, width, text) {
   const node = document.createElement("span");
   node.className = className;
@@ -474,7 +494,8 @@ function renderRoom(document, state, stage, compass) {
 
   const title = document.createElement("div");
   title.className = "subway-room-title";
-  title.textContent = `${state.station}역 · ${ROOM_TITLES[room.kind] ?? ""}`;
+  title.textContent =
+    `${stationLabel(state.station)} · ${ROOM_TITLES[room.kind] ?? ""}`;
   wrap.append(title);
 
   const painted = stationSceneSvg(room.kind, {
@@ -482,6 +503,7 @@ function renderRoom(document, state, stage, compass) {
     stairsFrom: room.stairsFrom ?? undefined,
     lineColor: state.line ? lineByNumber(state.line).color : undefined
   });
+  wrap.dataset.painted = String(Boolean(painted));
   if (painted) {
     const art = document.createElement("div");
     art.className = "subway-room-scene";
@@ -558,28 +580,17 @@ function renderRoom(document, state, stage, compass) {
   }
 
   if (room.kind === "gate") {
-    const exit = roomCell(
-      document,
-      "subway-room-gate",
-      room.outGateX,
-      room.width,
-      "🚪 나가는 곳"
-    );
-    exit.dataset.gate = "out";
-    exit.setAttribute("role", "img");
+    const exit = fareGate(document, room, "out", "나가는 곳");
     exit.setAttribute("aria-label", "나가는 곳 개찰구 — 들어갈 수 없어요");
     lane.append(exit);
 
-    const entry = roomCell(
+    const entry = fareGate(
       document,
-      "subway-room-gate",
-      room.inGateX,
-      room.width,
-      room.tapped ? "🎫 삑! 통과" : "🎫 들어가는 곳"
+      room,
+      "in",
+      room.tapped ? "삑! 통과" : "들어가는 곳"
     );
-    entry.dataset.gate = "in";
     entry.dataset.tapped = String(Boolean(room.tapped));
-    entry.setAttribute("role", "img");
     entry.setAttribute(
       "aria-label",
       room.tapped ? "카드를 찍고 지나온 개찰구" : "들어가는 곳 개찰구"
@@ -749,9 +760,19 @@ function renderArrivingPhase(document, state, stage) {
   room.className = "subway-arriving";
   room.dataset.stage = state.arriving?.stage ?? "melody";
 
+  // The doors open while still inside the carriage, so reuse the train scenery
+  // instead of leaving this step on an empty pale field.
+  const art = document.createElement("div");
+  art.className = "subway-room-scene";
+  art.setAttribute("aria-hidden", "true");
+  art.innerHTML = stationSceneSvg("train", {
+    lineColor: state.line ? lineByNumber(state.line).color : undefined
+  });
+  room.append(art);
+
   const sign = document.createElement("div");
   sign.className = "subway-station-sign";
-  sign.textContent = `${state.station}역`;
+  sign.textContent = stationLabel(state.station);
   room.append(sign);
 
   const note = document.createElement("p");
@@ -775,7 +796,12 @@ function renderArrivingPhase(document, state, stage) {
       `${dodgeLaneLabel(lane)} ${blocked ? "사람 있음" : "비어 있음"}`
     );
     if (state.arriving?.stage === "dodge") {
-      slot.textContent = blocked ? "🧍🧍" : DIRECTION_ARROWS[lane];
+      if (blocked) {
+        slot.innerHTML = passengerSvg(lane.length + 2, false) +
+          passengerSvg(lane.length + 5, false);
+      } else {
+        slot.textContent = DIRECTION_ARROWS[lane];
+      }
     }
     door.append(slot);
   });

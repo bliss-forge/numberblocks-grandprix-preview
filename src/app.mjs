@@ -94,6 +94,7 @@ import {
   stationSoundSrc,
   subwaySoundSrc
 } from "./subway-sound-manifest.mjs";
+import { stationLabel } from "./subway-map-data.mjs";
 
 const WALK_REPEAT_MS = 110;
 const audio = new AudioManager();
@@ -1041,21 +1042,23 @@ function moveSubway(direction) {
     const compass = subwayCompass(state.subway);
     if (event.atDest) {
       audio.playSfx("door");
-      showHint(`⭐ ${event.station}역이에요! ↓ 눌러서 내려요`);
+      showHint(`⭐ ${stationLabel(event.station)}이에요! ↓ 눌러서 내려요`);
       audio.cancel();
       playStationSound(event.station, "subway-stop-check");
     } else if (compass?.hopsToAlight === 0) {
       audio.playSfx("door");
-      showHint(`🔔 ${event.station}역이에요! ↓ 눌러서 갈아타요`);
+      showHint(`🔔 ${stationLabel(event.station)}이에요! ↓ 눌러서 갈아타요`);
       audio.cancel();
       playStationSound(event.station, "subway-transfer");
     } else if (compass?.hopsToAlight === 1) {
-      showHint(`${event.station}역 — 다음 ${compass.alightAt}에서 내려요!`);
+      showHint(
+        `${stationLabel(event.station)} — 다음 ${compass.alightAt}에서 내려요!`
+      );
       audio.cancel();
       playStationSound(compass.alightAt, "subway-stop-check");
     } else {
       showHint(
-        `${event.station}역 — ${compass?.alightAt ?? "목적지"}까지 ` +
+        `${stationLabel(event.station)} — ${compass?.alightAt ?? "목적지"}까지 ` +
         `${compass?.hopsToAlight ?? "?"}정거장`
       );
       if (!event.closer && state.subway.strayStreak >= 2) {
@@ -1067,7 +1070,7 @@ function moveSubway(direction) {
   } else if (event.type === "wall") {
     showHint("벽이에요! 다른 쪽으로 가요");
   } else if (event.type === "not-your-stop") {
-    showHint(`${event.station}역은 내릴 역이 아니에요. 계속 타고 가요`);
+    showHint(`${stationLabel(event.station)}은 내릴 역이 아니에요. 계속 타요`);
     audio.cancel();
     void audio.playPrompt("subway-wrong-stop");
   } else if (event.type === "transfer-start") {

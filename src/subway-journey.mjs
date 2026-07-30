@@ -3,7 +3,8 @@ import {
   SUBWAY_PLACES,
   isTransferStation,
   lineByNumber,
-  linesAtStation
+  linesAtStation,
+  stationLabel
 } from "./subway-map-data.mjs";
 
 export const PLACE_TRANSFERS = Object.freeze({
@@ -732,27 +733,27 @@ export function advanceSubwayWorld(state, elapsedMs = 100) {
 export function subwayAnnouncement(state) {
   if (state.phase === "gate") {
     if (!state.room?.tapped) {
-      return `${state.station}역 — 들어가는 곳으로 지나가요`;
+      return `${stationLabel(state.station)} — 들어가는 곳으로 지나가요`;
     }
     return state.room.chosen === null
-      ? `${state.station}역 — 몇 호선 계단으로 갈까요?`
+      ? `${stationLabel(state.station)} — 몇 호선 계단으로 갈까요?`
       : `${state.room.chosen}호선 계단으로 내려가요`;
   }
   if (state.phase === "platform") {
     return `${state.line}호선 승강장 — 열차를 기다려요`;
   }
   if (state.phase === "corridor") {
-    return `${state.station}역 환승 통로 — 게이트로 가요`;
+    return `${stationLabel(state.station)} 환승 통로 — 게이트로 가요`;
   }
   if (state.phase === "ride") {
     const compass = subwayCompass(state);
     if (compass?.hopsToAlight === 0) {
-      return `${state.station}역입니다. ↓ 키로 내려요!`;
+      return `${stationLabel(state.station)}입니다. ↓ 키로 내려요!`;
     }
     if (compass?.hopsToAlight === 1) {
-      return `다음 역은 ${compass.alightAt}입니다. 내릴 준비를 해요`;
+      return `다음 역은 ${stationLabel(compass.alightAt)}입니다. 내릴 준비를 해요`;
     }
-    return `${state.station}역 정차 중`;
+    return `${stationLabel(state.station)} 정차 중`;
   }
   if (state.phase === "arriving") {
     return state.arriving?.stage === "melody"

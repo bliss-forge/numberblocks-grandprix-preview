@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>corridor audit harness</title>
+<link rel="stylesheet" href="/styles.css">
+<style>
+  html, body { margin: 0; height: 100%; }
+  main { height: 100%; }
+  #game { display: grid; height: 100%; }
+</style>
+</head>
+<body data-mode="subway">
+<main>
+  <section id="game" class="screen">
+    <div class="stage-frame">
+      <div id="stage" class="stage"></div>
+    </div>
+  </section>
+</main>
+<script type="module">
+import {
+  TRAIN_APPROACH_MS,
+  advanceSubwayWorld,
+  attemptSubwayMove,
+  buildRoom,
+  chooseSubwayLine,
+  createSubwayJourney,
+  gateLines
+} from "/src/subway-journey.mjs";
+import { renderSubwayJourney } from "/src/subway-scene.mjs";
+
+function walkTo(state, targetX) {
+  let current = state;
+  for (let guard = 0; guard < 24; guard += 1) {
+    if (current.room.walkX === targetX) return current;
+    const dir = current.room.walkX < targetX ? "right" : "left";
+    const next = attemptSubwayMove(current, dir);
+    if (next.state === current) return current;
+    current = next.state;
+  }
+  return current;
+}
+function reachPlatform(state) {
+  const through = walkTo(state, state.room.inGateX);
+  let current = chooseSubwayLine(through, gateLines(through)[0]).state;
+  for (let guard = 0; guard < 12; guard += 1) {
+    const r = attemptSubwayMove(current, "right");
+    current = r.state;
+    if (r.event.type === "stairs-down") return current;
+  }
+  throw new Error("no stairs");
+}
+const platform = reachPlatform(createSubwayJourney("hanriver", 3));
+const stopped = advanceSubwayWorld(platform, TRAIN_APPROACH_MS);
+const base = attemptSubwayMove(stopped, "up").state;
+const params = new URLSearchParams(location.search);
+const corridor = {
+  ...base,
+  line: Number(params.get("line") || base.line),
+  phase: "corridor",
+  room: buildRoom("corridor", { seed: 1, station: base.station, entrySide: "left" })
+};
+document.getElementById("stage").append(renderSubwayJourney(document, corridor));
+window.__line = corridor.line;
+
+window.audit = () => {
+  const room = document.querySelector(".subway-room");
+  const rb = room.getBoundingClientRect();
+  const svg = room.querySelector(".subway-scene-art");
+  // scene units -> client px
+  const toScene = r => ({
+    x1: ((r.left - rb.left) / rb.width * 1000),
+    x2: ((r.right - rb.left) / rb.width * 1000),
+    y1: ((r.top - rb.top) / rb.height * 500),
+    y2: ((r.bottom - rb.top) / rb.height * 500)
+  });
+  const out = { roomBox: { w: rb.width, h: rb.height }, actors: {}, scenery: {} };
+  for (const el of room.querySelectorAll(".subway-room-lane > *")) {
+    const cls = el.className.replace("subway-room-", "");
+    const s = toScene(el.getBoundingClientRect());
+    const key = cls + (out.actors[cls] ? "#2" : "");
+    out.actors[key] = {
+      text: (el.textContent || "").trim(),
+      x: [+s.x1.toFixed(1), +s.x2.toFixed(1)],
+      y: [+s.y1.toFixed(1), +s.y2.toFixed(1)]
+    };
+  }
+  const named = [
+    [".subway-scene-hangsign", "hangingSign"],
+    [".subway-scene-flow", "flowChevrons"]
+  ];
+  for (const [sel, name] of named) {
+    const n = svg.querySelector(sel);
+    if (n) { const s = toScene(n.getBoundingClientRect()); out.scenery[name] = { x: [+s.x1.toFixed(1), +s.x2.toFixed(1)], y: [+s.y1.toFixed(1), +s.y2.toFixed(1)] }; }
+  }
+  out.line = window.__line;
+  return out;
+};
+</script>
+</body>
+</html>

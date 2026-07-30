@@ -315,8 +315,206 @@ export function trainSceneSvg({ lineColor = GREEN, width = 7 } = {}) {
   return scene("train", body);
 }
 
+// 승강장 — platform: a tunnel mouth for the train to pull into, the station name
+// board underlined in the ridden line, half-height screen doors along the edge
+// with the line stripe on their rail, the yellow tactile strip just inside them,
+// and a bench to wait on. The band x 264..736 / y 96..248 is deliberately left
+// empty: that is where the CSS-positioned .subway-train arrives.
+export function platformSceneSvg({ lineColor = GREEN, width = 7 } = {}) {
+  const cell = SCENE_WIDTH / width;
+  // Screen doors: one glass bay per cell with a post on every cell boundary, so
+  // the barrier never reads as an obstacle standing inside a walkable cell.
+  const doorPosts = Array.from({ length: width + 1 }, (unused, index) =>
+    `<rect x="${(index * cell - 9).toFixed(1)}" y="244" width="18" ` +
+    `height="126" rx="4" fill="${STEEL_DARK}"/>`
+  ).join("");
+  const doorGlass = Array.from({ length: width }, (unused, index) => {
+    const cx = cellCentre(index, width);
+    return `<rect x="${(cx - cell / 2 + 11).toFixed(1)}" y="272" ` +
+      `width="${(cell - 22).toFixed(1)}" height="82" rx="8" fill="${SKY}" ` +
+      `stroke="${PAPER}" stroke-width="4"/>` +
+      `<line x1="${cx.toFixed(1)}" y1="280" x2="${cx.toFixed(1)}" y2="346" ` +
+      `stroke="${PAPER}" stroke-width="5"/>`;
+  }).join("");
+  const tactileDots = Array.from({ length: 12 }, (unused, index) =>
+    `<rect x="${((SCENE_WIDTH / 12) * index + 18).toFixed(1)}" y="374" ` +
+    `width="44" height="8" rx="4" fill="${PAPER}" opacity=".45"/>`
+  ).join("");
+  const queueCells = [-1, 0, 1].map(offset => Math.floor(width / 2) + offset);
+  const body = [
+    ceilingLights(6),
+    tiledWall(10),
+    // trackside gap running the length of the platform, with a two-step tunnel
+    // mouth opening in the middle where the train pulls in
+    `<rect x="0" y="220" width="${SCENE_WIDTH}" height="30" fill="${INK}"/>`,
+    `<rect x="264" y="96" width="472" height="282" rx="30" fill="${INK}" ` +
+    `stroke="${STEEL_DARK}" stroke-width="6"/>`,
+    `<rect x="288" y="120" width="424" height="258" rx="20" fill="${DARK}"/>`,
+    // station name board on the left wall, underlined in the ridden line
+    `<rect x="22" y="120" width="224" height="98" rx="14" fill="${PAPER}" ` +
+    `stroke="${INK}" stroke-width="6"/>`,
+    `<text x="134" y="180" text-anchor="middle" font-size="44" ` +
+    `font-weight="900" fill="${INK}">승강장</text>`,
+    `<rect x="58" y="190" width="152" height="14" rx="7" fill="${lineColor}"/>`,
+    hangingSign(862, "타는 곳"),
+    posterFrame(766, 134, 96, 84, SKY_DEEP),
+    wallClock(946, 172),
+    // the screen doors: posts, glass, kick plate, then the top rail carrying
+    // the line stripe, which is the one place the line colour is information
+    doorPosts,
+    doorGlass,
+    `<rect x="0" y="352" width="${SCENE_WIDTH}" height="18" ` +
+    `fill="${STEEL_DARK}"/>`,
+    `<rect x="0" y="248" width="${SCENE_WIDTH}" height="24" rx="12" ` +
+    `fill="${STEEL}"/>`,
+    `<rect x="6" y="254" width="${SCENE_WIDTH - 12}" height="11" rx="5.5" ` +
+    `fill="${lineColor}"/>`,
+    floorBand(FLOOR_WARM, FLOOR_WARM_DARK, { tactile: false }),
+    // The tactile strip fills 370..385, the gap between the door line and the
+    // walking base, so the child always waits on the safe side of the yellow.
+    `<rect x="0" y="370" width="${SCENE_WIDTH}" height="15" rx="7" ` +
+    `fill="${TACTILE}"/>`,
+    tactileDots,
+    // waiting bench in the near foreground: under the walking base and inside
+    // cell 0, which the walker never stands on
+    `<rect x="16" y="392" width="132" height="16" rx="8" fill="${BENCH}"/>`,
+    `<rect x="24" y="398" width="12" height="44" fill="${BENCH_DARK}"/>`,
+    `<rect x="128" y="398" width="12" height="44" fill="${BENCH_DARK}"/>`,
+    `<rect x="8" y="426" width="150" height="24" rx="12" fill="${BENCH}"/>`,
+    `<rect x="8" y="426" width="150" height="9" rx="4.5" fill="${BENCH_DARK}"/>`,
+    `<rect x="26" y="450" width="14" height="20" rx="4" fill="${BENCH_DARK}"/>`,
+    `<rect x="126" y="450" width="14" height="20" rx="4" fill="${BENCH_DARK}"/>`,
+    // queue chevrons painted on the middle cells, pointing at the doors
+    `<g class="subway-scene-chevrons">` +
+    queueCells.map(index =>
+      `<path d="M${(cellCentre(index, width) - 24).toFixed(1)} 446 l24 -18 ` +
+      `l24 18" fill="none" stroke="${PAPER}" stroke-width="9" ` +
+      `stroke-linecap="round" stroke-linejoin="round" opacity=".8"/>`
+    ).join("") + `</g>`
+  ].join("");
+  return scene("platform", body);
+}
+
+// 환승 통로 — transfer passage: a long tiled corridor carrying a wide
+// line-coloured guidance stripe, repeated overhead signage and posters, and a
+// tactile path that bends toward the transfer gate on the right-hand edge.
+// Perspective is not available here, so the length is faked twice over: the
+// wall furniture repeats at a steady beat, while the ceiling fascia and the
+// floor joints converge toward the far (right) end. Everything stays on the
+// wall or flat on the floor, so no walkable cell gains an obstacle.
+export function corridorSceneSvg({ width = 7, lineColor = GREEN } = {}) {
+  const gateX = cellCentre(width - 1, width);
+  // Guidance path: straight down the passage, then a bend up to the gate.
+  const guide = `M0 424 L${(gateX - 240).toFixed(1)} 424 ` +
+    `Q${(gateX - 120).toFixed(1)} 424 ${(gateX - 56).toFixed(1)} 396 ` +
+    `L${SCENE_WIDTH} 396`;
+  // Floor joints crowd together toward the far end — the cheapest depth cue
+  // available without a perspective projection.
+  const joints = [88, 210, 322, 424, 516, 598, 670, 732, 784, 828, 864, 894];
+  const body = [
+    ceilingLights(8),
+    tiledWall(14),
+    // ceiling fascia: deep at the near end, shallow at the far end
+    `<path d="M0 ${CEILING_BOTTOM} L${SCENE_WIDTH} ${CEILING_BOTTOM} ` +
+    `L${SCENE_WIDTH} 86 L0 118 Z" fill="${CEILING}"/>`,
+    `<line x1="0" y1="118" x2="${SCENE_WIDTH}" y2="86" stroke="${STEEL}" ` +
+    `stroke-width="4" opacity=".55"/>`,
+    // line-identity stripe running the whole length, just above the dado
+    `<rect x="0" y="240" width="${SCENE_WIDTH}" height="48" ` +
+    `fill="${lineColor}"/>`,
+    `<rect x="0" y="246" width="${SCENE_WIDTH}" height="6" fill="${PAPER}" ` +
+    `opacity=".45"/>`,
+    // arrows marching along the stripe, kept clear of the doors at both ends
+    `<g class="subway-scene-flow">` +
+    Array.from({ length: 6 }, (unused, index) => {
+      const x = 168 + index * 118;
+      return `<path d="M${x} 250 l20 14 l-20 14" fill="none" ` +
+        `stroke="${PAPER}" stroke-width="9" stroke-linecap="round" ` +
+        `stroke-linejoin="round" opacity=".8"/>`;
+    }).join("") + `</g>`,
+    // overhead transfer signage, echoed by a plain direction plate further on
+    hangingSign(300, "환승 →", lineColor),
+    `<line x1="600" y1="${CEILING_BOTTOM}" x2="600" y2="92" ` +
+    `stroke="${STEEL_DARK}" stroke-width="4"/>`,
+    `<line x1="644" y1="${CEILING_BOTTOM}" x2="644" y2="92" ` +
+    `stroke="${STEEL_DARK}" stroke-width="4"/>`,
+    `<rect x="588" y="88" width="68" height="44" rx="10" fill="${INK}"/>`,
+    `<path d="M612 100 l18 10 l-18 10" fill="none" stroke="${PAPER}" ` +
+    `stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>`,
+    // evenly spaced posters — the repetition is the point
+    posterFrame(176, 134, 104, 98, SKY_DEEP),
+    posterFrame(448, 134, 104, 98, LEAF),
+    posterFrame(720, 134, 104, 98, ORANGE),
+    wallClock(612, 190),
+    // handrail and skirting: two unbroken horizontal lines, the strongest
+    // "this passage keeps going" cue on offer. Both are wall furniture above
+    // the floor line, so the walking lane stays clear.
+    `<rect x="0" y="326" width="${SCENE_WIDTH}" height="10" rx="5" ` +
+    `fill="${STEEL_DARK}"/>`,
+    ...[110, 316, 484, 620, 740, 848].map(x =>
+      `<line x1="${x}" y1="336" x2="${x}" y2="356" stroke="${STEEL}" ` +
+      `stroke-width="6"/>`
+    ),
+    `<rect x="0" y="352" width="${SCENE_WIDTH}" height="18" fill="${STEEL}" ` +
+    `opacity=".35"/>`,
+    floorBand(FLOOR_COOL, FLOOR_COOL_DARK, { tactile: false }),
+    ...joints.map(x =>
+      `<line x1="${x}" y1="374" x2="${x}" y2="${SCENE_HEIGHT}" ` +
+      `stroke="${FLOOR_COOL_DARK}" stroke-width="4" opacity=".55"/>`
+    ),
+    `<path d="${guide}" fill="none" stroke="${TACTILE}" stroke-width="18" ` +
+    `stroke-linecap="round" stroke-linejoin="round" opacity=".85"/>`,
+    `<path d="${guide}" fill="none" stroke="${PAPER}" stroke-width="8" ` +
+    `stroke-linecap="round" stroke-dasharray="16 22" opacity=".45"/>`
+  ].join("");
+  return scene("corridor", body);
+}
+
+// A fare gate: two pedestals, a card reader and barrier flaps that fold away
+// once the card has been tapped. Entry gates are green, exit gates orange.
+export function fareGateSvg(direction = "in", tapped = false) {
+  const body = direction === "in" ? GREEN : ORANGE;
+  const shade = direction === "in" ? "#1c7a3e" : "#c94722";
+  const flapAngle = direction === "in" && tapped ? 0 : 1;
+  const rings = tapped
+    ? `<g class="subway-gate-ping">` +
+      `<circle cx="96" cy="60" r="15" fill="none" stroke="${PAPER}" ` +
+      `stroke-width="4" opacity=".9"/>` +
+      `<circle cx="96" cy="60" r="24" fill="none" stroke="${PAPER}" ` +
+      `stroke-width="3" opacity=".5"/></g>`
+    : "";
+  return `<svg class="subway-gate-art" viewBox="0 0 120 150" ` +
+    `aria-hidden="true" xmlns="http://www.w3.org/2000/svg">` +
+    `<rect x="4" y="40" width="30" height="104" rx="11" fill="${STEEL}"/>` +
+    `<rect x="86" y="40" width="30" height="104" rx="11" fill="${STEEL}"/>` +
+    `<rect x="4" y="40" width="30" height="15" rx="7.5" fill="${body}"/>` +
+    `<rect x="86" y="40" width="30" height="15" rx="7.5" fill="${body}"/>` +
+    `<rect x="84" y="48" width="30" height="26" rx="8" fill="${shade}"/>` +
+    `<rect x="90" y="54" width="18" height="14" rx="4" fill="${PAPER}" ` +
+    `opacity=".85"/>` +
+    rings +
+    `<g class="subway-gate-flap" data-open="${flapAngle === 0}">` +
+    `<rect x="34" y="74" width="26" height="56" rx="6" fill="${body}" ` +
+    `opacity=".9"/>` +
+    `<rect x="60" y="74" width="26" height="56" rx="6" fill="${shade}" ` +
+    `opacity=".9"/>` +
+    `</g>` +
+    `<rect x="34" y="136" width="52" height="10" rx="5" fill="${TACTILE}" ` +
+    `opacity=".8"/>` +
+    (direction === "in"
+      ? `<path d="M60 118 l0 -30 M50 96 l10 -10 l10 10" fill="none" ` +
+        `stroke="${PAPER}" stroke-width="6" stroke-linecap="round" ` +
+        `stroke-linejoin="round"/>`
+      : `<path d="M60 88 l0 30 M50 110 l10 10 l10 -10" fill="none" ` +
+        `stroke="${PAPER}" stroke-width="6" stroke-linecap="round" ` +
+        `stroke-linejoin="round"/>`) +
+    `</svg>`;
+}
+
 export function stationSceneSvg(kind, options = {}) {
   if (kind === "gate") return gateSceneSvg(options);
   if (kind === "train") return trainSceneSvg(options);
+  if (kind === "corridor") return corridorSceneSvg(options);
+  if (kind === "platform") return platformSceneSvg(options);
   return "";
 }
