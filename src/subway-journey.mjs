@@ -30,7 +30,8 @@ export const TRAIN_APPROACH_MS = 1600;
 export const TRAIN_STOP_MS = 3200;
 export const TRAIN_LEAVE_MS = 900;
 export const ARRIVE_MELODY_MS = 2000;
-export const ROOM_WIDTH = 9;
+export const ROOM_WIDTH = 7;
+export const GATE_ROOM_WIDTH = 9;
 export const STRAY_LIMIT = 3;
 export const MOVE_GUIDE_LIMIT = 30;
 export const DIRECTION_ARROWS = Object.freeze({
@@ -193,24 +194,23 @@ export function buildRoom(kind, {
   salt = 0
 } = {}) {
   const random = seededRandom(seed + hashName(station) + hashName(kind) + salt);
-  const width = ROOM_WIDTH;
-  const gateX = width - 2;
-  const walkX = entrySide === "right"
-    ? width - 3
-    : entrySide === "left" ? 2 : Math.floor(width / 2);
+  const isGate = kind === "gate";
+  const width = isGate ? GATE_ROOM_WIDTH : ROOM_WIDTH;
+  const outGateX = isGate ? 1 : null;
+  const inGateX = isGate ? width - 5 : null;
+  const stairsFrom = isGate ? width - 4 : null;
+  const walkX = isGate
+    ? 3
+    : entrySide === "right"
+      ? width - 3
+      : entrySide === "left" ? 2 : Math.floor(width / 2);
   const free = [];
   for (let x = 1; x < width - 1; x += 1) {
     if (x === walkX) continue;
-    if (kind === "gate" && x === gateX) continue;
+    if (isGate && (x === outGateX || x >= inGateX)) continue;
     free.push(x);
   }
   const take = () => free.splice(Math.floor(random() * free.length), 1)[0];
-
-  const items = [];
-  const itemCount = Math.min(free.length, 1 + Math.floor(random() * 2));
-  for (let index = 0; index < itemCount; index += 1) {
-    items.push({ x: take(), number: 1 + Math.floor(random() * 9) });
-  }
 
   const people = [];
   const peopleCount = kind === "train"
@@ -230,11 +230,13 @@ export function buildRoom(kind, {
     walkX,
     facing: entrySide === "right" ? "left" : "right",
     entering: entrySide !== "middle",
-    items,
     people,
     friend,
     tapped: false,
-    gateX
+    chosen: null,
+    outGateX,
+    inGateX,
+    stairsFrom
   };
 }
 
@@ -260,6 +262,7 @@ export function createSubwayJourney(placeId, seed = 0) {
     station: start,
     lastStation: null,
     line: null,
+    ridden: null,
     phase: "gate",
     room: buildRoom("gate", { seed, station: start }),
     platform: null,
@@ -270,7 +273,6 @@ export function createSubwayJourney(placeId, seed = 0) {
     showRecommended: false,
     visited: [start],
     passengers: [],
-    cards: [],
     pendingFriend: null
   };
 }
@@ -298,13 +300,25 @@ export function lineNeighbors(state) {
 export function subwayCompass(state) {
   const destination = state.place.station;
   if (state.station === destination) {
-    return { arrived: true, hops: 0, side: null, transferHere: false };
+    return {
+      arrived: true,
+      line: state.line,
+      hops: 0,
+      hopsToAlight: 0,
+      alightAt: state.station,
+      side: null,
+      transferHere: false,
+      route: null
+    };
   }
-  const route = routeBetween(state.station, destination, state.line);
+  const startLine = state.phase === "gate"
+    ? state.room?.chosen ?? null
+    : state.line;
+  const route = routeBetween(state.station, destination, startLine);
   if (!route) return null;
   const leg = route.legs[0];
   const nextStation = leg.stations[1];
-  const transferHere = state.line !== null && leg.line !== state.line;
+  const transferHere = startLine !== null && leg.line !== startLine;
   const neighbors = lineNeighbors(state);
   const side = transferHere
     ? null
@@ -317,6 +331,10 @@ export function subwayCompass(state) {
     nextStation,
     side,
     transferHere,
+    alightAt: transferHere
+      ? state.station
+      : leg.stations[leg.stations.length - 1],
+    hopsToAlight: transferHere ? 0 : leg.stations.length - 1,
     hops: route.hops,
     transfers: route.transfers,
     route
@@ -328,25 +346,16 @@ export function chooseSubwayLine(state, lineNumber) {
     return { state, event: { type: "ignored" } };
   }
   if (!state.room?.tapped) {
-    return { state, event: { type: "tap-first", gateX: state.room?.gateX } };
+    return { state, event: { type: "tap-first", inGateX: state.room?.inGateX } };
   }
   if (!gateLines(state).includes(lineNumber)) {
     return { state, event: { type: "no-line", line: lineNumber } };
   }
-  const changed = state.line !== null && state.line !== lineNumber;
   return {
     state: {
       ...state,
       line: lineNumber,
-      phase: "platform",
-      platform: { line: lineNumber, stage: "approaching", phaseMs: 0 },
-      room: buildRoom("platform", {
-        seed: state.seed,
-        station: state.station,
-        friendNumber: state.pendingFriend,
-        salt: lineNumber
-      }),
-      transfersUsed: state.transfersUsed + (changed ? 1 : 0)
+      room: { ...state.room, chosen: lineNumber }
     },
     event: { type: "line-chosen", line: lineNumber }
   };
@@ -376,6 +385,23 @@ function walkResult(state, step) {
     return { edge: step > 0 ? "right" : "left", facing };
   }
 
+  if (room.kind === "gate" && target === room.outGateX) {
+    return {
+      wrongGate: true,
+      facing,
+      room: { ...room, facing, entering: false }
+    };
+  }
+
+  if (room.kind === "gate" && target >= room.stairsFrom &&
+    room.chosen === null) {
+    return {
+      needLine: true,
+      facing,
+      room: { ...room, facing, entering: false }
+    };
+  }
+
   const person = room.people.find(item => item.x === target);
   if (person && !person.stepped) {
     return {
@@ -392,18 +418,15 @@ function walkResult(state, step) {
     };
   }
 
-  const item = room.items.find(entry => entry.x === target);
   const friend = room.friend && room.friend.x === target ? room.friend : null;
   return {
     facing,
-    item,
     friend,
     room: {
       ...room,
       walkX: target,
       facing,
       entering: false,
-      items: item ? room.items.filter(entry => entry !== item) : room.items,
       friend: friend ? null : room.friend
     }
   };
@@ -458,6 +481,41 @@ function departTo(state, station, side) {
   };
 }
 
+function alightHere(state) {
+  if (state.station === state.place.station) {
+    return {
+      state: {
+        ...state,
+        phase: "arriving",
+        arriving: { stage: "melody", phaseMs: 0, dodge: null }
+      },
+      event: { type: "arriving", station: state.station }
+    };
+  }
+  if (isTransferStation(state.station) && gateLines(state).length > 1) {
+    const moveCount = state.moveCount + 1;
+    const offPlan = subwayCompass(state)?.hopsToAlight !== 0;
+    return {
+      state: {
+        ...state,
+        phase: "corridor",
+        moveCount,
+        showRecommended: state.showRecommended ||
+          moveCount >= MOVE_GUIDE_LIMIT,
+        room: buildRoom("corridor", {
+          seed: state.seed,
+          station: state.station,
+          entrySide: "left",
+          friendNumber: state.pendingFriend,
+          salt: state.transfersUsed
+        })
+      },
+      event: { type: "transfer-start", station: state.station, offPlan }
+    };
+  }
+  return { state, event: { type: "not-your-stop", station: state.station } };
+}
+
 export function attemptSubwayMove(state, input) {
   const ignored = { state, event: { type: "ignored" } };
   const room = state.room;
@@ -494,9 +552,49 @@ export function attemptSubwayMove(state, input) {
             event: { type: "gate-reached", station: state.station }
           };
         }
+        if (state.phase === "gate" && outcome.edge === "right") {
+          if (room.chosen === null) {
+            return {
+              state,
+              event: { type: "pick-line-first", lines: gateLines(state) }
+            };
+          }
+          return {
+            state: {
+              ...state,
+              phase: "platform",
+              platform: {
+                line: room.chosen,
+                stage: "approaching",
+                phaseMs: 0
+              },
+              room: buildRoom("platform", {
+                seed: state.seed,
+                station: state.station,
+                friendNumber: state.pendingFriend,
+                salt: room.chosen
+              })
+            },
+            event: { type: "stairs-down", line: room.chosen }
+          };
+        }
         return {
           state: { ...state, room: { ...room, facing: outcome.facing } },
           event: { type: "wall", side: outcome.edge }
+        };
+      }
+
+      if (outcome.wrongGate) {
+        return {
+          state: { ...state, room: outcome.room },
+          event: { type: "wrong-gate", inGateX: room.inGateX }
+        };
+      }
+
+      if (outcome.needLine) {
+        return {
+          state: { ...state, room: outcome.room },
+          event: { type: "pick-line-first", lines: gateLines(state) }
         };
       }
 
@@ -518,37 +616,49 @@ export function attemptSubwayMove(state, input) {
           event: { type: "friend-joined", number: outcome.friend.number }
         };
       }
-      if (outcome.item) {
-        return {
-          state: { ...moved, cards: [...state.cards, outcome.item.number] },
-          event: { type: "card-picked", number: outcome.item.number }
-        };
+      if (room.kind === "gate") {
+        const landed = outcome.room.walkX;
+        if (landed === room.inGateX && !room.tapped) {
+          const lines = gateLines(state);
+          const tapped = {
+            ...moved,
+            room: { ...outcome.room, tapped: true }
+          };
+          if (lines.length === 1) {
+            return {
+              state: chooseSubwayLine(tapped, lines[0]).state,
+              event: { type: "card-tapped", lines, autoLine: lines[0] }
+            };
+          }
+          return {
+            state: tapped,
+            event: { type: "card-tapped", lines, autoLine: null }
+          };
+        }
       }
       return { state: moved, event: { type: "walked", x: outcome.room.walkX } };
     }
 
     if (input === "up") {
       if (state.phase === "gate") {
-        if (room.tapped) {
-          return { state, event: { type: "already-tapped" } };
-        }
-        if (room.walkX !== room.gateX) {
-          return { state, event: { type: "walk-to-gate", gateX: room.gateX } };
-        }
         return {
-          state: { ...state, room: { ...room, tapped: true } },
-          event: { type: "card-tapped", lines: gateLines(state) }
+          state,
+          event: { type: "walk-through-gate", inGateX: room.inGateX }
         };
       }
       if (state.phase === "platform") {
         if (state.platform.stage !== "stopped") {
           return { state, event: { type: "no-train" } };
         }
+        const transferred = state.ridden !== null &&
+          state.ridden !== state.line;
         return {
           state: {
             ...state,
             phase: "ride",
             platform: null,
+            ridden: state.line,
+            transfersUsed: state.transfersUsed + (transferred ? 1 : 0),
             room: buildRoom("train", {
               seed: state.seed,
               station: state.station,
@@ -562,51 +672,8 @@ export function attemptSubwayMove(state, input) {
       return ignored;
     }
 
-    if (input === "space" && state.phase === "ride") {
-      if (state.station === state.place.station) {
-        return {
-          state,
-          event: { type: "time-to-alight", station: state.station }
-        };
-      }
-      if (isTransferStation(state.station) && gateLines(state).length > 1) {
-        const moveCount = state.moveCount + 1;
-        return {
-          state: {
-            ...state,
-            phase: "corridor",
-            moveCount,
-            showRecommended: state.showRecommended ||
-              moveCount >= MOVE_GUIDE_LIMIT,
-            room: buildRoom("corridor", {
-              seed: state.seed,
-              station: state.station,
-              entrySide: "left",
-              friendNumber: state.pendingFriend,
-              salt: state.transfersUsed
-            })
-          },
-          event: { type: "transfer-start", station: state.station }
-        };
-      }
-      return { state, event: { type: "no-transfer", station: state.station } };
-    }
-
-    if (input === "down" && state.phase === "ride") {
-      if (state.station !== state.place.station) {
-        return {
-          state,
-          event: { type: "not-your-stop", station: state.station }
-        };
-      }
-      return {
-        state: {
-          ...state,
-          phase: "arriving",
-          arriving: { stage: "melody", phaseMs: 0, dodge: null }
-        },
-        event: { type: "arriving", station: state.station }
-      };
+    if ((input === "down" || input === "space") && state.phase === "ride") {
+      return alightHere(state);
     }
   }
 
@@ -664,9 +731,12 @@ export function advanceSubwayWorld(state, elapsedMs = 100) {
 
 export function subwayAnnouncement(state) {
   if (state.phase === "gate") {
-    return state.room?.tapped
-      ? `${state.station}역 — 몇 호선을 탈까요?`
-      : `${state.station}역 개찰구 — 카드를 찍어요!`;
+    if (!state.room?.tapped) {
+      return `${state.station}역 — 들어가는 곳으로 지나가요`;
+    }
+    return state.room.chosen === null
+      ? `${state.station}역 — 몇 호선 계단으로 갈까요?`
+      : `${state.room.chosen}호선 계단으로 내려가요`;
   }
   if (state.phase === "platform") {
     return `${state.line}호선 승강장 — 열차를 기다려요`;
@@ -675,8 +745,12 @@ export function subwayAnnouncement(state) {
     return `${state.station}역 환승 통로 — 게이트로 가요`;
   }
   if (state.phase === "ride") {
-    if (state.station === state.place.station) {
+    const compass = subwayCompass(state);
+    if (compass?.hopsToAlight === 0) {
       return `${state.station}역입니다. ↓ 키로 내려요!`;
+    }
+    if (compass?.hopsToAlight === 1) {
+      return `다음 역은 ${compass.alightAt}입니다. 내릴 준비를 해요`;
     }
     return `${state.station}역 정차 중`;
   }

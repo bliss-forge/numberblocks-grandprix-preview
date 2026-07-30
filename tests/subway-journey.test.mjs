@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   ARRIVE_MELODY_MS,
+  GATE_ROOM_WIDTH,
   MOVE_GUIDE_LIMIT,
   ROOM_WIDTH,
   TRAIN_APPROACH_MS,
@@ -19,29 +20,45 @@ import {
 } from "../src/subway-journey.mjs";
 import { SUBWAY_LINES, linesAtStation } from "../src/subway-map-data.mjs";
 
+const STOP_EVENTS = [
+  "wall", "departed", "gate-reached", "line-end", "stairs-down",
+  "pick-line-first"
+];
+
 function walkTo(state, targetX) {
   let current = state;
-  for (let guard = 0; guard < ROOM_WIDTH * 3; guard += 1) {
+  for (let guard = 0; guard < GATE_ROOM_WIDTH * 3; guard += 1) {
     if (current.room.walkX === targetX) return current;
     const step = current.room.walkX < targetX ? "right" : "left";
     const result = attemptSubwayMove(current, step);
     current = result.state;
-    if (["wall", "departed", "gate-reached", "line-end"].includes(result.event.type)) {
-      return current;
-    }
+    if (STOP_EVENTS.includes(result.event.type)) return current;
   }
   throw new Error(`never reached x=${targetX}`);
 }
 
+function multiLineStart(placeId = "lake") {
+  for (let seed = 0; seed < 60; seed += 1) {
+    const journey = createSubwayJourney(placeId, seed);
+    if (gateLines(journey).length >= 2) return journey;
+  }
+  throw new Error("no multi-line start");
+}
+
 function passGate(state, lineNumber = null) {
-  let current = walkTo(state, state.room.gateX);
-  const tapped = attemptSubwayMove(current, "up");
-  assert.equal(tapped.event.type, "card-tapped");
-  current = tapped.state;
-  const line = lineNumber ?? subwayCompass(current)?.line ?? gateLines(current)[0];
-  const chosen = chooseSubwayLine(current, line);
+  const through = walkTo(state, state.room.inGateX);
+  assert.equal(through.room.tapped, true, "walking through taps the card");
+  const line = lineNumber ?? subwayCompass(through)?.line ??
+    gateLines(through)[0];
+  const chosen = chooseSubwayLine(through, line);
   assert.equal(chosen.event.type, "line-chosen");
-  return chosen.state;
+  let current = chosen.state;
+  for (let guard = 0; guard < GATE_ROOM_WIDTH; guard += 1) {
+    const result = attemptSubwayMove(current, "right");
+    current = result.state;
+    if (result.event.type === "stairs-down") return current;
+  }
+  throw new Error("never walked down the stairs");
 }
 
 function boardTrain(state) {
@@ -93,16 +110,12 @@ test("목적지 10곳은 권장 환승 수에 맞는 출발역과 개찰구 방�
   }
 });
 
-test("방에는 카드·사람이 놓이고 걸어가며 줍고 부딪히면 한 번 더 눌러 지나간다", () => {
+test("열차 방에는 사람이 놓이고 부딪히면 한 번 더 눌러 지나간다", () => {
   const room = buildRoom("train", { seed: 7, station: "시청", entrySide: "left" });
   assert.equal(room.width, ROOM_WIDTH);
   assert.equal(room.walkX, 2, "entry is one step inside the door");
-  assert.ok(room.items.length >= 1);
   assert.ok(room.people.length >= 1);
-  const occupied = [
-    ...room.items.map(item => item.x),
-    ...room.people.map(person => person.x)
-  ];
+  const occupied = room.people.map(person => person.x);
   assert.equal(new Set(occupied).size, occupied.length, "no overlap");
 
   const journey = createSubwayJourney("hanriver", 3);
@@ -118,31 +131,61 @@ test("방에는 카드·사람이 놓이고 걸어가며 줍고 부딪히면 한
   assert.equal(bump.event.type, "blocked-person");
   assert.equal(bump.state.room.walkX, personX - 1, "no penalty, stays put");
   const through = attemptSubwayMove(bump.state, "right");
-  assert.ok(["walked", "card-picked", "friend-joined"].includes(through.event.type));
+  assert.ok(["walked", "friend-joined"].includes(through.event.type));
   assert.equal(through.state.room.walkX, personX);
 });
 
-test("개찰구: 카드를 찍기 전에는 호선을 고를 수 없고 찍으면 승강장으로 간다", () => {
-  const journey = createSubwayJourney("hanriver", 3);
+test("개찰구: 나가는 곳은 안내만 하고 들어가는 곳을 지나야 카드가 찍힌다", () => {
+  const journey = multiLineStart();
+  assert.equal(journey.room.width, GATE_ROOM_WIDTH);
   const early = chooseSubwayLine(journey, gateLines(journey)[0]);
   assert.equal(early.event.type, "tap-first");
 
-  const away = attemptSubwayMove(journey, "up");
-  assert.equal(away.event.type, "walk-to-gate");
+  const up = attemptSubwayMove(journey, "up");
+  assert.equal(up.event.type, "walk-through-gate", "no card-tap key any more");
 
-  const atGate = walkTo(journey, journey.room.gateX);
-  const tapped = attemptSubwayMove(atGate, "up");
-  assert.equal(tapped.event.type, "card-tapped");
-  assert.deepEqual(tapped.event.lines, gateLines(journey));
-  assert.equal(tapped.state.room.tapped, true);
-  assert.match(subwayAnnouncement(tapped.state), /몇 호선/);
+  const besideExit = walkTo(journey, journey.room.outGateX + 1);
+  const wrong = attemptSubwayMove(besideExit, "left");
+  assert.equal(wrong.event.type, "wrong-gate");
+  assert.equal(wrong.state.room.tapped, false, "the exit gate never lets you in");
+  assert.equal(
+    wrong.state.room.walkX,
+    besideExit.room.walkX,
+    "and it cannot be walked through"
+  );
 
-  const line = gateLines(journey)[0];
-  const chosen = chooseSubwayLine(tapped.state, line);
-  assert.equal(chosen.state.phase, "platform");
-  assert.equal(chosen.state.line, line);
-  assert.equal(chosen.state.room.kind, "platform");
-  assert.equal(chosen.state.transfersUsed, 0, "first boarding is not a transfer");
+  const through = walkTo(journey, journey.room.inGateX);
+  assert.equal(through.room.tapped, true);
+  assert.equal(through.room.chosen, null, "a multi-line gate waits for a choice");
+  assert.match(subwayAnnouncement(through), /몇 호선 계단/);
+
+  const closed = attemptSubwayMove(through, "right");
+  assert.equal(closed.event.type, "pick-line-first");
+  assert.equal(closed.state.room.walkX, through.room.walkX, "stairs stay shut");
+
+  const line = subwayCompass(through).line;
+  const chosen = chooseSubwayLine(through, line);
+  assert.equal(chosen.state.room.chosen, line);
+  assert.equal(chosen.state.phase, "gate", "still has to walk down the stairs");
+  assert.equal(chosen.state.transfersUsed, 0);
+
+  const platform = passGate(journey, line);
+  assert.equal(platform.phase, "platform");
+  assert.equal(platform.room.kind, "platform");
+  assert.equal(platform.line, line);
+  assert.equal(platform.transfersUsed, 0, "first boarding is not a transfer");
+});
+
+test("호선이 하나인 역은 카드를 찍으면 그 호선 계단이 바로 열린다", () => {
+  let single = null;
+  for (let seed = 0; seed < 80 && !single; seed += 1) {
+    const journey = createSubwayJourney("hanriver", seed);
+    if (gateLines(journey).length === 1) single = journey;
+  }
+  assert.ok(single, "a single-line start exists");
+  const through = walkTo(single, single.room.inGateX);
+  assert.equal(through.room.chosen, gateLines(single)[0], "auto-picked");
+  assert.equal(attemptSubwayMove(through, "right").event.type, "walked");
 });
 
 test("승강장: 열차가 서기 전에는 못 타고, 타면 열차 안 방이 된다", () => {
@@ -250,7 +293,9 @@ test("환승역에서 ⎵ → 통로 방 → 게이트 → 다른 호선을 고�
   assert.equal(reached.station, state.station);
 
   const nextLine = subwayCompass(reached).line;
-  const boarded = passGate(reached, nextLine);
+  const platform = passGate(reached, nextLine);
+  assert.equal(platform.transfersUsed, 0, "counted on boarding, not on choosing");
+  const boarded = boardTrain(platform);
   assert.equal(boarded.transfersUsed, 1);
   assert.equal(boarded.line, nextLine);
 });
@@ -271,7 +316,11 @@ test("목적지 역에서 ↓ → 멜로디 → 문 열림 → 빈 곳으로 내
     state = driveOneStop(state, compass.side).state;
   }
   assert.equal(state.station, state.place.station);
-  assert.equal(attemptSubwayMove(state, "space").event.type, "time-to-alight");
+  assert.equal(
+    attemptSubwayMove(state, "space").event.type,
+    "arriving",
+    "space is just an alias for getting off"
+  );
 
   const arriving = attemptSubwayMove(state, "down");
   assert.equal(arriving.event.type, "arriving");
@@ -285,13 +334,6 @@ test("목적지 역에서 ↓ → 멜로디 → 문 열림 → 빈 곳으로 내
   const alighted = attemptSubwayMove(current, dodge.open[0]);
   assert.equal(alighted.event.type, "alighted");
   assert.equal(alighted.state.phase, "arrived");
-});
-
-test("목적지가 아닌 역에서 ↓를 누르면 안내만 하고 계속 탄다", () => {
-  const riding = boardTrain(passGate(createSubwayJourney("hanriver", 3)));
-  const result = attemptSubwayMove(riding, "down");
-  assert.equal(result.event.type, "not-your-stop");
-  assert.equal(result.state.phase, "ride");
 });
 
 test("많이 헤매면 지도에 추천 경로 안내가 켜진다", () => {
@@ -312,14 +354,13 @@ test("많이 헤매면 지도에 추천 경로 안내가 켜진다", () => {
   assert.equal(state.showRecommended, true);
 });
 
-test("환승역이 아닌 곳에서 ⎵는 안내만 한다", () => {
+test("내릴 역이 아니면 ↓와 ⎵가 똑같이 동작한다", () => {
   const riding = boardTrain(passGate(createSubwayJourney("hanriver", 3)));
   const single = linesAtStation(riding.station).length === 1;
-  const result = attemptSubwayMove(riding, "space");
-  assert.equal(
-    result.event.type,
-    single ? "no-transfer" : "transfer-start"
-  );
+  const expected = single ? "not-your-stop" : "transfer-start";
+  for (const key of ["down", "space"]) {
+    assert.equal(attemptSubwayMove(riding, key).event.type, expected, key);
+  }
 });
 
 test("만나지 못한 친구는 사라지지 않고 다음 방까지 따라온다", () => {
@@ -388,13 +429,39 @@ test("직전 역으로 되돌아가면 헤맴 횟수가 초기화되지 않는�
   );
 });
 
-test("개찰구 방에는 카드가 개찰구 칸을 가리지 않는다", () => {
+test("개찰구 방은 개찰구·계단 칸을 사람이나 친구로 막지 않는다", () => {
   for (let seed = 0; seed < 60; seed += 1) {
-    const room = buildRoom("gate", { seed, station: "시청" });
-    assert.equal(
-      room.items.some(item => item.x === room.gateX),
-      false,
-      `seed ${seed}`
-    );
+    const room = buildRoom("gate", { seed, station: "시청", friendNumber: 4 });
+    const blocked = [room.outGateX];
+    for (let x = room.inGateX; x < room.width; x += 1) blocked.push(x);
+    for (const person of room.people) {
+      assert.equal(blocked.includes(person.x), false, `person seed ${seed}`);
+    }
+    if (room.friend) {
+      assert.equal(blocked.includes(room.friend.x), false, `friend seed ${seed}`);
+    }
   }
+});
+
+test("나침반은 어느 역에서 내려야 하는지와 남은 정거장을 알려준다", () => {
+  let state = boardTrain(passGate(multiLineStart()));
+  const first = subwayCompass(state);
+  assert.ok(first.hopsToAlight >= 1, "starts before the alight point");
+  assert.ok(first.alightAt, "names the station to get off at");
+
+  let warned = null;
+  for (let guard = 0; guard < 20; guard += 1) {
+    const compass = subwayCompass(state);
+    if (compass.hopsToAlight === 0) break;
+    if (compass.hopsToAlight === 1) warned = state;
+    state = driveOneStop(state, compass.side).state;
+  }
+  assert.ok(warned, "there is a one-stop-left warning window");
+  assert.match(subwayAnnouncement(warned), /내릴 준비/);
+
+  const there = subwayCompass(state);
+  assert.equal(there.hopsToAlight, 0);
+  assert.equal(there.alightAt, state.station);
+  assert.equal(state.station, first.alightAt, "the plan held");
+  assert.match(subwayAnnouncement(state), /내려요/);
 });

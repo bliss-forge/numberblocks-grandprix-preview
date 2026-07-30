@@ -82,6 +82,7 @@ import {
   attemptSubwayMove,
   chooseSubwayLine,
   createSubwayJourney,
+  subwayCompass,
   subwayDestinations
 } from "./subway-journey.mjs";
 import {
@@ -94,6 +95,7 @@ import {
   subwaySoundSrc
 } from "./subway-sound-manifest.mjs";
 
+const WALK_REPEAT_MS = 110;
 const audio = new AudioManager();
 const $ = id => document.getElementById(id);
 const modeControls = [...document.querySelectorAll(".mode-card")];
@@ -129,6 +131,7 @@ const state = {
   buffer: "",
   stars: 0,
   streak: { count: 0, add: 0, sub: 0, mul: 0, safety: 0, subway: 0 },
+  subwayWalkMs: 0,
   wrongCount: 0,
   round: 0,
   hintTimer: 0,
@@ -929,7 +932,7 @@ function startSubwayRide(placeId) {
   dom.problem.textContent =
     `${state.subway.place.icon} ${state.subway.place.label}에 가요!`;
   audio.playSfx("win");
-  showHint("→ 걸어가서 개찰구에서 ↑ 카드를 찍어요!");
+  showHint("→ 걸어가서 🎫 들어가는 곳을 지나가요!");
   audio.cancel();
   void audio.playPrompt(state.subway.place.voiceKey);
   scheduleSubwayTick(performance.now());
@@ -942,11 +945,13 @@ function chooseSubwayLineInput(lineNumber) {
   updateSubwayJourney(state.subwayScene, state.subway);
   if (result.event.type === "line-chosen") {
     audio.playSfx("key");
-    showHint(`${result.event.line}호선 승강장으로 왔어요!`);
+    showHint(`${result.event.line}호선 계단이에요! → 걸어서 내려가요`);
   } else if (result.event.type === "no-line") {
     showHint(`이 역에는 ${lineNumber}호선이 없어요`);
+    audio.cancel();
+    void audio.playPrompt("subway-wrong-line");
   } else if (result.event.type === "tap-first") {
-    showHint("먼저 개찰구에서 ↑ 카드를 찍어요!");
+    showHint("먼저 → 걸어서 들어가는 곳을 지나가요!");
   }
 }
 
@@ -999,41 +1004,60 @@ function moveSubway(direction) {
   if (event.type === "boarded") {
     audio.playSfx("bell");
     playSubwayReal("door-close", "subway-board");
-    showHint(`${event.line}호선을 탔어요! ←→ 문으로 걸어가요`);
+    const compass = subwayCompass(state.subway);
+    showHint(
+      compass?.alightAt && compass.hopsToAlight > 0
+        ? `${event.line}호선을 탔어요! ${compass.alightAt}에서 내려요 ` +
+          `(${compass.hopsToAlight}정거장)`
+        : `${event.line}호선을 탔어요! ←→ 문으로 걸어가요`
+    );
   } else if (event.type === "no-train") {
     showHint("열차가 완전히 설 때까지 기다려요");
   } else if (event.type === "card-tapped") {
     audio.playSfx("bell");
-    showHint(`삑! 통과했어요. ${event.lines.join("·")}호선 중에 골라요`);
-  } else if (event.type === "walk-to-gate") {
-    showHint("→ 걸어서 개찰구까지 가요");
-  } else if (event.type === "already-tapped") {
-    showHint("카드는 벌써 찍었어요! 호선을 골라요");
+    showHint(
+      event.autoLine
+        ? `삑! 통과했어요. → ${event.autoLine}호선 계단으로 내려가요`
+        : `삑! 통과했어요. ${event.lines.join("·")}호선 중에 골라요`
+    );
+  } else if (event.type === "wrong-gate") {
+    showHint("여기는 나가는 곳이에요! → 들어가는 곳으로 가요");
+  } else if (event.type === "walk-through-gate") {
+    showHint("→ 걸어서 들어가는 곳을 지나가요");
+  } else if (event.type === "pick-line-first") {
+    showHint(`몇 호선 계단으로 갈까요? ${event.lines.join("·")} 중에 골라요`);
+  } else if (event.type === "stairs-down") {
+    audio.playSfx("jingle");
+    showHint(`${event.line}호선 승강장이에요! 열차가 서면 ↑ 키로 타요`);
   } else if (event.type === "gate-reached") {
     audio.playSfx("jingle");
-    showHint("게이트 통과! 카드를 찍고 호선을 골라요");
-  } else if (event.type === "card-picked") {
-    audio.playSfx("pop");
-    showHint(`🎫 ${event.number} 카드를 주웠어요!`);
-    audio.cancel();
-    void audio.playPrompt(`number-${event.number}`);
+    showHint("개찰구예요! → 들어가는 곳으로 지나가요");
   } else if (event.type === "friend-joined") {
     audio.playSfx("win");
     showHint(`${event.number} 친구가 함께 가요!`);
     audio.cancel();
     void audio.playPrompt(`number-${event.number}`);
   } else if (event.type === "departed") {
+    const compass = subwayCompass(state.subway);
     if (event.atDest) {
       audio.playSfx("door");
-      showHint(`⭐ ${event.station}역이에요! ↓ 키로 내려요`);
+      showHint(`⭐ ${event.station}역이에요! ↓ 눌러서 내려요`);
       audio.cancel();
       playStationSound(event.station, "subway-stop-check");
-    } else if (event.transferHere) {
-      showHint(`${event.station}역 — ⎵ 스페이스로 환승할 수 있어요`);
+    } else if (compass?.hopsToAlight === 0) {
+      audio.playSfx("door");
+      showHint(`🔔 ${event.station}역이에요! ↓ 눌러서 갈아타요`);
       audio.cancel();
-      playStationSound(event.station);
+      playStationSound(event.station, "subway-transfer");
+    } else if (compass?.hopsToAlight === 1) {
+      showHint(`${event.station}역 — 다음 ${compass.alightAt}에서 내려요!`);
+      audio.cancel();
+      playStationSound(compass.alightAt, "subway-stop-check");
     } else {
-      showHint(`${event.station}역에 도착! 방을 둘러봐요`);
+      showHint(
+        `${event.station}역 — ${compass?.alightAt ?? "목적지"}까지 ` +
+        `${compass?.hopsToAlight ?? "?"}정거장`
+      );
       if (!event.closer && state.subway.strayStreak >= 2) {
         showHint("목적지에서 멀어지고 있어요. 지도를 봐요!");
       }
@@ -1043,14 +1067,16 @@ function moveSubway(direction) {
   } else if (event.type === "wall") {
     showHint("벽이에요! 다른 쪽으로 가요");
   } else if (event.type === "not-your-stop") {
-    showHint(`${event.station}역은 목적지가 아니에요. 계속 타고 가요`);
-  } else if (event.type === "no-transfer") {
-    showHint("여기는 환승역이 아니에요. 환승역에서 ⎵를 눌러요");
-  } else if (event.type === "time-to-alight") {
-    showHint("여기가 목적지예요! ↓ 키로 내려요");
+    showHint(`${event.station}역은 내릴 역이 아니에요. 계속 타고 가요`);
+    audio.cancel();
+    void audio.playPrompt("subway-wrong-stop");
   } else if (event.type === "transfer-start") {
     audio.playSfx("jingle");
-    showHint("내렸어요! → 환승 통로로 걸어가요. 발빠짐 주의!");
+    showHint(
+      event.offPlan
+        ? "여기서 내렸어요! 계획에 없던 역이지만 다시 탈 수 있어요"
+        : "내렸어요! → 환승 통로로 걸어가요. 발빠짐 주의!"
+    );
     audio.cancel();
     playStationSound(event.station, "subway-transfer");
   } else if (event.type === "arriving") {
@@ -1323,7 +1349,17 @@ document.addEventListener("keydown", event => {
     const direction = directionForKey(event.key);
     if (direction) {
       event.preventDefault();
-      if (!event.repeat) moveSubway(direction);
+      // Walking a whole car one press at a time is too much for small hands,
+      // so holding left/right keeps stepping — but only walking repeats.
+      if (event.repeat) {
+        if (direction !== "left" && direction !== "right") return;
+        const now = performance.now();
+        if (now - state.subwayWalkMs < WALK_REPEAT_MS) return;
+        state.subwayWalkMs = now;
+      } else {
+        state.subwayWalkMs = performance.now();
+      }
+      moveSubway(direction);
       return;
     }
   }
