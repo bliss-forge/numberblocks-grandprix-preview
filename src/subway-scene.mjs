@@ -8,20 +8,21 @@ import {
 } from "./subway-map-data.mjs";
 import {
   DIRECTION_ARROWS,
-  directionTargets,
   dodgeLaneLabel,
   gateLines,
+  lineNeighbors,
   subwayAnnouncement,
   subwayCompass
 } from "./subway-journey.mjs";
 import {
   lineBadgeSvg,
   lineTextColor,
-  mapTrainSvg,
   subwayTrainSvg
 } from "./subway-art.mjs";
 
 const MAP_SCALE = 10;
+const MIN_SPAN_X = 66;
+const MIN_SPAN_Y = 40;
 
 const RIVER_POINTS = [
   [-4, 53], [6, 55], [13, 57], [20, 57.5], [25, 59], [29, 61.5],
@@ -29,24 +30,16 @@ const RIVER_POINTS = [
   [57, 53.5], [61, 51], [65, 48.5], [70, 47.5], [75, 48], [79, 47.5],
   [84, 45.5], [90, 43], [96, 42.5], [104, 44]
 ];
-const STREAMS = [
-  [[63, 38], [64, 42], [65, 46], [66, 48.5]],
-  [[24, 68], [23, 63], [21, 59], [20, 57.5]]
-];
 const PARKS = [
   { x: 49, y: 46.5, rx: 3.2, ry: 2.3 },
   { x: 52, y: 33, rx: 2.4, ry: 1.8 },
   { x: 66, y: 43.5, rx: 2.4, ry: 1.7 },
   { x: 23, y: 42, rx: 2.6, ry: 2 },
-  { x: 74, y: 39, rx: 2.2, ry: 1.7 },
-  { x: 81, y: 51, rx: 2.4, ry: 1.8 },
   { x: 46, y: 89, rx: 4.6, ry: 2.8 },
   { x: 42, y: 12, rx: 7, ry: 3.6 },
-  { x: 20, y: 22, rx: 4, ry: 2.6 },
   { x: 38, y: 82, rx: 6, ry: 3.2 },
   { x: 70, y: 74, rx: 5, ry: 3 },
   { x: 88, y: 60, rx: 4.4, ry: 3 },
-  { x: 8, y: 36, rx: 4, ry: 2.8 },
   { x: 90, y: 20, rx: 5, ry: 3.4 }
 ];
 
@@ -54,6 +47,13 @@ const TRANSFER_LABELS = Object.freeze({
   0: "권장: 바로 가요",
   1: "권장: 🚶 1번 환승",
   2: "권장: 🚶🚶 2번 환승"
+});
+
+const ROOM_TITLES = Object.freeze({
+  gate: "개찰구",
+  platform: "승강장",
+  train: "열차 안",
+  corridor: "환승 통로"
 });
 
 function smoothPath(points) {
@@ -65,48 +65,32 @@ function smoothPath(points) {
     path += ` Q ${scaled[index][0]} ${scaled[index][1]} ${midX} ${midY}`;
   }
   const last = scaled[scaled.length - 1];
-  path += ` L ${last[0]} ${last[1]}`;
-  return path;
+  return `${path} L ${last[0]} ${last[1]}`;
 }
 
-function playerImage(document) {
+function playerImage(document, className = "subway-player") {
   const image = document.createElement("img");
-  image.className = "subway-player";
+  image.className = className;
   image.src = `assets/characters/${characterAsset(1)}`;
   image.alt = "숫자 1 블록 친구";
   return image;
 }
 
-function passengerImage(document, number) {
+function passengerImage(document, number, className = "subway-passenger") {
   const image = document.createElement("img");
-  image.className = "subway-passenger";
+  image.className = className;
   image.src = `assets/characters/${characterAsset(number)}`;
   image.alt = `숫자 ${number} 블록 친구`;
   return image;
 }
 
-function fillPassengerStrip(document, strip, passengers) {
-  strip.dataset.count = String(passengers.length);
-  const label = document.createElement("span");
-  label.className = "subway-passenger-label";
-  label.textContent = passengers.length === 0
-    ? "친구들을 태우러 가요!"
-    : `함께 가는 친구 ${passengers.length}명`;
-  strip.replaceChildren(
-    label,
-    ...passengers.slice(-8).map(number => passengerImage(document, number))
-  );
-  return strip;
-}
-
 function missionText(state) {
-  const base = `${state.place.icon} ${state.place.label}에 가요!`;
-  if (state.phase === "gate") return `${base} 호선을 골라요`;
-  if (state.phase === "platform") return `${base} ${state.line}호선을 타요`;
-  if (state.phase === "ride") return `${base} (${state.place.station}역)`;
-  if (state.phase === "transferring") return "🚶 환승 중이에요!";
+  const base = `${state.place.icon} ${state.place.label} 가는 길`;
   if (state.phase === "arriving") return "조심조심 내려요!";
-  return `${state.place.icon} ${state.place.label}에 도착했어요!`;
+  if (state.phase === "arrived") {
+    return `${state.place.icon} ${state.place.label}에 도착했어요!`;
+  }
+  return `${base} — ${ROOM_TITLES[state.room?.kind] ?? ""}`;
 }
 
 export function renderSubwayPicker(document, destinations) {
@@ -160,9 +144,6 @@ export function renderSubwayPicker(document, destinations) {
   return root;
 }
 
-const MIN_SPAN_X = 66;
-const MIN_SPAN_Y = 40;
-
 function rideBounds(state) {
   const points = [
     STATION_COORDS[state.station],
@@ -182,15 +163,12 @@ function rideBounds(state) {
     minY -= grow;
     maxY += grow;
   }
-  minX = Math.max(-6, minX);
-  maxX = Math.min(106, maxX);
-  minY = Math.max(-6, minY);
-  maxY = Math.min(106, maxY);
-  return { minX, minY, width: maxX - minX, height: maxY - minY };
-}
-
-function boundsScale(bounds) {
-  return Math.max(0.8, Math.min(1.15, bounds.width / 80));
+  return {
+    minX: Math.max(-6, minX),
+    minY: Math.max(-6, minY),
+    width: Math.min(106, maxX) - Math.max(-6, minX),
+    height: Math.min(106, maxY) - Math.max(-6, minY)
+  };
 }
 
 function arcPath(cx, cy, radius, startAngle, endAngle) {
@@ -219,35 +197,27 @@ function transferRing(point, lines, radius, width, opacity) {
   ).join("");
 }
 
-function mapSvg(state, bounds, compass) {
-  const u = boundsScale(bounds);
-  const activeLine = state.line;
+function minimapSvg(state, bounds, compass) {
+  const u = Math.max(1.2, Math.min(1.9, bounds.width / 48));
   const emphasize = new Set([state.station, state.place.station]);
   const parts = [];
   parts.push(
-    `<svg class="subway-map-art" viewBox="${bounds.minX * MAP_SCALE} ` +
+    `<svg class="subway-minimap-art" viewBox="${bounds.minX * MAP_SCALE} ` +
     `${bounds.minY * MAP_SCALE} ${bounds.width * MAP_SCALE} ` +
-    `${bounds.height * MAP_SCALE}" role="img" aria-hidden="true" ` +
+    `${bounds.height * MAP_SCALE}" role="img" ` +
+    `aria-label="${state.station}에서 ${state.place.station} 가는 노선도" ` +
     `preserveAspectRatio="xMidYMid meet" focusable="false">`
   );
   parts.push(`<rect x="-300" y="-300" width="1700" height="1700" fill="#f3f7f0"/>`);
   PARKS.forEach(park => {
     parts.push(
-      `<ellipse class="subway-map-park" cx="${park.x * MAP_SCALE}" ` +
-      `cy="${park.y * MAP_SCALE}" rx="${park.rx * MAP_SCALE}" ` +
-      `ry="${park.ry * MAP_SCALE}" fill="#dcead0"/>`
-    );
-  });
-  STREAMS.forEach(stream => {
-    parts.push(
-      `<path class="subway-map-stream" d="${smoothPath(stream)}" ` +
-      `fill="none" stroke="#cfe3f2" stroke-width="${(7 * u).toFixed(1)}" ` +
-      `stroke-linecap="round"/>`
+      `<ellipse cx="${park.x * MAP_SCALE}" cy="${park.y * MAP_SCALE}" ` +
+      `rx="${park.rx * MAP_SCALE}" ry="${park.ry * MAP_SCALE}" fill="#dcead0"/>`
     );
   });
   parts.push(
     `<path class="subway-map-river" d="${smoothPath(RIVER_POINTS)}" ` +
-    `fill="none" stroke="#cfe3f2" stroke-width="${(32 * u).toFixed(1)}" ` +
+    `fill="none" stroke="#cfe3f2" stroke-width="${(30 * u).toFixed(1)}" ` +
     `stroke-linecap="round" stroke-linejoin="round"/>`
   );
   SUBWAY_LINES.forEach(line => {
@@ -258,32 +228,15 @@ function mapSvg(state, bounds, compass) {
       .map(name => STATION_COORDS[name])
       .map(p => `${p.x * MAP_SCALE},${p.y * MAP_SCALE}`)
       .join(" ");
-    const active = line.number === activeLine;
+    const active = line.number === state.line;
     parts.push(
       `<polyline class="subway-line" data-line="${line.number}" ` +
       `data-active="${active}" points="${points}" fill="none" ` +
       `stroke="${line.color}" ` +
-      `stroke-width="${((active ? 5.5 : 3) * u).toFixed(1)}" ` +
+      `stroke-width="${((active ? 7 : 4) * u).toFixed(1)}" ` +
       `stroke-linecap="round" stroke-linejoin="round" ` +
-      `opacity="${active ? 1 : 0.45}"/>`
+      `opacity="${active ? 1 : 0.4}"/>`
     );
-    for (let index = 0; index < names.length - 1; index += 1) {
-      const from = STATION_COORDS[names[index]];
-      const to = STATION_COORDS[names[index + 1]];
-      const distance = Math.hypot(to.x - from.x, to.y - from.y);
-      const stops = Math.min(2, Math.floor(distance / 5));
-      for (let stop = 1; stop <= stops; stop += 1) {
-        const t = stop / (stops + 1);
-        parts.push(
-          `<circle class="subway-minor-stop" ` +
-          `cx="${((from.x + (to.x - from.x) * t) * MAP_SCALE).toFixed(1)}" ` +
-          `cy="${((from.y + (to.y - from.y) * t) * MAP_SCALE).toFixed(1)}" ` +
-          `r="${(2.6 * u).toFixed(1)}" fill="#fff" stroke="${line.color}" ` +
-          `stroke-width="${(1.6 * u).toFixed(1)}" ` +
-          `opacity="${active ? 0.9 : 0.45}"/>`
-        );
-      }
-    }
   });
   if (state.showRecommended && compass?.route) {
     compass.route.legs.forEach(leg => {
@@ -294,8 +247,8 @@ function mapSvg(state, bounds, compass) {
       parts.push(
         `<polyline class="subway-recommended" points="${points}" ` +
         `fill="none" stroke="#ffd54d" ` +
-        `stroke-width="${(10 * u).toFixed(1)}" stroke-linecap="round" ` +
-        `stroke-linejoin="round" opacity="0.55"/>`
+        `stroke-width="${(12 * u).toFixed(1)}" stroke-linecap="round" ` +
+        `stroke-linejoin="round" opacity="0.6"/>`
       );
     });
   }
@@ -307,54 +260,52 @@ function mapSvg(state, bounds, compass) {
       const point = STATION_COORDS[name];
       const stationLines = linesAtStation(name);
       const focus = emphasize.has(name);
-      const transfer = stationLines.length >= 2;
       const cx = point.x * MAP_SCALE;
       const cy = point.y * MAP_SCALE;
-      if (transfer) {
+      if (stationLines.length >= 2) {
         parts.push(
           `<circle class="subway-station-dot" data-station="${name}" ` +
           `data-focus="${focus}" cx="${cx}" cy="${cy}" ` +
-          `r="${((focus ? 6.5 : 4.5) * u).toFixed(1)}" fill="#fff" ` +
-          `opacity="${focus ? 1 : 0.85}"/>`
+          `r="${((focus ? 7 : 5) * u).toFixed(1)}" fill="#fff" ` +
+          `opacity="${focus ? 1 : 0.8}"/>`
         );
         parts.push(transferRing(
           point,
           stationLines,
-          (focus ? 8.5 : 6) * u,
-          (focus ? 3.6 : 2.4) * u,
-          focus ? 1 : 0.65
+          (focus ? 9 : 6.5) * u,
+          (focus ? 4 : 2.6) * u,
+          focus ? 1 : 0.6
         ));
       } else {
         parts.push(
           `<circle class="subway-station-dot" data-station="${name}" ` +
           `data-focus="${focus}" cx="${cx}" cy="${cy}" ` +
-          `r="${((focus ? 5.5 : 3.6) * u).toFixed(1)}" fill="#fff" ` +
+          `r="${((focus ? 6 : 4) * u).toFixed(1)}" fill="#fff" ` +
           `stroke="${stationLines[0].color}" ` +
-          `stroke-width="${((focus ? 3.4 : 2) * u).toFixed(1)}" ` +
+          `stroke-width="${((focus ? 4 : 2.4) * u).toFixed(1)}" ` +
           `opacity="${focus ? 1 : 0.7}"/>`
         );
       }
       if (name === state.place.station) {
         parts.push(
           `<text class="subway-dest-star" x="${cx}" ` +
-          `y="${(cy - 16 * u).toFixed(1)}" text-anchor="middle" ` +
-          `font-size="${(20 * u).toFixed(1)}">⭐</text>`
+          `y="${(cy - 18 * u).toFixed(1)}" text-anchor="middle" ` +
+          `font-size="${(26 * u).toFixed(1)}">⭐</text>`
+        );
+      }
+      if (name === state.station) {
+        parts.push(
+          `<circle class="subway-minimap-here" cx="${cx}" cy="${cy}" ` +
+          `r="${(11 * u).toFixed(1)}" fill="none" stroke="#e8564a" ` +
+          `stroke-width="${(4 * u).toFixed(1)}"/>`
         );
       }
       if (focus) {
         parts.push(
           `<text class="subway-station-name" x="${cx}" ` +
-          `y="${(cy + 26 * u).toFixed(1)}" text-anchor="middle" ` +
-          `font-size="${(15 * u).toFixed(1)}" font-weight="900" ` +
-          `fill="#2b3a4e" stroke="#fff" stroke-width="${(5 * u).toFixed(1)}" ` +
-          `paint-order="stroke">${name}</text>`
-        );
-      } else {
-        parts.push(
-          `<text class="subway-station-name subway-station-name-minor" ` +
-          `x="${cx}" y="${(cy - 9 * u).toFixed(1)}" text-anchor="middle" ` +
-          `font-size="${(10 * u).toFixed(1)}" font-weight="700" ` +
-          `fill="#8a95a2" stroke="#fff" stroke-width="${(3.4 * u).toFixed(1)}" ` +
+          `y="${(cy + 30 * u).toFixed(1)}" text-anchor="middle" ` +
+          `font-size="${(22 * u).toFixed(1)}" font-weight="900" ` +
+          `fill="#2b3a4e" stroke="#fff" stroke-width="${(7 * u).toFixed(1)}" ` +
           `paint-order="stroke">${name}</text>`
         );
       }
@@ -364,253 +315,317 @@ function mapSvg(state, bounds, compass) {
   return parts.join("");
 }
 
-function placeDot(node, bounds, station) {
-  const point = STATION_COORDS[station];
-  node.style.setProperty(
-    "--map-x",
-    `${((point.x - bounds.minX) / bounds.width) * 100}%`
+function guideText(state, compass) {
+  if (state.phase === "gate") {
+    if (!state.room.tapped) return "→ 걸어가서 개찰구에서 ↑ 카드를 찍어요";
+    return compass?.line
+      ? `⭐ ${compass.line}호선을 타요! ${compass.line} 키를 눌러요`
+      : "몇 호선을 탈까요? 숫자키로 골라요";
+  }
+  if (state.phase === "platform") {
+    return `${state.line}호선 열차가 서면 ↑ 키로 타요`;
+  }
+  if (state.phase === "corridor") {
+    return "→ 걸어서 환승 게이트를 통과해요";
+  }
+  if (state.phase === "ride") {
+    if (compass?.arrived) return "⭐ 도착역이에요! ↓ 키로 내려요";
+    if (compass?.transferHere) {
+      return `⎵ 여기서 ${compass.line}호선으로 환승해요!`;
+    }
+    if (compass?.side) {
+      return `${DIRECTION_ARROWS[compass.side]} 문으로 걸어가요 ` +
+        `(다음 역 ${compass.nextStation})`;
+    }
+  }
+  return "";
+}
+
+function progressTrail(document, state, compass) {
+  const trail = document.createElement("div");
+  trail.className = "subway-progress";
+  const remaining = compass?.arrived ? 0 : compass?.hops ?? 0;
+  trail.setAttribute(
+    "aria-label",
+    remaining === 0
+      ? "도착역이에요"
+      : `목적지까지 ${remaining}정거장 남았어요`
   );
-  node.style.setProperty(
-    "--map-y",
-    `${((point.y - bounds.minY) / bounds.height) * 100}%`
+  const here = document.createElement("span");
+  here.className = "subway-progress-dot";
+  here.dataset.state = "here";
+  here.textContent = "●";
+  trail.append(here);
+  for (let index = 0; index < Math.min(remaining, 8); index += 1) {
+    const dot = document.createElement("span");
+    dot.className = "subway-progress-dot";
+    dot.dataset.state = "todo";
+    dot.textContent = "○";
+    trail.append(dot);
+  }
+  const goal = document.createElement("span");
+  goal.className = "subway-progress-goal";
+  goal.textContent = "⭐";
+  trail.append(goal);
+  return trail;
+}
+
+function collectStrip(document, state) {
+  const strip = document.createElement("div");
+  strip.className = "subway-collect";
+  strip.dataset.friends = String(state.passengers.length);
+  strip.dataset.cards = String(state.cards.length);
+
+  const friendsBox = document.createElement("span");
+  friendsBox.className = "subway-collect-friends";
+  friendsBox.setAttribute(
+    "aria-label",
+    `함께 가는 친구 ${state.passengers.length}명`
   );
+  friendsBox.append(...state.passengers.slice(-6).map(number =>
+    passengerImage(document, number)
+  ));
+
+  const cardsBox = document.createElement("span");
+  cardsBox.className = "subway-collect-cards";
+  cardsBox.setAttribute("aria-label", `모은 카드 ${state.cards.length}장`);
+  cardsBox.textContent = `🎫 ${state.cards.length}`;
+
+  strip.append(friendsBox, cardsBox);
+  return strip;
+}
+
+function roomCell(document, className, x, width, text) {
+  const node = document.createElement("span");
+  node.className = className;
+  node.style.setProperty("--room-x", `${((x + 0.5) / width) * 100}%`);
+  if (text !== undefined) node.textContent = text;
   return node;
 }
 
-function compassText(state, compass) {
-  if (!compass) return "";
-  if (compass.arrived) return "⭐ 도착역이에요! ↓ 키로 내려요";
-  if (compass.transferHere) {
-    return `⎵ 여기서 ${compass.line}호선으로 환승해요!`;
+function renderRoom(document, state, stage) {
+  const room = state.room;
+  const wrap = document.createElement("div");
+  wrap.className = "subway-room";
+  wrap.dataset.kind = room.kind;
+  wrap.dataset.entering = String(Boolean(room.entering));
+  wrap.style.setProperty("--room-cells", String(room.width));
+
+  const title = document.createElement("div");
+  title.className = "subway-room-title";
+  title.textContent = `${state.station}역 · ${ROOM_TITLES[room.kind] ?? ""}`;
+  wrap.append(title);
+
+  const backdrop = document.createElement("div");
+  backdrop.className = "subway-room-backdrop";
+  backdrop.setAttribute("aria-hidden", "true");
+  if (room.kind === "train") {
+    for (let index = 0; index < 4; index += 1) {
+      const window = document.createElement("span");
+      window.className = "subway-room-window";
+      backdrop.append(window);
+    }
+  } else if (room.kind === "gate") {
+    for (const label of ["🎟️ 표 사는 곳", "🗺️ 노선 안내", "🚻"]) {
+      const booth = document.createElement("span");
+      booth.className = "subway-room-booth";
+      booth.textContent = label;
+      backdrop.append(booth);
+    }
+  } else if (room.kind === "corridor") {
+    for (const label of ["↑ 환승", "🚶 이동", "↑ 환승"]) {
+      const sign = document.createElement("span");
+      sign.className = "subway-room-wallsign";
+      sign.textContent = label;
+      backdrop.append(sign);
+    }
+  } else if (room.kind === "platform") {
+    const train = document.createElement("div");
+    train.className = "subway-train";
+    train.dataset.stage = state.platform?.stage ?? "approaching";
+    train.dataset.line = String(state.line);
+    train.setAttribute("role", "img");
+    train.setAttribute("aria-label", `${state.line}호선 열차`);
+    train.innerHTML = subwayTrainSvg(
+      state.line,
+      lineByNumber(state.line).color
+    );
+    backdrop.append(train);
   }
-  return `추천: ${compass.nextStation} ` +
-    `${DIRECTION_ARROWS[compass.direction]} (${compass.hops}정거장 남음)`;
+  wrap.append(backdrop);
+
+  const floor = document.createElement("div");
+  floor.className = "subway-room-floor";
+  wrap.append(floor);
+
+  if (room.kind === "train" || room.kind === "corridor") {
+    const leftDoor = roomCell(
+      document,
+      "subway-room-door",
+      0,
+      room.width,
+      room.kind === "train" ? "←" : "↩"
+    );
+    leftDoor.dataset.side = "left";
+    const rightDoor = roomCell(
+      document,
+      "subway-room-door",
+      room.width - 1,
+      room.width,
+      room.kind === "train" ? "→" : "🚪"
+    );
+    rightDoor.dataset.side = "right";
+    wrap.append(leftDoor, rightDoor);
+  }
+
+  if (room.kind === "gate") {
+    const gate = roomCell(
+      document,
+      "subway-room-gate",
+      room.gateX,
+      room.width,
+      room.tapped ? "💳 통과!" : "💳 카드"
+    );
+    gate.dataset.tapped = String(Boolean(room.tapped));
+    gate.setAttribute("role", "img");
+    gate.setAttribute(
+      "aria-label",
+      room.tapped ? "카드를 찍은 개찰구" : "카드를 찍는 개찰구"
+    );
+    wrap.append(gate);
+  }
+
+  if (room.kind === "corridor") {
+    const sign = roomCell(
+      document,
+      "subway-room-sign",
+      room.width - 2,
+      room.width,
+      "환승 게이트"
+    );
+    wrap.append(sign);
+  }
+
+  room.items.forEach(item => {
+    const node = roomCell(
+      document,
+      "subway-room-item",
+      item.x,
+      room.width,
+      `🎫${item.number}`
+    );
+    node.setAttribute("role", "img");
+    node.setAttribute("aria-label", `숫자 ${item.number} 카드`);
+    wrap.append(node);
+  });
+
+  room.people.forEach(person => {
+    const node = roomCell(
+      document,
+      "subway-room-person",
+      person.x,
+      room.width,
+      person.stepped ? "🙇" : "🧍"
+    );
+    node.dataset.stepped = String(Boolean(person.stepped));
+    node.setAttribute("role", "img");
+    node.setAttribute(
+      "aria-label",
+      person.stepped ? "비켜준 사람" : "서 있는 사람"
+    );
+    wrap.append(node);
+  });
+
+  if (room.friend) {
+    const friend = passengerImage(
+      document,
+      room.friend.number,
+      "subway-room-friend"
+    );
+    friend.style.setProperty(
+      "--room-x",
+      `${((room.friend.x + 0.5) / room.width) * 100}%`
+    );
+    wrap.append(friend);
+  }
+
+  const player = playerImage(document, "subway-room-player");
+  player.style.setProperty(
+    "--room-x",
+    `${((room.walkX + 0.5) / room.width) * 100}%`
+  );
+  player.dataset.facing = room.facing;
+  wrap.append(player);
+
+  stage.append(wrap);
+  return wrap;
 }
 
-function lineChoiceButton(document, lineNumber) {
-  const line = lineByNumber(lineNumber);
-  const button = document.createElement("button");
-  button.type = "button";
-  button.className = "subway-gate-line";
-  button.dataset.lineNumber = String(lineNumber);
-  button.setAttribute("aria-label", `${lineNumber}호선 타기`);
-  button.setAttribute("aria-keyshortcuts", String(lineNumber));
-  const badge = document.createElement("span");
-  badge.className = "subway-line-badge";
-  badge.innerHTML = lineBadgeSvg(lineNumber, line.color);
-  const label = document.createElement("span");
-  label.className = "subway-gate-line-label";
-  label.textContent = `${lineNumber}호선`;
-  button.append(badge, label);
-  return button;
-}
-
-function renderGatePhase(document, state, stage) {
-  const gate = document.createElement("div");
-  gate.className = "subway-gate";
-
-  const sign = document.createElement("div");
-  sign.className = "subway-station-sign";
-  sign.textContent = `${state.station}역`;
-  gate.append(sign);
-
-  const note = document.createElement("p");
-  note.className = "subway-gate-note";
-  const compass = subwayCompass(state);
-  note.textContent = compass && !compass.arrived
-    ? `몇 호선을 탈까요? (추천: ${compass.line}호선)`
-    : "몇 호선을 탈까요?";
-  gate.append(note);
-
+function renderGateChoices(document, state, host, compass) {
   const choices = document.createElement("div");
   choices.className = "subway-gate-lines";
+  choices.dataset.open = String(Boolean(state.room.tapped));
+  host.append(choices);
+  if (!state.room.tapped) return choices;
+  const recommended = compass?.line ?? null;
   gateLines(state).forEach(lineNumber => {
-    choices.append(lineChoiceButton(document, lineNumber));
+    const line = lineByNumber(lineNumber);
+    const best = lineNumber === recommended;
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "subway-gate-line";
+    button.dataset.lineNumber = String(lineNumber);
+    button.dataset.recommended = String(best);
+    button.setAttribute(
+      "aria-label",
+      best ? `${lineNumber}호선 타기 — 추천` : `${lineNumber}호선 타기`
+    );
+    button.setAttribute("aria-keyshortcuts", String(lineNumber));
+    const badge = document.createElement("span");
+    badge.className = "subway-line-badge";
+    badge.innerHTML = lineBadgeSvg(lineNumber, line.color);
+    const label = document.createElement("span");
+    label.className = "subway-gate-line-label";
+    label.textContent = best ? `⭐ ${lineNumber}호선` : `${lineNumber}호선`;
+    button.append(badge, label);
+    choices.append(button);
   });
-  gate.append(choices);
-
-  const hero = playerImage(document);
-  hero.className = "subway-player subway-gate-player";
-  gate.append(hero);
-
-  stage.append(gate);
-  return gate;
+  return choices;
 }
 
-function renderPlatformPhase(document, state, stage) {
-  const platform = document.createElement("div");
-  platform.className = "subway-platform";
-
-  const sign = document.createElement("div");
-  sign.className = "subway-station-sign";
-  sign.textContent = `${state.station}역`;
-  platform.append(sign);
-
-  const goal = document.createElement("div");
-  goal.className = "subway-line-goal";
-  const badge = document.createElement("span");
-  badge.className = "subway-line-badge";
-  badge.innerHTML = lineBadgeSvg(state.line, lineByNumber(state.line).color);
-  const text = document.createElement("span");
-  text.className = "subway-line-goal-text";
-  text.textContent = `${state.line}호선이 서면 ↑ 키로 타요!`;
-  goal.append(badge, text);
-  platform.append(goal);
-
-  const track = document.createElement("div");
-  track.className = "subway-track";
-  const train = document.createElement("div");
-  train.className = "subway-train";
-  train.dataset.stage = state.platform.stage;
-  train.dataset.line = String(state.line);
-  train.setAttribute("role", "img");
-  train.setAttribute("aria-label", `${state.line}호선 열차`);
-  train.innerHTML = subwayTrainSvg(state.line, lineByNumber(state.line).color);
-  track.append(train);
-  platform.append(track);
-
-  const edge = document.createElement("div");
-  edge.className = "subway-platform-edge";
-  platform.append(edge);
-
-  const waiting = playerImage(document);
-  waiting.className = "subway-player subway-platform-player";
-  platform.append(waiting);
-
-  stage.append(platform);
-  return platform;
-}
-
-function renderRidePhase(document, state, stage) {
-  const ride = document.createElement("div");
-  ride.className = "subway-ride";
-  const bounds = rideBounds(state);
-  const compass = subwayCompass(state);
-  const lineColor = lineByNumber(state.line).color;
-
-  const map = document.createElement("div");
-  map.className = "subway-map";
-  map.dataset.guide = String(Boolean(state.showRecommended));
-  const canvas = document.createElement("div");
-  canvas.className = "subway-map-canvas";
-  canvas.innerHTML = mapSvg(state, bounds, compass);
-  map.append(canvas);
-
-  const fit = document.createElement("div");
-  fit.className = "subway-map-fit";
-  fit.style.setProperty(
-    "--map-aspect",
-    (bounds.width / bounds.height).toFixed(4)
-  );
-  const marker = document.createElement("span");
-  marker.className = "subway-map-player";
-  marker.innerHTML = mapTrainSvg(lineColor);
-  placeDot(marker, bounds, state.station);
-  fit.append(marker);
-  map.append(fit);
-
-  const overlay = document.createElement("div");
-  overlay.className = "subway-overlay";
-
-  const strip = fillPassengerStrip(
-    document,
-    document.createElement("div"),
-    state.passengers
-  );
-  strip.className = "subway-passenger-strip";
-  overlay.append(strip);
-
-  const banner = document.createElement("div");
-  banner.className = "subway-ride-banner";
-  const announcement = document.createElement("span");
-  announcement.className = "subway-announcement";
-  announcement.setAttribute("role", "status");
-  announcement.textContent = subwayAnnouncement(state);
-  const guide = document.createElement("span");
-  guide.className = "subway-drive-guide";
-  guide.dataset.alight = String(Boolean(compass?.arrived));
-  guide.textContent = compassText(state, compass);
-  banner.append(announcement, guide);
-  overlay.append(banner);
-
-  const targets = directionTargets(state);
+function renderStationCapsule(document, state, compass) {
   const capsule = document.createElement("div");
   capsule.className = "subway-capsule";
-  capsule.style.setProperty("--line-color", lineColor);
-  capsule.style.setProperty("--line-text", lineTextColor(lineColor));
-  const entries = Object.entries(targets);
+  const color = state.line ? lineByNumber(state.line).color : "#5b6b81";
+  capsule.style.setProperty("--line-color", color);
+  capsule.style.setProperty("--line-text", lineTextColor(color));
+
+  const neighbors = state.line ? lineNeighbors(state) : { back: null, forward: null };
   const prev = document.createElement("span");
   prev.className = "subway-capsule-side subway-capsule-prev";
-  prev.textContent = entries[0]
-    ? `${DIRECTION_ARROWS[entries[0][0]]} ${entries[0][1]}`
-    : "";
+  prev.textContent = neighbors.back ? `← ${neighbors.back}` : "";
   const now = document.createElement("span");
   now.className = "subway-capsule-now";
-  const nowBadge = document.createElement("span");
-  nowBadge.className = "subway-line-badge subway-capsule-badge";
-  nowBadge.innerHTML = lineBadgeSvg(state.line, lineColor);
-  const nowName = document.createElement("strong");
-  nowName.className = "subway-capsule-name";
-  nowName.textContent = state.station;
+  if (state.line) {
+    const badge = document.createElement("span");
+    badge.className = "subway-line-badge subway-capsule-badge";
+    badge.innerHTML = lineBadgeSvg(state.line, color);
+    now.append(badge);
+  }
+  const name = document.createElement("strong");
+  name.className = "subway-capsule-name";
+  name.textContent = state.station;
   const remaining = document.createElement("span");
   remaining.className = "subway-capsule-remaining";
   remaining.textContent = compass?.arrived
     ? "이번 역에서 내려요!"
     : `목적지까지 ${compass?.hops ?? "?"}정거장`;
-  now.append(nowBadge, nowName, remaining);
+  now.append(name, remaining);
   const next = document.createElement("span");
   next.className = "subway-capsule-side subway-capsule-next";
-  next.textContent = entries[1]
-    ? `${entries[1][1]} ${DIRECTION_ARROWS[entries[1][0]]}`
-    : "";
+  next.textContent = neighbors.forward ? `${neighbors.forward} →` : "";
   capsule.append(prev, now, next);
-  overlay.append(capsule);
-
-  const transferHint = document.createElement("span");
-  transferHint.className = "subway-space-hint";
-  transferHint.dataset.show = String(
-    isTransferStation(state.station) && !compass?.arrived
-  );
-  transferHint.textContent = "⎵ 스페이스로 환승";
-  overlay.append(transferHint);
-
-  map.append(overlay);
-  ride.append(map);
-  stage.append(ride);
-  return ride;
-}
-
-function rideKey(state) {
-  return [
-    state.station,
-    state.line,
-    state.showRecommended,
-    state.passengers.length
-  ].join("|");
-}
-
-function renderTransferringPhase(document, state, stage) {
-  const corridor = document.createElement("div");
-  corridor.className = "subway-corridor";
-  corridor.dataset.stage = state.transferring?.stage ?? "exit";
-
-  const sign = document.createElement("div");
-  sign.className = "subway-corridor-sign";
-  sign.textContent = `🚶 ${state.station} 환승 통로`;
-  corridor.append(sign);
-
-  const walkway = document.createElement("div");
-  walkway.className = "subway-corridor-walkway";
-  const gates = document.createElement("div");
-  gates.className = "subway-corridor-gate";
-  gates.textContent = "환승 게이트";
-  const hero = playerImage(document);
-  hero.className = "subway-player subway-corridor-player";
-  walkway.append(gates, hero);
-  corridor.append(walkway);
-
-  stage.append(corridor);
-  return corridor;
+  return capsule;
 }
 
 function renderArrivingPhase(document, state, stage) {
@@ -649,11 +664,7 @@ function renderArrivingPhase(document, state, stage) {
     door.append(slot);
   });
   room.append(door);
-
-  const hero = playerImage(document);
-  hero.className = "subway-player subway-arriving-player";
-  room.append(hero);
-
+  room.append(playerImage(document, "subway-player subway-arriving-player"));
   stage.append(room);
   return room;
 }
@@ -661,21 +672,20 @@ function renderArrivingPhase(document, state, stage) {
 function renderArrivedPhase(document, state, stage) {
   const ending = document.createElement("div");
   ending.className = "subway-arrived";
+  const hearts = document.createElement("span");
+  hearts.className = "subway-arrived-hearts";
+  hearts.textContent = "💛 💚 💙";
+  hearts.setAttribute("aria-hidden", "true");
   const icon = document.createElement("span");
   icon.className = "subway-place-icon";
   icon.textContent = state.place.icon;
   icon.setAttribute("role", "img");
   icon.setAttribute("aria-label", state.place.label);
-  const hero = playerImage(document);
-  hero.className = "subway-player subway-arrived-player";
-  const hearts = document.createElement("span");
-  hearts.className = "subway-arrived-hearts";
-  hearts.textContent = "💛 💚 💙";
-  hearts.setAttribute("aria-hidden", "true");
+  const hero = playerImage(document, "subway-player subway-arrived-player");
   const stats = document.createElement("span");
   stats.className = "subway-arrived-stats";
-  stats.textContent =
-    `환승 ${state.transfersUsed}번 · ${state.moveCount}정거장`;
+  stats.textContent = `환승 ${state.transfersUsed}번 · ` +
+    `${state.moveCount}정거장 · 🎫 ${state.cards.length}장`;
   const friends = document.createElement("div");
   friends.className = "subway-arrived-friends";
   friends.setAttribute(
@@ -688,6 +698,84 @@ function renderArrivedPhase(document, state, stage) {
   ending.append(hearts, icon, hero, stats, friends);
   stage.append(ending);
   return ending;
+}
+
+function renderRoomPhase(document, state, stage) {
+  const compass = subwayCompass(state);
+  const layout = document.createElement("div");
+  layout.className = "subway-layout";
+
+  const hud = document.createElement("div");
+  hud.className = "subway-hud";
+  hud.append(progressTrail(document, state, compass));
+
+  const minimap = document.createElement("div");
+  minimap.className = "subway-minimap-box";
+  minimap.dataset.guide = String(Boolean(state.showRecommended));
+  minimap.innerHTML = minimapSvg(state, rideBounds(state), compass);
+  hud.append(minimap);
+  layout.append(hud);
+
+  renderRoom(document, state, layout);
+
+  const footer = document.createElement("div");
+  footer.className = "subway-footer";
+
+  const topRow = document.createElement("div");
+  topRow.className = "subway-footer-row";
+  const guide = document.createElement("div");
+  guide.className = "subway-drive-guide";
+  guide.dataset.alight = String(Boolean(compass?.arrived));
+  guide.textContent = guideText(state, compass);
+  topRow.append(guide);
+  if (state.phase === "ride" && !compass?.arrived &&
+    isTransferStation(state.station) && gateLines(state).length > 1) {
+    const hint = document.createElement("span");
+    hint.className = "subway-space-hint";
+    hint.dataset.show = "true";
+    hint.textContent = "⎵ 스페이스로 환승";
+    topRow.append(hint);
+  }
+  if (state.phase === "gate") {
+    renderGateChoices(document, state, topRow, compass);
+  }
+  footer.append(topRow);
+
+  const bottomRow = document.createElement("div");
+  bottomRow.className = "subway-footer-row";
+  bottomRow.append(renderStationCapsule(document, state, compass));
+  bottomRow.append(collectStrip(document, state));
+  footer.append(bottomRow);
+
+  const announcement = document.createElement("span");
+  announcement.className = "subway-announcement";
+  announcement.setAttribute("role", "status");
+  announcement.textContent = subwayAnnouncement(state);
+  footer.append(announcement);
+  layout.append(footer);
+
+  stage.append(layout);
+  return layout;
+}
+
+function roomKey(state) {
+  const room = state.room;
+  return [
+    state.phase,
+    state.station,
+    state.line,
+    room?.kind,
+    room?.walkX,
+    room?.facing,
+    room?.tapped,
+    room?.items.length,
+    room?.friend ? room.friend.number : "-",
+    room?.people.map(person => `${person.x}${person.stepped ? "s" : ""}`).join(","),
+    state.passengers.length,
+    state.cards.length,
+    state.showRecommended,
+    state.platform?.stage ?? "-"
+  ].join("|");
 }
 
 export function renderSubwayJourney(document, state) {
@@ -704,24 +792,19 @@ export function renderSubwayJourney(document, state) {
   stage.className = "subway-stage";
   root.append(stage);
 
-  if (state.phase === "gate") renderGatePhase(document, state, stage);
-  else if (state.phase === "platform") renderPlatformPhase(document, state, stage);
-  else if (state.phase === "ride") renderRidePhase(document, state, stage);
-  else if (state.phase === "transferring") {
-    renderTransferringPhase(document, state, stage);
-  } else if (state.phase === "arriving") {
-    renderArrivingPhase(document, state, stage);
-  } else renderArrivedPhase(document, state, stage);
+  if (state.phase === "arriving") renderArrivingPhase(document, state, stage);
+  else if (state.phase === "arrived") renderArrivedPhase(document, state, stage);
+  else renderRoomPhase(document, state, stage);
 
   const pad = document.createElement("div");
   pad.className = "route-pad";
   pad.setAttribute("role", "group");
-  pad.setAttribute("aria-label", "지하철 이동");
+  pad.setAttribute("aria-label", "지하철 조작");
   for (const [direction, label, symbol] of [
-    ["up", "위로", "↑"],
-    ["left", "왼쪽으로", "←"],
-    ["down", "아래로", "↓"],
-    ["right", "오른쪽으로", "→"],
+    ["up", "타기·카드 찍기", "↑"],
+    ["left", "왼쪽으로 걷기", "←"],
+    ["down", "내리기", "↓"],
+    ["right", "오른쪽으로 걷기", "→"],
     ["space", "환승", "⎵"]
   ]) {
     const button = document.createElement("button");
@@ -739,7 +822,8 @@ export function renderSubwayJourney(document, state) {
     mission,
     stage,
     phase: state.phase,
-    rideKey: state.phase === "ride" ? rideKey(state) : null
+    roomKey: roomKey(state),
+    arrivingStage: state.arriving?.stage ?? null
   };
   return root;
 }
@@ -747,93 +831,15 @@ export function renderSubwayJourney(document, state) {
 export function updateSubwayJourney(root, state) {
   const view = root?._subwayView;
   if (!view) throw new TypeError("A rendered subway journey is required");
-  if (view.phase !== state.phase) {
-    const rebuilt = renderSubwayJourney(view.document, state);
-    root.replaceChildren(...rebuilt.children);
-    root.dataset.phase = state.phase;
-    root._subwayView = rebuilt._subwayView;
+  const key = roomKey(state);
+  const arrivingStage = state.arriving?.stage ?? null;
+  if (view.phase === state.phase && view.roomKey === key &&
+    view.arrivingStage === arrivingStage) {
     return root;
   }
-  view.mission.textContent = missionText(state);
-  if (state.phase === "platform") {
-    const train = root.querySelector?.(".subway-train");
-    if (train) train.dataset.stage = state.platform.stage;
-  }
-  if (state.phase === "ride") {
-    const key = rideKey(state);
-    if (view.rideKey === key) return root;
-    view.rideKey = key;
-    const bounds = rideBounds(state);
-    const compass = subwayCompass(state);
-    const map = root.querySelector?.(".subway-map");
-    if (map) map.dataset.guide = String(Boolean(state.showRecommended));
-    const fit = root.querySelector?.(".subway-map-fit");
-    if (fit) {
-      fit.style.setProperty(
-        "--map-aspect",
-        (bounds.width / bounds.height).toFixed(4)
-      );
-    }
-    const canvas = root.querySelector?.(".subway-map-canvas");
-    if (canvas) canvas.innerHTML = mapSvg(state, bounds, compass);
-    const marker = root.querySelector?.(".subway-map-player");
-    if (marker) placeDot(marker, bounds, state.station);
-    const announcement = root.querySelector?.(".subway-announcement");
-    if (announcement) announcement.textContent = subwayAnnouncement(state);
-    const guide = root.querySelector?.(".subway-drive-guide");
-    if (guide) {
-      guide.dataset.alight = String(Boolean(compass?.arrived));
-      guide.textContent = compassText(state, compass);
-    }
-    const strip = root.querySelector?.(".subway-passenger-strip");
-    if (strip && strip.dataset.count !== String(state.passengers.length)) {
-      fillPassengerStrip(view.document, strip, state.passengers);
-    }
-    const targets = directionTargets(state);
-    const entries = Object.entries(targets);
-    const prev = root.querySelector?.(".subway-capsule-prev");
-    if (prev) {
-      prev.textContent = entries[0]
-        ? `${DIRECTION_ARROWS[entries[0][0]]} ${entries[0][1]}`
-        : "";
-    }
-    const nowName = root.querySelector?.(".subway-capsule-name");
-    if (nowName) nowName.textContent = state.station;
-    const remaining = root.querySelector?.(".subway-capsule-remaining");
-    if (remaining) {
-      remaining.textContent = compass?.arrived
-        ? "이번 역에서 내려요!"
-        : `목적지까지 ${compass?.hops ?? "?"}정거장`;
-    }
-    const next = root.querySelector?.(".subway-capsule-next");
-    if (next) {
-      next.textContent = entries[1]
-        ? `${entries[1][1]} ${DIRECTION_ARROWS[entries[1][0]]}`
-        : "";
-    }
-    const spaceHint = root.querySelector?.(".subway-space-hint");
-    if (spaceHint) {
-      spaceHint.dataset.show = String(
-        isTransferStation(state.station) && !compass?.arrived
-      );
-    }
-    return root;
-  }
-  if (state.phase === "transferring") {
-    const corridor = root.querySelector?.(".subway-corridor");
-    if (corridor) {
-      corridor.dataset.stage = state.transferring?.stage ?? "exit";
-    }
-  }
-  if (state.phase === "arriving") {
-    const stageName = state.arriving?.stage ?? "melody";
-    if (view.arrivingStage !== stageName) {
-      view.arrivingStage = stageName;
-      const rebuilt = renderSubwayJourney(view.document, state);
-      root.replaceChildren(...rebuilt.children);
-      rebuilt._subwayView.arrivingStage = stageName;
-      root._subwayView = rebuilt._subwayView;
-    }
-  }
+  const rebuilt = renderSubwayJourney(view.document, state);
+  root.replaceChildren(...rebuilt.children);
+  root.dataset.phase = state.phase;
+  root._subwayView = rebuilt._subwayView;
   return root;
 }
