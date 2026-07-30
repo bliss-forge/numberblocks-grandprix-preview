@@ -4989,6 +4989,11 @@ body[data-mode="subway"] .toast {
   z-index: 1;
 }
 
+/* A painted destination carries its own charm — no floating emoji over it. */
+.subway-arrived[data-painted="true"] .subway-arrived-hearts {
+  display: none;
+}
+
 .subway-arrived-party {
   display: flex;
   align-items: flex-end;
@@ -5013,6 +5018,43 @@ body[data-mode="subway"] .toast {
 @keyframes subway-arrived-swing {
   0%, 100% { transform: rotate(-7deg); }
   50% { transform: rotate(9deg); }
+}
+
+/* Shared motion vocabulary for the destination scenes. */
+.subway-arrived-anim-wheel {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: subway-arrived-spin 10s linear infinite;
+}
+
+.subway-arrived-anim-float {
+  animation: subway-arrived-bob 3.2s ease-in-out infinite;
+}
+
+.subway-arrived-anim-drift {
+  animation: subway-arrived-drift 5.5s ease-in-out infinite alternate;
+}
+
+.subway-arrived-anim-shimmer {
+  animation: subway-arrived-shimmer 2.4s ease-in-out infinite;
+}
+
+.subway-arrived-anim-bob {
+  animation: subway-arrived-bob 2.8s ease-in-out infinite;
+}
+
+@keyframes subway-arrived-spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes subway-arrived-drift {
+  from { transform: translateX(0); }
+  to { transform: translateX(30px); }
+}
+
+@keyframes subway-arrived-shimmer {
+  0%, 100% { opacity: .35; }
+  50% { opacity: .9; }
 }
 
 @keyframes subway-arrived-bob {
@@ -5197,6 +5239,7 @@ body[data-mode="subway"] .toast {
   .subway-arrived-anim-wheel,
   .subway-arrived-anim-drift,
   .subway-arrived-anim-shimmer,
+  .subway-arrived-anim-bob,
   .subway-arrived-anim-float {
     animation: none;
   }
