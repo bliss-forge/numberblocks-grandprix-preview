@@ -51,6 +51,17 @@ export function cellCentre(index, width) {
   return ((index + 0.5) / width) * SCENE_WIDTH;
 }
 
+// A translucent wash of the ridden line's colour over the wall band, so 2호선
+// rooms read green and 7호선 rooms olive at a glance without nine hand-drawn
+// scenes. Kept faint enough that the pastel base survives.
+function wallTint(colour, opacity = 0.08) {
+  if (!colour) return "";
+  return `<rect x="0" y="${CEILING_BOTTOM}" width="${SCENE_WIDTH}" ` +
+    `height="${FLOOR_LINE - CEILING_BOTTOM}" fill="${colour}" ` +
+    `opacity="${opacity}"/>`;
+}
+
+
 function scene(kind, body) {
   return `<svg class="subway-scene-art subway-scene-${kind}" ` +
     `viewBox="0 0 ${SCENE_WIDTH} ${SCENE_HEIGHT}" preserveAspectRatio="none" ` +
@@ -185,12 +196,17 @@ function wallClock(cx, cy) {
 
 // 개찰구 · 계단 — ticket hall: kiosk, route board, and a real staircase body
 // under the walkable stair cells (cells 5..7 of a 9-cell room).
-export function gateSceneSvg({ width = 9, stairsFrom = 5 } = {}) {
+export function gateSceneSvg({
+  width = 9,
+  stairsFrom = 5,
+  lineColor = null
+} = {}) {
   const stairLeft = cellCentre(stairsFrom, width) - SCENE_WIDTH / width / 2;
   const steps = width - 1 - stairsFrom;
   const body = [
     ceilingLights(6),
     tiledWall(10),
+    wallTint(lineColor, 0.05),
     // route board on the left wall
     `<rect x="252" y="112" width="268" height="120" rx="12" fill="${PAPER}" ` +
     `stroke="${INK}" stroke-width="6"/>`,
@@ -247,7 +263,11 @@ export function gateSceneSvg({ width = 9, stairsFrom = 5 } = {}) {
 
 // 열차 안 — carriage shell: ceiling light strip, hanging straps, a long bench
 // and the scrolling landscape that shows through the window frames.
-export function trainSceneSvg({ lineColor = GREEN, width = 7 } = {}) {
+export function trainSceneSvg({
+  lineColor = GREEN,
+  lineNumber = 0,
+  width = 7
+} = {}) {
   const straps = Array.from({ length: 7 }, (unused, index) => {
     const cx = 90 + index * 136;
     return `<g class="subway-scene-strap" style="--strap: ${index}">` +
@@ -257,10 +277,28 @@ export function trainSceneSvg({ lineColor = GREEN, width = 7 } = {}) {
       `fill="none" stroke="${STEEL_DARK}" stroke-width="7"/>` +
       `</g>`;
   }).join("");
-  const hills = `<path d="M0 300 Q120 246 240 296 Q360 250 480 300 ` +
-    `Q600 252 720 298 Q840 250 1000 300 L1000 372 L0 372 Z" fill="${LEAF}"/>` +
-    `<path d="M0 336 Q160 300 320 340 Q480 302 640 340 Q800 304 1000 342 ` +
-    `L1000 372 L0 372 Z" fill="${LEAF_DARK}" opacity=".55"/>`;
+  // Three window-scenery variants keyed off the line number, so riding 2호선
+  // (riverside) feels different from 7호선 (hills) or 4호선 (city blocks).
+  const variant = Math.abs(Math.trunc(lineNumber)) % 3;
+  const hills = variant === 1
+    ? `<path d="M0 306 L90 306 L150 236 L230 306 L280 306 L360 218 ` +
+      `L456 306 L520 306 L600 244 L690 306 L760 306 L840 228 L940 306 ` +
+      `L1000 306 L1000 372 L0 372 Z" fill="${LEAF_DARK}" opacity=".8"/>` +
+      `<path d="M0 340 Q200 316 420 338 Q640 318 1000 340 L1000 372 ` +
+      `L0 372 Z" fill="${LEAF}"/>`
+    : variant === 2
+      ? `<path d="M0 312 Q160 292 340 312 Q560 290 760 312 Q880 298 1000 310 ` +
+        `L1000 344 L0 344 Z" fill="${SKY_DEEP}"/>` +
+        `<path d="M0 344 L1000 344 L1000 372 L0 372 Z" fill="${LEAF}"/>` +
+        Array.from({ length: 4 }, (unused, index) =>
+          `<path d="M${120 + index * 240} 330 q30 -26 60 0 z" ` +
+          `fill="${PAPER}" opacity=".85"/>`
+        ).join("")
+      : `<path d="M0 300 Q120 246 240 296 Q360 250 480 300 ` +
+        `Q600 252 720 298 Q840 250 1000 300 L1000 372 L0 372 Z" ` +
+        `fill="${LEAF}"/>` +
+        `<path d="M0 336 Q160 300 320 340 Q480 302 640 340 Q800 304 1000 342 ` +
+        `L1000 372 L0 372 Z" fill="${LEAF_DARK}" opacity=".55"/>`;
   const body = [
     // scrolling scenery sits behind everything; the window frames reveal it
     `<rect x="0" y="${CEILING_BOTTOM}" width="${SCENE_WIDTH}" ` +
@@ -285,8 +323,11 @@ export function trainSceneSvg({ lineColor = GREEN, width = 7 } = {}) {
     `fill="${lineColor}"/>`,
     straps,
     `<rect x="0" y="284" width="${SCENE_WIDTH}" height="86" fill="${FLOOR_COOL}"/>`,
+    `<rect x="0" y="284" width="${SCENE_WIDTH}" height="86" ` +
+    `fill="${lineColor}" opacity=".07"/>`,
     `<rect x="24" y="292" width="952" height="40" rx="12" fill="${BENCH}"/>`,
-    `<rect x="24" y="292" width="952" height="11" rx="5.5" fill="${BENCH_DARK}"/>`,
+    `<rect x="24" y="292" width="952" height="11" rx="5.5" ` +
+    `fill="${lineColor}"/>`,
     ...Array.from({ length: 7 }, (unused, index) =>
       `<line x1="${152 + index * 116}" y1="296" x2="${152 + index * 116}" ` +
       `y2="328" stroke="${BENCH_DARK}" stroke-width="4" opacity=".7"/>`
@@ -344,6 +385,7 @@ export function platformSceneSvg({ lineColor = GREEN, width = 7 } = {}) {
   const body = [
     ceilingLights(6),
     tiledWall(10),
+    wallTint(lineColor),
     // trackside gap running the length of the platform, with a two-step tunnel
     // mouth opening in the middle where the train pulls in
     `<rect x="0" y="220" width="${SCENE_WIDTH}" height="30" fill="${INK}"/>`,
@@ -414,6 +456,7 @@ export function corridorSceneSvg({ width = 7, lineColor = GREEN } = {}) {
   const body = [
     ceilingLights(8),
     tiledWall(14),
+    wallTint(lineColor, 0.06),
     // ceiling fascia: deep at the near end, shallow at the far end
     `<path d="M0 ${CEILING_BOTTOM} L${SCENE_WIDTH} ${CEILING_BOTTOM} ` +
     `L${SCENE_WIDTH} 86 L0 118 Z" fill="${CEILING}"/>`,

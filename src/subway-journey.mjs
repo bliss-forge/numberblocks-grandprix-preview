@@ -46,12 +46,11 @@ export const DIRECTION_ARROWS = Object.freeze({
 
 const MAX_LEG_HOPS = 7;
 const MAX_TOTAL_HOPS = 14;
-const DODGE_LANES = Object.freeze(["left", "down", "right"]);
-const DODGE_LANE_LABELS = Object.freeze({
-  left: "왼쪽",
-  down: "가운데",
-  right: "오른쪽"
-});
+// 발빠짐 폴짝: a marker sweeps across the gap meter; jumping while it is in
+// the centre window clears the gap. Generous by design — a miss just says
+// "not yet" and the marker keeps swinging.
+export const HOP_PERIOD_MS = 2400;
+export const HOP_SAFE_WINDOW = 0.17;
 
 function seededRandom(seed) {
   let value = (Number(seed) || 0) >>> 0;
@@ -274,7 +273,8 @@ export function createSubwayJourney(placeId, seed = 0) {
     showRecommended: false,
     visited: [start],
     passengers: [],
-    pendingFriend: null
+    pendingFriend: null,
+    travelSide: "forward"
   };
 }
 
@@ -362,19 +362,15 @@ export function chooseSubwayLine(state, lineNumber) {
   };
 }
 
-function makeDodge(state) {
-  const random = seededRandom(state.seed + state.moveCount * 131);
-  const blocked = [];
-  const blockedCount = 1 + Math.floor(random() * 2);
-  while (blocked.length < blockedCount) {
-    const lane = DODGE_LANES[Math.floor(random() * DODGE_LANES.length)];
-    if (!blocked.includes(lane)) blocked.push(lane);
-  }
-  return { blocked, open: DODGE_LANES.filter(lane => !blocked.includes(lane)) };
+// Triangle wave 0..1..0 over HOP_PERIOD_MS — where the gap marker sits.
+export function hopMarker(phaseMs) {
+  const t = ((phaseMs % HOP_PERIOD_MS) + HOP_PERIOD_MS) % HOP_PERIOD_MS /
+    HOP_PERIOD_MS;
+  return t < 0.5 ? t * 2 : 2 - t * 2;
 }
 
-export function dodgeLaneLabel(lane) {
-  return DODGE_LANE_LABELS[lane] ?? lane;
+export function hopInWindow(phaseMs) {
+  return Math.abs(hopMarker(phaseMs) - 0.5) <= HOP_SAFE_WINDOW;
 }
 
 function walkResult(state, step) {
@@ -412,6 +408,7 @@ function walkResult(state, step) {
         ...room,
         facing,
         entering: false,
+        bump: true,
         people: room.people.map(item =>
           item === person ? { ...item, stepped: true } : item
         )
@@ -428,6 +425,7 @@ function walkResult(state, step) {
       walkX: target,
       facing,
       entering: false,
+      bump: false,
       friend: friend ? null : room.friend
     }
   };
@@ -454,6 +452,7 @@ function departTo(state, station, side) {
     state: {
       ...state,
       station,
+      travelSide: side,
       lastStation: state.station,
       moveCount,
       strayStreak,
@@ -488,7 +487,7 @@ function alightHere(state) {
       state: {
         ...state,
         phase: "arriving",
-        arriving: { stage: "melody", phaseMs: 0, dodge: null }
+        arriving: { stage: "melody", phaseMs: 0 }
       },
       event: { type: "arriving", station: state.station }
     };
@@ -517,7 +516,7 @@ function alightHere(state) {
   return { state, event: { type: "not-your-stop", station: state.station } };
 }
 
-export function attemptSubwayMove(state, input) {
+export function attemptSubwayMove(state, input, options = {}) {
   const ignored = { state, event: { type: "ignored" } };
   const room = state.room;
 
@@ -640,7 +639,7 @@ export function attemptSubwayMove(state, input) {
       return { state: moved, event: { type: "walked", x: outcome.room.walkX } };
     }
 
-    if (input === "up") {
+    if (input === "up" || (input === "space" && state.phase !== "ride")) {
       if (state.phase === "gate") {
         return {
           state,
@@ -678,15 +677,34 @@ export function attemptSubwayMove(state, input) {
     }
   }
 
-  if (state.phase === "arriving" && state.arriving?.stage === "dodge") {
-    if (!DODGE_LANES.includes(input)) return ignored;
-    if (state.arriving.dodge.open.includes(input)) {
+  if (state.phase === "arriving" && state.arriving?.stage === "hop") {
+    if (input !== "space") {
+      return { state, event: { type: "hop-wait" } };
+    }
+    // assist: reduced-motion parks the visual marker in the window, so the
+    // judgement must agree. pity: the fourth try always lands — the game
+    // teaches timing, it never strands a five-year-old at the door.
+    const misses = state.arriving.misses ?? 0;
+    // Grace: a press that raced the doors opening (mashed through the melody)
+    // is not judged — the child has not even seen the marker yet.
+    if (misses === 0 && state.arriving.phaseMs < 200 &&
+      !hopInWindow(state.arriving.phaseMs) && !options.assist) {
+      return { state, event: { type: "hop-wait" } };
+    }
+    if (options.assist || misses >= 3 ||
+      hopInWindow(state.arriving.phaseMs)) {
       return {
         state: { ...state, phase: "arrived", arriving: null },
         event: { type: "alighted", place: state.place }
       };
     }
-    return { state, event: { type: "blocked-person", lane: input } };
+    return {
+      state: {
+        ...state,
+        arriving: { ...state.arriving, misses: misses + 1 }
+      },
+      event: { type: "hop-miss", marker: hopMarker(state.arriving.phaseMs) }
+    };
   }
 
   return ignored;
@@ -720,9 +738,8 @@ export function advanceSubwayWorld(state, elapsedMs = 100) {
       phaseMs: state.arriving.phaseMs + elapsed
     };
     if (arriving.stage === "melody" && arriving.phaseMs >= ARRIVE_MELODY_MS) {
-      arriving.stage = "dodge";
-      arriving.phaseMs = 0;
-      arriving.dodge = makeDodge(state);
+      arriving.stage = "hop";
+      arriving.phaseMs = arriving.phaseMs - ARRIVE_MELODY_MS;
     }
     return { ...state, arriving };
   }
@@ -748,7 +765,7 @@ export function subwayAnnouncement(state) {
   if (state.phase === "ride") {
     const compass = subwayCompass(state);
     if (compass?.hopsToAlight === 0) {
-      return `${stationLabel(state.station)}입니다. ↓ 키로 내려요!`;
+      return `${stationLabel(state.station)}입니다. ⎵ 키로 내려요!`;
     }
     if (compass?.hopsToAlight === 1) {
       return `다음 역은 ${stationLabel(compass.alightAt)}입니다. 내릴 준비를 해요`;
@@ -758,7 +775,7 @@ export function subwayAnnouncement(state) {
   if (state.phase === "arriving") {
     return state.arriving?.stage === "melody"
       ? "도착 멜로디가 나와요"
-      : "사람들을 피해서 내려요!";
+      : "빨간 불이 노란 칸에 올 때 ⎵! 발빠짐 조심";
   }
   return `${state.place.label}에 도착했어요!`;
 }

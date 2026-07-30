@@ -249,23 +249,32 @@ test("환승 통로 방은 게이트 표지와 사람을 그린다", () => {
   assert.match(byClass(scene, "subway-drive-guide")[0].textContent, /게이트/);
 });
 
-test("도착 단계는 멜로디 후 문이 열리고 빈 칸·사람 칸을 구분해 그린다", () => {
+test("도착 단계는 멜로디 후 문이 열리고 발빠짐 틈과 타이밍 미터를 그린다", () => {
   const base = ridingState();
   const arriving = {
     ...base,
     station: base.place.station,
     phase: "arriving",
-    arriving: { stage: "melody", phaseMs: 0, dodge: null }
+    arriving: { stage: "melody", phaseMs: 0 }
   };
   const scene = renderSubwayJourney(document, arriving);
   assert.equal(byClass(scene, "subway-arriving-door")[0].dataset.open, "false");
+  assert.equal(byClass(scene, "subway-hop-meter")[0].dataset.active, "false");
 
   const opened = advanceSubwayWorld(arriving, ARRIVE_MELODY_MS);
   updateSubwayJourney(scene, opened);
-  const lanes = byClass(scene, "subway-door-lane");
-  assert.equal(lanes.length, 3);
-  assert.ok(lanes.some(lane => lane.dataset.blocked === "true"));
-  assert.ok(lanes.some(lane => lane.dataset.blocked === "false"));
+  assert.equal(byClass(scene, "subway-arriving-door")[0].dataset.open, "true");
+  assert.equal(byClass(scene, "subway-hop-leaf").length, 2);
+  const gap = byClass(scene, "subway-hop-gap")[0];
+  assert.match(byClass(gap, "subway-hop-gap-label")[0].textContent, /발빠짐/);
+  const meter = byClass(scene, "subway-hop-meter")[0];
+  assert.equal(meter.dataset.active, "true");
+  assert.equal(byClass(meter, "subway-hop-safe").length, 1);
+  assert.equal(byClass(meter, "subway-hop-marker").length, 1);
+  assert.equal(
+    byClass(scene, "subway-arriving-player")[0].dataset.hopping,
+    "true"
+  );
 });
 
 test("도착 화면은 환승·정거장·카드 통계와 친구들을 보여준다", () => {

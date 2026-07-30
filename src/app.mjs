@@ -133,6 +133,9 @@ const state = {
   stars: 0,
   streak: { count: 0, add: 0, sub: 0, mul: 0, safety: 0, subway: 0 },
   subwayWalkMs: 0,
+  subwayTickMs: 0,
+  subwayHoldBlock: false,
+  subwayDoorCue: false,
   wrongCount: 0,
   round: 0,
   hintTimer: 0,
@@ -908,7 +911,11 @@ function playSubwayReal(key, fallback) {
   const src = subwaySoundSrc(key);
   audio.cancel();
   if (src) {
-    void audio.playFile(src);
+    // a missing or broken recording falls back to the TTS voice pack; a
+    // cancellation means newer audio took over, so stay quiet
+    void audio.playFile(src).then(status => {
+      if (status === "error" && fallback) void audio.playPrompt(fallback);
+    });
   } else if (fallback) {
     void audio.playPrompt(fallback);
   }
@@ -917,7 +924,9 @@ function playSubwayReal(key, fallback) {
 function playStationSound(station, followUpKey = null) {
   const playback = audio.playFile(stationSoundSrc(station));
   if (followUpKey) {
-    void playback.then(() => audio.playPrompt(followUpKey));
+    void playback.then(status => {
+      if (status !== "cancelled") void audio.playPrompt(followUpKey);
+    });
   } else {
     void playback;
   }
@@ -936,7 +945,8 @@ function startSubwayRide(placeId) {
   showHint("→ 걸어가서 🎫 들어가는 곳을 지나가요!");
   audio.cancel();
   void audio.playPrompt(state.subway.place.voiceKey);
-  scheduleSubwayTick(performance.now());
+  state.subwayTickMs = performance.now();
+  scheduleSubwayTick();
 }
 
 function chooseSubwayLineInput(lineNumber) {
@@ -956,7 +966,7 @@ function chooseSubwayLineInput(lineNumber) {
   }
 }
 
-function scheduleSubwayTick(previousMs = performance.now()) {
+function scheduleSubwayTick() {
   schedule(() => {
     if (
       state.phase !== "playing" ||
@@ -967,26 +977,43 @@ function scheduleSubwayTick(previousMs = performance.now()) {
     }
     const nowMs = performance.now();
     const previous = state.subway;
+    // state.subwayTickMs is the single clock shared with moveSubway, so a
+    // keypress between ticks is never counted twice. The 400ms cap guards
+    // backgrounded tabs, except during the hop, whose phase is periodic and
+    // must track the CSS-animated marker.
+    const elapsed = nowMs - (state.subwayTickMs || nowMs);
     state.subway = advanceSubwayWorld(
       state.subway,
-      Math.min(400, nowMs - previousMs)
+      state.subway.phase === "arriving" ? elapsed : Math.min(400, elapsed)
     );
     if (previous.phase === "platform" && state.subway.phase === "platform" &&
       previous.platform.stage !== "stopped" &&
       state.subway.platform.stage === "stopped") {
       audio.playSfx("door");
-      showHint(`${state.subway.line}호선 열차예요! ↑ 키로 타요`);
+      showHint(`${state.subway.line}호선 열차예요! ⎵ 키로 타요`);
     }
-    if (previous.phase === "arriving" && state.subway.phase === "arriving" &&
-      previous.arriving?.stage === "melody" &&
-      state.subway.arriving?.stage === "dodge") {
-      audio.playSfx("door");
-      playSubwayReal("mind-gap", "subway-mind-gap");
-      showHint("문이 열렸어요! 빈 곳 방향키로 내려요");
-    }
+    maybeSubwayDoorCue();
+    state.subwayTickMs = nowMs;
     updateSubwayJourney(state.subwayScene, state.subway);
-    scheduleSubwayTick(nowMs);
+    scheduleSubwayTick();
   }, 150);
+}
+
+function maybeSubwayDoorCue() {
+  if (
+    state.subway?.phase === "arriving" &&
+    state.subway.arriving?.stage === "hop" &&
+    !state.subwayDoorCue
+  ) {
+    state.subwayDoorCue = true;
+    audio.playSfx("door");
+    showHint("문이 열렸어요! 빨간 불이 노란 칸에 올 때 ⎵로 폴짝!");
+  }
+}
+
+function prefersReducedMotion() {
+  return typeof matchMedia === "function" &&
+    matchMedia("(prefers-reduced-motion: reduce)").matches;
 }
 
 function moveSubway(direction) {
@@ -997,7 +1024,17 @@ function moveSubway(direction) {
   ) {
     return;
   }
-  const result = attemptSubwayMove(state.subway, direction);
+  if (state.subway.phase === "arriving" && state.subwayTickMs) {
+    // Sync the marker to the wall clock before judging the jump, so the
+    // judgement matches what the CSS-animated marker is showing.
+    const nowMs = performance.now();
+    state.subway = advanceSubwayWorld(state.subway, nowMs - state.subwayTickMs);
+    state.subwayTickMs = nowMs;
+    maybeSubwayDoorCue();
+  }
+  const result = attemptSubwayMove(state.subway, direction, {
+    assist: prefersReducedMotion()
+  });
   state.subway = result.state;
   updateSubwayJourney(state.subwayScene, state.subway);
   const event = result.event;
@@ -1039,17 +1076,18 @@ function moveSubway(direction) {
     audio.cancel();
     void audio.playPrompt(`number-${event.number}`);
   } else if (event.type === "departed") {
+    // A held arrow must not ride straight through stations: the hold is
+    // absorbed at each arrival and a fresh press is needed to continue.
+    state.subwayHoldBlock = true;
     const compass = subwayCompass(state.subway);
     if (event.atDest) {
       audio.playSfx("door");
-      showHint(`⭐ ${stationLabel(event.station)}이에요! ↓ 눌러서 내려요`);
-      audio.cancel();
-      playStationSound(event.station, "subway-stop-check");
+      showHint(`⭐ ${stationLabel(event.station)}이에요! ⎵ 눌러서 내려요`);
+      playSubwayReal("mind-gap", "subway-stop-check");
     } else if (compass?.hopsToAlight === 0) {
       audio.playSfx("door");
-      showHint(`🔔 ${stationLabel(event.station)}이에요! ↓ 눌러서 갈아타요`);
-      audio.cancel();
-      playStationSound(event.station, "subway-transfer");
+      showHint(`🔔 ${stationLabel(event.station)}이에요! ⎵ 눌러서 갈아타요`);
+      playSubwayReal("mind-gap", "subway-transfer");
     } else if (compass?.hopsToAlight === 1) {
       showHint(
         `${stationLabel(event.station)} — 다음 ${compass.alightAt}에서 내려요!`
@@ -1083,17 +1121,29 @@ function moveSubway(direction) {
     audio.cancel();
     playStationSound(event.station, "subway-transfer");
   } else if (event.type === "arriving") {
-    playSubwayReal("arrive-melody", null);
+    state.subwayDoorCue = false;
+    playSubwayReal(
+      state.subway.travelSide === "back"
+        ? "arrive-melody-up"
+        : "arrive-melody-down",
+      null
+    );
     audio.playSfx("win");
     showHint("도착 멜로디가 나와요! 곧 문이 열려요");
+  } else if (event.type === "hop-miss") {
+    audio.playSfx("pop");
+    showHint("아직! 표시가 가운데 노란 칸에 올 때 ⎵");
+  } else if (event.type === "hop-wait") {
+    showHint("⎵ 스페이스로 폴짝 뛰어 내려요!");
   } else if (event.type === "blocked-person") {
+    audio.playSfx("pop");
     showHint("\"실례합니다!\" 한 번 더 누르면 비켜줘요");
   } else if (event.type === "alighted") {
     audio.playSfx("win");
     showHint(`${state.subway.place.label}에 도착했어요!`);
     schedule(() => {
       void completeSubwayJourney();
-    }, 1600);
+    }, 2600);
   }
 }
 
@@ -1343,8 +1393,8 @@ document.addEventListener("keydown", event => {
   }
 
   if (state.phase === "playing" && state.mode === "subway" && state.subway) {
-    if ((event.key === " " || event.key === "Spacebar") &&
-      state.subway.phase === "ride") {
+    if (event.key === " " || event.key === "Spacebar") {
+      // every subway phase owns the spacebar — it must never scroll the page
       event.preventDefault();
       if (!event.repeat) moveSubway("space");
       return;
@@ -1356,10 +1406,12 @@ document.addEventListener("keydown", event => {
       // so holding left/right keeps stepping — but only walking repeats.
       if (event.repeat) {
         if (direction !== "left" && direction !== "right") return;
+        if (state.subwayHoldBlock) return;
         const now = performance.now();
         if (now - state.subwayWalkMs < WALK_REPEAT_MS) return;
         state.subwayWalkMs = now;
       } else {
+        state.subwayHoldBlock = false;
         state.subwayWalkMs = performance.now();
       }
       moveSubway(direction);

@@ -3861,19 +3861,24 @@ body[data-mode="subway"] .stage-lights {
   display: grid;
   place-items: center;
   min-height: 0;
+  /* Lets the layout cap its height in container units (cqw/cqh below). */
+  container-type: size;
 }
 
 /* Two panes: the illustrated room plays on the left, everything the child
    only reads is stacked in the right rail. Nothing overlaps the scene. */
 .subway-layout {
   position: relative;
-  align-self: stretch;
+  align-self: center;
   justify-self: stretch;
   display: grid;
   grid-template-columns: minmax(0, 1fr) var(--subway-rail);
   gap: 10px;
   width: 100%;
-  height: 100%;
+  /* The scene art is painted for a wide room. On tall windows an unbounded
+     height stretches it into mush, so the layout never grows taller than
+     54% of its own width — extra vertical space becomes margin instead. */
+  height: min(100cqh, 54cqw);
   min-height: 0;
 }
 
@@ -4242,12 +4247,43 @@ body[data-mode="subway"] .toast {
 .subway-room-sign,
 .subway-room-stair,
 .subway-room-target,
+.subway-room-bubble,
 .subway-room-person,
 .subway-room-friend,
 .subway-room-player {
   position: absolute;
   left: var(--room-x, 50%);
   transform: translateX(-50%);
+}
+
+/* "실례합니다!" pops out of the hero while a bumped commuter steps aside. */
+.subway-room-bubble {
+  bottom: 46%;
+  z-index: 3;
+  padding: 5px 12px 6px;
+  border-radius: 14px;
+  border: 3px solid #31445b;
+  background: #fff;
+  color: #31445b;
+  font-size: clamp(12px, 1.4vw, 17px);
+  font-weight: 900;
+  white-space: nowrap;
+  animation: subway-bubble-pop .4s var(--motion-ease-settle);
+}
+
+.subway-room-bubble::after {
+  position: absolute;
+  bottom: -12px;
+  left: 50%;
+  border: 6px solid transparent;
+  border-top-color: #31445b;
+  transform: translateX(-50%);
+  content: "";
+}
+
+@keyframes subway-bubble-pop {
+  from { transform: translateX(-50%) scale(.4); opacity: 0; }
+  to { transform: translateX(-50%) scale(1); opacity: 1; }
 }
 
 .subway-room-door {
@@ -4795,12 +4831,6 @@ body[data-mode="subway"] .toast {
   z-index: 2;
 }
 
-.subway-door-lane .subway-person-art {
-  display: inline-block;
-  width: 34%;
-  height: auto;
-  vertical-align: bottom;
-}
 
 .subway-station-sign {
   padding: 6px 22px;
@@ -4820,33 +4850,110 @@ body[data-mode="subway"] .toast {
 }
 
 .subway-arriving-door {
+  position: relative;
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
-  width: min(100%, 560px);
-  padding: 14px;
+  grid-template-columns: minmax(0, 1fr) clamp(120px, 18vw, 190px) minmax(0, 1fr);
+  align-items: stretch;
+  width: min(100%, 620px);
+  height: clamp(110px, 22vh, 180px);
+  padding: 10px;
   border-radius: 18px;
   background: #39424e;
 }
 
-.subway-arriving-door[data-open="false"] .subway-door-lane {
-  background: #59636f;
+/* Door leaves slide apart when the doors open. */
+.subway-hop-leaf {
+  border-radius: 10px;
+  background: #eef3f8;
+  border: 4px solid #cdd7e2;
+  transition: transform var(--motion-journey) var(--motion-ease-settle);
 }
 
-.subway-door-lane {
+.subway-arriving-door[data-open="true"] .subway-hop-leaf[data-side="left"] {
+  transform: translateX(-26%);
+}
+
+.subway-arriving-door[data-open="true"] .subway-hop-leaf[data-side="right"] {
+  transform: translateX(26%);
+}
+
+/* The gap between train and platform: dark drop with yellow nosings. */
+.subway-hop-gap {
+  position: relative;
   display: grid;
   place-items: end center;
-  height: clamp(90px, 18vh, 150px);
-  border-radius: 12px;
-  background: #eef3f8;
-  font-size: clamp(26px, 4.4vh, 44px);
-  font-weight: 900;
-  color: #1c6fd6;
+  border-radius: 8px;
+  background: #2c3440;
+  box-shadow: inset 0 8px 12px rgba(0, 0, 0, .5);
+  border-inline: 6px solid #f4c542;
 }
 
-.subway-door-lane[data-blocked="true"] {
-  background: #ffe2e6;
+.subway-hop-gap-label {
+  margin-bottom: 8px;
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: #f4c542;
+  color: #4a3400;
+  font-size: clamp(11px, 1.3vw, 15px);
+  font-weight: 900;
+  white-space: nowrap;
 }
+
+/* Timing meter: the marker sweeps; jump while it crosses the yellow window. */
+.subway-hop-meter {
+  position: relative;
+  width: min(100%, 620px);
+  height: clamp(30px, 5vh, 44px);
+  border-radius: 999px;
+  border: 4px solid #fff;
+  background: #dfe6ee;
+  box-shadow: 0 4px 12px rgba(37, 52, 93, .18);
+  overflow: hidden;
+}
+
+.subway-hop-meter[data-active="false"] {
+  visibility: hidden;
+}
+
+.subway-hop-safe {
+  position: absolute;
+  inset: 0 auto;
+  left: 33%;
+  width: 34%;
+  background: #ffd54d;
+  border-inline: 3px solid #f4a532;
+}
+
+.subway-hop-marker {
+  position: absolute;
+  inset: 3px auto;
+  left: 0;
+  width: clamp(14px, 2vw, 20px);
+  border-radius: 999px;
+  background: #e8564a;
+  box-shadow: 0 0 0 3px #fff;
+  /* One MODEL period is a full round trip; with `alternate` each CSS cycle is
+     one leg, so a leg lasts half the period. --hop-phase aligns the sweep to
+     the model clock at render time. */
+  animation: subway-hop-sweep calc(var(--hop-period, 2400ms) / 2) linear
+    infinite alternate;
+  animation-delay: calc(-1 * var(--hop-phase, 0ms));
+}
+
+@keyframes subway-hop-sweep {
+  from { left: 0; }
+  to { left: calc(100% - clamp(14px, 2vw, 20px)); }
+}
+
+.subway-arriving-player[data-hopping="true"] {
+  animation: subway-hop-ready .9s ease-in-out infinite;
+}
+
+@keyframes subway-hop-ready {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-7px); }
+}
+
 
 .subway-arriving-player {
   width: clamp(48px, 6.6vw, 72px);
@@ -4956,6 +5063,10 @@ body[data-mode="subway"] .toast {
   .subway-layout {
     grid-template-columns: minmax(0, 1fr);
     grid-template-rows: minmax(0, 1fr) auto;
+    /* The 54cqw aspect cap is a desktop rule; at 390px it would squeeze the
+       whole stack into ~190px and clip the controls. */
+    height: 100%;
+    align-self: stretch;
   }
 
   .subway-rail {
@@ -5000,6 +5111,7 @@ body[data-mode="subway"] .toast {
   .subway-room-gate[data-tapped="true"] .subway-gate-caption,
   .subway-gate-ping,
   .subway-room-target,
+  .subway-room-bubble,
   .subway-room-friend,
   .subway-plan-step[data-current="true"],
   .subway-capsule-remaining[data-alight="true"],
@@ -5013,6 +5125,20 @@ body[data-mode="subway"] .toast {
   }
 
   .subway-room-player {
+    transition: none;
+  }
+
+  /* The sweep stops in the safe window, so the jump always succeeds. */
+  .subway-hop-marker {
+    animation: none;
+    left: calc(50% - clamp(7px, 1vw, 10px));
+  }
+
+  .subway-arriving-player[data-hopping="true"] {
+    animation: none;
+  }
+
+  .subway-hop-leaf {
     transition: none;
   }
 }
