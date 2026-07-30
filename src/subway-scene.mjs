@@ -3,7 +3,8 @@ import {
   STATION_COORDS,
   SUBWAY_LINES,
   linesAtStation,
-  lineByNumber
+  lineByNumber,
+  stationLabel
 } from "./subway-map-data.mjs";
 import {
   DIRECTION_ARROWS,
@@ -18,6 +19,11 @@ import {
   lineTextColor,
   subwayTrainSvg
 } from "./subway-art.mjs";
+import {
+  fareGateSvg,
+  passengerSvg,
+  stationSceneSvg
+} from "./subway-station-art.mjs";
 
 const MAP_SCALE = 10;
 const MIN_SPAN_X = 66;
@@ -455,6 +461,21 @@ function collectStrip(document, state) {
   return strip;
 }
 
+function fareGate(document, room, direction, label) {
+  const x = direction === "in" ? room.inGateX : room.outGateX;
+  const node = roomCell(document, "subway-room-gate", x, room.width);
+  node.dataset.gate = direction;
+  node.setAttribute("role", "img");
+  const art = document.createElement("span");
+  art.className = "subway-gate-art-box";
+  art.innerHTML = fareGateSvg(direction, direction === "in" && room.tapped);
+  const caption = document.createElement("span");
+  caption.className = "subway-gate-caption";
+  caption.textContent = label;
+  node.append(art, caption);
+  return node;
+}
+
 function roomCell(document, className, x, width, text) {
   const node = document.createElement("span");
   node.className = className;
@@ -473,11 +494,27 @@ function renderRoom(document, state, stage, compass) {
 
   const title = document.createElement("div");
   title.className = "subway-room-title";
-  title.textContent = `${state.station}역 · ${ROOM_TITLES[room.kind] ?? ""}`;
+  title.textContent =
+    `${stationLabel(state.station)} · ${ROOM_TITLES[room.kind] ?? ""}`;
   wrap.append(title);
+
+  const painted = stationSceneSvg(room.kind, {
+    width: room.width,
+    stairsFrom: room.stairsFrom ?? undefined,
+    lineColor: state.line ? lineByNumber(state.line).color : undefined
+  });
+  wrap.dataset.painted = String(Boolean(painted));
+  if (painted) {
+    const art = document.createElement("div");
+    art.className = "subway-room-scene";
+    art.setAttribute("aria-hidden", "true");
+    art.innerHTML = painted;
+    wrap.append(art);
+  }
 
   const backdrop = document.createElement("div");
   backdrop.className = "subway-room-backdrop";
+  backdrop.dataset.painted = String(Boolean(painted));
   backdrop.setAttribute("aria-hidden", "true");
   if (room.kind === "train") {
     for (let index = 0; index < 4; index += 1) {
@@ -543,28 +580,17 @@ function renderRoom(document, state, stage, compass) {
   }
 
   if (room.kind === "gate") {
-    const exit = roomCell(
-      document,
-      "subway-room-gate",
-      room.outGateX,
-      room.width,
-      "🚪 나가는 곳"
-    );
-    exit.dataset.gate = "out";
-    exit.setAttribute("role", "img");
+    const exit = fareGate(document, room, "out", "나가는 곳");
     exit.setAttribute("aria-label", "나가는 곳 개찰구 — 들어갈 수 없어요");
     lane.append(exit);
 
-    const entry = roomCell(
+    const entry = fareGate(
       document,
-      "subway-room-gate",
-      room.inGateX,
-      room.width,
-      room.tapped ? "🎫 삑! 통과" : "🎫 들어가는 곳"
+      room,
+      "in",
+      room.tapped ? "삑! 통과" : "들어가는 곳"
     );
-    entry.dataset.gate = "in";
     entry.dataset.tapped = String(Boolean(room.tapped));
-    entry.setAttribute("role", "img");
     entry.setAttribute(
       "aria-label",
       room.tapped ? "카드를 찍고 지나온 개찰구" : "들어가는 곳 개찰구"
@@ -618,9 +644,9 @@ function renderRoom(document, state, stage, compass) {
       document,
       "subway-room-person",
       person.x,
-      room.width,
-      person.stepped ? "🙇" : "🧍"
+      room.width
     );
+    node.innerHTML = passengerSvg(person.x + room.width, person.stepped);
     node.dataset.stepped = String(Boolean(person.stepped));
     node.setAttribute("role", "img");
     node.setAttribute(
@@ -734,9 +760,19 @@ function renderArrivingPhase(document, state, stage) {
   room.className = "subway-arriving";
   room.dataset.stage = state.arriving?.stage ?? "melody";
 
+  // The doors open while still inside the carriage, so reuse the train scenery
+  // instead of leaving this step on an empty pale field.
+  const art = document.createElement("div");
+  art.className = "subway-room-scene";
+  art.setAttribute("aria-hidden", "true");
+  art.innerHTML = stationSceneSvg("train", {
+    lineColor: state.line ? lineByNumber(state.line).color : undefined
+  });
+  room.append(art);
+
   const sign = document.createElement("div");
   sign.className = "subway-station-sign";
-  sign.textContent = `${state.station}역`;
+  sign.textContent = stationLabel(state.station);
   room.append(sign);
 
   const note = document.createElement("p");
@@ -760,7 +796,12 @@ function renderArrivingPhase(document, state, stage) {
       `${dodgeLaneLabel(lane)} ${blocked ? "사람 있음" : "비어 있음"}`
     );
     if (state.arriving?.stage === "dodge") {
-      slot.textContent = blocked ? "🧍🧍" : DIRECTION_ARROWS[lane];
+      if (blocked) {
+        slot.innerHTML = passengerSvg(lane.length + 2, false) +
+          passengerSvg(lane.length + 5, false);
+      } else {
+        slot.textContent = DIRECTION_ARROWS[lane];
+      }
     }
     door.append(slot);
   });
@@ -806,6 +847,23 @@ function renderRoomPhase(document, state, stage) {
   const layout = document.createElement("div");
   layout.className = "subway-layout";
 
+  // Left pane: the illustrated room, with the guide and station capsule
+  // overlaid along its foot like a subtitle bar. Right rail: the big map, the
+  // plan and the control pad. Nothing overlaps the walking area any more.
+  const pane = document.createElement("div");
+  pane.className = "subway-pane";
+  renderRoom(document, state, pane, compass);
+  layout.append(pane);
+
+  const rail = document.createElement("div");
+  rail.className = "subway-rail";
+
+  const minimap = document.createElement("div");
+  minimap.className = "subway-minimap-box";
+  minimap.dataset.guide = String(Boolean(state.showRecommended));
+  minimap.innerHTML = minimapSvg(state, rideBounds(state), compass);
+  rail.append(minimap);
+
   const hud = document.createElement("div");
   hud.className = "subway-hud";
   const hudMain = document.createElement("div");
@@ -815,15 +873,7 @@ function renderRoomPhase(document, state, stage) {
     progressTrail(document, state, compass)
   );
   hud.append(hudMain);
-
-  const minimap = document.createElement("div");
-  minimap.className = "subway-minimap-box";
-  minimap.dataset.guide = String(Boolean(state.showRecommended));
-  minimap.innerHTML = minimapSvg(state, rideBounds(state), compass);
-  hud.append(minimap);
-  layout.append(hud);
-
-  renderRoom(document, state, layout, compass);
+  rail.append(hud);
 
   const footer = document.createElement("div");
   footer.className = "subway-footer";
@@ -856,9 +906,11 @@ function renderRoomPhase(document, state, stage) {
   announcement.setAttribute("role", "status");
   announcement.textContent = subwayAnnouncement(state);
   footer.append(announcement);
-  layout.append(footer);
+  pane.append(footer);
 
+  layout.append(rail);
   stage.append(layout);
+  layout.railSlot = rail;
   return layout;
 }
 
@@ -895,9 +947,10 @@ export function renderSubwayJourney(document, state) {
   stage.className = "subway-stage";
   root.append(stage);
 
+  let rail = null;
   if (state.phase === "arriving") renderArrivingPhase(document, state, stage);
   else if (state.phase === "arrived") renderArrivedPhase(document, state, stage);
-  else renderRoomPhase(document, state, stage);
+  else rail = renderRoomPhase(document, state, stage).railSlot;
 
   const pad = document.createElement("div");
   pad.className = "route-pad";
@@ -918,7 +971,7 @@ export function renderSubwayJourney(document, state) {
     if (direction === "space") button.className = "subway-space-button";
     pad.append(button);
   }
-  root.append(pad);
+  (rail ?? root).append(pad);
 
   root._subwayView = {
     document,

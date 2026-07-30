@@ -3780,9 +3780,15 @@ body[data-mode="safety"] .stage-lights {
 }
 
 body[data-mode="subway"] #game {
-  grid-template-rows: auto minmax(0, 1fr);
-  gap: 8px;
-  padding: 74px 2vw 14px;
+  /* The subway screen carries its own header, so the shared problem pill is
+     hidden and its row is dropped — that is 89px of stage height reclaimed. */
+  grid-template-rows: minmax(0, 1fr);
+  gap: 0;
+  padding: 74px 2vw 12px;
+}
+
+body[data-mode="subway"] .problem-pill {
+  display: none;
 }
 
 body[data-mode="subway"] .answer-dock,
@@ -3813,18 +3819,23 @@ body[data-mode="subway"] .stage-lights {
 }
 
 .subway-journey {
+  /* Right rail width drives the two-pane grid and the docked control pad. */
+  --subway-rail: clamp(330px, 33vw, 430px);
+  --subway-pad: clamp(150px, 12vw, 178px);
   position: relative;
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
-  gap: 6px;
-  padding: 8px 12px 12px;
+  gap: 4px;
+  padding: 4px 12px 10px;
 }
 
+/* Docked at the foot of the right rail, so it never covers the scene. */
 .subway-journey .route-pad {
   position: absolute;
-  right: 12px;
-  bottom: 12px;
+  right: calc(12px + (var(--subway-rail) - var(--subway-pad)) / 2);
+  bottom: 10px;
   z-index: 30;
+  width: var(--subway-pad);
 }
 
 .subway-space-button {
@@ -3837,12 +3848,12 @@ body[data-mode="subway"] .stage-lights {
 
 .subway-mission {
   justify-self: center;
-  padding: 6px 18px;
+  padding: 2px 16px 3px;
   border-radius: 999px;
   border: 3px solid #31445b;
   background: #fff;
   color: #31445b;
-  font-size: clamp(14px, 1.7vw, 20px);
+  font-size: clamp(13px, 1.5vw, 18px);
   font-weight: 900;
 }
 
@@ -3852,17 +3863,43 @@ body[data-mode="subway"] .stage-lights {
   min-height: 0;
 }
 
-/* Room layout: room fills the frame, HUD floats over it */
+/* Two panes: the illustrated room plays on the left, everything the child
+   only reads is stacked in the right rail. Nothing overlaps the scene. */
 .subway-layout {
   position: relative;
   align-self: stretch;
   justify-self: stretch;
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr) auto;
-  gap: 5px;
+  grid-template-columns: minmax(0, 1fr) var(--subway-rail);
+  gap: 10px;
   width: 100%;
   height: 100%;
   min-height: 0;
+}
+
+.subway-pane {
+  position: relative;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  gap: 6px;
+  min-width: 0;
+  min-height: 0;
+}
+
+.subway-rail {
+  /* map (fixed aspect) | plan+progress (absorbs slack) | pad (natural height) */
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  gap: 8px;
+  min-width: 0;
+  min-height: 0;
+}
+
+/* Inside the rail the pad is a normal grid row, pinned to the rail's foot. */
+.subway-rail .route-pad {
+  position: static;
+  justify-self: center;
+  width: var(--subway-pad);
 }
 
 .subway-hud {
@@ -3870,15 +3907,17 @@ body[data-mode="subway"] .stage-lights {
   align-items: flex-start;
   justify-content: space-between;
   gap: 10px;
-  pointer-events: none;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .subway-hud-main {
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
+  align-items: stretch;
   gap: 6px;
   min-width: 0;
+  width: 100%;
 }
 
 .subway-plan {
@@ -3940,8 +3979,8 @@ body[data-mode="subway"] .stage-lights {
 }
 
 .subway-minimap-box {
-  width: clamp(132px, 19vw, 236px);
-  aspect-ratio: 16 / 10;
+  width: 100%;
+  aspect-ratio: 8 / 5;
   overflow: hidden;
   border: 3px solid #fff;
   border-radius: 14px;
@@ -3971,7 +4010,8 @@ body[data-mode="subway"] .stage-lights {
 }
 
 .subway-room[data-kind="platform"] {
-  background: linear-gradient(#dfe8f2 0 52%, #39424e 52% 84%, #cbd4de 84% 100%);
+  /* Stops re-tuned for the taller room, so the tunnel band stays a band. */
+  background: linear-gradient(#dfe8f2 0 62%, #39424e 62% 74%, #cbd4de 74% 100%);
 }
 
 .subway-room[data-kind="train"] {
@@ -3995,7 +4035,7 @@ body[data-mode="subway"] .stage-lights {
 .subway-room-title {
   position: absolute;
   top: 10px;
-  left: 50%;
+  left: 14px;
   z-index: 3;
   padding: 4px 16px;
   border-radius: 999px;
@@ -4005,7 +4045,6 @@ body[data-mode="subway"] .stage-lights {
   font-size: clamp(13px, 1.6vw, 19px);
   font-weight: 900;
   white-space: nowrap;
-  transform: translateX(-50%);
 }
 
 .subway-room-backdrop {
@@ -4059,7 +4098,10 @@ body[data-mode="subway"] .stage-lights {
 }
 
 .subway-room[data-kind="platform"] .subway-train {
-  width: min(92%, 620px);
+  /* Sized to land inside the painted tunnel mouth rather than swallow the
+     whole wall: 335px wide -> 128px tall -> scene y 104..246 against the
+     mouth's 96..248. */
+  width: min(46%, 420px);
 }
 
 .subway-room-floor {
@@ -4078,10 +4120,121 @@ body[data-mode="subway"] .stage-lights {
   background: #dfe6ee;
 }
 
+/* Painted station scenery: fills the room and sits behind every actor. */
+.subway-room-scene {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.subway-scene-art {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* Where scenery is painted the old placeholder furniture steps aside and the
+   window frames become see-through so the moving landscape shows through. */
+.subway-room-backdrop[data-painted="true"] .subway-room-booth,
+.subway-room-backdrop[data-painted="true"] .subway-room-wallsign {
+  display: none;
+}
+
+/* Painted rooms keep the window frames as a band, not floor-to-ceiling. */
+.subway-room[data-kind="train"] .subway-room-backdrop[data-painted="true"] {
+  inset: 29% 5% 43%;
+}
+
+.subway-room-backdrop[data-painted="true"] .subway-room-window {
+  background: transparent;
+  border-color: #fff;
+  border-width: 6px;
+  box-shadow: 0 0 0 4px rgba(49, 68, 91, .12);
+  animation: none;
+}
+
+.subway-room[data-kind="gate"] .subway-room-sign,
+.subway-room[data-kind="corridor"] .subway-room-sign {
+  top: 15%;
+}
+
+.subway-room-sign::before {
+  position: absolute;
+  top: -14px;
+  left: 50%;
+  width: 4px;
+  height: 14px;
+  background: #7d8ea1;
+  content: "";
+}
+
+/* The toast is viewport-centred, which put it straight over the staircase.
+   Park it in the upper wall band of the room instead. */
+body[data-mode="subway"] .toast {
+  top: 214px;
+  bottom: auto;
+  left: 33%;
+  max-width: min(52vw, 620px);
+}
+
+/* Treads sit on the painted staircase wedge as lit anti-slip nosings. */
+.subway-room[data-kind="gate"] .subway-room-stair {
+  height: clamp(9px, 1.6vh, 14px);
+  border-radius: 3px;
+  background: #f4c542;
+  border: 0;
+  box-shadow: 0 4px 0 rgba(49, 68, 91, .22);
+}
+
+/* Two ambient loops per scene, both pure transforms. */
+.subway-scene-scroll {
+  animation: subway-scene-drift 9s linear infinite;
+}
+
+.subway-scene-strap {
+  transform-origin: 50% 0;
+  animation: subway-scene-sway 2.6s ease-in-out infinite;
+  animation-delay: calc(var(--strap, 0) * -.36s);
+}
+
+.subway-scene-chevrons {
+  animation: subway-scene-nudge 1.8s ease-in-out infinite;
+}
+
+.subway-scene-flow {
+  animation: subway-scene-march 1.7s ease-in-out infinite;
+}
+
+@keyframes subway-scene-march {
+  0%, 100% { transform: translateX(0); }
+  50% { transform: translateX(13px); }
+}
+
+@keyframes subway-scene-drift {
+  to { transform: translateX(-170px); }
+}
+
+@keyframes subway-scene-sway {
+  0%, 100% { transform: rotate(-2.2deg); }
+  50% { transform: rotate(2.2deg); }
+}
+
+@keyframes subway-scene-nudge {
+  0%, 100% { transform: translateY(0); opacity: .9; }
+  50% { transform: translateY(9px); opacity: 1; }
+}
+
+/* The per-kind floor rules are more specific than a sibling selector, so the
+   painted floor was being covered. Match their specificity and win on order. */
+.subway-room[data-painted="true"] .subway-room-floor {
+  background: transparent;
+  box-shadow: none;
+}
+
 .subway-room-lane {
   position: absolute;
   inset: 0;
-  right: clamp(0px, 13vw, 190px);
 }
 
 .subway-room-door,
@@ -4111,34 +4264,70 @@ body[data-mode="subway"] .stage-lights {
   font-weight: 900;
 }
 
+/* The gate is drawn art now, not a bordered box: a turnstile with a caption. */
 .subway-room-gate {
-  bottom: 22%;
+  bottom: 21%;
   display: grid;
-  place-items: center;
-  width: clamp(62px, 9vw, 108px);
-  height: clamp(64px, 13vh, 104px);
-  border-radius: 12px;
-  border: 5px solid #2fa25c;
-  background: #eafaf0;
+  justify-items: center;
+  gap: 3px;
+  width: clamp(58px, 8.4vw, 104px);
   color: #1c7a3e;
-  font-size: clamp(11px, 1.4vw, 15px);
+  font-size: clamp(10px, 1.2vw, 14px);
   font-weight: 900;
   text-align: center;
 }
 
+.subway-gate-art-box {
+  display: block;
+  width: 100%;
+  line-height: 0;
+}
+
+.subway-gate-art {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.subway-gate-caption {
+  padding: 2px 9px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, .94);
+  box-shadow: 0 2px 0 rgba(37, 52, 93, .14);
+  white-space: nowrap;
+}
+
 .subway-room-gate[data-gate="out"] {
-  border-color: #e8894a;
-  background: #fdeee2;
   color: #b3561c;
 }
 
-.subway-room-gate[data-tapped="true"] {
-  border-color: #1c7a3e;
+/* Barrier flaps fold away once the card is tapped. */
+.subway-gate-flap {
+  transform-origin: 50% 100%;
+  transition: transform var(--motion-gentle) var(--motion-ease-settle);
+}
+
+.subway-gate-flap[data-open="true"] {
+  transform: scaleX(.14);
+}
+
+.subway-gate-ping {
+  transform-origin: 96px 60px;
+  animation: subway-gate-ping 1.4s ease-out infinite;
+}
+
+@keyframes subway-gate-ping {
+  0% { transform: scale(.55); opacity: .95; }
+  100% { transform: scale(1.35); opacity: 0; }
+}
+
+.subway-room-gate[data-tapped="true"] .subway-gate-caption {
   background: #d7f5e3;
-  animation: subway-door-pop .5s var(--motion-ease-settle) 2;
+  animation: subway-guide-pop .5s var(--motion-ease-settle) 2;
 }
 
 .subway-room-sign {
+  position: absolute;
   top: 8%;
   padding: 4px 12px;
   border-radius: 10px;
@@ -4158,8 +4347,10 @@ body[data-mode="subway"] .stage-lights {
   border-bottom: 5px solid #93a4b6;
 }
 
+/* Gates and doors top out at 286 in scene units, so the footprint hovers just
+   above them rather than floating in the middle of the wall. */
 .subway-room-target {
-  bottom: 58%;
+  bottom: 46%;
   font-size: clamp(17px, 2.2vw, 26px);
   line-height: 1;
   animation: subway-float 1.5s ease-in-out infinite;
@@ -4167,24 +4358,36 @@ body[data-mode="subway"] .stage-lights {
 
 .subway-room-person {
   bottom: 24%;
-  font-size: clamp(26px, 4.4vh, 46px);
-  line-height: 1;
+  width: clamp(28px, 3.8vw, 46px);
+  line-height: 0;
 }
 
-.subway-room-person[data-stepped="true"] {
-  opacity: .55;
+.subway-person-art {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+/* Stepping aside is a lean, not a fade — the child should still see them. */
+.subway-person-body {
+  transform-origin: 50% 100%;
+  transition: transform var(--motion-gentle) var(--motion-ease-settle);
+}
+
+.subway-person-body[data-stepped="true"] {
+  transform: translateX(-14%) rotate(-13deg);
 }
 
 .subway-room-friend {
   bottom: 24%;
-  width: clamp(34px, 5vw, 58px);
+  width: clamp(38px, 5.6vw, 72px);
   animation: subway-idle 2s ease-in-out infinite;
 }
 
 .subway-room-player {
   bottom: calc(23% - var(--room-drop, 0) * 4%);
   z-index: 2;
-  width: clamp(44px, 6.4vw, 76px);
+  width: clamp(54px, 8.2vw, 104px);
   transition: left var(--motion-quick) var(--motion-ease-glide);
   filter: drop-shadow(0 5px 4px rgba(37, 52, 93, .3));
 }
@@ -4197,7 +4400,7 @@ body[data-mode="subway"] .stage-lights {
   display: grid;
   justify-items: center;
   gap: 5px;
-  padding-inline-end: clamp(0px, 13vw, 190px);
+  min-width: 0;
 }
 
 .subway-footer-row {
@@ -4211,13 +4414,14 @@ body[data-mode="subway"] .stage-lights {
 }
 
 .subway-announcement {
-  padding: 5px 14px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, .94);
-  box-shadow: 0 3px 10px rgba(37, 52, 93, .14);
-  color: #31445b;
-  font-size: clamp(12px, 1.4vw, 16px);
-  font-weight: 900;
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
 .subway-drive-guide {
@@ -4559,11 +4763,43 @@ body[data-mode="subway"] .stage-lights {
 
 /* Arriving: melody, doors, dodge */
 .subway-arriving {
+  position: relative;
   display: grid;
   gap: 14px;
   justify-items: center;
   align-content: center;
-  width: min(94%, 720px);
+  align-self: stretch;
+  justify-self: stretch;
+  width: 100%;
+  height: 100%;
+  /* Clears the toast band, which sits in the upper wall of every room. */
+  padding: clamp(96px, 24vh, 178px) 12px clamp(12px, 3vh, 26px);
+  overflow: hidden;
+  border-radius: 16px;
+  border: 4px solid #fff;
+}
+
+.subway-arriving > :not(.subway-room-scene) {
+  position: relative;
+  z-index: 1;
+}
+
+/* The station sign is the anchor for the step, so give it the top-left slot
+   the room title occupies elsewhere. */
+.subway-arriving .subway-station-sign {
+  justify-self: start;
+  align-self: start;
+  position: absolute;
+  top: 10px;
+  left: 14px;
+  z-index: 2;
+}
+
+.subway-door-lane .subway-person-art {
+  display: inline-block;
+  width: 34%;
+  height: auto;
+  vertical-align: bottom;
 }
 
 .subway-station-sign {
@@ -4599,7 +4835,7 @@ body[data-mode="subway"] .stage-lights {
 
 .subway-door-lane {
   display: grid;
-  place-items: center;
+  place-items: end center;
   height: clamp(90px, 18vh, 150px);
   border-radius: 12px;
   background: #eef3f8;
@@ -4715,6 +4951,18 @@ body[data-mode="subway"] .stage-lights {
     right: 0;
   }
 
+  /* The two-pane grid left the room column at 8px on a phone. Stack instead;
+     full mobile polish is a separate pass. */
+  .subway-layout {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr) auto;
+  }
+
+  .subway-rail {
+    grid-template-rows: auto auto auto;
+    gap: 6px;
+  }
+
   .subway-plan-step:not([data-current="true"]) {
     display: none;
   }
@@ -4743,9 +4991,14 @@ body[data-mode="subway"] .stage-lights {
   }
 
   .subway-room[data-entering="true"],
+  .subway-scene-scroll,
+  .subway-scene-strap,
+  .subway-scene-chevrons,
+  .subway-scene-flow,
   .subway-room-window,
   .subway-train[data-stage="stopped"] svg,
-  .subway-room-gate[data-tapped="true"],
+  .subway-room-gate[data-tapped="true"] .subway-gate-caption,
+  .subway-gate-ping,
   .subway-room-target,
   .subway-room-friend,
   .subway-plan-step[data-current="true"],

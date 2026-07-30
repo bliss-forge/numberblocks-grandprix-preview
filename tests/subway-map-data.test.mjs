@@ -6,7 +6,8 @@ import {
   SUBWAY_PLACES,
   isTransferStation,
   lineByNumber,
-  linesAtStation
+  linesAtStation,
+  stationLabel
 } from "../src/subway-map-data.mjs";
 
 test("서울 지하철 1~9호선이 실제 노선 색으로 준비된다", () => {
@@ -73,4 +74,16 @@ test("목적지 10곳은 모두 수록된 역에 있고 아이콘·음성 키를
     assert.ok(place.label.length > 0);
   }
   assert.equal(new Set(SUBWAY_PLACES.map(place => place.id)).size, 10);
+});
+
+test("역 이름 뒤에 역을 두 번 붙이지 않는다", () => {
+  assert.equal(stationLabel("시청"), "시청역");
+  assert.equal(stationLabel("서울역"), "서울역", "no 서울역역");
+  const doubled = [];
+  for (const line of SUBWAY_LINES) {
+    for (const station of line.stations) {
+      if (stationLabel(station).endsWith("역역")) doubled.push(station);
+    }
+  }
+  assert.deepEqual(doubled, []);
 });
