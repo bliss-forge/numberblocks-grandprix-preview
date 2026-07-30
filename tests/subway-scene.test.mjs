@@ -215,6 +215,24 @@ test("열차 안 방은 창문·문·사람과 단계 안내·진행도·미니�
   assert.equal(byClass(scene, "subway-space-button").length, 1);
 });
 
+test("가야 할 문 쪽으로 깜박이는 화살표가 놓이고 그 문이 강조된다", () => {
+  const state = ridingState();
+  const scene = renderSubwayJourney(document, state);
+  const arrows = byClass(scene, "subway-room-arrow");
+  assert.ok(arrows.length >= 1, "a trail of chevrons is drawn");
+  const trail = byClass(scene, "subway-room-trail")[0];
+  assert.ok(["left", "right"].includes(trail.dataset.direction));
+  const glyph = trail.dataset.direction === "right" ? "❯" : "❮";
+  for (const arrow of arrows) {
+    assert.equal(arrow.textContent, glyph, "chevrons face the target door");
+    assert.match(arrow.style.values.get("--room-x"), /%$/);
+  }
+  const doors = byClass(scene, "subway-room-door");
+  const lit = doors.filter(door => door.dataset.go === "true");
+  assert.equal(lit.length, 1, "exactly one door is highlighted");
+  assert.equal(lit[0].dataset.side, trail.dataset.direction);
+});
+
 test("걸어가면 캐릭터 위치와 방향이 갱신된다", () => {
   const state = ridingState();
   const scene = renderSubwayJourney(document, state);
