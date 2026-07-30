@@ -4206,12 +4206,6 @@ body[data-mode="subway"] .toast {
   animation: subway-scene-march 1.7s ease-in-out infinite;
 }
 
-.subway-scene-hangsign {
-  transform-box: fill-box;
-  transform-origin: 50% 0;
-  animation: subway-scene-sway 4.2s ease-in-out infinite;
-}
-
 @keyframes subway-scene-march {
   0%, 100% { transform: translateX(0); }
   50% { transform: translateX(13px); }
@@ -4386,14 +4380,14 @@ body[data-mode="subway"] .toast {
 
 .subway-room-friend {
   bottom: 24%;
-  width: clamp(34px, 5vw, 58px);
+  width: clamp(38px, 5.6vw, 72px);
   animation: subway-idle 2s ease-in-out infinite;
 }
 
 .subway-room-player {
   bottom: calc(23% - var(--room-drop, 0) * 4%);
   z-index: 2;
-  width: clamp(44px, 6.4vw, 76px);
+  width: clamp(54px, 8.2vw, 104px);
   transition: left var(--motion-quick) var(--motion-ease-glide);
   filter: drop-shadow(0 5px 4px rgba(37, 52, 93, .3));
 }
@@ -5001,7 +4995,6 @@ body[data-mode="subway"] .toast {
   .subway-scene-strap,
   .subway-scene-chevrons,
   .subway-scene-flow,
-  .subway-scene-hangsign,
   .subway-room-window,
   .subway-train[data-stage="stopped"] svg,
   .subway-room-gate[data-tapped="true"] .subway-gate-caption,
