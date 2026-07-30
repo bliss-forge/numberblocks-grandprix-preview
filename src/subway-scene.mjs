@@ -592,6 +592,11 @@ function renderRoom(document, state, stage, compass) {
       room.kind === "train" ? "→" : "🚪"
     );
     rightDoor.dataset.side = "right";
+    const goSide = roomTargetX(state, compass) === 0
+      ? "left"
+      : roomTargetX(state, compass) === room.width - 1 ? "right" : null;
+    leftDoor.dataset.go = String(goSide === "left");
+    rightDoor.dataset.go = String(goSide === "right");
     lane.append(leftDoor, rightDoor);
   }
 
@@ -653,6 +658,29 @@ function renderRoom(document, state, stage, compass) {
     );
     target.setAttribute("aria-hidden", "true");
     lane.append(target);
+
+    // Blinking chevrons on the walkway, marching toward the target so the
+    // child can see which way to walk without reading the guide text.
+    const toRight = targetX > room.walkX;
+    const trail = document.createElement("div");
+    trail.className = "subway-room-trail";
+    trail.dataset.direction = toRight ? "right" : "left";
+    trail.setAttribute("aria-hidden", "true");
+    const from = toRight ? room.walkX + 1 : room.walkX - 1;
+    for (let step = 0; step < 3; step += 1) {
+      const cell = from + (toRight ? step : -step);
+      if (cell <= 0 || cell >= room.width - 1) break;
+      const arrow = roomCell(
+        document,
+        "subway-room-arrow",
+        cell,
+        room.width,
+        toRight ? "❯" : "❮"
+      );
+      arrow.style.setProperty("--arrow-step", String(step));
+      trail.append(arrow);
+    }
+    if (trail.children.length > 0) lane.append(trail);
   }
 
   room.people.forEach(person => {
