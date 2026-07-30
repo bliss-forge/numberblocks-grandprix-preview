@@ -3798,7 +3798,7 @@ body[data-mode="subway"] .game-keyboard-note {
 }
 
 body[data-mode="subway"] .stage-frame {
-  width: min(96vw, 1280px);
+  width: min(97vw, 1760px);
   background: #eef3f8;
 }
 
@@ -3820,7 +3820,7 @@ body[data-mode="subway"] .stage-lights {
 
 .subway-journey {
   /* Right rail width drives the two-pane grid and the docked control pad. */
-  --subway-rail: clamp(330px, 33vw, 430px);
+  --subway-rail: clamp(330px, 32vw, 560px);
   --subway-pad: clamp(150px, 12vw, 178px);
   position: relative;
   display: grid;
@@ -3878,7 +3878,7 @@ body[data-mode="subway"] .stage-lights {
   /* The scene art is painted for a wide room. On tall windows an unbounded
      height stretches it into mush, so the layout never grows taller than
      54% of its own width — extra vertical space becomes margin instead. */
-  height: min(100cqh, 54cqw);
+  height: min(100cqh, 58cqw);
   min-height: 0;
 }
 
@@ -4217,7 +4217,7 @@ body[data-mode="subway"] .toast {
 }
 
 @keyframes subway-scene-drift {
-  to { transform: translateX(-170px); }
+  to { transform: translateX(calc(-1 * var(--scene-drift, 170px))); }
 }
 
 @keyframes subway-scene-sway {
@@ -4404,14 +4404,9 @@ body[data-mode="subway"] .toast {
   height: auto;
 }
 
-/* Stepping aside is a lean, not a fade — the child should still see them. */
+/* Commuters simply stand; after "실례합니다" the hero walks past them. */
 .subway-person-body {
   transform-origin: 50% 100%;
-  transition: transform var(--motion-gentle) var(--motion-ease-settle);
-}
-
-.subway-person-body[data-stepped="true"] {
-  transform: translateX(-14%) rotate(-13deg);
 }
 
 .subway-room-friend {
@@ -4961,9 +4956,68 @@ body[data-mode="subway"] .toast {
 
 /* Arrived celebration */
 .subway-arrived {
+  position: relative;
   display: grid;
   gap: 10px;
   justify-items: center;
+  align-content: end;
+  align-self: stretch;
+  justify-self: stretch;
+  width: 100%;
+  height: 100%;
+  padding: 16px 16px 26px;
+  overflow: hidden;
+  border-radius: 16px;
+  border: 4px solid #fff;
+}
+
+.subway-arrived-scene {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.subway-arrived-art {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.subway-arrived > :not(.subway-arrived-scene) {
+  position: relative;
+  z-index: 1;
+}
+
+.subway-arrived-party {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+}
+
+.subway-arrived[data-painted="true"] .subway-arrived-party img {
+  filter: drop-shadow(0 5px 4px rgba(37, 52, 93, .3));
+}
+
+/* Gentle life in the destination: the elephant trunk swings, birds bob. */
+.subway-arrived-anim-trunk {
+  transform-box: fill-box;
+  transform-origin: 80% 10%;
+  animation: subway-arrived-swing 3s ease-in-out infinite;
+}
+
+.subway-arrived-anim-flamingo {
+  animation: subway-arrived-bob 2.6s ease-in-out infinite;
+}
+
+@keyframes subway-arrived-swing {
+  0%, 100% { transform: rotate(-7deg); }
+  50% { transform: rotate(9deg); }
+}
+
+@keyframes subway-arrived-bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
 }
 
 .subway-place-icon {
@@ -5135,6 +5189,15 @@ body[data-mode="subway"] .toast {
   }
 
   .subway-arriving-player[data-hopping="true"] {
+    animation: none;
+  }
+
+  .subway-arrived-anim-trunk,
+  .subway-arrived-anim-flamingo,
+  .subway-arrived-anim-wheel,
+  .subway-arrived-anim-drift,
+  .subway-arrived-anim-shimmer,
+  .subway-arrived-anim-float {
     animation: none;
   }
 

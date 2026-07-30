@@ -24,6 +24,7 @@ import {
   passengerSvg,
   stationSceneSvg
 } from "./subway-station-art.mjs";
+import { arrivedSceneSvg } from "./subway-arrived-art.mjs";
 
 const MAP_SCALE = 10;
 const MIN_SPAN_X = 30;
@@ -865,20 +866,38 @@ function renderArrivingPhase(document, state, stage) {
 function renderArrivedPhase(document, state, stage) {
   const ending = document.createElement("div");
   ending.className = "subway-arrived";
+
+  // The destination itself is the celebration: a painted scene the hero and
+  // friends stand inside, instead of a lone emoji on an empty field.
+  const painted = arrivedSceneSvg(state.place.id);
+  ending.dataset.painted = String(Boolean(painted));
+  if (painted) {
+    const art = document.createElement("div");
+    art.className = "subway-arrived-scene";
+    art.setAttribute("role", "img");
+    art.setAttribute("aria-label", `${state.place.label}에 도착한 모습`);
+    art.innerHTML = painted;
+    ending.append(art);
+  }
+
   const hearts = document.createElement("span");
   hearts.className = "subway-arrived-hearts";
   hearts.textContent = "💛 💚 💙";
   hearts.setAttribute("aria-hidden", "true");
-  const icon = document.createElement("span");
-  icon.className = "subway-place-icon";
-  icon.textContent = state.place.icon;
-  icon.setAttribute("role", "img");
-  icon.setAttribute("aria-label", state.place.label);
+  ending.append(hearts);
+
+  if (!painted) {
+    const icon = document.createElement("span");
+    icon.className = "subway-place-icon";
+    icon.textContent = state.place.icon;
+    icon.setAttribute("role", "img");
+    icon.setAttribute("aria-label", state.place.label);
+    ending.append(icon);
+  }
+
+  const party = document.createElement("div");
+  party.className = "subway-arrived-party";
   const hero = playerImage(document, "subway-player subway-arrived-player");
-  const stats = document.createElement("span");
-  stats.className = "subway-arrived-stats";
-  stats.textContent = `환승 ${state.transfersUsed}번 · ` +
-    `${state.moveCount}정거장 · 친구 ${state.passengers.length}명`;
   const friends = document.createElement("div");
   friends.className = "subway-arrived-friends";
   friends.setAttribute(
@@ -888,7 +907,15 @@ function renderArrivedPhase(document, state, stage) {
   state.passengers.slice(-8).forEach(number => {
     friends.append(passengerImage(document, number));
   });
-  ending.append(hearts, icon, hero, stats, friends);
+  party.append(hero, friends);
+  ending.append(party);
+
+  const stats = document.createElement("span");
+  stats.className = "subway-arrived-stats";
+  stats.textContent = `환승 ${state.transfersUsed}번 · ` +
+    `${state.moveCount}정거장 · 친구 ${state.passengers.length}명`;
+  ending.append(stats);
+
   stage.append(ending);
   return ending;
 }
