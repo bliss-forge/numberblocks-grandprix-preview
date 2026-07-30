@@ -18,6 +18,7 @@ import {
   lineTextColor,
   subwayTrainSvg
 } from "./subway-art.mjs";
+import { passengerSvg, stationSceneSvg } from "./subway-station-art.mjs";
 
 const MAP_SCALE = 10;
 const MIN_SPAN_X = 66;
@@ -476,8 +477,22 @@ function renderRoom(document, state, stage, compass) {
   title.textContent = `${state.station}역 · ${ROOM_TITLES[room.kind] ?? ""}`;
   wrap.append(title);
 
+  const painted = stationSceneSvg(room.kind, {
+    width: room.width,
+    stairsFrom: room.stairsFrom ?? undefined,
+    lineColor: state.line ? lineByNumber(state.line).color : undefined
+  });
+  if (painted) {
+    const art = document.createElement("div");
+    art.className = "subway-room-scene";
+    art.setAttribute("aria-hidden", "true");
+    art.innerHTML = painted;
+    wrap.append(art);
+  }
+
   const backdrop = document.createElement("div");
   backdrop.className = "subway-room-backdrop";
+  backdrop.dataset.painted = String(Boolean(painted));
   backdrop.setAttribute("aria-hidden", "true");
   if (room.kind === "train") {
     for (let index = 0; index < 4; index += 1) {
@@ -618,9 +633,9 @@ function renderRoom(document, state, stage, compass) {
       document,
       "subway-room-person",
       person.x,
-      room.width,
-      person.stepped ? "🙇" : "🧍"
+      room.width
     );
+    node.innerHTML = passengerSvg(person.x + room.width, person.stepped);
     node.dataset.stepped = String(Boolean(person.stepped));
     node.setAttribute("role", "img");
     node.setAttribute(
@@ -806,6 +821,23 @@ function renderRoomPhase(document, state, stage) {
   const layout = document.createElement("div");
   layout.className = "subway-layout";
 
+  // Left pane: the illustrated room, with the guide and station capsule
+  // overlaid along its foot like a subtitle bar. Right rail: the big map, the
+  // plan and the control pad. Nothing overlaps the walking area any more.
+  const pane = document.createElement("div");
+  pane.className = "subway-pane";
+  renderRoom(document, state, pane, compass);
+  layout.append(pane);
+
+  const rail = document.createElement("div");
+  rail.className = "subway-rail";
+
+  const minimap = document.createElement("div");
+  minimap.className = "subway-minimap-box";
+  minimap.dataset.guide = String(Boolean(state.showRecommended));
+  minimap.innerHTML = minimapSvg(state, rideBounds(state), compass);
+  rail.append(minimap);
+
   const hud = document.createElement("div");
   hud.className = "subway-hud";
   const hudMain = document.createElement("div");
@@ -815,15 +847,7 @@ function renderRoomPhase(document, state, stage) {
     progressTrail(document, state, compass)
   );
   hud.append(hudMain);
-
-  const minimap = document.createElement("div");
-  minimap.className = "subway-minimap-box";
-  minimap.dataset.guide = String(Boolean(state.showRecommended));
-  minimap.innerHTML = minimapSvg(state, rideBounds(state), compass);
-  hud.append(minimap);
-  layout.append(hud);
-
-  renderRoom(document, state, layout, compass);
+  rail.append(hud);
 
   const footer = document.createElement("div");
   footer.className = "subway-footer";
@@ -856,9 +880,11 @@ function renderRoomPhase(document, state, stage) {
   announcement.setAttribute("role", "status");
   announcement.textContent = subwayAnnouncement(state);
   footer.append(announcement);
-  layout.append(footer);
+  pane.append(footer);
 
+  layout.append(rail);
   stage.append(layout);
+  layout.railSlot = rail;
   return layout;
 }
 
@@ -895,9 +921,10 @@ export function renderSubwayJourney(document, state) {
   stage.className = "subway-stage";
   root.append(stage);
 
+  let rail = null;
   if (state.phase === "arriving") renderArrivingPhase(document, state, stage);
   else if (state.phase === "arrived") renderArrivedPhase(document, state, stage);
-  else renderRoomPhase(document, state, stage);
+  else rail = renderRoomPhase(document, state, stage).railSlot;
 
   const pad = document.createElement("div");
   pad.className = "route-pad";
@@ -918,7 +945,7 @@ export function renderSubwayJourney(document, state) {
     if (direction === "space") button.className = "subway-space-button";
     pad.append(button);
   }
-  root.append(pad);
+  (rail ?? root).append(pad);
 
   root._subwayView = {
     document,
