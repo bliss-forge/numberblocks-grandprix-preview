@@ -317,9 +317,10 @@ function minimapSvg(state, bounds, compass) {
 
 function guideText(state, compass) {
   if (state.phase === "gate") {
-    return state.room.tapped
-      ? "몇 호선을 탈까요? 숫자키로 골라요"
-      : `→ 걸어가서 개찰구에서 ↑ 카드를 찍어요`;
+    if (!state.room.tapped) return "→ 걸어가서 개찰구에서 ↑ 카드를 찍어요";
+    return compass?.line
+      ? `⭐ ${compass.line}호선을 타요! ${compass.line} 키를 눌러요`
+      : "몇 호선을 탈까요? 숫자키로 골라요";
   }
   if (state.phase === "platform") {
     return `${state.line}호선 열차가 서면 ↑ 키로 타요`;
@@ -560,26 +561,32 @@ function renderRoom(document, state, stage) {
   return wrap;
 }
 
-function renderGateChoices(document, state, host) {
+function renderGateChoices(document, state, host, compass) {
   const choices = document.createElement("div");
   choices.className = "subway-gate-lines";
   choices.dataset.open = String(Boolean(state.room.tapped));
   host.append(choices);
   if (!state.room.tapped) return choices;
+  const recommended = compass?.line ?? null;
   gateLines(state).forEach(lineNumber => {
     const line = lineByNumber(lineNumber);
+    const best = lineNumber === recommended;
     const button = document.createElement("button");
     button.type = "button";
     button.className = "subway-gate-line";
     button.dataset.lineNumber = String(lineNumber);
-    button.setAttribute("aria-label", `${lineNumber}호선 타기`);
+    button.dataset.recommended = String(best);
+    button.setAttribute(
+      "aria-label",
+      best ? `${lineNumber}호선 타기 — 추천` : `${lineNumber}호선 타기`
+    );
     button.setAttribute("aria-keyshortcuts", String(lineNumber));
     const badge = document.createElement("span");
     badge.className = "subway-line-badge";
     badge.innerHTML = lineBadgeSvg(lineNumber, line.color);
     const label = document.createElement("span");
     label.className = "subway-gate-line-label";
-    label.textContent = `${lineNumber}호선`;
+    label.textContent = best ? `⭐ ${lineNumber}호선` : `${lineNumber}호선`;
     button.append(badge, label);
     choices.append(button);
   });
@@ -729,7 +736,9 @@ function renderRoomPhase(document, state, stage) {
     hint.textContent = "⎵ 스페이스로 환승";
     topRow.append(hint);
   }
-  if (state.phase === "gate") renderGateChoices(document, state, topRow);
+  if (state.phase === "gate") {
+    renderGateChoices(document, state, topRow, compass);
+  }
   footer.append(topRow);
 
   const bottomRow = document.createElement("div");

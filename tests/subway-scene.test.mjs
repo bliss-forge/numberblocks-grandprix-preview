@@ -9,6 +9,7 @@ import {
   chooseSubwayLine,
   createSubwayJourney,
   gateLines,
+  subwayCompass,
   subwayDestinations
 } from "../src/subway-journey.mjs";
 import {
@@ -137,6 +138,31 @@ test("카드를 찍으면 호선 선택 버튼이 열린다", () => {
     assert.ok(button.dataset.lineNumber);
   }
   assert.equal(byClass(scene, "subway-room-gate")[0].dataset.tapped, "true");
+});
+
+test("개찰구는 목적지 방향 호선을 별로 추천해 같은 실수를 반복하지 않게 한다", () => {
+  let gateWithChoices = null;
+  for (let seed = 0; seed < 40 && !gateWithChoices; seed += 1) {
+    const journey = createSubwayJourney("lake", seed);
+    if (gateLines(journey).length >= 2) gateWithChoices = journey;
+  }
+  assert.ok(gateWithChoices, "a multi-line gate start exists");
+  const atGate = walkTo(gateWithChoices, gateWithChoices.room.gateX);
+  const tapped = attemptSubwayMove(atGate, "up").state;
+  const scene = renderSubwayJourney(document, tapped);
+
+  const recommended = subwayCompass(tapped).line;
+  const buttons = byClass(scene, "subway-gate-line");
+  const marked = buttons.filter(
+    button => button.dataset.recommended === "true"
+  );
+  assert.equal(marked.length, 1, "exactly one recommended line");
+  assert.equal(Number(marked[0].dataset.lineNumber), recommended);
+  assert.match(marked[0].children[1].textContent, /^⭐/);
+  assert.match(
+    byClass(scene, "subway-drive-guide")[0].textContent,
+    new RegExp(`${recommended}호선`)
+  );
 });
 
 test("열차 안 방은 창문·문·사람·카드와 진행도·미니맵을 함께 그린다", () => {

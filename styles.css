@@ -4235,6 +4235,12 @@ body[data-mode="subway"] .stage-lights {
     box-shadow var(--motion-quick) var(--motion-ease-settle);
 }
 
+.subway-gate-line[data-recommended="true"] {
+  border-color: #f4c542;
+  background: #fffaea;
+  box-shadow: 0 5px 0 #e0a800;
+}
+
 .subway-gate-line:hover,
 .subway-gate-line:focus-visible {
   transform: translateY(-4px);
@@ -4613,6 +4619,10 @@ body[data-mode="subway"] .stage-lights {
     right: auto;
     left: 50%;
     transform: translateX(-50%);
+  }
+
+  body[data-mode="subway"] .toast {
+    bottom: 170px;
   }
 
   .subway-minimap-box {

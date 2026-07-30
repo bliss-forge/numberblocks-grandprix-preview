@@ -194,12 +194,15 @@ export function buildRoom(kind, {
 } = {}) {
   const random = seededRandom(seed + hashName(station) + hashName(kind) + salt);
   const width = ROOM_WIDTH;
+  const gateX = width - 2;
   const walkX = entrySide === "right"
-    ? width - 2
-    : entrySide === "left" ? 1 : Math.floor(width / 2);
+    ? width - 3
+    : entrySide === "left" ? 2 : Math.floor(width / 2);
   const free = [];
   for (let x = 1; x < width - 1; x += 1) {
-    if (x !== walkX) free.push(x);
+    if (x === walkX) continue;
+    if (kind === "gate" && x === gateX) continue;
+    free.push(x);
   }
   const take = () => free.splice(Math.floor(random() * free.length), 1)[0];
 
@@ -231,7 +234,7 @@ export function buildRoom(kind, {
     people,
     friend,
     tapped: false,
-    gateX: width - 2
+    gateX
   };
 }
 
@@ -255,6 +258,7 @@ export function createSubwayJourney(placeId, seed = 0) {
     recommendedTransfers: targetTransfers,
     start,
     station: start,
+    lastStation: null,
     line: null,
     phase: "gate",
     room: buildRoom("gate", { seed, station: start }),
@@ -266,7 +270,8 @@ export function createSubwayJourney(placeId, seed = 0) {
     showRecommended: false,
     visited: [start],
     passengers: [],
-    cards: []
+    cards: [],
+    pendingFriend: null
   };
 }
 
@@ -338,6 +343,7 @@ export function chooseSubwayLine(state, lineNumber) {
       room: buildRoom("platform", {
         seed: state.seed,
         station: state.station,
+        friendNumber: state.pendingFriend,
         salt: lineNumber
       }),
       transfersUsed: state.transfersUsed + (changed ? 1 : 0)
@@ -405,9 +411,10 @@ function walkResult(state, step) {
 
 function departTo(state, station, side) {
   const isNew = !state.visited.includes(station);
-  const friendNumber = isNew && station !== state.place.station
-    ? nextFriendNumber(state.passengers)
-    : null;
+  const friendNumber = state.pendingFriend ??
+    (isNew && station !== state.place.station
+      ? nextFriendNumber(state.passengers)
+      : null);
   const before = routeBetween(state.station, state.place.station, state.line) ??
     { transfers: 0, hops: 0 };
   const after = station === state.place.station
@@ -416,14 +423,17 @@ function departTo(state, station, side) {
       { transfers: 0, hops: 0 };
   const closer = after.transfers < before.transfers ||
     (after.transfers === before.transfers && after.hops < before.hops);
+  const backtrack = station === state.lastStation;
   const moveCount = state.moveCount + 1;
-  const strayStreak = closer ? 0 : state.strayStreak + 1;
+  const strayStreak = closer && !backtrack ? 0 : state.strayStreak + 1;
   return {
     state: {
       ...state,
       station,
+      lastStation: state.station,
       moveCount,
       strayStreak,
+      pendingFriend: friendNumber,
       showRecommended: state.showRecommended ||
         strayStreak >= STRAY_LIMIT || moveCount >= MOVE_GUIDE_LIMIT,
       visited: isNew ? [...state.visited, station] : state.visited,
@@ -477,6 +487,7 @@ export function attemptSubwayMove(state, input) {
               room: buildRoom("gate", {
                 seed: state.seed,
                 station: state.station,
+                friendNumber: state.pendingFriend,
                 salt: state.transfersUsed + 1
               })
             },
@@ -501,7 +512,8 @@ export function attemptSubwayMove(state, input) {
         return {
           state: {
             ...moved,
-            passengers: [...state.passengers, outcome.friend.number]
+            passengers: [...state.passengers, outcome.friend.number],
+            pendingFriend: null
           },
           event: { type: "friend-joined", number: outcome.friend.number }
         };
@@ -540,6 +552,7 @@ export function attemptSubwayMove(state, input) {
             room: buildRoom("train", {
               seed: state.seed,
               station: state.station,
+              friendNumber: state.pendingFriend,
               salt: state.moveCount
             })
           },
@@ -557,14 +570,19 @@ export function attemptSubwayMove(state, input) {
         };
       }
       if (isTransferStation(state.station) && gateLines(state).length > 1) {
+        const moveCount = state.moveCount + 1;
         return {
           state: {
             ...state,
             phase: "corridor",
+            moveCount,
+            showRecommended: state.showRecommended ||
+              moveCount >= MOVE_GUIDE_LIMIT,
             room: buildRoom("corridor", {
               seed: state.seed,
               station: state.station,
               entrySide: "left",
+              friendNumber: state.pendingFriend,
               salt: state.transfersUsed
             })
           },
