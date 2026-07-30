@@ -277,41 +277,86 @@ export function trainSceneSvg({
       `fill="none" stroke="${STEEL_DARK}" stroke-width="7"/>` +
       `</g>`;
   }).join("");
-  // Three window-scenery variants keyed off the line number, so riding 2호선
-  // (riverside) feels different from 7호선 (hills) or 4호선 (city blocks).
-  const variant = Math.abs(Math.trunc(lineNumber)) % 3;
-  const hills = variant === 1
-    ? `<path d="M0 306 L90 306 L150 236 L230 306 L280 306 L360 218 ` +
-      `L456 306 L520 306 L600 244 L690 306 L760 306 L840 228 L940 306 ` +
-      `L1000 306 L1000 372 L0 372 Z" fill="${LEAF_DARK}" opacity=".8"/>` +
-      `<path d="M0 340 Q200 316 420 338 Q640 318 1000 340 L1000 372 ` +
-      `L0 372 Z" fill="${LEAF}"/>`
-    : variant === 2
-      ? `<path d="M0 312 Q160 292 340 312 Q560 290 760 312 Q880 298 1000 310 ` +
-        `L1000 344 L0 344 Z" fill="${SKY_DEEP}"/>` +
-        `<path d="M0 344 L1000 344 L1000 372 L0 372 Z" fill="${LEAF}"/>` +
-        Array.from({ length: 4 }, (unused, index) =>
-          `<path d="M${120 + index * 240} 330 q30 -26 60 0 z" ` +
-          `fill="${PAPER}" opacity=".85"/>`
-        ).join("")
-      : `<path d="M0 300 Q120 246 240 296 Q360 250 480 300 ` +
-        `Q600 252 720 298 Q840 250 1000 300 L1000 372 L0 372 Z" ` +
-        `fill="${LEAF}"/>` +
-        `<path d="M0 336 Q160 300 320 340 Q480 302 640 340 Q800 304 1000 342 ` +
-        `L1000 372 L0 372 Z" fill="${LEAF_DARK}" opacity=".55"/>`;
+  // Each line rides through its own world: 1·9호선 above ground, 2·3·4호선
+  // crossing the 한강 on a bridge, and 5~8호선 deep in the tunnel — so the
+  // window view alone tells the child which train they are on.
+  const environment = [2, 3, 4].includes(lineNumber)
+    ? "river"
+    : [5, 6, 7, 8].includes(lineNumber) ? "tunnel" : "ground";
+  const backdropFill = environment === "tunnel" ? DARK : SKY;
+  let scroll;
+  if (environment === "tunnel") {
+    // rushing tunnel: sagging cables, lamp rings and light streaks
+    scroll = `<path d="M0 150 Q125 174 250 150 Q375 174 500 150 ` +
+      `Q625 174 750 150 Q875 174 1000 150" fill="none" stroke="${STEEL_DARK}" ` +
+      `stroke-width="6"/>` +
+      `<path d="M0 190 Q125 212 250 190 Q375 212 500 190 Q625 212 750 190 ` +
+      `Q875 212 1000 190" fill="none" stroke="${STEEL_DARK}" ` +
+      `stroke-width="4" opacity=".7"/>` +
+      Array.from({ length: 4 }, (unused, index) =>
+        `<rect x="${140 + index * 250}" y="120" width="14" height="200" ` +
+        `rx="7" fill="${STEEL_DARK}" opacity=".55"/>` +
+        `<circle cx="${147 + index * 250}" cy="150" r="17" fill="${LAMP}"/>` +
+        `<circle cx="${147 + index * 250}" cy="150" r="9" fill="${PAPER}"/>`
+      ).join("") +
+      Array.from({ length: 8 }, (unused, index) =>
+        `<rect x="${40 + index * 125}" y="${226 + (index % 3) * 34}" ` +
+        `width="${64 + (index % 2) * 30}" height="9" rx="4.5" ` +
+        `fill="${LAMP}" opacity="${(0.5 + (index % 3) * 0.16).toFixed(2)}"/>`
+      ).join("");
+  } else if (environment === "river") {
+    // crossing the 한강: truss arches sweep past over sparkling water
+    scroll = `<rect x="0" y="238" width="${SCENE_WIDTH}" height="134" ` +
+      `fill="${SKY_DEEP}"/>` +
+      `<rect x="0" y="238" width="${SCENE_WIDTH}" height="10" ` +
+      `fill="${PAPER}" opacity=".5"/>` +
+      Array.from({ length: 8 }, (unused, index) =>
+        `<rect x="${30 + index * 125}" y="${258 + (index % 3) * 18}" ` +
+        `width="52" height="7" rx="3.5" fill="${PAPER}" opacity=".55"/>`
+      ).join("") +
+      Array.from({ length: 4 }, (unused, index) => {
+        const x = index * 250;
+        return `<path d="M${x} 238 Q${x + 125} 96 ${x + 250} 238" ` +
+          `fill="none" stroke="${STEEL_DARK}" stroke-width="12"/>` +
+          `<line x1="${x + 62}" y1="172" x2="${x + 62}" y2="238" ` +
+          `stroke="${STEEL_DARK}" stroke-width="7"/>` +
+          `<line x1="${x + 125}" y1="130" x2="${x + 125}" y2="238" ` +
+          `stroke="${STEEL_DARK}" stroke-width="7"/>` +
+          `<line x1="${x + 188}" y1="172" x2="${x + 188}" y2="238" ` +
+          `stroke="${STEEL_DARK}" stroke-width="7"/>`;
+      }).join("") +
+      `<path d="M330 250 q14 -18 30 0 q16 10 34 4 l-6 10 q-20 6 -38 -2 ` +
+      `q-14 -6 -20 -12 Z" fill="${TACTILE}"/>` +
+      `<circle cx="352" cy="240" r="9" fill="${TACTILE}"/>` +
+      `<path d="M600 128 q10 -12 20 0 q10 -12 20 0" fill="none" ` +
+      `stroke="${INK_SOFT}" stroke-width="5" stroke-linecap="round"/>` +
+      `<path d="M780 108 q9 -10 18 0 q9 -10 18 0" fill="none" ` +
+      `stroke="${INK_SOFT}" stroke-width="4" stroke-linecap="round"/>`;
+  } else {
+    // above ground: rolling hills and little houses in the sun
+    scroll = `<path d="M0 300 Q120 246 240 296 Q360 250 480 300 ` +
+      `Q600 252 720 298 Q840 250 1000 300 L1000 372 L0 372 Z" ` +
+      `fill="${LEAF}"/>` +
+      `<path d="M0 336 Q160 300 320 340 Q480 302 640 340 Q800 304 1000 342 ` +
+      `L1000 372 L0 372 Z" fill="${LEAF_DARK}" opacity=".55"/>` +
+      `<circle cx="120" cy="140" r="34" fill="${LAMP}"/>` +
+      Array.from({ length: 6 }, (unused, index) => {
+        const x = 70 + index * 170;
+        const h = 60 + (index % 3) * 34;
+        return `<rect x="${x}" y="${296 - h}" width="76" height="${h}" rx="8" ` +
+          `fill="${PAPER}" opacity=".8"/>` +
+          `<path d="M${x - 6} ${296 - h} l44 -24 l44 24 Z" ` +
+          `fill="${ORANGE}" opacity="${index % 2 ? '.85' : '0'}"/>` +
+          `<rect x="${x + 14}" y="${306 - h}" width="18" height="18" rx="4" ` +
+          `fill="${SKY_DEEP}"/>`;
+      }).join("");
+  }
   const body = [
     // scrolling scenery sits behind everything; the window frames reveal it
     `<rect x="0" y="${CEILING_BOTTOM}" width="${SCENE_WIDTH}" ` +
-    `height="${FLOOR_LINE - CEILING_BOTTOM}" fill="${SKY}"/>`,
-    `<g class="subway-scene-scroll">${hills}` +
-    Array.from({ length: 6 }, (unused, index) => {
-      const x = 70 + index * 170;
-      const h = 60 + (index % 3) * 34;
-      return `<rect x="${x}" y="${296 - h}" width="76" height="${h}" rx="8" ` +
-        `fill="${PAPER}" opacity=".8"/>` +
-        `<rect x="${x + 14}" y="${306 - h}" width="18" height="18" rx="4" ` +
-        `fill="${SKY_DEEP}"/>`;
-    }).join("") + `</g>`,
+    `height="${FLOOR_LINE - CEILING_BOTTOM}" fill="${backdropFill}"/>`,
+    `<g class="subway-scene-scroll" style="--scene-drift: ` +
+    `${environment === "ground" ? 170 : 250}px">${scroll}</g>`,
     // carriage interior painted over the scenery, leaving the window band open
     `<rect x="0" y="${CEILING_BOTTOM}" width="${SCENE_WIDTH}" height="60" ` +
     `fill="${FLOOR_COOL}"/>`,
