@@ -3873,6 +3873,51 @@ body[data-mode="subway"] .stage-lights {
   pointer-events: none;
 }
 
+.subway-hud-main {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  min-width: 0;
+}
+
+.subway-plan {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.subway-plan-step {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px 4px 6px;
+  border-radius: 999px;
+  border: 3px solid #dfe6ee;
+  background: #fff;
+  box-shadow: 0 3px 10px rgba(37, 52, 93, .12);
+  font-size: clamp(11px, 1.3vw, 16px);
+  font-weight: 900;
+  color: #7b8798;
+}
+
+.subway-plan-step[data-current="true"] {
+  border-color: #f4c542;
+  background: #fffbe9;
+  color: #2b3a4e;
+  animation: subway-plan-glow 1.9s ease-in-out infinite;
+}
+
+.subway-plan-badge svg {
+  height: clamp(17px, 2vw, 24px);
+}
+
+@keyframes subway-plan-glow {
+  0%, 100% { box-shadow: 0 3px 10px rgba(244, 197, 66, .35); }
+  50% { box-shadow: 0 3px 18px rgba(244, 197, 66, .8); }
+}
+
 .subway-progress {
   display: flex;
   align-items: center;
@@ -3914,7 +3959,7 @@ body[data-mode="subway"] .stage-lights {
   position: relative;
   width: 100%;
   height: 100%;
-  min-height: 0;
+  min-height: clamp(190px, 30vh, 320px);
   overflow: hidden;
   border-radius: 16px;
   border: 4px solid #fff;
@@ -4033,10 +4078,17 @@ body[data-mode="subway"] .stage-lights {
   background: #dfe6ee;
 }
 
+.subway-room-lane {
+  position: absolute;
+  inset: 0;
+  right: clamp(0px, 13vw, 190px);
+}
+
 .subway-room-door,
 .subway-room-gate,
 .subway-room-sign,
-.subway-room-item,
+.subway-room-stair,
+.subway-room-target,
 .subway-room-person,
 .subway-room-friend,
 .subway-room-player {
@@ -4074,6 +4126,12 @@ body[data-mode="subway"] .stage-lights {
   text-align: center;
 }
 
+.subway-room-gate[data-gate="out"] {
+  border-color: #e8894a;
+  background: #fdeee2;
+  color: #b3561c;
+}
+
 .subway-room-gate[data-tapped="true"] {
   border-color: #1c7a3e;
   background: #d7f5e3;
@@ -4090,16 +4148,21 @@ body[data-mode="subway"] .stage-lights {
   font-weight: 900;
 }
 
-.subway-room-item {
-  bottom: 27%;
-  padding: 3px 8px;
-  border-radius: 10px;
-  background: #fff3cd;
-  border: 3px solid #f4c542;
-  color: #8a5b00;
-  font-size: clamp(12px, 1.5vw, 17px);
-  font-weight: 900;
-  animation: subway-float 2.2s ease-in-out infinite;
+.subway-room-stair {
+  bottom: calc(19% - var(--stair-step, 0) * 4%);
+  width: clamp(34px, 5.4vw, 68px);
+  height: clamp(18px, 3.2vh, 30px);
+  border-radius: 3px;
+  background: #c3d0de;
+  border-top: 4px solid #eef3f8;
+  border-bottom: 5px solid #93a4b6;
+}
+
+.subway-room-target {
+  bottom: 58%;
+  font-size: clamp(17px, 2.2vw, 26px);
+  line-height: 1;
+  animation: subway-float 1.5s ease-in-out infinite;
 }
 
 .subway-room-person {
@@ -4119,7 +4182,7 @@ body[data-mode="subway"] .stage-lights {
 }
 
 .subway-room-player {
-  bottom: 23%;
+  bottom: calc(23% - var(--room-drop, 0) * 4%);
   z-index: 2;
   width: clamp(44px, 6.4vw, 76px);
   transition: left var(--motion-quick) var(--motion-ease-glide);
@@ -4143,6 +4206,8 @@ body[data-mode="subway"] .stage-lights {
   align-items: center;
   justify-content: center;
   gap: 6px 10px;
+  max-width: 100%;
+  min-width: 0;
 }
 
 .subway-announcement {
@@ -4166,21 +4231,13 @@ body[data-mode="subway"] .stage-lights {
 
 .subway-drive-guide[data-alight="true"] {
   background: #1c8a3c;
-  animation: subway-door-pop .5s var(--motion-ease-settle) 3;
+  animation: subway-guide-pop .5s var(--motion-ease-settle) 3;
 }
 
-.subway-space-hint {
-  padding: 5px 14px;
-  border-radius: 999px;
-  background: #2fa25c;
-  color: #fff;
-  font-size: clamp(12px, 1.4vw, 15px);
-  font-weight: 900;
-  animation: subway-idle 2s ease-in-out infinite;
-}
-
-.subway-space-hint[data-show="false"] {
-  display: none;
+.subway-drive-guide[data-soon="true"] {
+  background: #f4c542;
+  color: #4a3400;
+  animation: subway-idle 1.6s ease-in-out infinite;
 }
 
 .subway-collect {
@@ -4201,12 +4258,6 @@ body[data-mode="subway"] .stage-lights {
 .subway-passenger {
   width: clamp(20px, 2.6vw, 30px);
   animation: subway-pop .4s cubic-bezier(.34, 1.56, .64, 1) backwards;
-}
-
-.subway-collect-cards {
-  color: #8a5b00;
-  font-size: clamp(12px, 1.4vw, 16px);
-  font-weight: 900;
 }
 
 .subway-gate-lines {
@@ -4314,6 +4365,12 @@ body[data-mode="subway"] .stage-lights {
   font-size: clamp(10px, 1.2vw, 13px);
   font-weight: 900;
   white-space: nowrap;
+}
+
+.subway-capsule-remaining[data-alight="true"] {
+  background: #1c8a3c;
+  color: #fff;
+  animation: subway-guide-pop .6s var(--motion-ease-settle) infinite;
 }
 
 /* Destination picker */
@@ -4483,6 +4540,11 @@ body[data-mode="subway"] .stage-lights {
   50% { transform: translateX(-50%) scale(1.12); }
 }
 
+/* Same beat for in-flow pills, which must not inherit the cell centring shift. */
+@keyframes subway-guide-pop {
+  50% { transform: scale(1.06); }
+}
+
 @keyframes subway-pop {
   from {
     transform: scale(.4);
@@ -4612,7 +4674,7 @@ body[data-mode="subway"] .stage-lights {
   }
 
   .subway-journey {
-    padding-bottom: 150px;
+    padding-bottom: 196px;
   }
 
   .subway-journey .route-pad {
@@ -4621,8 +4683,20 @@ body[data-mode="subway"] .stage-lights {
     transform: translateX(-50%);
   }
 
+  /* Keep the toast over the room floor so the guide and capsule stay legible. */
   body[data-mode="subway"] .toast {
-    bottom: 170px;
+    bottom: min(430px, 52vh);
+  }
+
+  .subway-announcement {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
   }
 
   .subway-minimap-box {
@@ -4635,6 +4709,29 @@ body[data-mode="subway"] .stage-lights {
 
   .subway-footer {
     padding-inline-end: 0;
+  }
+
+  .subway-room-lane {
+    right: 0;
+  }
+
+  .subway-plan-step:not([data-current="true"]) {
+    display: none;
+  }
+
+  .subway-drive-guide {
+    max-width: 100%;
+    white-space: normal;
+    text-align: center;
+    line-height: 1.35;
+  }
+
+  .subway-capsule {
+    max-width: 100%;
+  }
+
+  .subway-capsule-name {
+    font-size: clamp(15px, 4.4vw, 20px);
   }
 }
 
@@ -4649,10 +4746,12 @@ body[data-mode="subway"] .stage-lights {
   .subway-room-window,
   .subway-train[data-stage="stopped"] svg,
   .subway-room-gate[data-tapped="true"],
-  .subway-room-item,
+  .subway-room-target,
   .subway-room-friend,
-  .subway-space-hint,
+  .subway-plan-step[data-current="true"],
+  .subway-capsule-remaining[data-alight="true"],
   .subway-drive-guide[data-alight="true"],
+  .subway-drive-guide[data-soon="true"],
   .subway-place-card,
   .subway-passenger,
   .subway-arrived .subway-place-icon,
