@@ -330,16 +330,23 @@ test("목적지 역에서 ⎵ → 멜로디 → 문 열림 → 노란 창에 맞
   let current = advanceSubwayWorld(arriving.state, ARRIVE_MELODY_MS);
   assert.equal(current.arriving.stage, "hop");
 
-  // marker at the far left (phase 0) is outside the window: no penalty
+  // a press racing the doors opening is not judged at all (grace window)
+  const raced = attemptSubwayMove(current, "space");
+  assert.equal(raced.event.type, "hop-wait");
+  assert.equal(raced.state.arriving.misses ?? 0, 0, "grace costs nothing");
+
+  // once the marker is visibly moving, an off-window press is a gentle miss
+  current = advanceSubwayWorld(current, 300);
   const early = attemptSubwayMove(current, "space");
   assert.equal(early.event.type, "hop-miss");
   assert.equal(early.state.phase, "arriving");
+  current = early.state;
 
   // arrows do not jump — the hop is a spacebar moment
   assert.equal(attemptSubwayMove(current, "left").event.type, "hop-wait");
 
-  // advance a quarter period: the marker sits dead centre, jump lands
-  current = advanceSubwayWorld(current, HOP_PERIOD_MS / 4);
+  // advance to dead centre from the miss position: the jump lands
+  current = advanceSubwayWorld(current, HOP_PERIOD_MS / 4 - 300);
   assert.equal(hopInWindow(current.arriving.phaseMs), true);
   const alighted = attemptSubwayMove(current, "space");
   assert.equal(alighted.event.type, "alighted");
@@ -352,7 +359,8 @@ test("네 번째 시도는 항상 성공하고, 보조 모드는 언제나 내�
     ...base,
     station: base.place.station,
     phase: "arriving",
-    arriving: { stage: "hop", phaseMs: 0 }
+    // past the grace window, marker at the far right: every press misses
+    arriving: { stage: "hop", phaseMs: HOP_PERIOD_MS / 2 }
   };
   assert.equal(
     attemptSubwayMove(state, "space", { assist: true }).event.type,

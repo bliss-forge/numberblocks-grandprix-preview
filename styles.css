@@ -4932,8 +4932,12 @@ body[data-mode="subway"] .toast {
   border-radius: 999px;
   background: #e8564a;
   box-shadow: 0 0 0 3px #fff;
-  animation: subway-hop-sweep var(--hop-period, 2000ms) linear infinite
-    alternate;
+  /* One MODEL period is a full round trip; with `alternate` each CSS cycle is
+     one leg, so a leg lasts half the period. --hop-phase aligns the sweep to
+     the model clock at render time. */
+  animation: subway-hop-sweep calc(var(--hop-period, 2400ms) / 2) linear
+    infinite alternate;
+  animation-delay: calc(-1 * var(--hop-phase, 0ms));
 }
 
 @keyframes subway-hop-sweep {
@@ -5059,6 +5063,10 @@ body[data-mode="subway"] .toast {
   .subway-layout {
     grid-template-columns: minmax(0, 1fr);
     grid-template-rows: minmax(0, 1fr) auto;
+    /* The 54cqw aspect cap is a desktop rule; at 390px it would squeeze the
+       whole stack into ~190px and clip the controls. */
+    height: 100%;
+    align-self: stretch;
   }
 
   .subway-rail {

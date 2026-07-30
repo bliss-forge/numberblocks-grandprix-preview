@@ -82,8 +82,13 @@ export class AudioManager {
     this.logger.warn(`Audio skipped: ${src}`, error);
   }
 
+  // Resolves with how playback ended: "ended" | "error" | "cancelled" |
+  // "skipped". Chained follow-ups should run only after "ended"/"error" —
+  // never after "cancelled", which means something newer took over.
   playFile(src, epoch = this.epoch) {
-    if (this.muted || !src || epoch !== this.epoch) return Promise.resolve();
+    if (this.muted || !src || epoch !== this.epoch) {
+      return Promise.resolve("skipped");
+    }
 
     return new Promise(resolve => {
       let audio;
@@ -91,7 +96,7 @@ export class AudioManager {
         audio = this.createAudio(src);
       } catch (error) {
         this.warnOnce(src, error);
-        resolve();
+        resolve("error");
         return;
       }
 
@@ -99,7 +104,7 @@ export class AudioManager {
       let watchdog = null;
       const playback = {
         audio,
-        finish: () => {
+        finish: (status = "ended") => {
           if (finished) return;
           finished = true;
           if (watchdog !== null) {
@@ -112,17 +117,28 @@ export class AudioManager {
             this.current = null;
             this.voicePlaying = false;
           }
-          resolve();
+          resolve(status);
         }
       };
 
+      // Starting a new file supersedes whatever is playing; never leave an
+      // orphaned <audio> running untracked underneath the new one.
+      if (this.current) {
+        const previous = this.current;
+        try {
+          previous.audio.pause();
+        } catch (error) {
+          this.warnOnce(previous.audio.src, error);
+        }
+        previous.finish("cancelled");
+      }
       this.current = playback;
       this.voicePlaying = true;
       audio.volume = 0.88;
-      audio.onended = playback.finish;
+      audio.onended = () => playback.finish("ended");
       audio.onerror = error => {
         this.warnOnce(src, error);
-        playback.finish();
+        playback.finish("error");
       };
       watchdog = this.setTimer(() => {
         if (finished) return;
@@ -132,7 +148,7 @@ export class AudioManager {
         } catch (error) {
           this.warnOnce(src, error);
         } finally {
-          playback.finish();
+          playback.finish("error");
         }
       }, this.voiceTimeoutMs);
 
@@ -141,12 +157,12 @@ export class AudioManager {
         playResult = audio.play();
       } catch (error) {
         this.warnOnce(src, error);
-        playback.finish();
+        playback.finish("error");
         return;
       }
       Promise.resolve(playResult).catch(error => {
         this.warnOnce(src, error);
-        playback.finish();
+        playback.finish("error");
       });
     });
   }
@@ -180,7 +196,7 @@ export class AudioManager {
     } catch (error) {
       this.warnOnce(playback.audio.src, error);
     } finally {
-      playback.finish();
+      playback.finish("cancelled");
       if (this.current === playback) this.current = null;
     }
   }

@@ -710,6 +710,7 @@ function renderRoom(document, state, stage, compass) {
   lane.append(player);
 
   stage.append(wrap);
+  wrap.playerNode = player;
   return wrap;
 }
 
@@ -807,7 +808,7 @@ function renderArrivingPhase(document, state, stage) {
   const note = document.createElement("p");
   note.className = "subway-arriving-note";
   note.textContent = hopping
-    ? "노란 불일 때 ⎵를 눌러 폴짝! 발빠짐 조심"
+    ? "빨간 불이 가운데 노란 칸에 올 때 ⎵! 폴짝 뛰어 내려요"
     : "🎵 도착 멜로디 — 곧 문이 열려요";
   room.append(note);
 
@@ -847,6 +848,10 @@ function renderArrivingPhase(document, state, stage) {
   const marker = document.createElement("span");
   marker.className = "subway-hop-marker";
   marker.style.setProperty("--hop-period", `${HOP_PERIOD_MS}ms`);
+  marker.style.setProperty(
+    "--hop-phase",
+    `${Math.round(state.arriving?.phaseMs ?? 0)}ms`
+  );
   meter.append(safe, marker);
   room.append(meter);
 
@@ -898,7 +903,7 @@ function renderRoomPhase(document, state, stage) {
   // plan and the control pad. Nothing overlaps the walking area any more.
   const pane = document.createElement("div");
   pane.className = "subway-pane";
-  renderRoom(document, state, pane, compass);
+  const roomNode = renderRoom(document, state, pane, compass);
   layout.append(pane);
 
   const rail = document.createElement("div");
@@ -957,27 +962,50 @@ function renderRoomPhase(document, state, stage) {
   layout.append(rail);
   stage.append(layout);
   layout.railSlot = rail;
+  layout.playerNode = roomNode.playerNode;
   return layout;
 }
 
-function roomKey(state) {
+// Structural changes rebuild the scene; a pure position change only patches
+// the hero, so ambient animations (the approaching train, the window scroll)
+// keep their clocks instead of restarting on every step.
+function structuralKey(state) {
   const room = state.room;
   return [
     state.phase,
     state.station,
     state.line,
     room?.kind,
-    room?.walkX,
-    room?.facing,
     room?.bump,
     room?.tapped,
     room?.chosen,
-    room?.friend ? room.friend.number : "-",
+    room?.friend ? `${room.friend.number}@${room.friend.x}` : "-",
     room?.people.map(person => `${person.x}${person.stepped ? "s" : ""}`).join(","),
     state.passengers.length,
     state.showRecommended,
     state.platform?.stage ?? "-"
   ].join("|");
+}
+
+function actorKey(state) {
+  const room = state.room;
+  return `${room?.walkX}|${room?.facing}`;
+}
+
+function patchPlayer(view, state) {
+  const room = state.room;
+  const player = view.playerNode;
+  if (!player || !room) return;
+  player.style.setProperty(
+    "--room-x",
+    `${((room.walkX + 0.5) / room.width) * 100}%`
+  );
+  const onStairs = room.kind === "gate" && room.walkX >= room.stairsFrom;
+  player.style.setProperty(
+    "--room-drop",
+    String(onStairs ? room.walkX - room.stairsFrom + 1 : 0)
+  );
+  player.dataset.facing = room.facing;
 }
 
 export function renderSubwayJourney(document, state) {
@@ -995,9 +1023,14 @@ export function renderSubwayJourney(document, state) {
   root.append(stage);
 
   let rail = null;
+  let playerNode = null;
   if (state.phase === "arriving") renderArrivingPhase(document, state, stage);
   else if (state.phase === "arrived") renderArrivedPhase(document, state, stage);
-  else rail = renderRoomPhase(document, state, stage).railSlot;
+  else {
+    const layout = renderRoomPhase(document, state, stage);
+    rail = layout.railSlot;
+    playerNode = layout.playerNode;
+  }
 
   const pad = document.createElement("div");
   pad.className = "route-pad";
@@ -1024,8 +1057,10 @@ export function renderSubwayJourney(document, state) {
     document,
     mission,
     stage,
+    playerNode,
     phase: state.phase,
-    roomKey: roomKey(state),
+    structural: structuralKey(state),
+    actor: actorKey(state),
     arrivingStage: state.arriving?.stage ?? null
   };
   return root;
@@ -1034,10 +1069,15 @@ export function renderSubwayJourney(document, state) {
 export function updateSubwayJourney(root, state) {
   const view = root?._subwayView;
   if (!view) throw new TypeError("A rendered subway journey is required");
-  const key = roomKey(state);
+  const structural = structuralKey(state);
   const arrivingStage = state.arriving?.stage ?? null;
-  if (view.phase === state.phase && view.roomKey === key &&
+  if (view.phase === state.phase && view.structural === structural &&
     view.arrivingStage === arrivingStage) {
+    const actor = actorKey(state);
+    if (view.actor !== actor) {
+      patchPlayer(view, state);
+      view.actor = actor;
+    }
     return root;
   }
   const rebuilt = renderSubwayJourney(view.document, state);

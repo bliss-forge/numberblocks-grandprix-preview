@@ -685,6 +685,12 @@ export function attemptSubwayMove(state, input, options = {}) {
     // judgement must agree. pity: the fourth try always lands — the game
     // teaches timing, it never strands a five-year-old at the door.
     const misses = state.arriving.misses ?? 0;
+    // Grace: a press that raced the doors opening (mashed through the melody)
+    // is not judged — the child has not even seen the marker yet.
+    if (misses === 0 && state.arriving.phaseMs < 200 &&
+      !hopInWindow(state.arriving.phaseMs) && !options.assist) {
+      return { state, event: { type: "hop-wait" } };
+    }
     if (options.assist || misses >= 3 ||
       hopInWindow(state.arriving.phaseMs)) {
       return {
@@ -769,7 +775,7 @@ export function subwayAnnouncement(state) {
   if (state.phase === "arriving") {
     return state.arriving?.stage === "melody"
       ? "도착 멜로디가 나와요"
-      : "노란 불일 때 ⎵! 발빠짐 조심, 폴짝 뛰어 내려요";
+      : "빨간 불이 노란 칸에 올 때 ⎵! 발빠짐 조심";
   }
   return `${state.place.label}에 도착했어요!`;
 }

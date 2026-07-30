@@ -134,6 +134,8 @@ const state = {
   streak: { count: 0, add: 0, sub: 0, mul: 0, safety: 0, subway: 0 },
   subwayWalkMs: 0,
   subwayTickMs: 0,
+  subwayHoldBlock: false,
+  subwayDoorCue: false,
   wrongCount: 0,
   round: 0,
   hintTimer: 0,
@@ -909,7 +911,11 @@ function playSubwayReal(key, fallback) {
   const src = subwaySoundSrc(key);
   audio.cancel();
   if (src) {
-    void audio.playFile(src);
+    // a missing or broken recording falls back to the TTS voice pack; a
+    // cancellation means newer audio took over, so stay quiet
+    void audio.playFile(src).then(status => {
+      if (status === "error" && fallback) void audio.playPrompt(fallback);
+    });
   } else if (fallback) {
     void audio.playPrompt(fallback);
   }
@@ -918,7 +924,9 @@ function playSubwayReal(key, fallback) {
 function playStationSound(station, followUpKey = null) {
   const playback = audio.playFile(stationSoundSrc(station));
   if (followUpKey) {
-    void playback.then(() => audio.playPrompt(followUpKey));
+    void playback.then(status => {
+      if (status !== "cancelled") void audio.playPrompt(followUpKey);
+    });
   } else {
     void playback;
   }
@@ -937,7 +945,8 @@ function startSubwayRide(placeId) {
   showHint("→ 걸어가서 🎫 들어가는 곳을 지나가요!");
   audio.cancel();
   void audio.playPrompt(state.subway.place.voiceKey);
-  scheduleSubwayTick(performance.now());
+  state.subwayTickMs = performance.now();
+  scheduleSubwayTick();
 }
 
 function chooseSubwayLineInput(lineNumber) {
@@ -957,7 +966,7 @@ function chooseSubwayLineInput(lineNumber) {
   }
 }
 
-function scheduleSubwayTick(previousMs = performance.now()) {
+function scheduleSubwayTick() {
   schedule(() => {
     if (
       state.phase !== "playing" ||
@@ -968,9 +977,14 @@ function scheduleSubwayTick(previousMs = performance.now()) {
     }
     const nowMs = performance.now();
     const previous = state.subway;
+    // state.subwayTickMs is the single clock shared with moveSubway, so a
+    // keypress between ticks is never counted twice. The 400ms cap guards
+    // backgrounded tabs, except during the hop, whose phase is periodic and
+    // must track the CSS-animated marker.
+    const elapsed = nowMs - (state.subwayTickMs || nowMs);
     state.subway = advanceSubwayWorld(
       state.subway,
-      Math.min(400, nowMs - previousMs)
+      state.subway.phase === "arriving" ? elapsed : Math.min(400, elapsed)
     );
     if (previous.phase === "platform" && state.subway.phase === "platform" &&
       previous.platform.stage !== "stopped" &&
@@ -978,16 +992,23 @@ function scheduleSubwayTick(previousMs = performance.now()) {
       audio.playSfx("door");
       showHint(`${state.subway.line}호선 열차예요! ⎵ 키로 타요`);
     }
-    if (previous.phase === "arriving" && state.subway.phase === "arriving" &&
-      previous.arriving?.stage === "melody" &&
-      state.subway.arriving?.stage === "hop") {
-      audio.playSfx("door");
-      showHint("문이 열렸어요! 노란 불일 때 ⎵로 폴짝!");
-    }
+    maybeSubwayDoorCue();
     state.subwayTickMs = nowMs;
     updateSubwayJourney(state.subwayScene, state.subway);
-    scheduleSubwayTick(nowMs);
+    scheduleSubwayTick();
   }, 150);
+}
+
+function maybeSubwayDoorCue() {
+  if (
+    state.subway?.phase === "arriving" &&
+    state.subway.arriving?.stage === "hop" &&
+    !state.subwayDoorCue
+  ) {
+    state.subwayDoorCue = true;
+    audio.playSfx("door");
+    showHint("문이 열렸어요! 빨간 불이 노란 칸에 올 때 ⎵로 폴짝!");
+  }
 }
 
 function prefersReducedMotion() {
@@ -1009,6 +1030,7 @@ function moveSubway(direction) {
     const nowMs = performance.now();
     state.subway = advanceSubwayWorld(state.subway, nowMs - state.subwayTickMs);
     state.subwayTickMs = nowMs;
+    maybeSubwayDoorCue();
   }
   const result = attemptSubwayMove(state.subway, direction, {
     assist: prefersReducedMotion()
@@ -1054,6 +1076,9 @@ function moveSubway(direction) {
     audio.cancel();
     void audio.playPrompt(`number-${event.number}`);
   } else if (event.type === "departed") {
+    // A held arrow must not ride straight through stations: the hold is
+    // absorbed at each arrival and a fresh press is needed to continue.
+    state.subwayHoldBlock = true;
     const compass = subwayCompass(state.subway);
     if (event.atDest) {
       audio.playSfx("door");
@@ -1096,6 +1121,7 @@ function moveSubway(direction) {
     audio.cancel();
     playStationSound(event.station, "subway-transfer");
   } else if (event.type === "arriving") {
+    state.subwayDoorCue = false;
     playSubwayReal(
       state.subway.travelSide === "back"
         ? "arrive-melody-up"
@@ -1117,7 +1143,7 @@ function moveSubway(direction) {
     showHint(`${state.subway.place.label}에 도착했어요!`);
     schedule(() => {
       void completeSubwayJourney();
-    }, 1600);
+    }, 2600);
   }
 }
 
@@ -1380,10 +1406,12 @@ document.addEventListener("keydown", event => {
       // so holding left/right keeps stepping — but only walking repeats.
       if (event.repeat) {
         if (direction !== "left" && direction !== "right") return;
+        if (state.subwayHoldBlock) return;
         const now = performance.now();
         if (now - state.subwayWalkMs < WALK_REPEAT_MS) return;
         state.subwayWalkMs = now;
       } else {
+        state.subwayHoldBlock = false;
         state.subwayWalkMs = performance.now();
       }
       moveSubway(direction);
