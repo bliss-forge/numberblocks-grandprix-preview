@@ -69,7 +69,8 @@ test("미니맵은 위치·다음 친구·학교·신호를 표시한다", () =>
     target.style.values.get("--mini-x"),
     String((friend2.x / state.map.width) * 100)
   );
-  assert.equal(byClass(node, "route-minimap-school").length, 1);
+  const school = byClass(node, "route-minimap-school")[0];
+  assert.match(school.innerHTML, /route-art-school-mark/);
   assert.equal(
     byClass(node, "route-minimap-signal")[0].dataset.phase,
     state.signal.phase

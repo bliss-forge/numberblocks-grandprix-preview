@@ -2,8 +2,11 @@ import { characterAsset } from "./character-spec.mjs";
 import { moverPoint } from "./safety-route-movers.mjs";
 import {
   bicycleSvg,
+  busShelterSvg,
   busSvg,
   carSvg,
+  goalStarSvg,
+  raisedHandSvg,
   scooterSvg
 } from "./safety-route-art.mjs";
 import { renderMinimap, updateMinimap } from "./safety-route-minimap.mjs";
@@ -407,7 +410,7 @@ export function renderSafetyRouteScene(document, state, requestedView = {}) {
       );
       const shelter = document.createElement("span");
       shelter.className = "route-bus-shelter";
-      shelter.textContent = "🚏";
+      shelter.innerHTML = busShelterSvg();
       shelter.setAttribute("aria-hidden", "true");
       const sign = document.createElement("span");
       sign.className = "route-bus-stop-sign";
@@ -439,15 +442,22 @@ export function renderSafetyRouteScene(document, state, requestedView = {}) {
   );
   const playerHand = document.createElement("span");
   playerHand.className = "route-player-hand";
-  playerHand.textContent = "✋";
+  playerHand.innerHTML = raisedHandSvg();
   playerHand.setAttribute("aria-hidden", "true");
   playerWrap.append(player, playerHand);
   world.append(placeAt(playerWrap, state.position));
 
   const goalMat = document.createElement("div");
   goalMat.className = "route-goal-mat";
-  goalMat.textContent = "⭐ 도착";
   goalMat.setAttribute("aria-label", "학교 도착점");
+  const goalStar = document.createElement("span");
+  goalStar.className = "route-goal-star";
+  goalStar.innerHTML = goalStarSvg();
+  goalStar.setAttribute("aria-hidden", "true");
+  const goalLabel = document.createElement("span");
+  goalLabel.className = "route-goal-label";
+  goalLabel.textContent = "도착";
+  goalMat.append(goalStar, goalLabel);
   world.append(placeAt(goalMat, state.map.goal));
 
   const guidanceNodes = Array.from({ length: 3 }, () => {

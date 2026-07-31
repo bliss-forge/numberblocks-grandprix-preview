@@ -18,6 +18,20 @@ import {
   grandpaSvg,
   parkingCarSvg
 } from "./safety-route-art.mjs";
+import { ktxTrainSvg, trainDoorSvg } from "./srt-journey-art.mjs";
+
+// The splash banner and the ride door both pair a drawn mark with real Korean
+// text, so the mark and the words are separate spans the updater can refresh.
+function markedText(document, markClass, textClass, mark, text) {
+  const markNode = document.createElement("span");
+  markNode.className = markClass;
+  markNode.innerHTML = mark;
+  markNode.setAttribute("aria-hidden", "true");
+  const textNode = document.createElement("span");
+  textNode.className = textClass;
+  textNode.textContent = text;
+  return [markNode, textNode];
+}
 
 function playerImage(document) {
   const image = document.createElement("img");
@@ -64,7 +78,13 @@ function renderStationPhase(document, state, stage) {
   const banner = document.createElement("div");
   banner.className = "srt-splash-banner";
   banner.dataset.step = String(splashStep(state));
-  banner.textContent = `🚄 ${SPLASH_MESSAGES[splashStep(state)]}`;
+  banner.append(...markedText(
+    document,
+    "srt-splash-mark",
+    "srt-splash-text",
+    ktxTrainSvg(),
+    SPLASH_MESSAGES[splashStep(state)]
+  ));
 
   splash.append(facade, banner);
   stage.append(splash);
@@ -154,8 +174,15 @@ function renderRidePhase(document, state, stage) {
       cell.style.setProperty("--srt-x", x + 1);
       cell.style.setProperty("--srt-y", y + 1);
       if (isDoor) {
-        cell.dataset.open = String(Boolean(state.ride.doorOpen));
-        cell.textContent = state.ride.doorOpen ? "🚪 열림" : "🚪";
+        const open = Boolean(state.ride.doorOpen);
+        cell.dataset.open = String(open);
+        cell.append(...markedText(
+          document,
+          "srt-door-art",
+          "srt-door-label",
+          trainDoorSvg(open),
+          open ? "열림" : ""
+        ));
       }
       floor.append(cell);
     }
@@ -307,7 +334,8 @@ export function updateSrtJourney(root, state) {
     const banner = root.querySelector?.(".srt-splash-banner");
     if (banner) {
       banner.dataset.step = String(splashStep(state));
-      banner.textContent = `🚄 ${SPLASH_MESSAGES[splashStep(state)]}`;
+      const text = banner.querySelector?.(".srt-splash-text");
+      if (text) text.textContent = SPLASH_MESSAGES[splashStep(state)];
     }
   }
   if (state.phase === "seat") {
@@ -327,8 +355,12 @@ export function updateSrtJourney(root, state) {
     }
     const door = root.querySelector?.(".srt-door");
     if (door) {
-      door.dataset.open = String(Boolean(state.ride.doorOpen));
-      door.textContent = state.ride.doorOpen ? "🚪 열림" : "🚪";
+      const open = Boolean(state.ride.doorOpen);
+      door.dataset.open = String(open);
+      const art = door.querySelector?.(".srt-door-art");
+      if (art) art.innerHTML = trainDoorSvg(open);
+      const label = door.querySelector?.(".srt-door-label");
+      if (label) label.textContent = open ? "열림" : "";
     }
     const stations = root.querySelectorAll?.(".srt-station") ?? [];
     stations.forEach((stop, index) => {

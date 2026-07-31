@@ -128,6 +128,10 @@ test("난이도별 장애물과 두 차선 자동차를 장면에 표시한다",
   byClass(busScene, "route-bus-stop-sign").forEach(sign => {
     assert.match(sign.textContent, /^\d+번 타는 곳$/, "both stops board");
   });
+  assert.equal(byClass(busScene, "route-bus-shelter").length, 2);
+  byClass(busScene, "route-bus-shelter").forEach(shelter => {
+    assert.match(shelter.innerHTML ?? "", /route-art-bus-shelter/);
+  });
   byClass(busScene, "route-bus").forEach(node => {
     assert.match(node.innerHTML ?? "", /route-art-bus/);
     assert.match(node.attributes.get("aria-label"), /^\d+번 버스$/);
@@ -501,7 +505,11 @@ test("건물은 풋프린트 블록으로 그려지고 학교는 랜드마크다
   assert.equal(byClass(school, "route-building-school-clock").length, 1);
   assert.equal(byClass(school, "route-building-school-flag").length, 1);
   const mat = byClass(scene, "route-goal-mat")[0];
-  assert.equal(mat.textContent, "⭐ 도착");
+  assert.match(
+    byClass(mat, "route-goal-star")[0].innerHTML,
+    /route-art-goal-star/
+  );
+  assert.equal(byClass(mat, "route-goal-label")[0].textContent, "도착");
   assert.equal(mat.style.values.get("--route-x"), String(state.map.goal.x + 1));
   assert.equal(byClass(scene, "route-place").length, 0);
   assert.equal(byClass(scene, "route-school-goal").length, 0);
@@ -542,7 +550,8 @@ test("연출 상태가 플레이어 자세와 루트 데이터로 노출된다",
   const state = createSafetyRouteState("easy", { seed: 3 });
   const scene = renderSafetyRouteScene(document, state);
   assert.equal(byClass(scene, "route-player-wrap").length, 1);
-  assert.equal(byClass(scene, "route-player-hand").length, 1);
+  const hand = byClass(scene, "route-player-hand")[0];
+  assert.match(hand.innerHTML, /route-art-raised-hand/);
   updateSafetyRouteScene(scene, {
     ...state,
     ceremony: { stage: "looking", elapsedMs: 700 }

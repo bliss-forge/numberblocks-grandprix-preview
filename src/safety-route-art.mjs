@@ -2,6 +2,10 @@ const TIRE = "#3d4f63";
 const SPOKE = "#b9c2cc";
 const HUB = "#8d95a0";
 const SKIN = "#ffd9b3";
+// The two tones the drawn set pieces below share: the game's ink, already used
+// inline for the number plate, and the white the vehicles use as a rim light.
+const INK = "#31445b";
+const PAPER = "#fff";
 
 function wrap(type, viewBox, body) {
   return `<svg class="route-art route-art-${type}" viewBox="${viewBox}" ` +
@@ -21,6 +25,16 @@ function spokeWheel(cx, cy, radius, strokeWidth) {
     `<line x1="${cx - diagonal}" y1="${cy + diagonal}" x2="${cx + diagonal}" y2="${cy - diagonal}"/>` +
     `</g></g>` +
     `<circle cx="${cx}" cy="${cy}" r="7" fill="${HUB}"/>`;
+}
+
+function starPath(cx, cy, outer, inner) {
+  const points = Array.from({ length: 10 }, (unused, index) => {
+    const radius = index % 2 === 0 ? outer : inner;
+    const angle = (Math.PI / 5) * index - Math.PI / 2;
+    return `${(cx + radius * Math.cos(angle)).toFixed(1)} ` +
+      `${(cy + radius * Math.sin(angle)).toFixed(1)}`;
+  });
+  return `M${points.join(" L")} Z`;
 }
 
 function helmetHead(cx, cy, radius, color) {
@@ -190,6 +204,75 @@ export function busSvg(number) {
     `<rect x="97" y="34" width="10" height="30" rx="5" fill="#2c3440"/>`,
     `<rect x="-3" y="136" width="10" height="30" rx="5" fill="#2c3440"/>`,
     `<rect x="97" y="136" width="10" height="30" rx="5" fill="#2c3440"/>`
+  ].join(""));
+}
+
+// 학교 표식 — this one rides in the 미니맵 at roughly 14px, so it is drawn as
+// three reads only: red roof, white body, flag. Anything finer disappears.
+export function schoolMarkSvg() {
+  return wrap("school-mark", "0 0 24 24", [
+    `<rect x="4" y="10" width="16" height="13" rx="2" fill="${PAPER}" ` +
+    `stroke="${INK}" stroke-width="1.4"/>`,
+    `<path d="M1.5 11 L12 3.5 L22.5 11 Z" fill="#e8564a"/>`,
+    `<rect x="9.8" y="16" width="4.4" height="7" rx="1.5" fill="${INK}"/>`,
+    `<line x1="12" y1="5.5" x2="12" y2="1" stroke="${INK}" ` +
+    `stroke-width="1.6" stroke-linecap="round"/>`,
+    `<path d="M12 1 l5.5 1.8 l-5.5 1.8 Z" fill="#f4c542"/>`
+  ].join(""));
+}
+
+// 버스 정류장 — a small pitched roof over a bench, plus the stop post carrying
+// a sign plate with a little bus on it.
+export function busShelterSvg() {
+  return wrap("bus-shelter", "0 0 92 66", [
+    `<rect x="6" y="58" width="80" height="5" rx="2.5" fill="${INK}" ` +
+    `opacity=".18"/>`,
+    `<path d="M6 20 L18 8 L58 8 L70 20 Z" fill="#5aa9e6"/>`,
+    `<rect x="4" y="18" width="68" height="6" rx="3" fill="#3f7fb8"/>`,
+    `<rect x="14" y="24" width="48" height="24" rx="3" fill="#bfe8ff"/>`,
+    `<rect x="10" y="22" width="6" height="38" rx="3" fill="${HUB}"/>`,
+    `<rect x="60" y="22" width="6" height="38" rx="3" fill="${HUB}"/>`,
+    `<rect x="18" y="42" width="40" height="7" rx="3.5" fill="#b07a4d"/>`,
+    `<rect x="21" y="49" width="5" height="11" rx="2" fill="#8a5a3b"/>`,
+    `<rect x="50" y="49" width="5" height="11" rx="2" fill="#8a5a3b"/>`,
+    `<rect x="76" y="16" width="6" height="44" rx="3" fill="${HUB}"/>`,
+    `<rect x="66" y="2" width="26" height="18" rx="5" fill="${PAPER}" ` +
+    `stroke="#5aa9e6" stroke-width="3"/>`,
+    `<rect x="70" y="5" width="18" height="9" rx="2.5" fill="#5aa9e6"/>`,
+    `<rect x="72" y="7" width="14" height="3.5" rx="1.75" fill="${PAPER}"/>`,
+    `<circle cx="74" cy="15" r="1.7" fill="${INK}"/>`,
+    `<circle cx="84" cy="15" r="1.7" fill="${INK}"/>`
+  ].join(""));
+}
+
+// 손 들고 건너요 — the crossing hand signal: four fingers, palm, thumb and the
+// cuff of the child's jumper, so the raised hand reads as a hand and not a blob.
+export function raisedHandSvg() {
+  return wrap("raised-hand", "0 0 46 62", [
+    `<rect x="11" y="10" width="8" height="24" rx="4" fill="${SKIN}"/>`,
+    `<rect x="20" y="5" width="8" height="29" rx="4" fill="${SKIN}"/>`,
+    `<rect x="29" y="8" width="8" height="26" rx="4" fill="${SKIN}"/>`,
+    `<rect x="38" y="15" width="7" height="19" rx="3.5" fill="${SKIN}"/>`,
+    `<g stroke="#eab98d" stroke-width="1.8" stroke-linecap="round">`,
+    `<line x1="19.5" y1="18" x2="19.5" y2="28"/>`,
+    `<line x1="28.5" y1="16" x2="28.5" y2="28"/>`,
+    `<line x1="37.5" y1="20" x2="37.5" y2="28"/>`,
+    `</g>`,
+    `<rect x="9" y="26" width="34" height="20" rx="8" fill="${SKIN}"/>`,
+    `<rect x="0" y="28" width="13" height="9" rx="4.5" fill="${SKIN}" ` +
+    `transform="rotate(-18 6.5 32.5)"/>`,
+    `<rect x="8" y="43" width="30" height="10" rx="5" fill="#4a7ab8"/>`,
+    `<rect x="11" y="50" width="24" height="11" rx="5" fill="#3d669e"/>`
+  ].join(""));
+}
+
+// 도착 별 — the star on the goal mat. 도착 itself stays real text in the DOM
+// beside it, so this drawing is decorative only.
+export function goalStarSvg() {
+  return wrap("goal-star", "0 0 40 40", [
+    `<path d="${starPath(20, 20, 18, 7.6)}" fill="#f4c542" ` +
+    `stroke="${PAPER}" stroke-width="3" stroke-linejoin="round"/>`,
+    `<path d="${starPath(20, 20, 9, 3.8)}" fill="#ffe29a"/>`
   ].join(""));
 }
 

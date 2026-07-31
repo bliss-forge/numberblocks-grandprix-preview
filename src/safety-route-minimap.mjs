@@ -1,3 +1,4 @@
+import { schoolMarkSvg } from "./safety-route-art.mjs";
 import { busStopForNextTarget } from "./safety-route-model.mjs";
 
 function percent(value, total) {
@@ -48,7 +49,7 @@ export function renderMinimap(document, state) {
 
   const school = document.createElement("div");
   school.className = "route-minimap-school";
-  school.textContent = "🏫";
+  school.innerHTML = schoolMarkSvg();
   school.setAttribute("aria-hidden", "true");
   const schoolPlace = state.map.places.find(
     place => place.type === "school"
