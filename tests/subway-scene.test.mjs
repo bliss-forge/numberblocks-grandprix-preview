@@ -123,7 +123,19 @@ test("목적지 선택 화면은 숫자키 카드 10장과 권장 환승 칩을 
     ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0"]
   );
   for (const chip of byClass(picker, "subway-transfer-chip")) {
-    assert.match(chip.textContent, /^권장: /);
+    const text = descendants(chip)
+      .map(node => node.textContent)
+      .find(value => value.startsWith("권장: "));
+    assert.ok(text, "each chip states the recommended transfer count");
+    const walkers = byClass(chip, "subway-transfer-walkers")[0];
+    const drawn = (walkers.innerHTML.match(/subway-walker-art/g) ?? []).length;
+    assert.equal(drawn, Number(chip.dataset.transfers), "one walker per transfer");
+  }
+  const icons = byClass(picker, "subway-place-icon");
+  assert.equal(icons.length, 10);
+  for (const icon of icons) {
+    assert.equal(icon.dataset.painted, "true", "every place has drawn art");
+    assert.match(icon.innerHTML, /subway-place-badge-art/);
   }
 });
 

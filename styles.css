@@ -4388,8 +4388,6 @@ body[data-mode="subway"] .toast {
    above them rather than floating in the middle of the wall. */
 .subway-room-target {
   bottom: 46%;
-  font-size: clamp(17px, 2.2vw, 26px);
-  line-height: 1;
   animation: subway-float 1.5s ease-in-out infinite;
 }
 
@@ -4728,8 +4726,61 @@ body[data-mode="subway"] .toast {
 }
 
 .subway-picker .subway-place-icon {
-  font-size: clamp(28px, 4.6vh, 46px);
-  line-height: 1.1;
+  font-size: clamp(26px, 3.4vw, 40px);
+  line-height: 1;
+}
+
+.subway-place-icon[data-painted="true"] {
+  width: clamp(46px, 5.6vw, 74px);
+  line-height: 0;
+}
+
+.subway-place-badge-art {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 18px;
+  box-shadow: 0 3px 0 rgba(37, 52, 93, .1);
+}
+
+.subway-transfer-walkers {
+  display: inline-flex;
+  gap: 2px;
+  margin-inline-end: 5px;
+  vertical-align: -2px;
+}
+
+.subway-picker-mark {
+  display: inline-block;
+  width: clamp(30px, 3.2vw, 44px);
+  margin-inline-end: 8px;
+  line-height: 0;
+  vertical-align: -6px;
+}
+
+.subway-metro-mark,
+.subway-footprint-art,
+.subway-door-art {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.subway-room-target[data-painted],
+.subway-room-target {
+  width: clamp(19px, 2.4vw, 30px);
+  line-height: 0;
+}
+
+.subway-room[data-kind="corridor"] .subway-room-door[data-side="right"] {
+  padding: 6px;
+  line-height: 0;
+}
+
+.subway-walker-art {
+  display: block;
+  width: auto;
+  height: clamp(11px, 1.3vw, 15px);
 }
 
 .subway-place-label {

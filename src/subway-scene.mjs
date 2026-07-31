@@ -25,6 +25,13 @@ import {
   stationSceneSvg
 } from "./subway-station-art.mjs";
 import { arrivedSceneSvg } from "./subway-arrived-art.mjs";
+import {
+  corridorDoorSvg,
+  footprintSvg,
+  metroMarkSvg,
+  placeBadgeSvg,
+  walkerSvg
+} from "./subway-place-badges.mjs";
 
 const MAP_SCALE = 10;
 const MIN_SPAN_X = 30;
@@ -52,8 +59,8 @@ const PARKS = [
 
 const TRANSFER_LABELS = Object.freeze({
   0: "권장: 바로 가요",
-  1: "권장: 🚶 1번 환승",
-  2: "권장: 🚶🚶 2번 환승"
+  1: "권장: 1번 환승",
+  2: "권장: 2번 환승"
 });
 
 const ROOM_TITLES = Object.freeze({
@@ -106,7 +113,13 @@ export function renderSubwayPicker(document, destinations) {
 
   const title = document.createElement("h2");
   title.className = "subway-picker-title";
-  title.textContent = "🚇 어디로 갈까요?";
+  const mark = document.createElement("span");
+  mark.className = "subway-picker-mark";
+  mark.innerHTML = metroMarkSvg();
+  mark.setAttribute("aria-hidden", "true");
+  const titleText = document.createElement("span");
+  titleText.textContent = "어디로 갈까요?";
+  title.append(mark, titleText);
   root.append(title);
 
   const note = document.createElement("p");
@@ -134,7 +147,10 @@ export function renderSubwayPicker(document, destinations) {
     key.textContent = String(digit);
     const icon = document.createElement("span");
     icon.className = "subway-place-icon";
-    icon.textContent = place.icon;
+    const badge = placeBadgeSvg(place.id);
+    icon.dataset.painted = String(Boolean(badge));
+    if (badge) icon.innerHTML = badge;
+    else icon.textContent = place.icon;
     icon.setAttribute("aria-hidden", "true");
     const label = document.createElement("strong");
     label.className = "subway-place-label";
@@ -142,7 +158,13 @@ export function renderSubwayPicker(document, destinations) {
     const chip = document.createElement("span");
     chip.className = "subway-transfer-chip";
     chip.dataset.transfers = String(transfers);
-    chip.textContent = TRANSFER_LABELS[transfers];
+    const walkers = document.createElement("span");
+    walkers.className = "subway-transfer-walkers";
+    walkers.innerHTML = walkerSvg().repeat(transfers);
+    walkers.setAttribute("aria-hidden", "true");
+    const chipText = document.createElement("span");
+    chipText.textContent = TRANSFER_LABELS[transfers];
+    chip.append(walkers, chipText);
 
     card.append(key, icon, label, chip);
     grid.append(card);
@@ -538,20 +560,6 @@ function renderRoom(document, state, stage, compass) {
       window.className = "subway-room-window";
       backdrop.append(window);
     }
-  } else if (room.kind === "gate") {
-    for (const label of ["🎟️ 표 사는 곳", "🗺️ 노선 안내"]) {
-      const booth = document.createElement("span");
-      booth.className = "subway-room-booth";
-      booth.textContent = label;
-      backdrop.append(booth);
-    }
-  } else if (room.kind === "corridor") {
-    for (const label of ["↑ 환승", "🚶 이동", "↑ 환승"]) {
-      const sign = document.createElement("span");
-      sign.className = "subway-room-wallsign";
-      sign.textContent = label;
-      backdrop.append(sign);
-    }
   } else if (room.kind === "platform") {
     const train = document.createElement("div");
     train.className = "subway-train";
@@ -589,8 +597,9 @@ function renderRoom(document, state, stage, compass) {
       "subway-room-door",
       room.width - 1,
       room.width,
-      room.kind === "train" ? "→" : "🚪"
+      room.kind === "train" ? "→" : undefined
     );
+    if (room.kind === "corridor") rightDoor.innerHTML = corridorDoorSvg();
     rightDoor.dataset.side = "right";
     const goSide = roomTargetX(state, compass) === 0
       ? "left"
@@ -653,9 +662,9 @@ function renderRoom(document, state, stage, compass) {
       document,
       "subway-room-target",
       targetX,
-      room.width,
-      "👣"
+      room.width
     );
+    target.innerHTML = footprintSvg();
     target.setAttribute("aria-hidden", "true");
     lane.append(target);
 
@@ -913,15 +922,6 @@ function renderArrivedPhase(document, state, stage) {
   hearts.textContent = "💛 💚 💙";
   hearts.setAttribute("aria-hidden", "true");
   ending.append(hearts);
-
-  if (!painted) {
-    const icon = document.createElement("span");
-    icon.className = "subway-place-icon";
-    icon.textContent = state.place.icon;
-    icon.setAttribute("role", "img");
-    icon.setAttribute("aria-label", state.place.label);
-    ending.append(icon);
-  }
 
   const party = document.createElement("div");
   party.className = "subway-arrived-party";
