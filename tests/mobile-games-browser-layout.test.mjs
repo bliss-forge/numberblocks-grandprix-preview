@@ -109,3 +109,82 @@ test("390×844 홈은 두 열과 넓은 5번 카드로 잘림 없이 표시된�
   assert.ok(metrics.homeHeight >= metrics.viewportHeight);
   assert.deepEqual(errors, { consoleErrors: [], pageErrors: [] });
 });
+
+test("390×844 수학 게임은 무대와 큰 숫자판을 한 화면에 유지한다", async t => {
+  const chromium = loadChromium();
+  if (!chromium) {
+    t.skip("Playwright is not installed globally");
+    return;
+  }
+
+  const { server, url } = await startStaticServer();
+  const browser = await chromium.launch({ headless: true });
+  t.after(async () => {
+    await browser.close();
+    await new Promise(resolveServer => server.close(resolveServer));
+  });
+
+  for (const mode of ["count", "add", "sub", "mul"]) {
+    const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
+    const errors = observeErrors(page);
+    await page.goto(url, { waitUntil: "networkidle" });
+    await page.locator(`[data-mode="${mode}"]`).click();
+    await page.locator(".number-pad").waitFor({ state: "visible" });
+
+    const metrics = await page.evaluate(() => {
+      const rectangle = selector => {
+        const rect = document.querySelector(selector).getBoundingClientRect();
+        return {
+          left: rect.left,
+          right: rect.right,
+          top: rect.top,
+          bottom: rect.bottom,
+          width: rect.width,
+          height: rect.height
+        };
+      };
+      const buttonRects = [...document.querySelectorAll(".number-pad button")]
+        .map(button => button.getBoundingClientRect());
+      const firstDigit = document.querySelector('[data-digit="1"]')
+        .getBoundingClientRect();
+      const zero = document.querySelector('[data-digit="0"]')
+        .getBoundingClientRect();
+      return {
+        viewport: { width: innerWidth, height: innerHeight },
+        game: rectangle("#game"),
+        problem: rectangle(".problem-pill"),
+        stage: rectangle(".stage-frame"),
+        answer: rectangle(".answer-dock"),
+        pad: rectangle(".number-pad"),
+        columnCount: getComputedStyle(document.querySelector(".number-pad"))
+          .gridTemplateColumns.split(" ").length,
+        horizontalOverflow: document.documentElement.scrollWidth > innerWidth,
+        minimumButtonWidth: Math.min(...buttonRects.map(rect => rect.width)),
+        minimumButtonHeight: Math.min(...buttonRects.map(rect => rect.height)),
+        zeroRatio: zero.width / firstDigit.width
+      };
+    });
+
+    const contained = rect =>
+      rect.left >= -0.5 &&
+      rect.right <= metrics.viewport.width + 0.5 &&
+      rect.top >= -0.5 &&
+      rect.bottom <= metrics.viewport.height + 0.5;
+
+    assert.equal(metrics.columnCount, 3, mode);
+    assert.equal(metrics.horizontalOverflow, false, mode);
+    assert.ok(contained(metrics.game), `${mode} game`);
+    assert.ok(contained(metrics.problem), `${mode} problem`);
+    assert.ok(contained(metrics.stage), `${mode} stage`);
+    assert.ok(contained(metrics.answer), `${mode} answer`);
+    assert.ok(contained(metrics.pad), `${mode} pad`);
+    assert.ok(metrics.problem.bottom <= metrics.stage.top + 0.5, `${mode} problem-stage`);
+    assert.ok(metrics.stage.bottom <= metrics.answer.top + 0.5, `${mode} stage-answer`);
+    assert.ok(metrics.answer.bottom <= metrics.pad.top + 0.5, `${mode} answer-pad`);
+    assert.ok(metrics.minimumButtonWidth >= 48, `${mode} button width`);
+    assert.ok(metrics.minimumButtonHeight >= 48, `${mode} button height`);
+    assert.ok(metrics.zeroRatio >= 1.8, `${mode} zero key`);
+    assert.deepEqual(errors, { consoleErrors: [], pageErrors: [] }, mode);
+    await page.close();
+  }
+});

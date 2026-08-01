@@ -121,4 +121,172 @@
     padding: 7px 11px;
     font-size: 11px;
   }
+
+  body:is(
+    [data-mode="count"],
+    [data-mode="add"],
+    [data-mode="sub"],
+    [data-mode="mul"]
+  ) #game {
+    height: 100vh;
+    height: 100svh;
+    height: 100dvh;
+    min-height: 0;
+    grid-template-rows: auto minmax(0, 1fr) auto auto;
+    gap: 6px;
+    padding: max(62px, env(safe-area-inset-top)) 8px
+      max(8px, env(safe-area-inset-bottom));
+    overflow: hidden;
+  }
+
+  body:is(
+    [data-mode="count"],
+    [data-mode="add"],
+    [data-mode="sub"],
+    [data-mode="mul"]
+  ) .problem-pill {
+    max-width: calc(100vw - 76px);
+    max-height: 3.15em;
+    padding: 7px 14px 9px;
+    overflow: hidden;
+    font-size: clamp(17px, 5vw, 22px);
+    line-height: 1.25;
+  }
+
+  body:is(
+    [data-mode="count"],
+    [data-mode="add"],
+    [data-mode="sub"],
+    [data-mode="mul"]
+  ) .stage-frame {
+    width: 100%;
+    min-height: 0;
+    border-width: 5px;
+    border-radius: 26px 26px 22px 22px;
+  }
+
+  body:is(
+    [data-mode="count"],
+    [data-mode="add"],
+    [data-mode="sub"],
+    [data-mode="mul"]
+  ) :is(
+    .stage,
+    .count-friends,
+    .operand-scene,
+    .operand-friends,
+    .celebration-result,
+    .celebration-character-zone
+  ) {
+    min-height: 0;
+  }
+
+  body:is(
+    [data-mode="count"],
+    [data-mode="add"],
+    [data-mode="sub"],
+    [data-mode="mul"]
+  ) .stage {
+    padding: 4px 8px 7px;
+  }
+
+  body:is(
+    [data-mode="count"],
+    [data-mode="add"],
+    [data-mode="sub"],
+    [data-mode="mul"]
+  ) .answer-dock {
+    min-height: 56px;
+    padding: 4px 8px 7px 13px;
+    border-width: 4px;
+    border-radius: 18px;
+  }
+
+  body:is(
+    [data-mode="count"],
+    [data-mode="add"],
+    [data-mode="sub"],
+    [data-mode="mul"]
+  ) .answer-box {
+    min-width: 76px;
+    height: 50px;
+    padding-inline: 10px;
+    font-size: clamp(30px, 9vw, 40px);
+  }
+
+  body:is(
+    [data-mode="count"],
+    [data-mode="add"],
+    [data-mode="sub"],
+    [data-mode="mul"]
+  ) .number-pad {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px;
+    width: min(100%, 360px);
+    padding: 2px;
+  }
+
+  body:is(
+    [data-mode="count"],
+    [data-mode="add"],
+    [data-mode="sub"],
+    [data-mode="mul"]
+  ) .number-pad button {
+    min-width: 48px;
+    min-height: 48px;
+    border-width: 3px;
+    border-radius: 13px;
+    font-size: 24px;
+    touch-action: manipulation;
+  }
+
+  body:is(
+    [data-mode="count"],
+    [data-mode="add"],
+    [data-mode="sub"],
+    [data-mode="mul"]
+  ) .number-pad [data-digit="0"] {
+    grid-column: 2 / 4;
+  }
+
+  body:is(
+    [data-mode="count"],
+    [data-mode="add"],
+    [data-mode="sub"],
+    [data-mode="mul"]
+  ) .game-keyboard-note {
+    display: none;
+  }
+}
+
+@media (max-width: 380px), (max-height: 700px) {
+  body:is(
+    [data-mode="count"],
+    [data-mode="add"],
+    [data-mode="sub"],
+    [data-mode="mul"]
+  ) #game {
+    gap: 4px;
+    padding: max(56px, env(safe-area-inset-top)) 6px
+      max(5px, env(safe-area-inset-bottom));
+  }
+
+  body:is(
+    [data-mode="count"],
+    [data-mode="add"],
+    [data-mode="sub"],
+    [data-mode="mul"]
+  ) .number-pad {
+    gap: 4px;
+  }
+
+  body:is(
+    [data-mode="count"],
+    [data-mode="add"],
+    [data-mode="sub"],
+    [data-mode="mul"]
+  ) .number-pad button {
+    min-height: 44px;
+  }
 }
