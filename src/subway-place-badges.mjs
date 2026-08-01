@@ -295,16 +295,30 @@ export function footprintSvg() {
 }
 
 // The transfer gate at the end of the corridor, drawn as a real door.
+// 환승 통로 끝에 있는 것은 문이 아니라 다른 호선으로 올라가는 에스컬레이터다.
+// 계단 발판이 비스듬히 올라가고 손잡이 띠가 그 위를 따라간다.
 export function corridorDoorSvg() {
+  const treads = Array.from({ length: 6 }, (unused, index) => {
+    const x = 3 + index * 5;
+    const y = 52 - index * 5.6;
+    return `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="10" ` +
+      `height="5.6" fill="${STEEL}"/>` +
+      `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="10" ` +
+      `height="1.9" fill="${STEEL_DARK}"/>`;
+  }).join("");
   return `<svg class="subway-door-art" viewBox="0 0 40 60" ` +
     `aria-hidden="true" xmlns="http://www.w3.org/2000/svg">` +
-    `<rect x="2" y="2" width="36" height="56" rx="6" fill="${PAPER}" ` +
-    `stroke="${STEEL_DARK}" stroke-width="3"/>` +
-    `<rect x="7" y="8" width="26" height="18" rx="4" fill="${SKY}"/>` +
-    `<line x1="20" y1="2" x2="20" y2="58" stroke="${STEEL_DARK}" ` +
-    `stroke-width="2.4"/>` +
-    `<circle cx="15" cy="38" r="2.6" fill="${STEEL_DARK}"/>` +
-    `<circle cx="25" cy="38" r="2.6" fill="${STEEL_DARK}"/>` +
+    // 올라가는 방향 화살표는 손잡이보다 위, 아무것도 안 걸리는 꼭대기에
+    `<path d="M14 12 L20 5 L26 12" fill="none" stroke="${GREEN}" ` +
+    `stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>` +
+    `<path d="M2 58 L2 53 L31 21 L35 21 L35 26 L7 58z" fill="${STEEL_DARK}" ` +
+    `opacity=".26"/>` +
+    treads +
+    // 손잡이 띠 — 발판 위를 나란히 따라 올라간다
+    `<path d="M4 46 L33 18" stroke="${INK}" stroke-width="3.6" ` +
+    `stroke-linecap="round" fill="none"/>` +
+    `<path d="M4 52 L33 24" stroke="${STEEL_DARK}" stroke-width="2" ` +
+    `stroke-linecap="round" fill="none"/>` +
     `</svg>`;
 }
 

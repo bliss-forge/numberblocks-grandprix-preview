@@ -918,15 +918,25 @@ function startSubwayJourney() {
   showHint("가고 싶은 곳을 숫자키로 골라요!");
 }
 
-function playSubwayReal(key, fallback) {
+// nextKey가 있으면 첫 소리가 끝난 뒤 이어서 튼다 — 도착 멜로디 다음에 오는
+// 발빠짐 주의처럼, 두 소리가 겹치지 않고 차례로 나와야 하는 자리에 쓴다.
+function playSubwayReal(key, fallback, nextKey = null) {
   const src = subwaySoundSrc(key);
   audio.cancel();
+  const chain = status => {
+    if (status === "error" && fallback) {
+      void audio.playPrompt(fallback);
+      return;
+    }
+    if (status !== "cancelled" && nextKey) {
+      const nextSrc = subwaySoundSrc(nextKey);
+      if (nextSrc) void audio.playFile(nextSrc);
+    }
+  };
   if (src) {
     // a missing or broken recording falls back to the TTS voice pack; a
     // cancellation means newer audio took over, so stay quiet
-    void audio.playFile(src).then(status => {
-      if (status === "error" && fallback) void audio.playPrompt(fallback);
-    });
+    void audio.playFile(src).then(chain);
   } else if (fallback) {
     void audio.playPrompt(fallback);
   }
@@ -1151,32 +1161,33 @@ function moveSubway(direction) {
   } else if (event.type === "friend-joined") {
     audio.playSfx("win");
     showHint(`${event.number} 친구가 함께 가요!`);
-    audio.cancel();
-    void audio.playPrompt(`number-${event.number}`);
   } else if (event.type === "departed") {
     // A held arrow must not ride straight through stations: the hold is
     // absorbed at each arrival and a fresh press is needed to continue.
     state.subwayHoldBlock = true;
     const compass = subwayCompass(state.subway);
+    // 역 이름 안내는 그 역에 실제로 섰을 때만 튼다. 전에는 목적지 한 정거장
+    // 앞에서 내릴 역 이름을 미리 틀어서, 아이가 엉뚱한 역에서 그 이름을 들었다.
+    audio.cancel();
     if (event.atDest) {
       audio.playSfx("door");
       showHint(`⭐ ${stationLabel(event.station)}이에요! ⎵ 눌러서 내려요`);
-      playSubwayReal("mind-gap", "subway-stop-check");
+      playStationSound(event.station, "subway-stop-check");
     } else if (compass?.hopsToAlight === 0) {
       audio.playSfx("door");
       showHint(`🔔 ${stationLabel(event.station)}이에요! ⎵ 눌러서 갈아타요`);
-      playSubwayReal("mind-gap", "subway-transfer");
+      playStationSound(event.station, "subway-transfer");
     } else if (compass?.hopsToAlight === 1) {
       showHint(
         `${stationLabel(event.station)} — 다음 ${compass.alightAt}에서 내려요!`
       );
-      audio.cancel();
-      playStationSound(compass.alightAt, "subway-stop-check");
+      playStationSound(event.station);
     } else {
       showHint(
         `${stationLabel(event.station)} — ${compass?.alightAt ?? "목적지"}까지 ` +
         `${compass?.hopsToAlight ?? "?"}정거장`
       );
+      playStationSound(event.station);
       if (!event.closer && state.subway.strayStreak >= 2) {
         showHint("목적지에서 멀어지고 있어요. 지도를 봐요!");
       }
@@ -1200,11 +1211,13 @@ function moveSubway(direction) {
     playStationSound(event.station, "subway-transfer");
   } else if (event.type === "arriving") {
     state.subwayDoorCue = false;
+    // 발빠짐 주의는 문이 열리고 폴짝 뛰어 내리는 이 순간에 나와야 한다.
     playSubwayReal(
       state.subway.travelSide === "back"
         ? "arrive-melody-up"
         : "arrive-melody-down",
-      null
+      null,
+      "mind-gap"
     );
     audio.playSfx("win");
     showHint("도착 멜로디가 나와요! 곧 문이 열려요");
