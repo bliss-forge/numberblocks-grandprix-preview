@@ -107,6 +107,24 @@ test("390×844 홈은 두 열과 넓은 5번 카드로 잘림 없이 표시된�
   assert.equal(metrics.cardsInsideWidth, true);
   assert.ok(metrics.fifthWidth >= metrics.firstWidth * 1.8);
   assert.ok(metrics.homeHeight >= metrics.viewportHeight);
+  const stacking = await page.evaluate(() => {
+    const home = document.querySelector("#home");
+    home.scrollTop = home.scrollHeight;
+    const credit = document.querySelector(".creator-credit").getBoundingClientRect();
+    const stack = document.elementsFromPoint(
+      credit.left + credit.width / 2,
+      credit.top + credit.height / 2
+    );
+    return {
+      cardIndex: stack.findIndex(node => node.classList?.contains("mode-card")),
+      creditIndex: stack.findIndex(node => node.classList?.contains("creator-credit"))
+    };
+  });
+  assert.ok(stacking.cardIndex >= 0);
+  assert.ok(
+    stacking.creditIndex === -1 || stacking.cardIndex < stacking.creditIndex,
+    JSON.stringify(stacking)
+  );
   assert.deepEqual(errors, { consoleErrors: [], pageErrors: [] });
 });
 
@@ -299,6 +317,13 @@ test("최소·대형 휴대전화에서도 1~5 조작 화면이 뷰포트에 들
     const homeMetrics = await home.evaluate(() => {
       const cards = [...document.querySelectorAll(".mode-card")].slice(0, 5)
         .map(card => card.getBoundingClientRect());
+      const credit = document.querySelector(".creator-credit").getBoundingClientRect();
+      const overlapsCredit = cards.some(card => !(
+        card.right <= credit.left ||
+        credit.right <= card.left ||
+        card.bottom <= credit.top ||
+        credit.bottom <= card.top
+      ));
       return {
         columns: getComputedStyle(document.querySelector(".mode-grid"))
           .gridTemplateColumns.split(" ").length,
@@ -306,6 +331,7 @@ test("최소·대형 휴대전화에서도 1~5 조작 화면이 뷰포트에 들
         cardsInsideWidth: cards.every(
           rect => rect.left >= -0.5 && rect.right <= innerWidth + 0.5
         ),
+        overlapsCredit,
         firstWidth: cards[0].width,
         fifthWidth: cards[4].width
       };
@@ -313,6 +339,7 @@ test("최소·대형 휴대전화에서도 1~5 조작 화면이 뷰포트에 들
     assert.equal(homeMetrics.columns, 2, `${viewport.width} home columns`);
     assert.equal(homeMetrics.horizontalOverflow, false, `${viewport.width} home overflow`);
     assert.equal(homeMetrics.cardsInsideWidth, true, `${viewport.width} home cards`);
+    assert.equal(homeMetrics.overlapsCredit, false, `${viewport.width} home credit`);
     assert.ok(
       homeMetrics.fifthWidth >= homeMetrics.firstWidth * 1.8,
       `${viewport.width} fifth card`
@@ -341,12 +368,24 @@ test("최소·대형 휴대전화에서도 1~5 조작 화면이 뷰포트에 들
           const rect = document.querySelector(selector).getBoundingClientRect();
           return { selector, left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom };
         });
+        const countCharacter = modeName === "count"
+          ? document.querySelector(".count-character")?.getBoundingClientRect()
+          : null;
+        const countStage = modeName === "count"
+          ? document.querySelector(".stage-frame")?.getBoundingClientRect()
+          : null;
         return {
           targetSize,
           rectangles,
           horizontalOverflow: document.documentElement.scrollWidth > innerWidth,
           minimumWidth: Math.min(...controls.map(rect => rect.width)),
           minimumHeight: Math.min(...controls.map(rect => rect.height)),
+          countCharacterContained: !countCharacter || !countStage || (
+            countCharacter.left >= countStage.left - 0.5 &&
+            countCharacter.right <= countStage.right + 0.5 &&
+            countCharacter.top >= countStage.top - 0.5 &&
+            countCharacter.bottom <= countStage.bottom + 0.5
+          ),
           allContained: rectangles.every(rect =>
             rect.left >= -0.5 &&
             rect.right <= innerWidth + 0.5 &&
@@ -360,6 +399,11 @@ test("최소·대형 휴대전화에서도 1~5 조작 화면이 뷰포트에 들
       assert.equal(metrics.allContained, true, `${viewport.width} ${mode} contained`);
       assert.ok(metrics.minimumWidth >= viewport.target, `${viewport.width} ${mode} width`);
       assert.ok(metrics.minimumHeight >= viewport.target, `${viewport.width} ${mode} height`);
+      assert.equal(
+        metrics.countCharacterContained,
+        true,
+        `${viewport.width} ${mode} character`
+      );
       assert.deepEqual(errors, { consoleErrors: [], pageErrors: [] });
       await page.close();
     }

@@ -122,6 +122,15 @@
     font-size: 11px;
   }
 
+  body[data-state="home"] .creator-credit {
+    left: 8px;
+    right: auto;
+    top: max(8px, env(safe-area-inset-top));
+    bottom: auto;
+    z-index: 1;
+    font-size: 9px;
+  }
+
   body:is(
     [data-mode="count"],
     [data-mode="add"],
@@ -359,6 +368,14 @@
     [data-mode="mul"]
   ) .number-pad button {
     min-height: 44px;
+  }
+
+  body[data-mode="count"] .count-friends .count-character {
+    width: auto;
+    height: min(18vh, 108px);
+    max-width: 88%;
+    max-height: min(18vh, 108px);
+    --layout-scale-cap: 1;
   }
 
   body[data-mode="safety"] .route-pad {
