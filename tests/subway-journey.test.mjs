@@ -251,6 +251,8 @@ test("나침반을 따라가면 모든 조합에서 목적지에 도착한다", 
   const base = createSubwayJourney("lake", 5);
   let checked = 0;
   for (const line of SUBWAY_LINES) {
+    // 가족 노선은 진짜 지하철과 만나는 데가 없어 목적지로 갈 수 없다.
+    if (line.family) continue;
     for (const station of line.stations) {
       for (const { place } of subwayDestinations()) {
         if (station === place.station) continue;
@@ -536,43 +538,4 @@ test("나침반은 어느 역에서 내려야 하는지와 남은 정거장을 �
   assert.equal(there.alightAt, state.station);
   assert.equal(state.station, first.alightAt, "the plan held");
   assert.match(subwayAnnouncement(state), /내려요/);
-});
-
-test("10호선을 타면 도하역에 실제로 정차한다", () => {
-  // 도하역은 명동과 약수 사이라 그 구간을 지나는 열차만 선다.
-  const journey = (() => {
-    for (let seed = 0; seed < 400; seed += 1) {
-      for (const placeId of ["namsan", "palace", "skypark", "lunapark", "childpark"]) {
-        const candidate = createSubwayJourney(placeId, seed);
-        if (gateLines(candidate).includes(10)) return candidate;
-      }
-    }
-    throw new Error("no start on line 10");
-  })();
-
-  const ten = SUBWAY_LINES.find(line => line.number === 10);
-  const from = ten.stations.indexOf(journey.start);
-  const to = ten.stations.indexOf("도하");
-  assert.ok(from >= 0, "10호선 역에서 출발한다");
-  const side = to > from ? "forward" : "back";
-
-  let current = boardTrain(passGate(journey, 10));
-  const stops = [];
-  for (let guard = 0; guard < ten.stations.length + 2; guard += 1) {
-    const result = driveOneStop(current, side);
-    current = result.state;
-    if (result.event.type !== "departed") break;
-    stops.push(current.station);
-    if (current.station === "도하") break;
-  }
-
-  assert.ok(stops.includes("도하"), `도하역에 섰다 — 지나온 역: ${stops.join(" ")}`);
-  assert.equal(current.station, "도하");
-  assert.equal(current.line, 10);
-  assert.match(subwayAnnouncement(current), /도하/);
-  assert.deepEqual(
-    linesAtStation("도하").map(line => line.number),
-    [10],
-    "도하역에서는 갈아탈 노선이 없다"
-  );
 });
