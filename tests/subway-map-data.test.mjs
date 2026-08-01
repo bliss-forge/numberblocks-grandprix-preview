@@ -6,21 +6,61 @@ import {
   SUBWAY_PLACES,
   isTransferStation,
   lineByNumber,
+  lineForKey,
+  lineKeyLabel,
   linesAtStation,
   stationLabel
 } from "../src/subway-map-data.mjs";
 
 test("서울 지하철 1~9호선이 실제 노선 색으로 준비된다", () => {
-  assert.deepEqual(SUBWAY_LINES.map(line => line.number), [1, 2, 3, 4, 5, 6, 7, 8, 9]);
+  assert.deepEqual(
+    SUBWAY_LINES.map(line => line.number),
+    [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+  );
   const colors = {
     1: "#0052A4", 2: "#00A84D", 3: "#EF7C1C", 4: "#00A5DE",
-    5: "#996CAC", 6: "#CD7C2F", 7: "#747F00", 8: "#E6186C", 9: "#BDB092"
+    5: "#996CAC", 6: "#CD7C2F", 7: "#747F00", 8: "#E6186C", 9: "#BDB092",
+    10: "#00B3A4"
   };
   for (const line of SUBWAY_LINES) {
     assert.equal(line.color, colors[line.number], `line ${line.number}`);
     assert.ok(line.stations.length >= 6, `line ${line.number} stations`);
   }
+  assert.equal(new Set(Object.values(colors)).size, 10, "노선 색은 서로 다르다");
   assert.equal(lineByNumber(2).loop, true, "2호선은 순환선");
+});
+
+test("10호선은 도하역을 지나 재미있는 곳들을 한 줄로 잇는다", () => {
+  const ten = lineByNumber(10);
+  assert.ok(ten, "10호선이 있다");
+  assert.ok(ten.stations.includes("도하"), "도하역이 있다");
+  assert.deepEqual(
+    linesAtStation("도하").map(line => line.number),
+    [10],
+    "도하역은 10호선에만 있어 갈아탈 일이 없다"
+  );
+  assert.equal(isTransferStation("도하"), false);
+
+  const straightTo = SUBWAY_PLACES
+    .filter(place => ten.stations.includes(place.station))
+    .map(place => place.label);
+  assert.deepEqual(
+    straightTo,
+    ["놀이공원", "경복궁", "남산타워", "하늘공원", "어린이대공원"],
+    "갈아타지 않고 닿는 다섯 곳"
+  );
+});
+
+test("10호선은 숫자키 0으로 부른다", () => {
+  assert.equal(lineKeyLabel(10), "0");
+  assert.equal(lineKeyLabel(6), "6");
+  assert.equal(lineForKey("0"), 10);
+  assert.equal(lineForKey("6"), 6);
+  for (const line of SUBWAY_LINES) {
+    assert.equal(lineForKey(lineKeyLabel(line.number)), line.number, `line ${line.number}`);
+  }
+  const keys = SUBWAY_LINES.map(line => lineKeyLabel(line.number));
+  assert.equal(new Set(keys).size, keys.length, "노선마다 키가 겹치지 않는다");
 });
 
 test("모든 역은 고유 좌표를 가지고 노선 안에서 중복되지 않는다", () => {
@@ -49,7 +89,7 @@ test("주요 환승역은 여러 노선이 공유한다", () => {
     ["종로3가", [1, 3, 5]],
     ["동대문역사문화공원", [2, 4, 5]],
     ["고속터미널", [3, 7, 9]],
-    ["잠실", [2, 8]],
+    ["잠실", [2, 8, 10]],
     ["김포공항", [5, 9]],
     ["사당", [2, 4]]
   ]) {

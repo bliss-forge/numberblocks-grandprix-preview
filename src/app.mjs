@@ -94,7 +94,7 @@ import {
   stationSoundSrc,
   subwaySoundSrc
 } from "./subway-sound-manifest.mjs";
-import { stationLabel } from "./subway-map-data.mjs";
+import { lineForKey, stationLabel } from "./subway-map-data.mjs";
 
 const WALK_REPEAT_MS = 110;
 const audio = new AudioManager();
@@ -1481,7 +1481,7 @@ document.addEventListener("keydown", event => {
       }
     } else if (state.subway?.phase === "gate") {
       event.preventDefault();
-      chooseSubwayLineInput(Number(digit));
+      chooseSubwayLineInput(lineForKey(digit));
     }
     return;
   }

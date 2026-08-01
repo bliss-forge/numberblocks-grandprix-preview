@@ -277,10 +277,11 @@ export function trainSceneSvg({
       `fill="none" stroke="${STEEL_DARK}" stroke-width="7"/>` +
       `</g>`;
   }).join("");
-  // Each line rides through its own world: 1·9호선 above ground, 2·3·4호선
+  // Each line rides through its own world: 1·9호선 above ground, 2·3·4·10호선
   // crossing the 한강 on a bridge, and 5~8호선 deep in the tunnel — so the
-  // window view alone tells the child which train they are on.
-  const environment = [2, 3, 4].includes(lineNumber)
+  // window view alone tells the child which train they are on. 10호선 gets the
+  // river because it dives south to 잠실 at the end of its run.
+  const environment = [2, 3, 4, 10].includes(lineNumber)
     ? "river"
     : [5, 6, 7, 8].includes(lineNumber) ? "tunnel" : "ground";
   const backdropFill = environment === "tunnel" ? DARK : SKY;

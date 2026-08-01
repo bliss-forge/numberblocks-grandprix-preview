@@ -4650,6 +4650,20 @@ body[data-mode="subway"] .toast {
   font-size: clamp(11px, 1.3vw, 15px);
 }
 
+/* 10호선만 뱃지 숫자와 눌러야 할 키가 달라서 키를 따로 보여준다. 목적지
+   고르는 화면의 키 표시와 같은 모양이라 아이가 이미 아는 신호다. */
+.subway-gate-line-key {
+  display: grid;
+  place-items: center;
+  min-width: 22px;
+  height: 22px;
+  border-radius: 8px;
+  background: #31445b;
+  color: #fff;
+  font-size: clamp(11px, 1.2vw, 14px);
+  font-weight: 900;
+}
+
 .subway-capsule {
   display: flex;
   align-items: center;
