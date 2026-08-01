@@ -188,3 +188,89 @@ test("390×844 수학 게임은 무대와 큰 숫자판을 한 화면에 유지�
     await page.close();
   }
 });
+
+test("390×844 길찾기는 지도 안에 안전한 엄지 방향키를 유지한다", async t => {
+  const chromium = loadChromium();
+  if (!chromium) {
+    t.skip("Playwright is not installed globally");
+    return;
+  }
+
+  const { server, url } = await startStaticServer();
+  const browser = await chromium.launch({ headless: true });
+  t.after(async () => {
+    await browser.close();
+    await new Promise(resolveServer => server.close(resolveServer));
+  });
+
+  const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
+  const errors = observeErrors(page);
+  await page.goto(url, { waitUntil: "networkidle" });
+  await page.locator('[data-mode="safety"]').click();
+  await page.locator(".safety-viewport").waitFor({ state: "visible" });
+
+  const metrics = await page.evaluate(() => {
+    const rectangle = selector => {
+      const rect = document.querySelector(selector).getBoundingClientRect();
+      return {
+        left: rect.left,
+        right: rect.right,
+        top: rect.top,
+        bottom: rect.bottom,
+        width: rect.width,
+        height: rect.height
+      };
+    };
+    const buttonRects = [...document.querySelectorAll(".route-pad button")]
+      .map(button => button.getBoundingClientRect());
+    const padNode = document.querySelector(".route-pad");
+    const pad = rectangle(".route-pad");
+    const padStyle = getComputedStyle(padNode);
+    return {
+      viewport: { width: innerWidth, height: innerHeight },
+      game: rectangle("#game"),
+      prompt: rectangle(".problem-pill"),
+      route: rectangle(".safety-route"),
+      routeTop: rectangle(".safety-route-top"),
+      map: rectangle(".safety-viewport"),
+      minimap: rectangle(".route-minimap"),
+      pad,
+      padBottom: padStyle.bottom,
+      padRight: padStyle.right,
+      rightMargin: innerWidth - pad.right,
+      bottomMargin: innerHeight - pad.bottom,
+      minimumButtonWidth: Math.min(...buttonRects.map(rect => rect.width)),
+      minimumButtonHeight: Math.min(...buttonRects.map(rect => rect.height)),
+      horizontalOverflow: document.documentElement.scrollWidth > innerWidth
+    };
+  });
+
+  const contained = rect =>
+    rect.left >= -0.5 &&
+    rect.right <= metrics.viewport.width + 0.5 &&
+    rect.top >= -0.5 &&
+    rect.bottom <= metrics.viewport.height + 0.5;
+  const overlaps = (first, second) => !(
+    first.right <= second.left ||
+    second.right <= first.left ||
+    first.bottom <= second.top ||
+    second.bottom <= first.top
+  );
+
+  assert.equal(metrics.horizontalOverflow, false);
+  assert.ok(contained(metrics.game));
+  assert.ok(contained(metrics.prompt));
+  assert.ok(contained(metrics.route));
+  assert.ok(contained(metrics.map));
+  assert.ok(contained(metrics.pad));
+  assert.ok(metrics.prompt.bottom <= metrics.route.top + 0.5);
+  assert.ok(metrics.routeTop.bottom <= metrics.map.top + 0.5);
+  assert.equal(overlaps(metrics.minimap, metrics.pad), false);
+  assert.equal(metrics.padRight, "8px");
+  assert.equal(metrics.padBottom, "8px");
+  assert.ok(metrics.rightMargin >= 8);
+  assert.ok(metrics.bottomMargin >= 8);
+  assert.ok(metrics.minimumButtonWidth >= 48);
+  assert.ok(metrics.minimumButtonHeight >= 48);
+  assert.deepEqual(errors, { consoleErrors: [], pageErrors: [] });
+});

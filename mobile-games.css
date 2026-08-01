@@ -258,6 +258,77 @@
   ) .game-keyboard-note {
     display: none;
   }
+
+  body[data-mode="safety"] #game {
+    height: 100vh;
+    height: 100svh;
+    height: 100dvh;
+    min-height: 0;
+    grid-template-rows: auto minmax(0, 1fr);
+    gap: 5px;
+    padding: max(62px, env(safe-area-inset-top)) 5px 5px;
+    overflow: hidden;
+  }
+
+  body[data-mode="safety"] .problem-pill {
+    max-width: calc(100vw - 76px);
+    padding: 7px 14px 9px;
+    font-size: clamp(17px, 5vw, 22px);
+    line-height: 1.25;
+  }
+
+  body[data-mode="safety"] .stage-frame,
+  body[data-mode="safety"] .safety-route,
+  body[data-mode="safety"] .safety-viewport {
+    min-height: 0;
+  }
+
+  body[data-mode="safety"] .stage-frame {
+    width: 100%;
+    border-width: 5px;
+    border-radius: 24px;
+  }
+
+  body[data-mode="safety"] .safety-route-top {
+    min-height: 64px;
+    height: 64px;
+    padding: 5px 7px;
+  }
+
+  body[data-mode="safety"] .safety-goal {
+    max-width: 44%;
+    font-size: 12px;
+    line-height: 1.25;
+  }
+
+  body[data-mode="safety"] .safety-collected {
+    max-width: 54%;
+    gap: 3px;
+  }
+
+  body[data-mode="safety"] .safety-viewport {
+    --route-cell-size: min(
+      calc((100vw - 30px) / var(--viewport-cols, 5)),
+      calc((100dvh - 143px) / var(--viewport-rows, 5))
+    );
+  }
+
+  body[data-mode="safety"] .route-minimap {
+    right: 8px;
+    width: 132px;
+  }
+
+  body[data-mode="safety"] .route-pad {
+    right: max(8px, env(safe-area-inset-right));
+    bottom: max(8px, env(safe-area-inset-bottom));
+    opacity: 1;
+  }
+
+  body[data-mode="safety"] .route-pad button {
+    min-width: 48px;
+    min-height: 48px;
+    touch-action: manipulation;
+  }
 }
 
 @media (max-width: 380px), (max-height: 700px) {
@@ -287,6 +358,16 @@
     [data-mode="sub"],
     [data-mode="mul"]
   ) .number-pad button {
+    min-height: 44px;
+  }
+
+  body[data-mode="safety"] .route-pad {
+    grid-template-columns: repeat(3, 44px);
+    grid-template-rows: repeat(2, 44px);
+  }
+
+  body[data-mode="safety"] .route-pad button {
+    min-width: 44px;
     min-height: 44px;
   }
 }
