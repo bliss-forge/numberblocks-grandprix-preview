@@ -274,3 +274,123 @@ test("390×844 길찾기는 지도 안에 안전한 엄지 방향키를 유지�
   assert.ok(metrics.minimumButtonHeight >= 48);
   assert.deepEqual(errors, { consoleErrors: [], pageErrors: [] });
 });
+
+test("최소·대형 휴대전화에서도 1~5 조작 화면이 뷰포트에 들어온다", async t => {
+  const chromium = loadChromium();
+  if (!chromium) {
+    t.skip("Playwright is not installed globally");
+    return;
+  }
+
+  const { server, url } = await startStaticServer();
+  const browser = await chromium.launch({ headless: true });
+  t.after(async () => {
+    await browser.close();
+    await new Promise(resolveServer => server.close(resolveServer));
+  });
+
+  for (const viewport of [
+    { width: 360, height: 640, target: 44 },
+    { width: 430, height: 932, target: 48 }
+  ]) {
+    const home = await browser.newPage({ viewport });
+    const homeErrors = observeErrors(home);
+    await home.goto(url, { waitUntil: "networkidle" });
+    const homeMetrics = await home.evaluate(() => {
+      const cards = [...document.querySelectorAll(".mode-card")].slice(0, 5)
+        .map(card => card.getBoundingClientRect());
+      return {
+        columns: getComputedStyle(document.querySelector(".mode-grid"))
+          .gridTemplateColumns.split(" ").length,
+        horizontalOverflow: document.documentElement.scrollWidth > innerWidth,
+        cardsInsideWidth: cards.every(
+          rect => rect.left >= -0.5 && rect.right <= innerWidth + 0.5
+        ),
+        firstWidth: cards[0].width,
+        fifthWidth: cards[4].width
+      };
+    });
+    assert.equal(homeMetrics.columns, 2, `${viewport.width} home columns`);
+    assert.equal(homeMetrics.horizontalOverflow, false, `${viewport.width} home overflow`);
+    assert.equal(homeMetrics.cardsInsideWidth, true, `${viewport.width} home cards`);
+    assert.ok(
+      homeMetrics.fifthWidth >= homeMetrics.firstWidth * 1.8,
+      `${viewport.width} fifth card`
+    );
+    assert.deepEqual(homeErrors, { consoleErrors: [], pageErrors: [] });
+    await home.close();
+
+    for (const mode of ["count", "add", "sub", "mul", "safety"]) {
+      const page = await browser.newPage({ viewport });
+      const errors = observeErrors(page);
+      await page.goto(url, { waitUntil: "networkidle" });
+      await page.locator(`[data-mode="${mode}"]`).click();
+      const controlSelector = mode === "safety" ? ".route-pad" : ".number-pad";
+      await page.locator(controlSelector).waitFor({ state: "visible" });
+
+      const metrics = await page.evaluate(({ modeName, targetSize }) => {
+        const controls = [
+          ...document.querySelectorAll(
+            modeName === "safety" ? ".route-pad button" : ".number-pad button"
+          )
+        ].map(button => button.getBoundingClientRect());
+        const required = modeName === "safety"
+          ? ["#game", ".problem-pill", ".safety-route", ".route-pad"]
+          : ["#game", ".problem-pill", ".stage-frame", ".answer-dock", ".number-pad"];
+        const rectangles = required.map(selector => {
+          const rect = document.querySelector(selector).getBoundingClientRect();
+          return { selector, left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom };
+        });
+        return {
+          targetSize,
+          rectangles,
+          horizontalOverflow: document.documentElement.scrollWidth > innerWidth,
+          minimumWidth: Math.min(...controls.map(rect => rect.width)),
+          minimumHeight: Math.min(...controls.map(rect => rect.height)),
+          allContained: rectangles.every(rect =>
+            rect.left >= -0.5 &&
+            rect.right <= innerWidth + 0.5 &&
+            rect.top >= -0.5 &&
+            rect.bottom <= innerHeight + 0.5
+          )
+        };
+      }, { modeName: mode, targetSize: viewport.target });
+
+      assert.equal(metrics.horizontalOverflow, false, `${viewport.width} ${mode} overflow`);
+      assert.equal(metrics.allContained, true, `${viewport.width} ${mode} contained`);
+      assert.ok(metrics.minimumWidth >= viewport.target, `${viewport.width} ${mode} width`);
+      assert.ok(metrics.minimumHeight >= viewport.target, `${viewport.width} ${mode} height`);
+      assert.deepEqual(errors, { consoleErrors: [], pageErrors: [] });
+      await page.close();
+    }
+  }
+});
+
+test("844×390 가로형은 기존의 큰 조작 버튼을 유지한다", async t => {
+  const chromium = loadChromium();
+  if (!chromium) {
+    t.skip("Playwright is not installed globally");
+    return;
+  }
+
+  const { server, url } = await startStaticServer();
+  const browser = await chromium.launch({ headless: true });
+  t.after(async () => {
+    await browser.close();
+    await new Promise(resolveServer => server.close(resolveServer));
+  });
+
+  const page = await browser.newPage({ viewport: { width: 844, height: 390 } });
+  await page.goto(url, { waitUntil: "networkidle" });
+  await page.locator('[data-mode="safety"]').click();
+  await page.locator(".route-pad").waitFor({ state: "visible" });
+  const sizes = await page.locator(".route-pad button").evaluateAll(buttons =>
+    buttons.map(button => {
+      const rect = button.getBoundingClientRect();
+      return { width: rect.width, height: rect.height };
+    })
+  );
+
+  assert.ok(Math.min(...sizes.map(size => size.width)) >= 48);
+  assert.ok(Math.min(...sizes.map(size => size.height)) >= 48);
+});
