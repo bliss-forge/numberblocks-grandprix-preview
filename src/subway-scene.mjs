@@ -32,6 +32,13 @@ import {
 } from "./subway-station-art.mjs";
 import { arrivedSceneSvg } from "./subway-arrived-art.mjs";
 import {
+  PHOTO_COLS,
+  PHOTO_ROWS,
+  albumBoard,
+  onSubject,
+  photoHint
+} from "./photo-hunt.mjs";
+import {
   corridorDoorSvg,
   footprintSvg,
   metroMarkSvg,
@@ -942,6 +949,18 @@ function renderArrivingPhase(document, state, stage) {
   return room;
 }
 
+function photoFrame(document, photo) {
+  const frame = document.createElement("div");
+  frame.className = "subway-photo-frame";
+  frame.dataset.ready = String(onSubject(photo));
+  frame.dataset.taken = String(photo.taken);
+  frame.style.setProperty("--photo-cols", String(PHOTO_COLS));
+  frame.style.setProperty("--photo-rows", String(PHOTO_ROWS));
+  frame.style.setProperty("--photo-col", String(photo.col));
+  frame.style.setProperty("--photo-row", String(photo.row));
+  return frame;
+}
+
 function renderArrivedPhase(document, state, stage) {
   const ending = document.createElement("div");
   ending.className = "subway-arrived";
@@ -965,6 +984,38 @@ function renderArrivedPhase(document, state, stage) {
     );
     art.innerHTML = painted;
     ending.append(art);
+    // 사진 프레임은 그림 위에서 움직여야 하니 그림 상자 안에 넣는다. 바깥에
+    // 두면 축하 문구·사진첩까지 포함한 전체 상자를 기준으로 잡혀 어긋난다.
+    if (state.photo) art.append(photoFrame(document, state.photo));
+  }
+
+  // 사진 찍기: 그림 위에 프레임을 얹고, 밑에 지금까지 모은 사진첩을 깐다.
+  if (state.photo) {
+    ending.dataset.photo = String(!state.photo.taken);
+    const say = document.createElement("p");
+    say.className = "subway-photo-say";
+    say.textContent = photoHint(state.photo);
+    say.setAttribute("role", "status");
+    ending.append(say);
+
+    const album = document.createElement("div");
+    album.className = "subway-photo-album";
+    album.setAttribute("aria-label", "사진첩");
+    for (const entry of albumBoard(state.album ?? [])) {
+      const slot = document.createElement("span");
+      slot.className = "subway-photo-slot";
+      slot.dataset.taken = String(entry.taken);
+      slot.dataset.fresh = String(
+        entry.id === state.place.id && state.photo.taken
+      );
+      slot.innerHTML = entry.taken ? placeBadgeSvg(entry.id) : "";
+      slot.setAttribute(
+        "aria-label",
+        `${entry.label} ${entry.taken ? "찍었어요" : "아직이에요"}`
+      );
+      album.append(slot);
+    }
+    ending.append(album);
   }
 
   const hearts = document.createElement("span");
@@ -1094,7 +1145,12 @@ function structuralKey(state) {
     room?.people.map(person => `${person.x}${person.stepped ? "s" : ""}`).join(","),
     state.passengers.length,
     state.showRecommended,
-    state.platform?.stage ?? "-"
+    state.platform?.stage ?? "-",
+    // 도착 화면은 phase가 이미 arrived라 사진 상태가 바뀌어도 키가 그대로다.
+    // 프레임이 움직이려면 여기에 들어와 있어야 한다.
+    state.photo
+      ? `photo:${state.photo.col},${state.photo.row},${state.photo.taken}`
+      : "-"
   ].join("|");
 }
 

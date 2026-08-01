@@ -5812,3 +5812,103 @@ body[data-mode="subway"] .toast {
   margin-inline: auto;
   display: block;
 }
+
+/* 도착지 사진 찍기 — 그림 위에 네모 프레임을 얹고 밑에 사진첩을 깐다. */
+.subway-arrived[data-photo="true"] .subway-arrived-party,
+.subway-arrived[data-photo="true"] .subway-arrived-hearts {
+  display: none;
+}
+
+.subway-photo-frame {
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline-start: 0;
+  width: calc(100% / var(--photo-cols, 5));
+  height: calc(100% / var(--photo-rows, 3));
+  translate:
+    calc(100% * var(--photo-col, 2))
+    calc(100% * var(--photo-row, 1));
+  border: 6px solid #fff;
+  border-radius: 14px;
+  box-shadow: 0 0 0 4px rgba(37, 52, 93, .45), 0 6px 18px rgba(37, 52, 93, .3);
+  transition: translate .16s ease;
+  pointer-events: none;
+}
+
+.subway-photo-frame[data-ready="true"] {
+  border-color: #f4c542;
+  box-shadow: 0 0 0 4px #e0a800, 0 6px 18px rgba(224, 168, 0, .45);
+}
+
+.subway-photo-frame[data-taken="true"] {
+  border-color: #2fa25c;
+  box-shadow: 0 0 0 4px #1d7a42;
+}
+
+.subway-arrived > .subway-photo-say {
+  position: absolute;
+  /* 아래 여행 요약 칩과 겹치지 않게 그 위로 띄운다. */
+  inset-block-end: 56px;
+  inset-inline: 0;
+  z-index: 2;
+  width: fit-content;
+  max-width: 80%;
+  margin-inline: auto;
+  padding: 7px 16px;
+  border-radius: 14px;
+  background: #2f7de1;
+  color: #fff;
+  font-size: clamp(13px, 1.6vw, 19px);
+  font-weight: 800;
+  text-align: center;
+  box-shadow: 0 4px 0 rgba(37, 52, 93, .2);
+}
+
+/* 사진첩은 하늘이 비어 있는 위쪽에 건다 — 아래는 친구들과 요약 칩 자리다. */
+.subway-arrived > .subway-photo-album {
+  position: absolute;
+  inset-block-start: 10px;
+  inset-inline: 12px;
+  z-index: 2;
+  display: flex;
+  justify-content: center;
+  gap: 5px;
+}
+
+.subway-photo-slot {
+  display: grid;
+  place-items: center;
+  width: clamp(30px, 3.4vw, 46px);
+  height: clamp(30px, 3.4vw, 46px);
+  border-radius: 10px;
+  border: 3px dashed rgba(37, 52, 93, .3);
+  background: rgba(255, 255, 255, .8);
+}
+
+.subway-photo-slot[data-taken="true"] {
+  border-style: solid;
+  border-color: #7fd6c8;
+  background: #fff;
+}
+
+.subway-photo-slot[data-fresh="true"] {
+  border-color: #f4c542;
+  animation: subway-photo-pop .5s ease;
+}
+
+.subway-photo-slot svg {
+  width: 84%;
+  height: 84%;
+  display: block;
+}
+
+@keyframes subway-photo-pop {
+  0% { transform: scale(.55); }
+  60% { transform: scale(1.14); }
+  100% { transform: scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .subway-photo-frame { transition: none; }
+  .subway-photo-slot[data-fresh="true"] { animation: none; }
+}

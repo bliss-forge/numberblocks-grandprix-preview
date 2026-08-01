@@ -98,6 +98,13 @@ import {
   subwaySoundSrc
 } from "./subway-sound-manifest.mjs";
 import { lineForKey, stationLabel } from "./subway-map-data.mjs";
+import {
+  addPhoto,
+  createPhotoHunt,
+  loadAlbum,
+  movePhotoFrame,
+  shootPhoto
+} from "./photo-hunt.mjs";
 
 const WALK_REPEAT_MS = 110;
 const audio = new AudioManager();
@@ -981,6 +988,32 @@ function startFamilyLine() {
   scheduleSubwayTick();
 }
 
+function movePhoto(input) {
+  const journey = state.subway;
+  if (!journey?.photo || journey.photo.taken) return;
+  if (input === "space") {
+    const shot = shootPhoto(journey.photo);
+    journey.photo = shot.hunt;
+    if (shot.event.type === "taken") {
+      audio.playSfx("win");
+      journey.album = addPhoto(journey.place.id, globalThis.localStorage);
+      showHint(`찰칵! ${shot.event.subject.label} 사진을 찍었어요`);
+      updateSubwayJourney(state.subwayScene, journey);
+      schedule(() => {
+        void completeSubwayJourney();
+      }, 2200);
+      return;
+    }
+    audio.playSfx("pop");
+    showHint("살짝 빗나갔어요 — 화살표 쪽으로 옮겨요");
+  } else {
+    const moved = movePhotoFrame(journey.photo, input);
+    journey.photo = moved.hunt;
+    if (moved.event.type === "framed") audio.playSfx("key");
+  }
+  updateSubwayJourney(state.subwayScene, journey);
+}
+
 function chooseSubwayLineInput(lineNumber) {
   if (state.phase !== "playing" || !state.subway) return;
   const result = chooseSubwayLine(state.subway, lineNumber);
@@ -1196,10 +1229,19 @@ function moveSubway(direction) {
         }, 1800);
       }
     } else {
-      showHint(`${state.subway.place.label}에 도착했어요!`);
-      schedule(() => {
-        void completeSubwayJourney();
-      }, 2600);
+      const hunt = createPhotoHunt(state.subway.place.id);
+      if (hunt) {
+        // 도착지에서 바로 끝내지 않는다 — 사진 한 장 찍고 간다.
+        state.subway.photo = hunt;
+        state.subway.album = loadAlbum();
+        updateSubwayJourney(state.subwayScene, state.subway);
+        showHint(`${state.subway.place.label}이에요! 방향키로 찾아 ⎵ 찰칵`);
+      } else {
+        showHint(`${state.subway.place.label}에 도착했어요!`);
+        schedule(() => {
+          void completeSubwayJourney();
+        }, 2600);
+      }
     }
   }
 }
@@ -1488,6 +1530,24 @@ document.addEventListener("keydown", event => {
       startFamilyLine();
     }
     return;
+  }
+
+  // 사진 찍는 동안에는 사진 쪽이 방향키와 스페이스바를 먼저 가져간다.
+  if (
+    state.phase === "playing" && state.mode === "subway" &&
+    state.subway?.photo && !state.subway.photo.taken
+  ) {
+    if (event.key === " " || event.key === "Spacebar") {
+      event.preventDefault();
+      if (!event.repeat) movePhoto("space");
+      return;
+    }
+    const photoDirection = directionForKey(event.key);
+    if (photoDirection) {
+      event.preventDefault();
+      if (!event.repeat) movePhoto(photoDirection);
+      return;
+    }
   }
 
   if (state.phase === "playing" && state.mode === "subway" && state.subway) {
