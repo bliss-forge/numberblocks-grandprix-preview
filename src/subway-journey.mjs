@@ -1,4 +1,5 @@
 import {
+  FAMILY_STATIONS,
   SUBWAY_LINES,
   SUBWAY_PLACES,
   isTransferStation,
@@ -778,4 +779,102 @@ export function subwayAnnouncement(state) {
       : "빨간 불이 노란 칸에 올 때 ⎵! 발빠짐 조심";
   }
   return `${state.place.label}에 도착했어요!`;
+}
+
+// ── 10호선 가족 노선 ────────────────────────────────────────────────────────
+//
+// 보너스지만 조작은 기존 지하철과 하나도 다르지 않다. 개찰구를 걸어 지나고
+// 계단을 내려가 승강장에서 기다렸다 타고, 열차 안을 걸어 다음 역으로 간다.
+// 다른 것은 목적지 하나뿐 — 아직 못 만난 가족이 그때그때 목적지가 되고,
+// 일곱 명을 다 만나면 끝난다.
+
+function familyPlace(member) {
+  return Object.freeze({
+    id: `family-${member.id}`,
+    label: member.label,
+    station: member.station,
+    icon: "⭐",
+    voiceKey: null,
+    family: member
+  });
+}
+
+export function familyTarget(met) {
+  return FAMILY_STATIONS.find(member => !met.includes(member.id)) ?? null;
+}
+
+export function createFamilyJourney(seed = 0) {
+  const first = FAMILY_STATIONS[0];
+  const start = first.station;
+  // 엄마역에서 출발하니 엄마는 배웅하며 바로 만난다. 목적지가 출발역과 같으면
+  // 0정거장짜리 여정이 되어 탈 일이 없어지므로 다음 사람부터 태운다.
+  const met = [first.id];
+  const target = familyTarget(met);
+  return {
+    seed,
+    place: familyPlace(target),
+    family: { met, count: FAMILY_STATIONS.length },
+    recommendedTransfers: 0,
+    start,
+    station: start,
+    lastStation: null,
+    line: null,
+    ridden: null,
+    phase: "gate",
+    room: buildRoom("gate", { seed, station: start }),
+    platform: null,
+    arriving: null,
+    transfersUsed: 0,
+    moveCount: 0,
+    strayStreak: 0,
+    showRecommended: false,
+    visited: [start],
+    passengers: [],
+    pendingFriend: null,
+    travelSide: "forward"
+  };
+}
+
+export function isFamilyJourney(state) {
+  return Boolean(state?.family);
+}
+
+// 한 명을 만난 뒤 다음 사람을 목적지로 세운다. 다 만났으면 done을 돌려준다.
+export function meetFamilyMember(state) {
+  const member = state.place?.family;
+  if (!member) return { state, event: { type: "ignored" } };
+  const met = state.family.met.includes(member.id)
+    ? state.family.met
+    : [...state.family.met, member.id];
+  const next = familyTarget(met);
+  const family = { ...state.family, met };
+  if (!next) {
+    return {
+      state: { ...state, family, phase: "arrived" },
+      event: { type: "family-done", member, count: met.length }
+    };
+  }
+  return {
+    state: {
+      ...state,
+      family,
+      place: familyPlace(next),
+      phase: "gate",
+      line: null,
+      ridden: null,
+      platform: null,
+      arriving: null,
+      room: buildRoom("gate", { seed: state.seed + met.length, station: state.station })
+    },
+    event: { type: "family-met", member, next, count: met.length }
+  };
+}
+
+export function familyBoard(state) {
+  const met = state.family?.met ?? [];
+  return FAMILY_STATIONS.map(member => ({
+    ...member,
+    met: met.includes(member.id),
+    here: state.place?.family?.id === member.id
+  }));
 }

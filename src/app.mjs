@@ -81,7 +81,10 @@ import {
   advanceSubwayWorld,
   attemptSubwayMove,
   chooseSubwayLine,
+  createFamilyJourney,
   createSubwayJourney,
+  isFamilyJourney,
+  meetFamilyMember,
   subwayCompass,
   subwayDestinations
 } from "./subway-journey.mjs";
@@ -95,12 +98,6 @@ import {
   subwaySoundSrc
 } from "./subway-sound-manifest.mjs";
 import { lineForKey, stationLabel } from "./subway-map-data.mjs";
-import {
-  advanceFamilyRide,
-  attemptFamilyMove,
-  createFamilyRide
-} from "./family-line.mjs";
-import { renderFamilyLine, updateFamilyLine } from "./family-line-scene.mjs";
 
 const WALK_REPEAT_MS = 110;
 const audio = new AudioManager();
@@ -141,9 +138,6 @@ const state = {
   subwayWalkMs: 0,
   subwayTickMs: 0,
   subwayHoldBlock: false,
-  family: null,
-  familyScene: null,
-  familyTickMs: 0,
   subwayDoorCue: false,
   wrongCount: 0,
   round: 0,
@@ -903,8 +897,6 @@ function startSubwayJourney() {
   state.problem = null;
   state.buffer = "";
   state.subway = null;
-  state.family = null;
-  state.familyScene = null;
   state.subwayChoosing = true;
   dom.stage.setAttribute("aria-live", "off");
   state.subwayScene = renderSubwayPicker(document, subwayDestinations());
@@ -943,7 +935,12 @@ function playSubwayReal(key, fallback, nextKey = null) {
 }
 
 function playStationSound(station, followUpKey = null) {
-  const playback = audio.playFile(stationSoundSrc(station));
+  const src = stationSoundSrc(station);
+  if (!src) {
+    if (followUpKey) void audio.playPrompt(followUpKey);
+    return;
+  }
+  const playback = audio.playFile(src);
   if (followUpKey) {
     void playback.then(status => {
       if (status !== "cancelled") void audio.playPrompt(followUpKey);
@@ -973,68 +970,15 @@ function startSubwayRide(placeId) {
 function startFamilyLine() {
   if (state.mode !== "subway") return;
   state.subwayChoosing = false;
-  state.family = createFamilyRide();
-  state.familyScene = renderFamilyLine(document, state.family);
-  dom.stage.replaceChildren(state.familyScene);
+  const seed = Math.floor(Math.random() * 0x100000000);
+  state.subway = createFamilyJourney(seed);
+  state.subwayScene = renderSubwayJourney(document, state.subway);
+  dom.stage.replaceChildren(state.subwayScene);
   dom.problem.textContent = "10호선 가족 노선";
   audio.playSfx("win");
-  // 아래 띠가 "지금 뭘 하면 되는지"를 계속 들고 있으니 힌트는 겹치지 않게
-  // 이 놀이가 뭔지만 한 번 말한다.
-  showHint("가족을 만나러 가요! 일곱 명을 다 만나요");
-  state.familyTickMs = performance.now();
-  scheduleFamilyTick();
-}
-
-function moveFamily(input) {
-  if (state.phase !== "playing" || !state.family) return;
-  const result = attemptFamilyMove(state.family, input);
-  state.family = result.ride;
-  const event = result.event;
-  if (event.type === "met" || event.type === "all-met") {
-    audio.playSfx("win");
-    showHint(event.member.greeting);
-    state.stars += 1;
-    dom.stars.textContent = String(state.stars);
-  } else if (event.type === "already-met") {
-    showHint(`${event.member.label}는 벌써 만났어요 — ← → 로 가요`);
-  } else if (event.type === "departed") {
-    audio.playSfx("door");
-    showHint(`${event.member.label}역으로 가요`);
-  } else if (event.type === "doors-closed") {
-    showHint("아직 가는 중이에요. 서면 인사해요!");
-  } else if (event.type === "line-end") {
-    showHint("여기가 끝이에요. 반대쪽으로 가요");
-  }
-  updateFamilyLine(state.familyScene, state.family);
-  if (event.type === "all-met") finishFamilyLine();
-}
-
-function finishFamilyLine() {
-  audio.cancel();
-  void audio.playPrompt("win");
-  schedule(() => {
-    state.family = null;
-    state.familyScene = null;
-    goHome();
-  }, 3200);
-}
-
-function scheduleFamilyTick() {
-  schedule(() => {
-    if (state.phase !== "playing" || state.mode !== "subway" || !state.family) {
-      return;
-    }
-    const nowMs = performance.now();
-    const elapsed = Math.min(400, nowMs - (state.familyTickMs || nowMs));
-    const result = advanceFamilyRide(state.family, elapsed);
-    state.family = result.ride;
-    state.familyTickMs = nowMs;
-    if (result.event?.type === "arrived") {
-      audio.playSfx("door");
-    }
-    updateFamilyLine(state.familyScene, state.family);
-    scheduleFamilyTick();
-  }, 150);
+  showHint("엄마가 배웅해요! → 걸어가서 들어가는 곳을 지나가요");
+  state.subwayTickMs = performance.now();
+  scheduleSubwayTick();
 }
 
 function chooseSubwayLineInput(lineNumber) {
@@ -1231,11 +1175,55 @@ function moveSubway(direction) {
     showHint("\"실례합니다!\" 한 번 더 누르면 비켜줘요");
   } else if (event.type === "alighted") {
     audio.playSfx("win");
-    showHint(`${state.subway.place.label}에 도착했어요!`);
-    schedule(() => {
-      void completeSubwayJourney();
-    }, 2600);
+    if (isFamilyJourney(state.subway)) {
+      // 가족 노선은 한 명 만날 때마다 끝나지 않는다. 도장을 찍고 다음 사람을
+      // 목적지로 세운 뒤, 같은 개찰구 흐름으로 다시 태운다.
+      const met = meetFamilyMember(state.subway);
+      state.subway = met.state;
+      state.stars += 1;
+      dom.stars.textContent = String(state.stars);
+      updateSubwayJourney(state.subwayScene, state.subway);
+      if (met.event.type === "family-done") {
+        showHint("가족을 다 만났어요!");
+        schedule(completeFamilyJourney, 2600);
+      } else {
+        showHint(
+          `${met.event.member.label}를 만났어요! ` +
+          `다음은 ${met.event.next.label} — → 걸어서 들어가는 곳으로 가요`
+        );
+        schedule(() => {
+          if (state.subway) updateSubwayJourney(state.subwayScene, state.subway);
+        }, 1800);
+      }
+    } else {
+      showHint(`${state.subway.place.label}에 도착했어요!`);
+      schedule(() => {
+        void completeSubwayJourney();
+      }, 2600);
+    }
   }
+}
+
+function completeFamilyJourney() {
+  setPhase("celebrating");
+  clearTimers();
+  audio.cancel();
+  state.streak.subway += 1;
+  // 엄마는 출발역에서 배웅하며 그냥 만나므로 내리는 별이 여섯 개뿐이다.
+  // 일곱 명을 만났으니 마지막 하나를 여기서 채운다.
+  state.stars += 1;
+  dom.stars.textContent = String(state.stars);
+  dom.cheer.textContent = "⭐ 가족을 다 만났어요!";
+  dom.cheer.classList.add("show");
+  audio.playSfx("win");
+  // schedule은 타이머 id를 돌려준다. await 하면 그 자리에서 지나가 버려서
+  // 축하 화면이 한 순간도 보이지 않는다.
+  schedule(() => {
+    dom.cheer.classList.remove("show");
+    state.subway = null;
+    state.subwayScene = null;
+    goHome();
+  }, 2600);
 }
 
 async function completeSubwayJourney() {
@@ -1500,21 +1488,6 @@ document.addEventListener("keydown", event => {
       startFamilyLine();
     }
     return;
-  }
-
-  // 가족 노선이 도는 동안에는 그쪽이 방향키와 스페이스바를 먼저 가져간다.
-  if (state.phase === "playing" && state.mode === "subway" && state.family) {
-    if (event.key === " " || event.key === "Spacebar") {
-      event.preventDefault();
-      if (!event.repeat) moveFamily("space");
-      return;
-    }
-    const familyDirection = directionForKey(event.key);
-    if (familyDirection) {
-      event.preventDefault();
-      if (!event.repeat) moveFamily(familyDirection);
-      return;
-    }
   }
 
   if (state.phase === "playing" && state.mode === "subway" && state.subway) {
