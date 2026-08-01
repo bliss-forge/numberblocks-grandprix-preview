@@ -47,12 +47,16 @@ export function mapTrainSvg(color) {
 }
 
 export function lineBadgeSvg(lineNumber, color) {
+  // 10호선만 두 자리라 한 자리와 같은 크기로 쓰면 원 밖으로 삐져나온다.
+  const digits = String(lineNumber).length;
+  const size = digits > 1 ? 18 : 22;
+  const baseline = digits > 1 ? 30 : 32;
   return [
     `<svg class="route-art route-art-line-badge" viewBox="0 0 48 48" ` +
     `role="img" aria-hidden="true" focusable="false">`,
     `<circle cx="24" cy="24" r="21" fill="${color}" stroke="#fff" ` +
     `stroke-width="4"/>`,
-    `<text x="24" y="32" text-anchor="middle" font-size="22" ` +
+    `<text x="24" y="${baseline}" text-anchor="middle" font-size="${size}" ` +
     `font-weight="900" fill="${lineTextColor(color)}">${lineNumber}</text>`,
     `</svg>`
   ].join("");

@@ -79,8 +79,33 @@ export const SUBWAY_LINES = Object.freeze([
       "김포공항", "가양", "당산", "국회의사당", "여의도", "노량진",
       "동작", "고속터미널", "봉은사", "종합운동장"
     ])
+  }),
+  // 서울에는 없는 노선입니다. 도하가 좋아해서 이 게임에만 놓았고, 재미있는
+  // 곳들을 한 줄로 꿰어 갈아타지 않고도 다섯 군데에 닿습니다.
+  Object.freeze({
+    number: 10,
+    color: "#00B3A4",
+    loop: false,
+    stations: Object.freeze([
+      "월드컵경기장", "홍대입구", "경복궁", "명동", "도하",
+      "약수", "왕십리", "어린이대공원", "잠실"
+    ])
   })
 ]);
+
+// 10호선만 숫자키가 두 자리라 0으로 부릅니다. 목적지 열 번째도 이미 0이라
+// 아이가 배운 규칙 그대로입니다.
+export const LINE_KEYS = Object.freeze({ 10: "0" });
+
+export function lineKeyLabel(number) {
+  return LINE_KEYS[number] ?? String(number);
+}
+
+export function lineForKey(key) {
+  const found = Object.entries(LINE_KEYS)
+    .find(([, digit]) => digit === String(key));
+  return found ? Number(found[0]) : Number(key);
+}
 
 export const STATION_COORDS = Object.freeze({
   서울역: Object.freeze({ x: 44, y: 44 }),
@@ -148,7 +173,8 @@ export const STATION_COORDS = Object.freeze({
   가양: Object.freeze({ x: 14, y: 55 }),
   국회의사당: Object.freeze({ x: 24, y: 60 }),
   노량진: Object.freeze({ x: 34, y: 63 }),
-  봉은사: Object.freeze({ x: 68, y: 56 })
+  봉은사: Object.freeze({ x: 68, y: 56 }),
+  도하: Object.freeze({ x: 52, y: 47 })
 });
 
 export const SUBWAY_PLACES = Object.freeze([

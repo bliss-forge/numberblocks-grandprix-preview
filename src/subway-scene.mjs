@@ -4,6 +4,7 @@ import {
   SUBWAY_LINES,
   linesAtStation,
   lineByNumber,
+  lineKeyLabel,
   stationLabel
 } from "./subway-map-data.mjs";
 import {
@@ -364,7 +365,7 @@ function guideText(state, compass) {
     }
     if (state.room.chosen === null) {
       return compass?.line
-        ? `⭐ ${compass.line}호선 계단으로 가요! ${compass.line} 키를 눌러요`
+        ? `⭐ ${compass.line}호선 계단으로 가요! ${lineKeyLabel(compass.line)} 키를 눌러요`
         : "몇 호선 계단으로 갈까요? 숫자키로 골라요";
     }
     return `→ ${state.room.chosen}호선 계단으로 내려가요`;
@@ -771,7 +772,7 @@ function renderGateChoices(document, state, host, compass) {
       "aria-label",
       best ? `${lineNumber}호선 타기 — 추천` : `${lineNumber}호선 타기`
     );
-    button.setAttribute("aria-keyshortcuts", String(lineNumber));
+    button.setAttribute("aria-keyshortcuts", lineKeyLabel(lineNumber));
     const badge = document.createElement("span");
     badge.className = "subway-line-badge";
     badge.innerHTML = lineBadgeSvg(lineNumber, line.color);
@@ -779,6 +780,15 @@ function renderGateChoices(document, state, host, compass) {
     label.className = "subway-gate-line-label";
     label.textContent = best ? `⭐ ${lineNumber}호선` : `${lineNumber}호선`;
     button.append(badge, label);
+    // 1~9호선은 뱃지 숫자가 곧 눌러야 할 키라 더 말할 게 없지만, 10호선만
+    // 0을 눌러야 해서 그 역이 추천이 아닐 때 아이가 알 길이 없다.
+    const key = lineKeyLabel(lineNumber);
+    if (key !== String(lineNumber)) {
+      const hint = document.createElement("span");
+      hint.className = "subway-gate-line-key";
+      hint.textContent = key;
+      button.append(hint);
+    }
     choices.append(button);
   });
   return choices;

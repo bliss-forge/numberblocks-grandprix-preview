@@ -180,6 +180,37 @@ test("들어가는 곳을 지나가면 카드가 찍히고 호선 선택이 열�
   assert.equal(byClass(scene, "subway-room-gate")[1].dataset.tapped, "true");
 });
 
+test("눌러야 할 키가 호선 번호와 다른 10호선만 키를 따로 알려준다", () => {
+  const journey = (() => {
+    for (let seed = 0; seed < 400; seed += 1) {
+      for (const placeId of ["lake", "assembly", "zoo", "lunapark"]) {
+        const candidate = createSubwayJourney(placeId, seed);
+        if (gateLines(candidate).includes(10)) return candidate;
+      }
+    }
+    throw new Error("no start on line 10");
+  })();
+  const tapped = walkTo(journey, journey.room.inGateX);
+  const scene = renderSubwayJourney(document, tapped);
+  const buttons = byClass(scene, "subway-gate-line");
+
+  const ten = buttons.find(button => button.dataset.lineNumber === "10");
+  assert.ok(ten, "10호선 버튼이 있다");
+  assert.equal(ten.attributes.get("aria-keyshortcuts"), "0");
+  const tenKey = byClass(ten, "subway-gate-line-key");
+  assert.equal(tenKey.length, 1, "10호선은 눌러야 할 키를 보여준다");
+  assert.equal(tenKey[0].textContent, "0");
+
+  for (const button of buttons) {
+    if (button.dataset.lineNumber === "10") continue;
+    assert.equal(
+      byClass(button, "subway-gate-line-key").length,
+      0,
+      `line ${button.dataset.lineNumber}는 번호가 곧 키라 덧붙이지 않는다`
+    );
+  }
+});
+
 test("개찰구는 목적지 방향 호선을 별로 추천해 같은 실수를 반복하지 않게 한다", () => {
   const gateWithChoices = multiLineStart();
   const tapped = walkTo(gateWithChoices, gateWithChoices.room.inGateX);
