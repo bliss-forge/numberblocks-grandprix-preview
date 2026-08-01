@@ -5422,3 +5422,325 @@ body[data-mode="subway"] .toast {
     transition: none;
   }
 }
+
+/* ── 10호선 가족 노선 (보너스) ───────────────────────────────────────── */
+
+.subway-bonus-card {
+  display: flex;
+  align-items: center;
+  gap: clamp(8px, 1.6vw, 18px);
+  width: 100%;
+  margin-top: clamp(10px, 1.6vh, 18px);
+  padding: clamp(8px, 1.4vh, 14px) clamp(12px, 2vw, 22px);
+  border: 4px dashed #7fd6c8;
+  border-radius: 22px;
+  background: #effbf8;
+  box-shadow: 0 5px 0 rgba(0, 179, 164, .18);
+  cursor: pointer;
+}
+
+.subway-bonus-card:hover,
+.subway-bonus-card:focus-visible {
+  transform: translateY(-3px);
+  background: #e3f8f4;
+}
+
+.subway-bonus-card:focus-visible {
+  outline: 4px solid #31445b;
+  outline-offset: 2px;
+}
+
+.subway-bonus-faces {
+  display: flex;
+  gap: 2px;
+  flex: 0 0 auto;
+}
+
+.subway-bonus-faces svg {
+  width: clamp(26px, 3vw, 40px);
+  height: clamp(26px, 3vw, 40px);
+}
+
+.subway-bonus-copy {
+  display: grid;
+  gap: 2px;
+  text-align: left;
+  margin-inline-end: auto;
+}
+
+.subway-bonus-copy strong {
+  font-size: clamp(13px, 1.5vw, 17px);
+  color: #11705f;
+}
+
+.subway-bonus-copy small {
+  font-size: clamp(11px, 1.2vw, 14px);
+  color: #4f7f76;
+}
+
+.subway-bonus-key {
+  display: grid;
+  place-items: center;
+  min-width: 54px;
+  height: 34px;
+  border-radius: 10px;
+  background: #00b3a4;
+  color: #fff;
+  font-size: 19px;
+  font-weight: 900;
+}
+
+/* 지하철 화면과 같은 두 칸 짜임: 왼쪽은 그림, 오른쪽은 읽는 것만.
+   사람 그림은 비율을 지키며 그려지므로 지하철 방처럼 높이를 묶을 필요가 없다. */
+.family-line {
+  --family-rail: clamp(230px, 24vw, 340px);
+  display: grid;
+  grid-template-rows: minmax(0, 1fr);
+  /* #stage는 자식을 가운데로 모은다. 두 칸을 다 쓰려면 늘려 달라고 해야 한다. */
+  justify-self: stretch;
+  align-self: stretch;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  padding: 8px 12px 12px;
+}
+
+.family-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) var(--family-rail);
+  gap: 10px;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+}
+
+.family-stage {
+  position: relative;
+  display: grid;
+  align-content: end;
+  overflow: hidden;
+  border-radius: 22px;
+  background: #e8eef5;
+  border: 4px solid #fff;
+  box-shadow: 0 6px 0 rgba(37, 52, 93, .1);
+}
+
+.family-backdrop {
+  position: absolute;
+  inset: 0;
+}
+
+.family-backdrop svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.family-sign {
+  position: absolute;
+  inset-block-start: clamp(8px, 1.6vh, 16px);
+  inset-inline-start: clamp(8px, 1.6vw, 16px);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 14px 5px 6px;
+  border-radius: 999px;
+  background: #31445b;
+  color: #fff;
+  font-size: clamp(13px, 1.6vw, 19px);
+  font-weight: 800;
+}
+
+.family-sign-badge svg {
+  width: clamp(24px, 2.8vw, 34px);
+  height: clamp(24px, 2.8vw, 34px);
+  display: block;
+}
+
+.family-platform {
+  position: relative;
+  display: grid;
+  place-items: end center;
+  /* 아래 안내 띠가 발을 가리지 않게 그만큼 띄운다. */
+  padding-block-end: clamp(46px, 8vh, 72px);
+}
+
+.family-person svg {
+  width: clamp(120px, 20vw, 230px);
+  height: clamp(180px, 44vh, 330px);
+  display: block;
+}
+
+.family-doors {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.family-door {
+  position: absolute;
+  inset-block: 0;
+  width: 50%;
+  background: #cfe0ee;
+  border: 4px solid #fff;
+  transition: transform .45s ease;
+}
+
+/* 문에 난 창. 달리는 동안 여기로 터널이 흘러야 서 있는 것과 구별된다. */
+.family-door::after {
+  content: "";
+  position: absolute;
+  inset-block: 16%;
+  inset-inline: 13%;
+  border-radius: 16px;
+  background: #2b3a4d;
+  box-shadow: inset 0 0 0 5px #fff;
+}
+
+.family-stage[data-phase="travel"] .family-door::after {
+  background:
+    repeating-linear-gradient(
+      90deg,
+      transparent 0 58px,
+      rgba(255, 255, 255, .16) 58px 72px
+    ),
+    #2b3a4d;
+  animation: family-rush .55s linear infinite;
+}
+
+@keyframes family-rush {
+  to { background-position: -144px 0, 0 0; }
+}
+
+.family-door-left { inset-inline-start: 0; }
+.family-door-right { inset-inline-end: 0; }
+
+.family-doors[data-open="true"] .family-door-left { transform: translateX(-101%); }
+.family-doors[data-open="true"] .family-door-right { transform: translateX(101%); }
+.family-doors[data-open="false"] .family-door-left,
+.family-doors[data-open="false"] .family-door-right { transform: translateX(0); }
+
+.family-bubble {
+  position: absolute;
+  inset-block-end: clamp(8px, 1.6vh, 16px);
+  inset-inline: clamp(12px, 3vw, 40px);
+  padding: 8px 14px;
+  border-radius: 16px;
+  background: #2f7de1;
+  color: #fff;
+  font-size: clamp(13px, 1.6vw, 19px);
+  font-weight: 800;
+  text-align: center;
+  box-shadow: 0 4px 0 rgba(37, 52, 93, .18);
+}
+
+.family-rail {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  gap: clamp(4px, 1vh, 10px);
+  padding: clamp(8px, 1.4vh, 14px);
+  border-radius: 22px;
+  background: #fff;
+  border: 4px solid #eef4fa;
+  min-height: 0;
+}
+
+.family-board-title {
+  margin: 0;
+  font-size: clamp(13px, 1.5vw, 17px);
+  color: #31445b;
+  text-align: center;
+}
+
+.family-board {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: clamp(4px, .9vh, 9px);
+  align-content: start;
+  min-height: 0;
+  overflow: auto;
+}
+
+.family-board-cell {
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+  padding: 5px 3px;
+  border-radius: 13px;
+  border: 3px solid #eef4fa;
+  background: #fbfdff;
+}
+
+.family-board-cell[data-met="true"] {
+  border-color: #7fd6c8;
+  background: #effbf8;
+}
+
+.family-board-cell[data-here="true"] {
+  border-color: #f4c542;
+  background: #fffaea;
+}
+
+.family-board-stamp svg {
+  width: clamp(34px, 4.4vw, 52px);
+  height: clamp(34px, 4.4vw, 52px);
+  display: block;
+}
+
+.family-board-name {
+  font-size: clamp(9px, 1vw, 12px);
+  font-weight: 800;
+  color: #31445b;
+  text-align: center;
+}
+
+.family-count {
+  margin: 0;
+  text-align: center;
+  font-size: clamp(15px, 1.9vw, 22px);
+  font-weight: 900;
+  color: #11705f;
+}
+
+.family-finish {
+  width: 100%;
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: clamp(8px, 2vh, 20px);
+  height: 100%;
+  padding: clamp(10px, 2vh, 24px);
+}
+
+.family-finish-art svg {
+  width: min(100%, 900px);
+  height: clamp(140px, 30vh, 250px);
+  display: block;
+}
+
+.family-finish-words {
+  margin: 0;
+  font-size: clamp(20px, 3.4vw, 38px);
+  font-weight: 900;
+  color: #11705f;
+}
+
+@media (max-width: 640px) {
+  .family-layout {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1.25fr) minmax(0, 1fr);
+  }
+
+  .family-board {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .subway-bonus-copy small { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .family-door { transition: none; }
+  .family-stage[data-phase="travel"] .family-door::after { animation: none; }
+  .subway-bonus-card:hover,
+  .subway-bonus-card:focus-visible { transform: none; }
+}

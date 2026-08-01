@@ -1,5 +1,6 @@
 import { characterAsset } from "./character-spec.mjs";
 import {
+  FAMILY_STATIONS,
   STATION_COORDS,
   SUBWAY_LINES,
   linesAtStation,
@@ -7,6 +8,7 @@ import {
   lineKeyLabel,
   stationLabel
 } from "./subway-map-data.mjs";
+import { familyFaceSvg } from "./family-line-art.mjs";
 import {
   DIRECTION_ARROWS,
   HOP_PERIOD_MS,
@@ -171,6 +173,33 @@ export function renderSubwayPicker(document, destinations) {
     grid.append(card);
   });
   root.append(grid);
+
+  // 숫자키 열 개는 목적지가 다 쓰고 있어서 보너스는 스페이스바를 받는다.
+  // 지하철에서 이미 타고 내릴 때 쓰는 키라 아이에게 새 규칙이 아니다.
+  const bonus = document.createElement("button");
+  bonus.type = "button";
+  bonus.className = "subway-bonus-card";
+  bonus.dataset.bonus = "family";
+  bonus.setAttribute("aria-label", "가족 노선 보너스 — 스페이스바");
+  bonus.setAttribute("aria-keyshortcuts", "Space");
+  const bonusFaces = document.createElement("span");
+  bonusFaces.className = "subway-bonus-faces";
+  bonusFaces.innerHTML = FAMILY_STATIONS
+    .map(member => familyFaceSvg(member.id))
+    .join("");
+  bonusFaces.setAttribute("aria-hidden", "true");
+  const bonusCopy = document.createElement("span");
+  bonusCopy.className = "subway-bonus-copy";
+  const bonusTitle = document.createElement("strong");
+  bonusTitle.textContent = "10호선 가족 노선";
+  const bonusNote = document.createElement("small");
+  bonusNote.textContent = "일곱 명을 다 만나요";
+  bonusCopy.append(bonusTitle, bonusNote);
+  const bonusKey = document.createElement("span");
+  bonusKey.className = "subway-bonus-key";
+  bonusKey.textContent = "⎵";
+  bonus.append(bonusFaces, bonusCopy, bonusKey);
+  root.append(bonus);
   return root;
 }
 

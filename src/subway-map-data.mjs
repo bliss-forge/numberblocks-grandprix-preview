@@ -1,3 +1,27 @@
+// 도하네 가족. 10호선은 이 사람들이 사는 곳만 이어 놓은 보너스 노선이라
+// 순서가 곧 노선 순서이고, 도하는 가운데에 있습니다.
+export const FAMILY_STATIONS = Object.freeze([
+  Object.freeze({ id: "mom", station: "엄마", label: "엄마", greeting: "엄마를 만났어요!" }),
+  Object.freeze({ id: "dad", station: "아빠", label: "아빠", greeting: "아빠를 만났어요!" }),
+  Object.freeze({
+    id: "goyang-grandpa", station: "고양 할아버지", label: "고양 할아버지",
+    greeting: "고양 할아버지를 만났어요!"
+  }),
+  Object.freeze({
+    id: "goyang-grandma", station: "고양 할머니", label: "고양 할머니",
+    greeting: "고양 할머니를 만났어요!"
+  }),
+  Object.freeze({ id: "doha", station: "도하", label: "도하", greeting: "도하네 집이에요!" }),
+  Object.freeze({
+    id: "gimhae-grandpa", station: "김해 할아버지", label: "김해 할아버지",
+    greeting: "김해 할아버지를 만났어요!"
+  }),
+  Object.freeze({
+    id: "gimhae-grandma", station: "김해 할머니", label: "김해 할머니",
+    greeting: "김해 할머니를 만났어요!"
+  })
+]);
+
 export const SUBWAY_LINES = Object.freeze([
   Object.freeze({
     number: 1,
@@ -80,16 +104,15 @@ export const SUBWAY_LINES = Object.freeze([
       "동작", "고속터미널", "봉은사", "종합운동장"
     ])
   }),
-  // 서울에는 없는 노선입니다. 도하가 좋아해서 이 게임에만 놓았고, 재미있는
-  // 곳들을 한 줄로 꿰어 갈아타지 않고도 다섯 군데에 닿습니다.
+  // 서울에는 없는 노선입니다. 도하네 가족이 사는 곳을 한 줄로 이어 놓은
+  // 보너스 노선이라 진짜 지하철과 만나는 데가 없고, 목적지를 고르는 화면에서
+  // 스페이스바로만 들어갑니다.
   Object.freeze({
     number: 10,
     color: "#00B3A4",
     loop: false,
-    stations: Object.freeze([
-      "월드컵경기장", "홍대입구", "경복궁", "명동", "도하",
-      "약수", "왕십리", "어린이대공원", "잠실"
-    ])
+    family: true,
+    stations: Object.freeze(FAMILY_STATIONS.map(member => member.station))
   })
 ]);
 
@@ -174,7 +197,15 @@ export const STATION_COORDS = Object.freeze({
   국회의사당: Object.freeze({ x: 24, y: 60 }),
   노량진: Object.freeze({ x: 34, y: 63 }),
   봉은사: Object.freeze({ x: 68, y: 56 }),
-  도하: Object.freeze({ x: 52, y: 47 })
+  // 가족 노선은 진짜 노선과 만나는 데가 없어서 도시 아래 빈 자리에 한 줄로
+  // 눕혀 둡니다. 여정 지도는 다니는 구간만 잘라 보여 주므로 서로 안 겹칩니다.
+  엄마: Object.freeze({ x: 18, y: 95 }),
+  아빠: Object.freeze({ x: 29, y: 95 }),
+  "고양 할아버지": Object.freeze({ x: 39, y: 95 }),
+  "고양 할머니": Object.freeze({ x: 50, y: 95 }),
+  도하: Object.freeze({ x: 61, y: 95 }),
+  "김해 할아버지": Object.freeze({ x: 71, y: 95 }),
+  "김해 할머니": Object.freeze({ x: 82, y: 95 })
 });
 
 export const SUBWAY_PLACES = Object.freeze([

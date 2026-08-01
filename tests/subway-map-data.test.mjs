@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
+  FAMILY_STATIONS,
   STATION_COORDS,
   SUBWAY_LINES,
   SUBWAY_PLACES,
@@ -30,25 +31,45 @@ test("서울 지하철 1~9호선이 실제 노선 색으로 준비된다", () =>
   assert.equal(lineByNumber(2).loop, true, "2호선은 순환선");
 });
 
-test("10호선은 도하역을 지나 재미있는 곳들을 한 줄로 잇는다", () => {
+test("10호선은 도하네 가족만 사는 보너스 노선이다", () => {
   const ten = lineByNumber(10);
   assert.ok(ten, "10호선이 있다");
-  assert.ok(ten.stations.includes("도하"), "도하역이 있다");
+  assert.equal(ten.family, true, "가족 노선으로 표시된다");
   assert.deepEqual(
-    linesAtStation("도하").map(line => line.number),
-    [10],
-    "도하역은 10호선에만 있어 갈아탈 일이 없다"
+    ten.stations,
+    ["엄마", "아빠", "고양 할아버지", "고양 할머니", "도하", "김해 할아버지", "김해 할머니"]
   );
-  assert.equal(isTransferStation("도하"), false);
+  assert.equal(ten.stations[3 + 1], "도하", "도하는 한가운데");
+  assert.equal(ten.stations.length, FAMILY_STATIONS.length);
 
-  const straightTo = SUBWAY_PLACES
-    .filter(place => ten.stations.includes(place.station))
-    .map(place => place.label);
-  assert.deepEqual(
-    straightTo,
-    ["놀이공원", "경복궁", "남산타워", "하늘공원", "어린이대공원"],
-    "갈아타지 않고 닿는 다섯 곳"
+  for (const member of FAMILY_STATIONS) {
+    assert.deepEqual(
+      linesAtStation(member.station).map(line => line.number),
+      [10],
+      `${member.label}역은 가족 노선에만 있다`
+    );
+    assert.equal(isTransferStation(member.station), false, member.label);
+    assert.ok(STATION_COORDS[member.station], `${member.label} 좌표`);
+    assert.ok(member.greeting.length > 0, `${member.label} 인사말`);
+  }
+  assert.equal(
+    new Set(FAMILY_STATIONS.map(member => member.id)).size,
+    FAMILY_STATIONS.length,
+    "가족 id는 겹치지 않는다"
   );
+});
+
+test("가족 노선은 진짜 지하철과 만나는 데가 없다", () => {
+  const family = new Set(FAMILY_STATIONS.map(member => member.station));
+  for (const line of SUBWAY_LINES) {
+    if (line.number === 10) continue;
+    for (const station of line.stations) {
+      assert.equal(family.has(station), false, `${station}은 가족역이 아니다`);
+    }
+  }
+  for (const place of SUBWAY_PLACES) {
+    assert.equal(family.has(place.station), false, `${place.label}은 가족역이 아니다`);
+  }
 });
 
 test("10호선은 숫자키 0으로 부른다", () => {
@@ -89,7 +110,7 @@ test("주요 환승역은 여러 노선이 공유한다", () => {
     ["종로3가", [1, 3, 5]],
     ["동대문역사문화공원", [2, 4, 5]],
     ["고속터미널", [3, 7, 9]],
-    ["잠실", [2, 8, 10]],
+    ["잠실", [2, 8]],
     ["김포공항", [5, 9]],
     ["사당", [2, 4]]
   ]) {
