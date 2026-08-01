@@ -1,3 +1,124 @@
 /* Portrait-phone presentation for home and games 1–5 only. */
 @media (max-width: 640px) {
+  body[data-state="home"] {
+    min-height: 100vh;
+    min-height: 100dvh;
+    overflow-x: clip;
+    overflow-y: auto;
+  }
+
+  body[data-state="home"] #home {
+    position: absolute;
+    height: auto;
+    min-height: 100vh;
+    min-height: 100dvh;
+    align-content: start;
+    gap: 14px;
+    padding: max(64px, env(safe-area-inset-top)) 12px
+      max(52px, env(safe-area-inset-bottom));
+    overflow-x: clip;
+    overflow-y: auto;
+  }
+
+  body[data-state="home"] .home-heading {
+    width: 100%;
+  }
+
+  body[data-state="home"] .eyebrow {
+    padding: 5px 12px;
+    font-size: 12px;
+  }
+
+  body[data-state="home"] .logo {
+    margin-top: 4px;
+    font-size: clamp(38px, 12vw, 52px);
+  }
+
+  body[data-state="home"] .lead {
+    margin-top: 8px;
+    font-size: clamp(13px, 3.8vw, 16px);
+    line-height: 1.5;
+  }
+
+  body[data-state="home"] .difficulty-picker {
+    width: 100%;
+    gap: 4px;
+    padding: 4px;
+    border-width: 3px;
+  }
+
+  body[data-state="home"] .difficulty-label {
+    display: none;
+  }
+
+  body[data-state="home"] .difficulty-button {
+    flex: 1;
+    min-width: 0;
+    min-height: 46px;
+    padding: 6px 3px;
+    font-size: 13px;
+  }
+
+  body[data-state="home"] .mode-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+    width: 100%;
+  }
+
+  body[data-state="home"] .mode-card {
+    min-width: 0;
+    min-height: clamp(190px, 54vw, 230px);
+    padding: 10px 8px 12px;
+    border-width: 4px;
+    border-radius: 24px;
+    transform: none;
+  }
+
+  body[data-state="home"] .mode-card img {
+    width: min(82%, 132px);
+    height: clamp(108px, 31vw, 138px);
+  }
+
+  body[data-state="home"] .mode-card:nth-child(5) {
+    grid-column: 1 / -1;
+    grid-template-columns: minmax(100px, .8fr) minmax(0, 1.2fr);
+    grid-template-rows: 1fr;
+    min-height: 170px;
+    padding-inline: 30px;
+  }
+
+  body[data-state="home"] .mode-card:nth-child(5) img {
+    align-self: center;
+    height: 138px;
+  }
+
+  body[data-state="home"] .mode-card:nth-child(5) .card-copy {
+    align-self: center;
+  }
+
+  body[data-state="home"] .card-number {
+    left: 9px;
+    top: 9px;
+    width: 42px;
+    height: 42px;
+    border-width: 3px;
+    border-radius: 12px;
+    font-size: 23px;
+  }
+
+  body[data-state="home"] .card-copy strong {
+    font-size: clamp(14px, 4vw, 17px);
+    line-height: 1.25;
+  }
+
+  body[data-state="home"] .card-copy small {
+    font-size: clamp(10px, 2.9vw, 12px);
+    line-height: 1.35;
+  }
+
+  body[data-state="home"] .keyboard-note {
+    margin: 0;
+    padding: 7px 11px;
+    font-size: 11px;
+  }
 }
