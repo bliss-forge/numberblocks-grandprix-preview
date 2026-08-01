@@ -258,6 +258,63 @@ export function familyStampSvg(id, met) {
   ].join(""));
 }
 
+// 열차 문 너머로 보이는 승강장. 지하철 승강장 그림은 한가운데가 열차 들어오는
+// 터널이라 사람이 시커먼 데 서 있는 꼴이 되어 그대로 못 쓰고, 그 안쪽 조각들은
+// 내보내지 않아서 이 노선 몫으로 따로 그린다.
+const WALL = "#e8eef5";
+const WALL_LINE = "#d3dde8";
+const FLOOR = "#e2d9c8";
+const FLOOR_DARK = "#cfc3ad";
+const TACTILE = "#f2c14e";
+const STEEL = "#9fb0c2";
+const BENCH = "#c89a63";
+const BENCH_DARK = "#a97f4d";
+const LAMP = "#fdf3d0";
+
+export function familyPlatformSvg(lineColour, name) {
+  const lights = Array.from({ length: 5 }, (unused, index) =>
+    `<rect x="${90 + index * 200}" y="26" width="120" height="16" rx="8" ` +
+    `fill="${LAMP}"/>`
+  ).join("");
+  const tiles = Array.from({ length: 9 }, (unused, index) =>
+    `<line x1="0" y1="${70 + index * 30}" x2="1000" y2="${70 + index * 30}" ` +
+    `stroke="${WALL_LINE}" stroke-width="3"/>`
+  ).join("");
+  const dots = Array.from({ length: 12 }, (unused, index) =>
+    `<rect x="${index * 84 + 20}" y="386" width="46" height="8" rx="4" ` +
+    `fill="#fff" opacity=".45"/>`
+  ).join("");
+  return [
+    `<svg class="family-platform-art" viewBox="0 0 1000 500" `,
+    `preserveAspectRatio="xMidYMax slice" aria-hidden="true" `,
+    `xmlns="http://www.w3.org/2000/svg">`,
+    `<rect width="1000" height="500" fill="${WALL}"/>`,
+    lights,
+    tiles,
+    // 역 이름판 — 이 노선 색으로 밑줄을 긋는다
+    `<rect x="330" y="96" width="340" height="104" rx="16" fill="#fff" `,
+    `stroke="#31445b" stroke-width="6"/>`,
+    `<text x="500" y="156" text-anchor="middle" font-size="46" `,
+    `font-weight="900" fill="#31445b">${name}</text>`,
+    `<rect x="392" y="168" width="216" height="14" rx="7" fill="${lineColour}"/>`,
+    // 기다리는 의자
+    `<rect x="52" y="286" width="176" height="18" rx="9" fill="${BENCH}"/>`,
+    `<rect x="62" y="294" width="14" height="58" fill="${BENCH_DARK}"/>`,
+    `<rect x="204" y="294" width="14" height="58" fill="${BENCH_DARK}"/>`,
+    `<rect x="828" y="286" width="120" height="18" rx="9" fill="${BENCH}"/>`,
+    `<rect x="836" y="294" width="14" height="58" fill="${BENCH_DARK}"/>`,
+    `<rect x="926" y="294" width="14" height="58" fill="${BENCH_DARK}"/>`,
+    // 바닥과 노란 안전선
+    `<rect x="0" y="352" width="1000" height="18" fill="${STEEL}"/>`,
+    `<rect x="0" y="370" width="1000" height="130" fill="${FLOOR}"/>`,
+    `<rect x="0" y="418" width="1000" height="6" fill="${FLOOR_DARK}" `,
+    `opacity=".5"/>`,
+    `<rect x="0" y="382" width="1000" height="16" rx="8" fill="${TACTILE}"/>`,
+    dots,
+    `</svg>`
+  ].join("");
+}
+
 // 다 만나면 일곱이 한 줄로 서서 손을 흔든다.
 export function familyReunionSvg() {
   const order = ["mom", "dad", "goyang-grandpa", "doha", "goyang-grandma",

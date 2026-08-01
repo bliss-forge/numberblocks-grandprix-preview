@@ -12,6 +12,7 @@ import {
 } from "./family-line.mjs";
 import {
   familyPersonSvg,
+  familyPlatformSvg,
   familyReunionSvg,
   familyStampSvg
 } from "./family-line-art.mjs";
@@ -30,13 +31,20 @@ function renderStage(document, ride) {
   stage.dataset.phase = ride.phase;
   stage.style.setProperty("--line-color", ride.color);
 
+  const member = familyStation(ride);
+  // 승강장 그림이 맨 뒤. 그 위에 안내와 사람이 얹힌다.
+  const backdrop = el(document, "div", "family-backdrop");
+  backdrop.innerHTML = familyPlatformSvg(ride.color, stationLabel(member.station));
+  backdrop.setAttribute("aria-hidden", "true");
+  stage.append(backdrop);
+
   const sign = el(document, "div", "family-sign");
   const badge = el(document, "span", "family-sign-badge");
   badge.innerHTML = lineBadgeSvg(ride.line, ride.color);
   badge.setAttribute("aria-hidden", "true");
-  const member = familyStation(ride);
+  // 역 이름은 뒤쪽 이름판이 크게 들고 있으니 여기서는 몇 호선인지만 말한다.
   sign.append(badge, el(document, "span", "family-sign-name",
-    stationLabel(member.station)));
+    `${ride.line}호선 가족 노선`));
   stage.append(sign);
 
   const platform = el(document, "div", "family-platform");

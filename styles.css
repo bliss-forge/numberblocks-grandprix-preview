@@ -5520,9 +5520,20 @@ body[data-mode="subway"] .toast {
   align-content: end;
   overflow: hidden;
   border-radius: 22px;
-  background: linear-gradient(#eaf4fb 0 62%, #dfe8f1 62% 100%);
+  background: #e8eef5;
   border: 4px solid #fff;
   box-shadow: 0 6px 0 rgba(37, 52, 93, .1);
+}
+
+.family-backdrop {
+  position: absolute;
+  inset: 0;
+}
+
+.family-backdrop svg {
+  width: 100%;
+  height: 100%;
+  display: block;
 }
 
 .family-sign {
@@ -5547,6 +5558,7 @@ body[data-mode="subway"] .toast {
 }
 
 .family-platform {
+  position: relative;
   display: grid;
   place-items: end center;
   /* 아래 안내 띠가 발을 가리지 않게 그만큼 띄운다. */
@@ -5572,6 +5584,32 @@ body[data-mode="subway"] .toast {
   background: #cfe0ee;
   border: 4px solid #fff;
   transition: transform .45s ease;
+}
+
+/* 문에 난 창. 달리는 동안 여기로 터널이 흘러야 서 있는 것과 구별된다. */
+.family-door::after {
+  content: "";
+  position: absolute;
+  inset-block: 16%;
+  inset-inline: 13%;
+  border-radius: 16px;
+  background: #2b3a4d;
+  box-shadow: inset 0 0 0 5px #fff;
+}
+
+.family-stage[data-phase="travel"] .family-door::after {
+  background:
+    repeating-linear-gradient(
+      90deg,
+      transparent 0 58px,
+      rgba(255, 255, 255, .16) 58px 72px
+    ),
+    #2b3a4d;
+  animation: family-rush .55s linear infinite;
+}
+
+@keyframes family-rush {
+  to { background-position: -144px 0, 0 0; }
 }
 
 .family-door-left { inset-inline-start: 0; }
@@ -5702,6 +5740,7 @@ body[data-mode="subway"] .toast {
 
 @media (prefers-reduced-motion: reduce) {
   .family-door { transition: none; }
+  .family-stage[data-phase="travel"] .family-door::after { animation: none; }
   .subway-bonus-card:hover,
   .subway-bonus-card:focus-visible { transform: none; }
 }
