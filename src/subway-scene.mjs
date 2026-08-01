@@ -8,11 +8,14 @@ import {
   lineKeyLabel,
   stationLabel
 } from "./subway-map-data.mjs";
+import { familyPersonSvg, familyStampSvg } from "./family-line-art.mjs";
 import { familyFaceSvg } from "./family-line-art.mjs";
 import {
   DIRECTION_ARROWS,
   HOP_PERIOD_MS,
+  familyBoard,
   gateLines,
+  isFamilyJourney,
   lineNeighbors,
   subwayAnnouncement,
   subwayCompass
@@ -28,6 +31,13 @@ import {
   stationSceneSvg
 } from "./subway-station-art.mjs";
 import { arrivedSceneSvg } from "./subway-arrived-art.mjs";
+import {
+  PHOTO_COLS,
+  PHOTO_ROWS,
+  albumBoard,
+  onSubject,
+  photoHint
+} from "./photo-hunt.mjs";
 import {
   corridorDoorSvg,
   footprintSvg,
@@ -939,21 +949,73 @@ function renderArrivingPhase(document, state, stage) {
   return room;
 }
 
+function photoFrame(document, photo) {
+  const frame = document.createElement("div");
+  frame.className = "subway-photo-frame";
+  frame.dataset.ready = String(onSubject(photo));
+  frame.dataset.taken = String(photo.taken);
+  frame.style.setProperty("--photo-cols", String(PHOTO_COLS));
+  frame.style.setProperty("--photo-rows", String(PHOTO_ROWS));
+  frame.style.setProperty("--photo-col", String(photo.col));
+  frame.style.setProperty("--photo-row", String(photo.row));
+  return frame;
+}
+
 function renderArrivedPhase(document, state, stage) {
   const ending = document.createElement("div");
   ending.className = "subway-arrived";
 
   // The destination itself is the celebration: a painted scene the hero and
   // friends stand inside, instead of a lone emoji on an empty field.
-  const painted = arrivedSceneSvg(state.place.id);
+  // 가족역에는 그린 도착지 그림이 없다. 대신 마중 나온 가족이 서 있다.
+  const member = state.place.family;
+  const painted = member
+    ? familyPersonSvg(member.id)
+    : arrivedSceneSvg(state.place.id);
   ending.dataset.painted = String(Boolean(painted));
+  ending.dataset.family = String(Boolean(member));
   if (painted) {
     const art = document.createElement("div");
     art.className = "subway-arrived-scene";
     art.setAttribute("role", "img");
-    art.setAttribute("aria-label", `${state.place.label}에 도착한 모습`);
+    art.setAttribute(
+      "aria-label",
+      member ? `${member.label}를 만났어요` : `${state.place.label}에 도착한 모습`
+    );
     art.innerHTML = painted;
     ending.append(art);
+    // 사진 프레임은 그림 위에서 움직여야 하니 그림 상자 안에 넣는다. 바깥에
+    // 두면 축하 문구·사진첩까지 포함한 전체 상자를 기준으로 잡혀 어긋난다.
+    if (state.photo) art.append(photoFrame(document, state.photo));
+  }
+
+  // 사진 찍기: 그림 위에 프레임을 얹고, 밑에 지금까지 모은 사진첩을 깐다.
+  if (state.photo) {
+    ending.dataset.photo = String(!state.photo.taken);
+    const say = document.createElement("p");
+    say.className = "subway-photo-say";
+    say.textContent = photoHint(state.photo);
+    say.setAttribute("role", "status");
+    ending.append(say);
+
+    const album = document.createElement("div");
+    album.className = "subway-photo-album";
+    album.setAttribute("aria-label", "사진첩");
+    for (const entry of albumBoard(state.album ?? [])) {
+      const slot = document.createElement("span");
+      slot.className = "subway-photo-slot";
+      slot.dataset.taken = String(entry.taken);
+      slot.dataset.fresh = String(
+        entry.id === state.place.id && state.photo.taken
+      );
+      slot.innerHTML = entry.taken ? placeBadgeSvg(entry.id) : "";
+      slot.setAttribute(
+        "aria-label",
+        `${entry.label} ${entry.taken ? "찍었어요" : "아직이에요"}`
+      );
+      album.append(slot);
+    }
+    ending.append(album);
   }
 
   const hearts = document.createElement("span");
@@ -1003,11 +1065,17 @@ function renderRoomPhase(document, state, stage) {
   const rail = document.createElement("div");
   rail.className = "subway-rail";
 
-  const minimap = document.createElement("div");
-  minimap.className = "subway-minimap-box";
-  minimap.dataset.guide = String(Boolean(state.showRecommended));
-  minimap.innerHTML = minimapSvg(state, rideBounds(state), compass);
-  rail.append(minimap);
+  // 가족 노선은 한 줄짜리라 노선도를 볼 일이 없다. 그 자리에 누구를 만났는지
+  // 보여 주는 도장판이 들어간다.
+  if (isFamilyJourney(state)) {
+    rail.append(renderFamilyStamps(document, state));
+  } else {
+    const minimap = document.createElement("div");
+    minimap.className = "subway-minimap-box";
+    minimap.dataset.guide = String(Boolean(state.showRecommended));
+    minimap.innerHTML = minimapSvg(state, rideBounds(state), compass);
+    rail.append(minimap);
+  }
 
   const hud = document.createElement("div");
   hud.className = "subway-hud";
@@ -1077,7 +1145,12 @@ function structuralKey(state) {
     room?.people.map(person => `${person.x}${person.stepped ? "s" : ""}`).join(","),
     state.passengers.length,
     state.showRecommended,
-    state.platform?.stage ?? "-"
+    state.platform?.stage ?? "-",
+    // 도착 화면은 phase가 이미 arrived라 사진 상태가 바뀌어도 키가 그대로다.
+    // 프레임이 움직이려면 여기에 들어와 있어야 한다.
+    state.photo
+      ? `photo:${state.photo.col},${state.photo.row},${state.photo.taken}`
+      : "-"
   ].join("|");
 }
 
@@ -1100,6 +1173,41 @@ function patchPlayer(view, state) {
     String(onStairs ? room.walkX - room.stairsFrom + 1 : 0)
   );
   player.dataset.facing = room.facing;
+}
+
+function renderFamilyStamps(document, state) {
+  const box = document.createElement("div");
+  box.className = "subway-family-box";
+  const title = document.createElement("h3");
+  title.className = "subway-family-title";
+  const board = familyBoard(state);
+  const met = board.filter(entry => entry.met).length;
+  title.textContent = `가족 도장  ${met} / ${board.length}`;
+  box.append(title);
+
+  const grid = document.createElement("div");
+  grid.className = "subway-family-grid";
+  for (const entry of board) {
+    const cell = document.createElement("div");
+    cell.className = "subway-family-cell";
+    cell.dataset.met = String(entry.met);
+    cell.dataset.here = String(entry.here);
+    const face = document.createElement("span");
+    face.className = "subway-family-face";
+    face.innerHTML = familyStampSvg(entry.id, entry.met);
+    face.setAttribute("aria-hidden", "true");
+    const name = document.createElement("span");
+    name.className = "subway-family-name";
+    name.textContent = entry.label;
+    cell.append(face, name);
+    cell.setAttribute(
+      "aria-label",
+      `${entry.label} ${entry.met ? "만났어요" : "아직이에요"}`
+    );
+    grid.append(cell);
+  }
+  box.append(grid);
+  return box;
 }
 
 export function renderSubwayJourney(document, state) {
