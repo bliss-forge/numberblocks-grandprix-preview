@@ -13,6 +13,66 @@ const NOISE_WORDS = [
   "환승", "역명", "음성", "녹음", "mp3", "MP3", "final", "copy"
 ];
 
+// Announcement packs ship several recordings per station. These mark the ones
+// that are not "이번 역은 OO역입니다": departure announcements name the train's
+// destination rather than the station you are standing in, and the foreign
+// language takes are not what a Korean-speaking child needs.
+const FOREIGN_MARKS = ["영문", "중문", "일문", "English", "제니퍼", "클라이드"];
+const DEPARTURE_MARK = "출발";
+
+export function describeAnnouncement(fileName) {
+  const name = String(fileName);
+  const kind = name.includes("도착") ? "도착"
+    : name.includes("환승") ? "환승"
+    : name.includes("종착") ? "종착"
+    : "기본";
+  const foreign = FOREIGN_MARKS.some(mark => name.includes(mark));
+  const departure = name.includes(DEPARTURE_MARK);
+  return { kind, foreign, departure, usable: !foreign && !departure };
+}
+
+// Pulls the station out of the slot it occupies in the packs people download:
+//   5호선__공덕 환승상_한글_왼쪽 · 1호선__동묘앞_환승 · 시청_내선 · 경복궁
+//   1. 장암~온수, 부평구청__17. 어린이대공원, 세종대 - 국문 (강희선)
+// Folders a file sat in are flattened onto the front with "__", so everything
+// up to the last one is where the file came from, and everything after the
+// station name describes the recording rather than the place.
+export function stationToken(fileName) {
+  let text = String(fileName).replace(/\.[A-Za-z0-9]+$/, "");
+  text = text.replace(/[([{（【][^)\]}）】]*[)\]}）】]/g, " ");
+  text = text.replace(/^.*__/, "");
+  text = text.replace(/^\s*\d+\s*[.)]\s*/, "");
+  text = text.replace(/\s+-\s+.*$/, "");
+  const head = text.trim().split(/[_\s]/)[0] ?? "";
+  return head.split(/[,、]/)[0].trim();
+}
+
+// 서울역 is spelled 서울 in most packs, so a station already ending in 역 also
+// answers to its bare form — the mirror of 강남 also answering to 강남역.
+function nameVariants(station) {
+  return station.endsWith("역")
+    ? [station, station.slice(0, -1)]
+    : [station, `${station}역`];
+}
+
+const isHangul = character => character !== undefined && /[가-힣]/.test(character);
+
+// 시청 must not swallow 부천시청, and 잠실 must not swallow 잠실나루: a station
+// only counts when no extra Hangul is glued to either end of it.
+function containsStation(compact, station) {
+  for (let from = 0; ; from += 1) {
+    const at = compact.indexOf(station, from);
+    if (at < 0) return false;
+    const before = compact[at - 1];
+    const afterIndex = at + station.length;
+    const after = compact[afterIndex] === "역"
+      ? compact[afterIndex + 1]
+      : compact[afterIndex];
+    if (!isHangul(before) && !isHangul(after)) return true;
+    from = at;
+  }
+}
+
 export function normalizeCandidate(fileName) {
   let text = String(fileName).replace(/\.[A-Za-z0-9]+$/, "");
   // strip bracketed asides: (2호선) [1] （상선）
@@ -33,21 +93,27 @@ function byLengthDesc(stations) {
 
 export function matchStation(fileName, stations) {
   const ordered = byLengthDesc(stations);
+  const spelled = station => nameVariants(station);
+
+  const token = stationToken(fileName);
+  const tokenHit = token
+    ? ordered.find(station => spelled(station).includes(token))
+    : null;
+  if (tokenHit) return { station: tokenHit, reason: "exact" };
+
   const candidate = normalizeCandidate(fileName);
   if (!candidate) return { station: null, reason: "empty" };
 
-  const exact = ordered.find(
-    station => candidate === station || candidate === `${station}역`
-  );
+  const exact = ordered.find(station => spelled(station).includes(candidate));
   if (exact) return { station: exact, reason: "exact" };
 
   const compact = candidate.replace(/\s+/g, "");
-  const compactHit = ordered.find(
-    station => compact === station || compact === `${station}역`
-  );
+  const compactHit = ordered.find(station => spelled(station).includes(compact));
   if (compactHit) return { station: compactHit, reason: "exact" };
 
-  const contained = ordered.filter(station => compact.includes(station));
+  const contained = ordered.filter(
+    station => spelled(station).some(name => containsStation(compact, name))
+  );
   if (contained.length === 1) {
     return { station: contained[0], reason: "contains" };
   }
@@ -60,17 +126,28 @@ export function matchStation(fileName, stations) {
 
 // Builds the whole move plan: what lands where, what collides, what is left
 // over, and which stations still have no sound at all.
-export function planImport(fileNames, stations, existing = []) {
+export function planImport(fileNames, stations, existing = [], options = {}) {
   const have = new Set(existing);
+  const durations = options.durations ?? {};
   const moves = [];
   const conflicts = [];
   const unmatched = [];
+  const skipped = [];
 
-  // Rank so the cleanest name wins a station: an exact hit beats a substring
-  // hit, and among equals the file carrying the least extra wording wins.
+  // Rank so the best recording wins a station: an exact hit beats a substring
+  // hit, a mid-route arrival beats a "종착역입니다" take, a shorter clip beats a
+  // long one, and among equals the file carrying the least extra wording wins.
   const RANK = { exact: 0, contains: 1, "contains-ambiguous": 2 };
   const scored = [];
   for (const fileName of fileNames) {
+    const announcement = describeAnnouncement(fileName);
+    if (!announcement.usable) {
+      skipped.push({
+        fileName,
+        reason: announcement.departure ? "departure" : "foreign"
+      });
+      continue;
+    }
     const { station, reason, also } = matchStation(fileName, stations);
     if (!station) {
       unmatched.push({ fileName, reason });
@@ -84,7 +161,10 @@ export function planImport(fileNames, stations, existing = []) {
       station,
       reason,
       also: also ?? [],
+      kind: announcement.kind,
+      seconds: durations[fileName] ?? null,
       rank: RANK[reason] ?? 9,
+      terminal: announcement.kind === "종착" ? 1 : 0,
       noise: Math.min(
         Math.abs(candidate.length - station.length),
         Math.abs(candidate.length - station.length - 1)
@@ -93,6 +173,8 @@ export function planImport(fileNames, stations, existing = []) {
   }
   scored.sort((a, b) =>
     a.rank - b.rank ||
+    a.terminal - b.terminal ||
+    (a.seconds ?? Infinity) - (b.seconds ?? Infinity) ||
     a.noise - b.noise ||
     a.fileName.length - b.fileName.length ||
     a.fileName.localeCompare(b.fileName, "ko"));
@@ -113,6 +195,8 @@ export function planImport(fileNames, stations, existing = []) {
       station: entry.station,
       target: `${entry.station}.mp3`,
       reason: entry.reason,
+      kind: entry.kind,
+      seconds: entry.seconds,
       also: entry.also,
       overwrites: have.has(entry.station)
     });
@@ -123,5 +207,5 @@ export function planImport(fileNames, stations, existing = []) {
     .filter(station => !claimed.has(station) && !have.has(station))
     .sort((a, b) => a.localeCompare(b, "ko"));
 
-  return { moves, conflicts, unmatched, missing };
+  return { moves, conflicts, unmatched, skipped, missing };
 }
