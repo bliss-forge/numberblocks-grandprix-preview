@@ -1,9 +1,11 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
+  describeAnnouncement,
   matchStation,
   normalizeCandidate,
-  planImport
+  planImport,
+  stationToken
 } from "../src/station-sound-import.mjs";
 import { SUBWAY_LINES } from "../src/subway-map-data.mjs";
 
@@ -79,4 +81,95 @@ test("이미 있는 파일을 덮어쓰게 되면 미리 표시한다", () => {
 test("normalizeCandidate는 번호·괄호·잡음 단어를 걷어낸다", () => {
   assert.equal(normalizeCandidate("07_강남역(2호선) 안내방송.mp3"), "강남역");
   assert.equal(normalizeCandidate("강남.mp3"), "강남");
+});
+
+test("배포용 안내방송 묶음의 여러 이름 모양에서 역 이름 자리를 집어낸다", () => {
+  const cases = [
+    ["5호선__공덕 환승상_한글_왼쪽.mp3", "공덕"],
+    ["8호선__석촌 도착상_한글_오른쪽.mp3", "석촌"],
+    ["1호선__동묘앞_환승.mp3", "동묘앞"],
+    ["시청_내선.mp3", "시청"],
+    ["충무로_하행.mp3", "충무로"],
+    ["경복궁.mp3", "경복궁"],
+    ["1. 장암~온수, 부평구청__17. 어린이대공원, 세종대 - 국문 (강희선).mp3", "어린이대공원"],
+    ["1. 장암~온수, 부평구청__4. 노원 - 영문 (제니퍼).mp3", "노원"],
+    ["1호선_안내방송.zip__1호선__동묘앞_환승.mp3", "동묘앞"],
+    ["2호선_안내방송.zip__교대.mp3", "교대"]
+  ];
+  for (const [fileName, expected] of cases) {
+    assert.equal(stationToken(fileName), expected, fileName);
+  }
+});
+
+test("역 이름에 다른 글자가 붙은 파일은 그 역으로 보지 않는다", () => {
+  const stations = ["시청", "왕십리", "잠실", "종합운동장"];
+  const wrong = [
+    "1. 장암~온수, 부평구청__46. 부천시청 - 국문 (강희선).mp3",
+    "상왕십리.mp3",
+    "잠실나루.mp3",
+    "잠실새내.mp3",
+    "1. 장암~온수, 부평구청__43. 부천종합운동장 - 국문 (강희선).mp3"
+  ];
+  for (const fileName of wrong) {
+    assert.equal(matchStation(fileName, stations).station, null, fileName);
+  }
+});
+
+test("이름이 역으로 끝나는 역은 역을 뺀 파일명과도 이어진다", () => {
+  const stations = ["서울역", "시청"];
+  assert.equal(matchStation("서울.mp3", stations).station, "서울역");
+  assert.equal(matchStation("1호선__서울_환승.mp3", stations).station, "서울역");
+  assert.equal(matchStation("서울역.mp3", stations).station, "서울역");
+});
+
+test("출발 안내와 외국어 안내는 도착 음성 후보에서 뺀다", () => {
+  const departure = describeAnnouncement("5호선__방화 출발 왕십리,성동구청행.mp3");
+  assert.equal(departure.departure, true);
+  assert.equal(departure.usable, false);
+
+  const foreign = describeAnnouncement("1. 장암~온수, 부평구청__4. 노원 - 영문 (제니퍼).mp3");
+  assert.equal(foreign.foreign, true);
+  assert.equal(foreign.usable, false);
+
+  const arrival = describeAnnouncement("8호선__석촌 도착상_한글_오른쪽.mp3");
+  assert.deepEqual(
+    [arrival.kind, arrival.departure, arrival.foreign, arrival.usable],
+    ["도착", false, false, true]
+  );
+  assert.equal(describeAnnouncement("1호선__동묘앞_환승.mp3").kind, "환승");
+  assert.equal(describeAnnouncement("사당_종착.mp3").kind, "종착");
+});
+
+test("정리 계획은 출발·외국어 파일을 옮기지 않고 따로 세어 둔다", () => {
+  const plan = planImport(
+    [
+      "8호선__석촌 도착상_한글_오른쪽.mp3",
+      "8호선__석촌 도착상_영문_오른쪽.mp3",
+      "5호선__마천, 상일동 출발 여의도행.mp3"
+    ],
+    ["석촌", "여의도"]
+  );
+  assert.deepEqual(
+    plan.moves.map(move => move.target),
+    ["석촌.mp3"],
+    "한글 도착 안내만 옮긴다"
+  );
+  assert.deepEqual(
+    plan.skipped.map(entry => entry.reason).sort(),
+    ["departure", "foreign"]
+  );
+  assert.deepEqual(plan.missing, ["여의도"]);
+});
+
+test("길이를 알려주면 짧은 안내를 고르고, 모르면 종착 안내를 뒤로 민다", () => {
+  const short = planImport(
+    ["4호선__노원_상행.mp3", "7호선__노원 - 국문.mp3"],
+    ["노원"],
+    [],
+    { durations: { "4호선__노원_상행.mp3": 32.1, "7호선__노원 - 국문.mp3": 14.3 } }
+  );
+  assert.equal(short.moves[0].fileName, "7호선__노원 - 국문.mp3");
+
+  const noDurations = planImport(["노원_종착.mp3", "노원_상행.mp3"], ["노원"]);
+  assert.equal(noDurations.moves[0].fileName, "노원_상행.mp3");
 });

@@ -6,3 +6,6 @@ tmp/imagegen/
 tmp/*.png
 .venv-voice/
 .DS_Store
+
+# 내려받은 안내방송 원본 묶음 (약 400MB) — subway_sound/ 로 정리해서 쓴다
+subway_sound/original_subway_sound/
