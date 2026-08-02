@@ -488,30 +488,40 @@ function alightHere(state) {
       state: {
         ...state,
         phase: "arriving",
-        arriving: { stage: "melody", phaseMs: 0 }
+        arriving: {
+          kind: "destination",
+          stage: "melody",
+          phaseMs: 0,
+          misses: 0
+        }
       },
-      event: { type: "arriving", station: state.station }
+      event: {
+        type: "arriving",
+        kind: "destination",
+        station: state.station
+      }
     };
   }
   if (isTransferStation(state.station) && gateLines(state).length > 1) {
-    const moveCount = state.moveCount + 1;
     const offPlan = subwayCompass(state)?.hopsToAlight !== 0;
     return {
       state: {
         ...state,
-        phase: "corridor",
-        moveCount,
-        showRecommended: state.showRecommended ||
-          moveCount >= MOVE_GUIDE_LIMIT,
-        room: buildRoom("corridor", {
-          seed: state.seed,
-          station: state.station,
-          entrySide: "left",
-          friendNumber: state.pendingFriend,
-          salt: state.transfersUsed
-        })
+        phase: "arriving",
+        arriving: {
+          kind: "transfer",
+          stage: "hop",
+          phaseMs: 0,
+          misses: 0,
+          offPlan
+        }
       },
-      event: { type: "transfer-start", station: state.station, offPlan }
+      event: {
+        type: "arriving",
+        kind: "transfer",
+        station: state.station,
+        offPlan
+      }
     };
   }
   return { state, event: { type: "not-your-stop", station: state.station } };
@@ -694,6 +704,33 @@ export function attemptSubwayMove(state, input, options = {}) {
     }
     if (options.assist || misses >= 3 ||
       hopInWindow(state.arriving.phaseMs)) {
+      if (state.arriving.kind === "transfer") {
+        const moveCount = state.moveCount + 1;
+        const offPlan = Boolean(state.arriving.offPlan);
+        return {
+          state: {
+            ...state,
+            phase: "corridor",
+            arriving: null,
+            moveCount,
+            showRecommended: state.showRecommended ||
+              moveCount >= MOVE_GUIDE_LIMIT,
+            room: buildRoom("corridor", {
+              seed: state.seed,
+              station: state.station,
+              entrySide: "left",
+              friendNumber: state.pendingFriend,
+              salt: state.transfersUsed
+            })
+          },
+          event: {
+            type: "transfer-start",
+            station: state.station,
+            offPlan,
+            fromHop: true
+          }
+        };
+      }
       return {
         state: { ...state, phase: "arrived", arriving: null },
         event: { type: "alighted", place: state.place }

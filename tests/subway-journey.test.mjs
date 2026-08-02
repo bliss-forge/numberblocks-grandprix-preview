@@ -276,7 +276,7 @@ test("나침반을 따라가면 모든 조합에서 목적지에 도착한다", 
   assert.ok(checked > 900, `checked ${checked} combinations`);
 });
 
-test("환승역에서 ⎵ → 통로 방 → 게이트 → 다른 호선을 고르면 환승 1회로 센다", () => {
+test("환승역에서 발빠짐 놀이를 마쳐야 통로와 다음 호선으로 갈 수 있다", () => {
   const journey = createSubwayJourney("lake", 5);
   let state = boardTrain(passGate(journey));
   let guard = 0;
@@ -289,11 +289,34 @@ test("환승역에서 ⎵ → 통로 방 → 게이트 → 다른 호선을 고�
   assert.equal(compass.transferHere, true, "reached a transfer point");
 
   const started = attemptSubwayMove(state, "space");
-  assert.equal(started.event.type, "transfer-start");
-  assert.equal(started.state.phase, "corridor");
-  assert.equal(started.state.room.kind, "corridor");
+  assert.equal(started.event.type, "arriving");
+  assert.equal(started.event.kind, "transfer");
+  assert.equal(started.state.phase, "arriving");
+  assert.deepEqual(
+    [started.state.arriving.kind, started.state.arriving.stage],
+    ["transfer", "hop"]
+  );
+  assert.equal(started.state.room.kind, "train");
 
-  const reached = walkTo(started.state, started.state.room.width - 1);
+  const early = attemptSubwayMove(
+    advanceSubwayWorld(started.state, 300),
+    "space"
+  );
+  assert.equal(early.event.type, "hop-miss");
+  assert.equal(early.state.phase, "arriving");
+  assert.equal(early.state.arriving.misses, 1);
+  assert.equal(early.state.room.kind, "train", "corridor stays locked");
+
+  const landed = attemptSubwayMove(
+    advanceSubwayWorld(early.state, HOP_PERIOD_MS / 4 - 300),
+    "space"
+  );
+  assert.equal(landed.event.type, "transfer-start");
+  assert.equal(landed.event.fromHop, true);
+  assert.equal(landed.state.phase, "corridor");
+  assert.equal(landed.state.room.kind, "corridor");
+
+  const reached = walkTo(landed.state, landed.state.room.width - 1);
   assert.equal(reached.phase, "gate");
   assert.equal(reached.station, state.station);
 
@@ -329,6 +352,8 @@ test("목적지 역에서 ⎵ → 멜로디 → 문 열림 → 노란 창에 맞
 
   const arriving = attemptSubwayMove(state, "down");
   assert.equal(arriving.event.type, "arriving");
+  assert.equal(arriving.event.kind, "destination");
+  assert.equal(arriving.state.arriving.kind, "destination");
   let current = advanceSubwayWorld(arriving.state, ARRIVE_MELODY_MS);
   assert.equal(current.arriving.stage, "hop");
 
@@ -362,7 +387,11 @@ test("네 번째 시도는 항상 성공하고, 보조 모드는 언제나 내�
     station: base.place.station,
     phase: "arriving",
     // past the grace window, marker at the far right: every press misses
-    arriving: { stage: "hop", phaseMs: HOP_PERIOD_MS / 2 }
+    arriving: {
+      kind: "destination",
+      stage: "hop",
+      phaseMs: HOP_PERIOD_MS / 2
+    }
   };
   assert.equal(
     attemptSubwayMove(state, "space", { assist: true }).event.type,
@@ -431,9 +460,11 @@ test("이동 방향을 기억해 상행·하행 도착 멜로디를 고를 수 �
 test("내릴 역이 아니면 ↓와 ⎵가 똑같이 동작한다", () => {
   const riding = boardTrain(passGate(createSubwayJourney("hanriver", 3)));
   const single = linesAtStation(riding.station).length === 1;
-  const expected = single ? "not-your-stop" : "transfer-start";
+  const expected = single ? "not-your-stop" : "arriving";
   for (const key of ["down", "space"]) {
-    assert.equal(attemptSubwayMove(riding, key).event.type, expected, key);
+    const outcome = attemptSubwayMove(riding, key);
+    assert.equal(outcome.event.type, expected, key);
+    if (!single) assert.equal(outcome.event.kind, "transfer", key);
   }
 });
 
@@ -444,7 +475,12 @@ test("만나지 못한 친구는 사라지지 않고 다음 방까지 따라온�
     const compass = subwayCompass(state);
     if (compass.arrived) break;
     if (compass.transferHere) {
-      const corridor = attemptSubwayMove(state, "space").state;
+      const arriving = attemptSubwayMove(state, "space").state;
+      const corridor = attemptSubwayMove(
+        arriving,
+        "space",
+        { assist: true }
+      ).state;
       const gate = walkTo(corridor, corridor.room.width - 1);
       state = boardTrain(passGate(gate, subwayCompass(gate).line));
       continue;
@@ -457,7 +493,11 @@ test("만나지 못한 친구는 사라지지 않고 다음 방까지 따라온�
 
   const compass = subwayCompass(state);
   const left = compass.transferHere
-    ? attemptSubwayMove(state, "space").state
+    ? attemptSubwayMove(
+      attemptSubwayMove(state, "space").state,
+      "space",
+      { assist: true }
+    ).state
     : driveOneStop(state, compass.side).state;
   assert.equal(left.pendingFriend, waiting, "friend carries over");
   assert.equal(left.room.friend?.number, waiting, "and appears in the new room");
@@ -479,7 +519,13 @@ test("환승 통로를 돌기만 해도 정거장 수가 올라가 안내가 켜
     state = driveOneStop(state, compass.side).state;
   }
   const before = state.moveCount;
-  const transferring = attemptSubwayMove(state, "space").state;
+  const arriving = attemptSubwayMove(state, "space").state;
+  assert.equal(arriving.moveCount, before, "hop itself is not a transfer yet");
+  const transferring = attemptSubwayMove(
+    arriving,
+    "space",
+    { assist: true }
+  ).state;
   assert.equal(
     transferring.moveCount,
     before + 1,
