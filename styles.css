@@ -5920,6 +5920,40 @@ body[data-mode="subway"] .toast {
   .subway-photo-slot[data-fresh="true"] { animation: none; }
 }
 
+/* 기관사 게임 — 지하철과 같은 전화면 무대 */
+body[data-mode="ktx"] #game {
+  grid-template-rows: minmax(0, 1fr);
+  gap: 0;
+  padding: 74px 2vw 12px;
+}
+
+body[data-mode="ktx"] .problem-pill { display: none; }
+
+body[data-mode="ktx"] .answer-dock,
+body[data-mode="ktx"] .number-pad,
+body[data-mode="ktx"] .game-keyboard-note {
+  display: none;
+}
+
+body[data-mode="ktx"] .stage-frame {
+  width: min(97vw, 1760px);
+  background: #eef3f8;
+}
+
+body[data-mode="ktx"] .stage,
+body[data-mode="ktx"] .ktx-game {
+  width: 100%;
+  height: 100%;
+}
+
+body[data-mode="ktx"] .stage { padding: 0; }
+
+body[data-mode="ktx"] .stage-curtain,
+body[data-mode="ktx"] .stage-floor,
+body[data-mode="ktx"] .stage-lights {
+  display: none;
+}
+
 /* ── 칙칙폭폭 기관사 ──────────────────────────────────────────────────── */
 
 .ktx-game {
@@ -5996,12 +6030,12 @@ body[data-mode="subway"] .toast {
 
 /* ── 1인칭 운전실 ── */
 
-.ktx-cab-backdrop { position: absolute; inset: 0 0 38% 0; overflow: hidden; }
-.ktx-cab-horizon { position: absolute; inset: auto 0 0 0; height: 34%; }
+.ktx-cab-backdrop { position: absolute; inset: 0 0 52% 0; overflow: hidden; }
+.ktx-cab-horizon { position: absolute; inset: auto 0 0 0; height: 26%; }
 
 .ktx-cab-track {
   position: absolute;
-  inset: 30% 0 0 0;
+  inset: 48% 0 0 0;
 }
 
 .ktx-cab-track svg { width: 100%; height: 100%; display: block; }
@@ -6011,6 +6045,9 @@ body[data-mode="subway"] .toast {
 
 .ktx-game[data-sky="night"] .ktx-ballast { fill: #8d8272; }
 .ktx-game[data-sky="night"] .ktx-sleepers { stroke: #4d4335; }
+.ktx-game[data-sky="night"] .ktx-ground-plane { fill: #4e6247; }
+.ktx-game[data-sky="sunset"] .ktx-ground-plane { fill: #8fbf6d; }
+.ktx-game[data-sky="dawn"] .ktx-ground-plane { fill: #9ccf7e; }
 
 /* 터널 실내등 — 1인칭 전용 재미 */
 .ktx-cab-tunnel {
@@ -6099,8 +6136,8 @@ body[data-mode="subway"] .toast {
 /* 정지 거리 게이지 5칸 + 손바닥 */
 .ktx-stop-gauge {
   position: absolute;
-  right: 6%;
-  bottom: 42%;
+  right: 24%;
+  bottom: 46%;
   display: flex;
   align-items: center;
   gap: 6px;
@@ -6195,6 +6232,21 @@ body[data-mode="subway"] .toast {
 
 .ktx-platform[data-visible="true"] { opacity: 1; }
 
+/* 대기줄은 열차보다 앞(이쪽) — 같은 --platform-x를 따라 움직인다 */
+.ktx-queue {
+  position: absolute;
+  bottom: calc(24% + 4px);
+  left: 0;
+  display: flex;
+  align-items: flex-end;
+  gap: 4px;
+  transform: translateX(calc(var(--platform-x, 1400px) + 316px));
+  transition: transform .16s linear;
+  opacity: 0;
+}
+
+.ktx-view-side[data-near-stop="true"] .ktx-queue { opacity: 1; }
+
 .ktx-platform::before {
   content: "";
   display: block;
@@ -6207,8 +6259,8 @@ body[data-mode="subway"] .toast {
 
 .ktx-platform-sign {
   position: absolute;
-  top: -86px;
-  left: 40px;
+  top: -118px;
+  left: 340px;
   padding: 8px 18px;
   border-radius: 14px;
   background: #31445b;
@@ -6219,8 +6271,8 @@ body[data-mode="subway"] .toast {
 
 .ktx-stop-marker {
   position: absolute;
-  top: -46px;
-  left: 0;
+  top: -158px;
+  left: 254px;   /* 마커 = 존 시작 +90m(270px) - 폭 절반 */
   width: 46px;
   height: 46px;
   display: grid;
@@ -6232,13 +6284,17 @@ body[data-mode="subway"] .toast {
   color: #b23a2f;
 }
 
-.ktx-queue {
+/* 표지 기둥 — 지붕 위 표지가 승강장까지 내려온다 */
+.ktx-stop-marker::after {
+  content: "";
   position: absolute;
-  top: -72px;
-  left: 120px;
-  display: flex;
-  align-items: flex-end;
-  gap: 4px;
+  top: 44px;
+  left: 50%;
+  width: 8px;
+  height: 114px;
+  margin-left: -4px;
+  border-radius: 4px;
+  background: #8d95a0;
 }
 
 .ktx-queue-person {

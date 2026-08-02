@@ -7,11 +7,10 @@
 // 속도계·게이지·창문 승객은 매 틱 속성 갱신만 한다.
 
 import {
-  ARM_DISTANCE,
   KTX_SEGMENTS,
   KTX_STATIONS,
   KTX_TRAINS,
-  ZONE_LENGTH,
+  MARKER_FROM_ZONE,
   SPEED_MILESTONES
 } from "./ktx-route-data.mjs";
 import {
@@ -163,8 +162,6 @@ function buildSideView(document, state) {
   const marker = el(document, "div", "ktx-stop-marker");
   marker.append(el(document, "span", "ktx-marker-star", "★"));
   platform.append(marker);
-  const queue = el(document, "div", "ktx-queue");
-  platform.append(queue);
   view.append(platform);
 
   // 이벤트 무대
@@ -174,6 +171,10 @@ function buildSideView(document, state) {
   const train = el(document, "div", "ktx-side-train");
   train.innerHTML = sideTrainSvg(state.train, WINDOW_SLOTS);
   view.append(train);
+
+  // 대기줄은 열차 앞(이쪽)에 선다 — 타는 것이 보여야 세기 놀이다
+  const queue = el(document, "div", "ktx-queue");
+  view.append(queue);
   return view;
 }
 
@@ -318,15 +319,17 @@ export function updateKtxScene(root, state, view, events = []) {
   const platform = root.querySelector(".ktx-platform");
   const driving = state.phase === "driving" || state.phase === "stopping" ||
     state.phase === "correcting";
-  const nearStop = !driving || state.zoneEntered;
+  // 마커가 다가오는 것이 보여야 조준이 된다 — 320m 앞부터 미끄러져 들어온다.
+  const distance = driving ? distanceToMarker(state) : 0;
+  const nearStop = !driving || distance < 320;
   platform.dataset.visible = String(nearStop);
+  const sideView = root.querySelector(".ktx-view-side");
+  sideView.dataset.nearStop = String(nearStop);
   if (nearStop) {
-    const distance = driving
-      ? distanceToMarker(state)
-      : 0;
-    const shift = TRAIN_NOSE_X + distance * NEAR_SCALE -
-      (ZONE_LENGTH - ARM_DISTANCE) * NEAR_SCALE;
-    platform.style.setProperty("--platform-x", `${shift}px`);
+    // 열차 코(200px)에 마커가 오면 정지 지점. 승강장 왼끝은 마커 -90m.
+    const markerX = TRAIN_NOSE_X + distance * NEAR_SCALE;
+    const shift = markerX - MARKER_FROM_ZONE * NEAR_SCALE;
+    sideView.style.setProperty("--platform-x", `${shift}px`);
     const name = root.querySelector(".ktx-platform-name");
     const stationName = driving ? KTX_SEGMENTS[state.segIndex].to : state.station;
     if (name.textContent !== stationName) name.textContent = stationName;

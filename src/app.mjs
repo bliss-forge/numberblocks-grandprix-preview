@@ -1044,6 +1044,13 @@ const KTX_EVENT_HINTS = Object.freeze({
 });
 
 function startKtxPicker() {
+  stopSafetyHold();
+  clearTimers();
+  audio.cancel();
+  state.round += 1;
+  state.problem = null;
+  state.buffer = "";
+  setPhase("playing");
   state.ktxPicking = true;
   state.ktxPickIndex = 0;
   state.ktxScene = renderKtxPicker(document, 0);
@@ -1057,7 +1064,8 @@ function startKtxJourney(trainId) {
   state.ktxPicking = false;
   const seed = Math.floor(Math.random() * 0x100000000);
   state.ktx = createKtxJourney(seed, trainId);
-  state.ktxView = "cab";
+  // 밖에서 타고, 안에서 몬다 — 탑승은 바깥 뷰에서 시작한다.
+  state.ktxView = "side";
   state.ktxHeld = { up: false, down: false };
   state.ktxScene = renderKtxScene(document, state.ktx, "cab");
   dom.stage.replaceChildren(state.ktxScene);
@@ -1092,6 +1100,7 @@ function handleKtxEvents(events) {
       showHint(`문 닫았어요! ↑ 를 꾹 눌러 출발! 다음 역, ${event.next}!`);
     } else if (event.type === "depart") {
       audio.playSfx("jingle");
+      state.ktxView = "cab";       // 출발 컷: 운전석에 앉는 순간
       if (!event.auto) {
         audio.cancel();
         void audio.playPrompt("srt-depart");
@@ -1121,6 +1130,7 @@ function handleKtxEvents(events) {
       showHint("어이쿠~ 살짝 지나쳤어요! 뒤로 통통~");
     } else if (event.type === "stopped") {
       audio.playSfx("win");
+      state.ktxView = "side";      // 도착 컷: 승강장의 친구들이 보인다
       const starText = "⭐".repeat(event.stars);
       showHint(event.stars === 3
         ? `${starText} 딱 멈췄어요! 최고, 기관사님!`

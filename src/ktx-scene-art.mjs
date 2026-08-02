@@ -158,21 +158,27 @@ export function sideTrainSvg(train, windows = 8) {
 // 움직임으로 읽힌다(협회 공학 렌즈 E3). 야간이면 침목 색이 어두워진다.
 
 export function cabTrackSvg() {
-  return svgWrap("ktx-cab-track-art", "0 0 1000 420", [
+  // preserveAspectRatio="none" — 트랙 밴드를 컨테이너에 정확히 맞춰 늘린다.
+  // 소실점은 상단 중앙(지평선), 아래로 갈수록 넓어진다.
+  return `<svg class="ktx-cab-track-art" viewBox="0 0 1000 300" ` +
+    `preserveAspectRatio="none" aria-hidden="true" ` +
+    `xmlns="http://www.w3.org/2000/svg">` + [
     `<defs><clipPath id="ktx-track-clip">`,
-    `<path d="M438 0 L562 0 L830 420 L170 420z"/>`,
+    `<path d="M448 0 L552 0 L900 300 L100 300z"/>`,
     `</clipPath></defs>`,
-    // 자갈 바닥
-    `<path d="M420 0 L580 0 L880 420 L120 420z" class="ktx-ballast" fill="#cfc3ad"/>`,
+    // 땅바닥 전체
+    `<rect class="ktx-ground-plane" width="1000" height="300" fill="#a9df7d"/>`,
+    // 자갈 바닥 사다리꼴
+    `<path d="M430 0 L570 0 L980 300 L20 300z" class="ktx-ballast" fill="#cfc3ad"/>`,
     // 침목: 굵은 세로선의 가로 줄무늬(dasharray)가 아래로 흐른다
     `<g clip-path="url(#ktx-track-clip)">`,
-    `<line class="ktx-sleepers" x1="500" y1="-60" x2="500" y2="480" ` +
-    `stroke="${TIE}" stroke-width="620" stroke-dasharray="16 44"/>`,
+    `<line class="ktx-sleepers" x1="500" y1="-60" x2="500" y2="360" ` +
+    `stroke="${TIE}" stroke-width="820" stroke-dasharray="14 34"/>`,
     `</g>`,
     // 레일 두 줄 — 소실점으로 모인다
-    `<path d="M468 0 L318 420 L358 420 L482 0z" fill="${RAIL}"/>`,
-    `<path d="M532 0 L682 420 L642 420 L518 0z" fill="${RAIL}"/>`
-  ].join(""), "xMidYMax slice");
+    `<path d="M474 0 L266 300 L306 300 L486 0z" fill="${RAIL}"/>`,
+    `<path d="M526 0 L734 300 L694 300 L514 0z" fill="${RAIL}"/>`
+  ].join("") + `</svg>`;
 }
 
 // 운전대(계기판) — 속도 숫자·게이지·문 램프는 DOM이 얹는다.
