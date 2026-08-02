@@ -117,7 +117,7 @@ test("홈 숫자키는 게임이나 난이도를 바꾸지 않고 버튼 선택�
   assert.equal(await page.locator("body").getAttribute("data-state"), "playing");
 });
 
-test("390×844 홈은 두 열과 넓은 5번 카드로 잘림 없이 표시된다", async t => {
+test("390×844 홈은 두 열과 넓은 마지막 홀수 카드로 잘림 없이 표시된다", async t => {
   const chromium = loadChromium();
   if (!chromium) {
     t.skip("Playwright is not installed globally");
@@ -138,13 +138,14 @@ test("390×844 홈은 두 열과 넓은 5번 카드로 잘림 없이 표시된�
 
   const metrics = await page.evaluate(() => {
     const grid = document.querySelector(".mode-grid");
-    const cards = [...document.querySelectorAll(".mode-card")].slice(0, 5);
+    const cards = [...document.querySelectorAll(".mode-card")];
     const rects = cards.map(card => card.getBoundingClientRect());
     return {
       columns: getComputedStyle(grid).gridTemplateColumns.split(" ").length,
       horizontalOverflow: document.documentElement.scrollWidth > innerWidth,
       firstWidth: rects[0].width,
-      fifthWidth: rects[4].width,
+      seventhWidth: rects[6].width,
+      firstSixWidths: rects.slice(0, 6).map(rect => rect.width),
       cardsInsideWidth: rects.every(
         rect => rect.left >= -0.5 && rect.right <= innerWidth + 0.5
       ),
@@ -156,27 +157,100 @@ test("390×844 홈은 두 열과 넓은 5번 카드로 잘림 없이 표시된�
   assert.equal(metrics.columns, 2);
   assert.equal(metrics.horizontalOverflow, false);
   assert.equal(metrics.cardsInsideWidth, true);
-  assert.ok(metrics.fifthWidth >= metrics.firstWidth * 1.8);
+  assert.ok(metrics.seventhWidth >= metrics.firstWidth * 1.8);
+  assert.ok(
+    metrics.firstSixWidths.every(
+      width => Math.abs(width - metrics.firstWidth) <= 1
+    )
+  );
   assert.ok(metrics.homeHeight >= metrics.viewportHeight);
-  const stacking = await page.evaluate(() => {
+  const creditOverlap = await page.evaluate(() => {
     const home = document.querySelector("#home");
     home.scrollTop = home.scrollHeight;
     const credit = document.querySelector(".creator-credit").getBoundingClientRect();
-    const stack = document.elementsFromPoint(
-      credit.left + credit.width / 2,
-      credit.top + credit.height / 2
-    );
-    return {
-      cardIndex: stack.findIndex(node => node.classList?.contains("mode-card")),
-      creditIndex: stack.findIndex(node => node.classList?.contains("creator-credit"))
-    };
+    return [...document.querySelectorAll(".mode-card")]
+      .map(card => card.getBoundingClientRect())
+      .some(card => !(
+        card.right <= credit.left ||
+        credit.right <= card.left ||
+        card.bottom <= credit.top ||
+        credit.bottom <= card.top
+      ));
   });
-  assert.ok(stacking.cardIndex >= 0);
-  assert.ok(
-    stacking.creditIndex === -1 || stacking.cardIndex < stacking.creditIndex,
-    JSON.stringify(stacking)
-  );
+  assert.equal(creditOverlap, false);
   assert.deepEqual(errors, { consoleErrors: [], pageErrors: [] });
+});
+
+test("PC 홈은 짧은 카드 다섯 열로 1~10 자리를 준비한다", async t => {
+  const chromium = loadChromium();
+  if (!chromium) {
+    t.skip("Playwright is not installed globally");
+    return;
+  }
+
+  const { server, url } = await startStaticServer();
+  const browser = await chromium.launch({ headless: true });
+  t.after(async () => {
+    await browser.close();
+    await new Promise(resolveServer => server.close(resolveServer));
+  });
+
+  for (const viewport of [
+    { width: 1366, height: 768 },
+    { width: 1920, height: 1080 }
+  ]) {
+    const page = await browser.newPage({ viewport });
+    const errors = observeErrors(page);
+    await page.goto(url, { waitUntil: "networkidle" });
+    const metrics = await page.evaluate(() => {
+      const grid = document.querySelector(".mode-grid");
+      const cards = [...document.querySelectorAll(".mode-card")]
+        .map(card => {
+          const rect = card.getBoundingClientRect();
+          return {
+            left: rect.left,
+            right: rect.right,
+            top: rect.top,
+            bottom: rect.bottom,
+            height: rect.height,
+            layoutTop: card.offsetTop
+          };
+        });
+      const firstTop = cards[0].layoutTop;
+      return {
+        viewportWidth: innerWidth,
+        viewportHeight: innerHeight,
+        columns: getComputedStyle(grid).gridTemplateColumns.split(" ").length,
+        horizontalOverflow: document.documentElement.scrollWidth > innerWidth,
+        verticalOverflow: document.documentElement.scrollHeight > innerHeight + 1,
+        maximumCardHeight: Math.max(...cards.map(card => card.height)),
+        firstRowCount: cards.filter(
+          card => Math.abs(card.layoutTop - firstTop) <= 2
+        ).length,
+        secondRowTop: cards[5].layoutTop,
+        firstRowTop: firstTop,
+        cards
+      };
+    });
+
+    assert.equal(metrics.columns, 5, `${viewport.width} columns`);
+    assert.equal(metrics.horizontalOverflow, false, `${viewport.width} horizontal`);
+    assert.equal(metrics.verticalOverflow, false, `${viewport.width} vertical`);
+    assert.equal(metrics.firstRowCount, 5, `${viewport.width} first row`);
+    assert.ok(metrics.secondRowTop > metrics.firstRowTop, `${viewport.width} row two`);
+    assert.ok(
+      metrics.maximumCardHeight <= metrics.viewportHeight * 0.34,
+      `${viewport.width} card height ${metrics.maximumCardHeight}`
+    );
+    assert.ok(
+      metrics.cards.every(card =>
+        card.left >= -0.5 && card.right <= metrics.viewportWidth + 0.5
+      ),
+      `${viewport.width} contained`
+    );
+    assert.deepEqual(errors, { consoleErrors: [], pageErrors: [] });
+    await page.close();
+  }
 });
 
 test("390×844 수학 게임은 무대와 큰 숫자판을 한 화면에 유지한다", async t => {
@@ -366,7 +440,7 @@ test("최소·대형 휴대전화에서도 1~5 조작 화면이 뷰포트에 들
     const homeErrors = observeErrors(home);
     await home.goto(url, { waitUntil: "networkidle" });
     const homeMetrics = await home.evaluate(() => {
-      const cards = [...document.querySelectorAll(".mode-card")].slice(0, 5)
+      const cards = [...document.querySelectorAll(".mode-card")]
         .map(card => card.getBoundingClientRect());
       const credit = document.querySelector(".creator-credit").getBoundingClientRect();
       const overlapsCredit = cards.some(card => !(
@@ -384,7 +458,8 @@ test("최소·대형 휴대전화에서도 1~5 조작 화면이 뷰포트에 들
         ),
         overlapsCredit,
         firstWidth: cards[0].width,
-        fifthWidth: cards[4].width
+        seventhWidth: cards[6].width,
+        firstSixWidths: cards.slice(0, 6).map(card => card.width)
       };
     });
     assert.equal(homeMetrics.columns, 2, `${viewport.width} home columns`);
@@ -392,8 +467,14 @@ test("최소·대형 휴대전화에서도 1~5 조작 화면이 뷰포트에 들
     assert.equal(homeMetrics.cardsInsideWidth, true, `${viewport.width} home cards`);
     assert.equal(homeMetrics.overlapsCredit, false, `${viewport.width} home credit`);
     assert.ok(
-      homeMetrics.fifthWidth >= homeMetrics.firstWidth * 1.8,
-      `${viewport.width} fifth card`
+      homeMetrics.seventhWidth >= homeMetrics.firstWidth * 1.8,
+      `${viewport.width} seventh card`
+    );
+    assert.ok(
+      homeMetrics.firstSixWidths.every(
+        width => Math.abs(width - homeMetrics.firstWidth) <= 1
+      ),
+      `${viewport.width} first six cards`
     );
     assert.deepEqual(homeErrors, { consoleErrors: [], pageErrors: [] });
     await home.close();

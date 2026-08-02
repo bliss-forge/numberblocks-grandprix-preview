@@ -67,7 +67,7 @@
 
   body[data-state="home"] .mode-card {
     min-width: 0;
-    min-height: clamp(190px, 54vw, 230px);
+    min-height: clamp(170px, 48vw, 205px);
     padding: 10px 8px 12px;
     border-width: 4px;
     border-radius: 24px;
@@ -76,23 +76,23 @@
 
   body[data-state="home"] .mode-card img {
     width: min(82%, 132px);
-    height: clamp(108px, 31vw, 138px);
+    height: clamp(100px, 28vw, 126px);
   }
 
-  body[data-state="home"] .mode-card:nth-child(5) {
+  body[data-state="home"] .mode-card:last-child:nth-child(odd) {
     grid-column: 1 / -1;
     grid-template-columns: minmax(100px, .8fr) minmax(0, 1.2fr);
     grid-template-rows: 1fr;
-    min-height: 170px;
+    min-height: 160px;
     padding-inline: 30px;
   }
 
-  body[data-state="home"] .mode-card:nth-child(5) img {
+  body[data-state="home"] .mode-card:last-child:nth-child(odd) img {
     align-self: center;
-    height: 138px;
+    height: 126px;
   }
 
-  body[data-state="home"] .mode-card:nth-child(5) .card-copy {
+  body[data-state="home"] .mode-card:last-child:nth-child(odd) .card-copy {
     align-self: center;
   }
 
