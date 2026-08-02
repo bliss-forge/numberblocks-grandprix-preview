@@ -84,7 +84,6 @@ import {
   createFamilyJourney,
   createSubwayJourney,
   isFamilyJourney,
-  meetFamilyMember,
   subwayCompass,
   subwayDestinations
 } from "./subway-journey.mjs";
@@ -983,7 +982,7 @@ function startFamilyLine() {
   dom.stage.replaceChildren(state.subwayScene);
   dom.problem.textContent = "10호선 가족 노선";
   audio.playSfx("win");
-  showHint("엄마가 배웅해요! → 걸어가서 들어가는 곳을 지나가요");
+  showHint("가족이 기다려요! → 걸어가서 들어가는 곳을 지나가요");
   state.subwayTickMs = performance.now();
   scheduleSubwayTick();
 }
@@ -1208,40 +1207,21 @@ function moveSubway(direction) {
     showHint("\"실례합니다!\" 한 번 더 누르면 비켜줘요");
   } else if (event.type === "alighted") {
     audio.playSfx("win");
-    if (isFamilyJourney(state.subway)) {
-      // 가족 노선은 한 명 만날 때마다 끝나지 않는다. 도장을 찍고 다음 사람을
-      // 목적지로 세운 뒤, 같은 개찰구 흐름으로 다시 태운다.
-      const met = meetFamilyMember(state.subway);
-      state.subway = met.state;
-      state.stars += 1;
-      dom.stars.textContent = String(state.stars);
+    const hunt = createPhotoHunt(state.subway.place.id);
+    if (hunt) {
+      // 도착지에서 바로 끝내지 않는다 — 사진 한 장 찍고 간다.
+      state.subway.photo = hunt;
+      state.subway.album = loadAlbum();
       updateSubwayJourney(state.subwayScene, state.subway);
-      if (met.event.type === "family-done") {
-        showHint("가족을 다 만났어요!");
-        schedule(completeFamilyJourney, 2600);
-      } else {
-        showHint(
-          `${met.event.member.label}를 만났어요! ` +
-          `다음은 ${met.event.next.label} — → 걸어서 들어가는 곳으로 가요`
-        );
-        schedule(() => {
-          if (state.subway) updateSubwayJourney(state.subwayScene, state.subway);
-        }, 1800);
-      }
+      showHint(`${state.subway.place.label}이에요! 방향키로 찾아 ⎵ 찰칵`);
+    } else if (isFamilyJourney(state.subway)) {
+      showHint("가족이 모두 마중 나왔어요!");
+      schedule(completeFamilyJourney, 2600);
     } else {
-      const hunt = createPhotoHunt(state.subway.place.id);
-      if (hunt) {
-        // 도착지에서 바로 끝내지 않는다 — 사진 한 장 찍고 간다.
-        state.subway.photo = hunt;
-        state.subway.album = loadAlbum();
-        updateSubwayJourney(state.subwayScene, state.subway);
-        showHint(`${state.subway.place.label}이에요! 방향키로 찾아 ⎵ 찰칵`);
-      } else {
-        showHint(`${state.subway.place.label}에 도착했어요!`);
-        schedule(() => {
-          void completeSubwayJourney();
-        }, 2600);
-      }
+      showHint(`${state.subway.place.label}에 도착했어요!`);
+      schedule(() => {
+        void completeSubwayJourney();
+      }, 2600);
     }
   }
 }
@@ -1251,11 +1231,10 @@ function completeFamilyJourney() {
   clearTimers();
   audio.cancel();
   state.streak.subway += 1;
-  // 엄마는 출발역에서 배웅하며 그냥 만나므로 내리는 별이 여섯 개뿐이다.
-  // 일곱 명을 만났으니 마지막 하나를 여기서 채운다.
   state.stars += 1;
   dom.stars.textContent = String(state.stars);
-  dom.cheer.textContent = "⭐ 가족을 다 만났어요!";
+  dom.cheer.textContent =
+    `⭐ 도하네 집 도착! 환승 ${state.subway.transfersUsed}번 · 가족 모두 만났어요`;
   dom.cheer.classList.add("show");
   audio.playSfx("win");
   // schedule은 타이머 id를 돌려준다. await 하면 그 자리에서 지나가 버려서

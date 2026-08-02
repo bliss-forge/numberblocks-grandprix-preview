@@ -65,13 +65,13 @@ test("도장은 만나기 전에는 흐리고 만나면 체크가 붙는다", ()
   assert.equal(familyStampSvg("nobody", true), "");
 });
 
-test("다 만나면 일곱이 한 줄로 서고 도하가 가운데서 크다", () => {
+test("도착하면 여섯 분이 한 줄로 마중 나온다", () => {
   const reunion = familyReunionSvg();
-  assert.match(reunion, /aria-label="가족이 다 모였어요"/);
+  assert.match(reunion, /aria-label="가족이 모두 마중 나왔어요"/);
   assert.doesNotMatch(reunion, /<svg[\s\S]*<svg/, "svg를 겹치지 않는다");
-  const groups = reunion.match(/<g transform="translate\(\d+ -?\d+\) scale/g) ?? [];
-  assert.equal(groups.length, 7, "일곱 명");
-  assert.match(reunion, /scale\(1\.16\)/, "도하만 조금 크게");
+  const people = reunion.match(/class="family-reunion-person"/g) ?? [];
+  assert.equal(people.length, FAMILY_STATIONS.length, "여섯 분");
+  assert.equal(people.length, 6);
 });
 
 test("놀기 전에 보여 주는 얼굴에는 도장이 찍혀 있지 않다", () => {
