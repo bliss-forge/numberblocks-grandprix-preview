@@ -307,6 +307,34 @@ test("도착 단계는 멜로디 후 문이 열리고 발빠짐 틈과 타이밍
   );
 });
 
+test("환승 하차는 멜로디 화면 없이 열린 문과 타이밍 미터부터 보여 준다", () => {
+  const base = ridingState("lake", 5);
+  const transfer = {
+    ...base,
+    phase: "arriving",
+    arriving: {
+      kind: "transfer",
+      stage: "hop",
+      phaseMs: 0,
+      misses: 0
+    }
+  };
+  const scene = renderSubwayJourney(document, transfer);
+  const arriving = byClass(scene, "subway-arriving")[0];
+
+  assert.equal(arriving.dataset.kind, "transfer");
+  assert.equal(byClass(scene, "subway-arriving-door")[0].dataset.open, "true");
+  assert.equal(byClass(scene, "subway-hop-meter")[0].dataset.active, "true");
+  assert.match(
+    byClass(scene, "subway-station-sign")[0].textContent,
+    /· 환승$/
+  );
+  assert.doesNotMatch(
+    byClass(scene, "subway-arriving-note")[0].textContent,
+    /멜로디/
+  );
+});
+
 test("도착 화면은 환승·정거장·카드 통계와 친구들을 보여준다", () => {
   const base = ridingState();
   const arrived = {

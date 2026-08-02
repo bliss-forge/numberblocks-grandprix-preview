@@ -11,6 +11,27 @@ export function playRetryCue(audio, retryKey) {
   audio.playSfx("wrong");
 }
 
+export function subwayArrivingCue(kind, travelSide) {
+  if (kind === "transfer") {
+    return {
+      realKey: "mind-gap",
+      fallback: "subway-mind-gap",
+      nextKey: null,
+      sfx: "door",
+      hint: "환승역이에요! 빨간 표시가 노란 칸에 올 때 ⎵!"
+    };
+  }
+  return {
+    realKey: travelSide === "back"
+      ? "arrive-melody-up"
+      : "arrive-melody-down",
+    fallback: null,
+    nextKey: "mind-gap",
+    sfx: "win",
+    hint: "도착 멜로디가 나와요! 곧 문이 열려요"
+  };
+}
+
 export function retireAnimationClass(node, className) {
   node.addEventListener(
     "animationend",
