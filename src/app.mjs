@@ -1095,17 +1095,31 @@ function handleKtxEvents(events) {
       }
     } else if (event.type === "all-aboard") {
       audio.playSfx("win");
-      showHint(`${event.count}명 탔어요! ⎵ 눌러서 문을 닫아요`);
+      showHint(`${event.count}명 탔어요! 문이 곧 닫혀요~`);
     } else if (event.type === "doors-closed") {
       audio.playSfx("door");
       showHint(`문 닫았어요! ↑ 를 꾹 눌러 출발! 다음 역, ${event.next}!`);
     } else if (event.type === "depart") {
       audio.playSfx("jingle");
-      state.ktxView = "cab";       // 출발 컷: 운전석에 앉는 순간
+      // 출발 컷: 문 닫힌 열차가 움직이기 시작하는 걸 900ms 보고 운전석에 앉는다.
+      // 그 사이 아이가 1/3로 직접 뷰를 골랐으면 컷을 양보한다(반증 B1 가드).
+      const cutMark = state.ktxViewMs;
+      schedule(() => {
+        if (state.mode === "ktx" && state.ktx && !state.ktxPicking &&
+          state.ktxViewMs === cutMark && state.ktxView !== "cab") {
+          state.ktxView = "cab";
+          updateKtxScene(state.ktxScene, state.ktx, "cab", [], state.ktxHeld);
+        }
+      }, 900);
       if (!event.auto) {
         audio.cancel();
         void audio.playPrompt("srt-depart");
       }
+    } else if (event.type === "door-countdown-start") {
+      showHint("다 탔어요! 문이 곧 닫혀요~ (⎵ 로 바로 닫기)");
+    } else if (event.type === "door-countdown") {
+      audio.playSfx("key");
+      showHint(`문 닫혀요! ${event.secondsLeft}!`);
     } else if (event.type === "milestone") {
       audio.playSfx("pop");
       if (event.speed <= 150) {
@@ -1204,7 +1218,8 @@ function scheduleKtxTick() {
     state.ktx = result.state;
     handleKtxEvents(result.events);
     if (state.ktx) {
-      updateKtxScene(state.ktxScene, state.ktx, state.ktxView, result.events);
+      updateKtxScene(state.ktxScene, state.ktx, state.ktxView, result.events,
+        state.ktxHeld);
     }
     scheduleKtxTick();
   }, 150);
@@ -1224,7 +1239,7 @@ function moveKtxSpace() {
   handleKtxEvents(pressed.events);
   if (state.ktx) {
     updateKtxScene(state.ktxScene, state.ktx, state.ktxView,
-      [...ticked.events, ...pressed.events]);
+      [...ticked.events, ...pressed.events], state.ktxHeld);
   }
 }
 
@@ -1238,7 +1253,7 @@ function switchKtxView(view) {
   state.ktxViewMs = nowMs;
   state.ktxView = view;
   audio.playSfx("key");
-  updateKtxScene(state.ktxScene, state.ktx, view, []);
+  updateKtxScene(state.ktxScene, state.ktx, view, [], state.ktxHeld);
 }
 
 function chooseSubwayLineInput(lineNumber) {
@@ -1696,6 +1711,12 @@ document.addEventListener("keyup", event => {
     state.ktxHeld = { ...state.ktxHeld, up: false };
   } else if (event.key === "ArrowDown") {
     state.ktxHeld = { ...state.ktxHeld, down: false };
+  } else {
+    return;
+  }
+  // 레버 0-지연 반응 — 다음 틱을 기다리지 않는다
+  if (state.ktxScene) {
+    updateKtxScene(state.ktxScene, state.ktx, state.ktxView, [], state.ktxHeld);
   }
 });
 
@@ -1795,6 +1816,10 @@ document.addEventListener("keydown", event => {
           ...state.ktxHeld,
           [event.key === "ArrowUp" ? "up" : "down"]: true
         };
+        if (state.ktx && state.ktxScene) {
+          updateKtxScene(state.ktxScene, state.ktx, state.ktxView, [],
+            state.ktxHeld);
+        }
       }
       return;
     }

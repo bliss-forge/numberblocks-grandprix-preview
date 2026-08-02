@@ -1,10 +1,13 @@
-// 칙칙폭폭 기관사 — 씬 렌더러. 시뮬 상태의 읽기 전용 프로젝션.
+// 칙칙폭폭 기관사 — 씬 렌더러 v2. 시뮬 상태의 읽기 전용 프로젝션.
 //
 // 두 뷰(운전실/바깥)를 동시에 마운트해 두고 data-view로만 바꾼다(파괴·재생성
-// 금지). 움직임은 모델이 위치를 주고 CSS transition이 틱 사이를 보간한다:
-//   침목  = stroke-dashoffset 누적값 (무한 반복 무이음새)
-//   배경  = 2배 폭 스트립 translateX, 한 바퀴 감길 때만 transition을 끊고 점프
-// 속도계·게이지·창문 승객은 매 틱 속성 갱신만 한다.
+// 금지). 움직임은 모델이 위치를 주고 CSS transition이 틱 사이를 보간한다.
+//
+// v2 핵심(협회 설계 2026-08-02):
+//   운전실 = CSS perspective 평면(rotateX 84°) 위 침목이 transform으로 흐르고,
+//   지물(전차선주·신호기·킬로포스트)은 소실점에서 쌍곡선 keyframes로 날아온다.
+//   무봉합 wrap: 점프를 패턴 주기의 정수배로, 시작·목표를 같은 틱에 이동(setLoopSeam).
+//   계기 = 바늘 달린 원형 속도계 + 노치 레버(held 표시) + 접근 스트립(정차 단서 단일 원본).
 
 import {
   KTX_SEGMENTS,
@@ -16,27 +19,47 @@ import {
 import {
   activeEvent,
   currentBand,
-  distanceGauge,
   distanceToMarker
 } from "./ktx-journey.mjs";
 import {
   ALL_LANDS,
   ALL_SKIES,
+  GROUND_SKINS,
+  approachStripSvg,
   cabDashSvg,
-  cabTrackSvg,
+  cabFrameSvg,
+  cabOncomingSvg,
+  cabPlatformSvg,
+  cabWiresSvg,
+  doorPanelSvg,
   eventSpriteSvg,
   landLayerSvg,
+  leverSvg,
+  linesideArt,
+  midStripSvg,
+  nearStripSvg,
+  oncomingTrainSvg,
+  portalSvg,
   sideTrainSvg,
   skyLayerSvg,
+  speedoDialSvg,
   trainCardSvg
 } from "./ktx-scene-art.mjs";
 import { characterAsset } from "./character-spec.mjs";
 
 const WINDOW_SLOTS = 8;
-const NEAR_SCALE = 3;          // 1 game m = 3 px (가까운 층)
-const FAR_RATIO = 0.18;        // 원경 시차
-const LAND_LOOP = 1000;        // 배경 스트립 반복 폭
-const TRAIN_NOSE_X = 200;      // 3인칭 열차 코 위치(px)
+const NEAR_SCALE = 3;          // 3인칭: 1 game m = 3 px
+const PLANE_PX_PER_M = 1;      // 1인칭 평면: 1 game m = 1 px (하단 투영 ≈7.6배)
+const FAR_RATIO = 0.12;        // 원경 시차 (v2: 0.18→0.12, 원근 대비 강화)
+const MID_RATIO = 0.45;        // 중경 시차
+const NEAR_RATIO = 1.6;        // 전경(전신주) 시차
+const LAND_LOOP = 1000;
+const TIE_LOOP = 640;          // 침목 wrap 주기 — 16px 패턴의 정수배
+const TRAIN_NOSE_X = 200;
+const LINESIDE_POOL = 10;
+const POLE_GAP_M = 90;         // 동시 비행 ≤3 (아이 렌즈 상한)
+const SIGNAL_GAP_M = 400;
+const TUNNEL_LAMP_GAP_M = 60;  // 반증 B3 — 30m는 풀 초과
 
 function el(document, tag, className, text = null) {
   const node = document.createElement(tag);
@@ -105,36 +128,123 @@ function buildCabView(document, state) {
   backdrop.append(horizon);
   view.append(backdrop);
 
-  const track = el(document, "div", "ktx-cab-track");
-  track.innerHTML = cabTrackSvg();
-  view.append(track);
+  // 원근 세계 — perspective는 CSS, 여기는 층 구조만
+  const world = el(document, "div", "ktx-cab-world");
+  const ground = el(document, "div", "ktx-ground3d");
+  for (const land of ALL_LANDS) {
+    const skin = el(document, "div", "ktx-gskin");
+    skin.dataset.land = land;
+    skin.style.setProperty("--skin-color", GROUND_SKINS[land]);
+    ground.append(skin);
+  }
+  ground.append(el(document, "div", "ktx-ballast-bed"));
+  ground.append(el(document, "div", "ktx-ties"));
+  for (const rail of ["own-l", "own-r", "opp-l", "opp-r"]) {
+    const railNode = el(document, "div", "ktx-rail3d");
+    railNode.dataset.rail = rail;
+    ground.append(railNode);
+  }
+  for (const shade of ["night", "sunset", "dawn"]) {
+    const shadeNode = el(document, "div", "ktx-ground-shade");
+    shadeNode.dataset.shade = shade;
+    ground.append(shadeNode);
+  }
+  ground.append(el(document, "div", "ktx-headlight"));
+  world.append(ground);
 
-  // 터널 실내등 — 1인칭 전용 재미
+  const wires = el(document, "div", "ktx-wires");
+  wires.innerHTML = cabWiresSvg();
+  world.append(wires);
+
+  const lineside = el(document, "div", "ktx-lineside");
+  for (let slot = 0; slot < LINESIDE_POOL; slot += 1) {
+    lineside.append(el(document, "div", "ktx-obj"));
+  }
+  world.append(lineside);
+
+  const oncoming = el(document, "div", "ktx-oncoming-cab");
+  ["lead", "mid", "mid"].forEach(part => {
+    const car = el(document, "div", "ktx-oncome");
+    car.innerHTML = cabOncomingSvg(part);
+    oncoming.append(car);
+  });
+  world.append(oncoming);
+
+  const portal = el(document, "div", "ktx-portal");
+  portal.innerHTML = portalSvg();
+  world.append(portal);
+
+  const cabPlat = el(document, "div", "ktx-cab-platform");
+  cabPlat.innerHTML = cabPlatformSvg();
+  cabPlat.append(el(document, "strong", "ktx-cabplat-name", ""));
+  cabPlat.append(el(document, "span", "ktx-cabplat-queue"));
+  world.append(cabPlat);
+
+  const walls = el(document, "div", "ktx-tunnel-walls");
+  view.append(world);
+  view.append(walls);
+
+  view.append(el(document, "div", "ktx-horizon-haze"));
+
+  // 경적 응답 미러 — 운전실에서 눌러도 응답이 보인다(아이 렌즈 §3)
+  view.append(el(document, "div", "ktx-cab-event"));
+
   const tunnel = el(document, "div", "ktx-cab-tunnel");
   tunnel.append(el(document, "span", "ktx-cab-lamp"));
   view.append(tunnel);
 
-  // 속도 풍선 — 다음 마일스톤이 가까우면 떠오른다
+  view.append(el(document, "div", "ktx-flash"));
+
+  const speedlines = el(document, "div", "ktx-speedlines");
+  for (const tier of ["3", "4", "5"]) {
+    const line = el(document, "div", "ktx-speedline");
+    line.dataset.tier = tier;
+    line.append(el(document, "i", "ktx-streak-tex"));
+    speedlines.append(line);
+  }
+  view.append(speedlines);
+
   const balloon = el(document, "div", "ktx-speed-balloon");
   balloon.append(el(document, "strong", "ktx-balloon-number", ""));
   view.append(balloon);
 
+  const frame = el(document, "div", "ktx-cab-frame");
+  frame.innerHTML = cabFrameSvg(state.train);
+  view.append(frame);
+
   const dash = el(document, "div", "ktx-cab-dash");
   dash.innerHTML = cabDashSvg(state.train);
-  const speed = el(document, "div", "ktx-speedo");
-  speed.append(el(document, "strong", "ktx-speed-number", "0"));
-  speed.append(el(document, "span", "ktx-speed-unit", "km/h"));
-  dash.append(speed);
-  const gauge = el(document, "div", "ktx-stop-gauge");
-  for (let cell = 0; cell < 5; cell += 1) {
-    gauge.append(el(document, "span", "ktx-gauge-cell"));
-  }
-  const palm = el(document, "span", "ktx-palm", "✋");
-  gauge.append(palm);
-  dash.append(gauge);
-  const lamp = el(document, "span", "ktx-door-lamp");
-  dash.append(lamp);
   view.append(dash);
+
+  // 계기 6종 — 표시 전용(협회 R4). 조작키는 ↑↓⎵1/3 그대로.
+  const destboard = el(document, "div", "ktx-destboard");
+  destboard.append(el(document, "i", "ktx-dest-dot"));
+  destboard.append(el(document, "span", "ktx-dest-text", ""));
+  view.append(destboard);
+
+  const dial = el(document, "div", "ktx-speedo");
+  dial.innerHTML = speedoDialSvg();
+  view.append(dial);
+
+  const lever = el(document, "div", "ktx-lever");
+  lever.innerHTML = leverSvg();
+  view.append(lever);
+
+  const approach = el(document, "div", "ktx-approach");
+  approach.innerHTML = approachStripSvg(state.train.color);
+  approach.append(el(document, "span", "ktx-palm", "✋"));
+  view.append(approach);
+
+  const doorPanel = el(document, "div", "ktx-door-panel");
+  doorPanel.innerHTML = doorPanelSvg();
+  doorPanel.append(el(document, "span", "ktx-door-lamp"));
+  view.append(doorPanel);
+
+  const nextKey = el(document, "div", "ktx-next-key");
+  nextKey.append(el(document, "kbd", "ktx-next-kbd", ""));
+  nextKey.append(el(document, "span", "ktx-next-word", ""));
+  view.append(nextKey);
+
   return view;
 }
 
@@ -149,20 +259,42 @@ function buildSideView(document, state) {
   buildEnvLayers(document, far, landLayerSvg, ALL_LANDS, "land");
   view.append(far);
 
+  const mid = el(document, "div", "ktx-side-mid");
+  mid.innerHTML = midStripSvg();
+  view.append(mid);
+
   const ground = el(document, "div", "ktx-side-ground");
   view.append(ground);
 
-  // 승강장 — 존과 함께 오른쪽에서 미끄러져 들어온다
+  // 승강장 v2 — 지붕·기둥·역명판·시계·안전선 구조물
   const platform = el(document, "div", "ktx-platform");
+  platform.append(el(document, "div", "ktx-platform-roof"));
+  for (const pos of ["a", "b", "c"]) {
+    const pillar = el(document, "div", "ktx-platform-pillar");
+    pillar.dataset.pos = pos;
+    platform.append(pillar);
+  }
+  const clock = el(document, "div", "ktx-platform-clock");
+  platform.append(clock);
   const sign = el(document, "div", "ktx-platform-sign");
   sign.append(el(document, "strong", "ktx-platform-name", ""));
   platform.append(sign);
+  for (const pos of ["a", "b"]) {
+    const bench = el(document, "div", "ktx-platform-bench");
+    bench.dataset.pos = pos;
+    platform.append(bench);
+  }
   const marker = el(document, "div", "ktx-stop-marker");
   marker.append(el(document, "span", "ktx-marker-star", "★"));
   platform.append(marker);
   view.append(platform);
 
-  // 이벤트 무대
+  // 교행 열차 — passing 이벤트 때 화면을 가로지른다
+  const oncoming = el(document, "div", "ktx-side-oncoming");
+  oncoming.innerHTML = oncomingTrainSvg();
+  view.append(oncoming);
+
+  // 이벤트 무대 (passing 제외 — 교행은 위 전용 레이어가 담당)
   const events = el(document, "div", "ktx-event-stage");
   view.append(events);
 
@@ -170,9 +302,20 @@ function buildSideView(document, state) {
   train.innerHTML = sideTrainSvg(state.train, WINDOW_SLOTS);
   view.append(train);
 
-  // 대기줄은 열차 앞(이쪽)에 선다 — 타는 것이 보여야 세기 놀이다
+  // 전경 전신주 — 열차 앞을 스치는 최고 속도 큐 (정차 근접 시 CSS가 숨김)
+  const near = el(document, "div", "ktx-side-near");
+  near.innerHTML = nearStripSvg();
+  view.append(near);
+
   const queue = el(document, "div", "ktx-queue");
   view.append(queue);
+
+  // 탑승 워커 — ⎵마다 맨 앞 친구가 문까지 걸어간다
+  view.append(el(document, "div", "ktx-walker-host"));
+
+  const streaks = el(document, "div", "ktx-speed-streaks");
+  streaks.append(el(document, "i", "ktx-streak-tex"));
+  view.append(streaks);
   return view;
 }
 
@@ -208,6 +351,9 @@ export function renderKtxScene(document, state, view = "cab") {
   hud.append(viewKeys);
   root.append(hud);
 
+  // 문 닫힘 카운트다운 숫자 — 어느 뷰에서든 보인다
+  root.append(el(document, "div", "ktx-door-countdown", ""));
+
   // 탑승 세기 팝 — 방금 탄 친구가 크게 뜬다
   const pop = el(document, "div", "ktx-board-pop");
   pop.append(el(document, "span", "ktx-board-face"));
@@ -225,18 +371,88 @@ export function renderKtxScene(document, state, view = "cab") {
   return root;
 }
 
-// 배경 스트립 루프 — 감길 때만 transition을 끊고 점프시킨다.
-function setLoop(node, px, period) {
-  const wrapped = ((px % period) + period) % period;
-  const previous = Number(node.dataset.loopPx ?? 0);
-  if (wrapped < previous) {
+// ── 동기화 프리미티브 ──────────────────────────────────────────────────────
+
+// 무봉합 루프(협회 반증 E 승격): 누적치가 주기를 넘으면 "시작점과 목표점을
+// 같은 틱에 주기의 정수배만큼" 되감는다 — 패턴이 불변이라 점프가 안 보이고,
+// transition은 정상적으로 새 목표를 향해 달린다(구형 setLoop의 1틱 정지 제거).
+// 재마운트·구간 전환의 거대 델타는 가드로 무시(반증 A1).
+function setLoopSeam(node, px, period, varName = "--loop-px", sign = -1) {
+  const raw = node.dataset.rawPx === undefined ? px : Number(node.dataset.rawPx);
+  let acc = Number(node.dataset.accPx ?? 0);
+  const delta = px - raw;
+  node.dataset.rawPx = String(px);
+  if (Math.abs(delta) < period * 4) acc += delta;
+  if (acc >= period || acc < 0) {
+    const laps = Math.floor(acc / period);
+    const rewound = acc - laps * period;
+    const shown = Number(node.dataset.accShown ?? 0) - laps * period;
     node.dataset.noTransition = "true";
-  } else {
+    node.style.setProperty(varName, `${sign * shown}px`);
+    void node.offsetWidth;
     delete node.dataset.noTransition;
+    acc = rewound;
   }
-  node.dataset.loopPx = String(wrapped);
-  node.style.setProperty("--loop-px", `${-wrapped}px`);
+  node.dataset.accPx = String(acc);
+  node.dataset.accShown = String(acc);
+  node.style.setProperty(varName, `${sign * acc}px`);
 }
+
+function pulse(node, className) {
+  if (!node) return;
+  node.classList.remove(className);
+  // 강제 리플로우로 애니메이션 재시작 — FakeElement에는 offsetWidth가 없어도 무해
+  void node.offsetWidth;
+  node.classList.add(className);
+}
+
+// ── 계기 판정 (순수 함수) ──────────────────────────────────────────────────
+
+export function leverPosition(state, held = {}) {
+  if (held.down || state.phase === "stopping" || state.phase === "correcting") {
+    return "brake";
+  }
+  if (held.up || (state.assist && state.phase === "driving" && state.v < 80)) {
+    return "power";
+  }
+  if (state.phase === "driving" && state.v > 0.5) return "cruise";
+  return "neutral";
+}
+
+export function speedTier(v) {
+  return v === 0 ? 0 : Math.min(5, Math.ceil(v / 60));
+}
+
+function destboardText(state) {
+  if (state.phase === "boarding") return `여기는 ${state.station}`;
+  if (state.phase === "ready") return `${KTX_SEGMENTS[state.segIndex].to} 출발 준비`;
+  if (state.phase === "driving" || state.phase === "stopping" ||
+    state.phase === "correcting") {
+    return `다음역 ▶ ${KTX_SEGMENTS[state.segIndex].to}`;
+  }
+  if (state.phase === "stopped") return `${state.station} 도착`;
+  if (state.phase === "finale") return "종착역 부산";
+  return "";
+}
+
+// 다음 올바른 키 하나만 알려 주는 필 — 프리리더는 kbd 글리프가 실질 정보.
+function nextKeyFor(state) {
+  if (state.phase === "boarding") {
+    return state.queue.length > 0
+      ? { key: "⎵", word: "태우기", tone: "act" }
+      : { key: "⎵", word: "문닫기", tone: "act" };
+  }
+  if (state.phase === "ready") return { key: "↑", word: "출발!", tone: "go" };
+  if (state.phase === "stopped") return { key: "⎵", word: "문열기", tone: "act" };
+  if (state.phase === "driving") {
+    return state.armed
+      ? { key: "⎵", word: "딱 멈추기", tone: "press" }
+      : { key: "⎵", word: "빵빵", tone: "dim" };
+  }
+  return null;
+}
+
+// ── 부분 갱신자 ────────────────────────────────────────────────────────────
 
 function updateWindows(root, state) {
   const shown = state.boarded.slice(-WINDOW_SLOTS);
@@ -263,20 +479,117 @@ function updateWindows(root, state) {
   });
 }
 
+// 대기줄 — 재생성 대신 diff 갱신: 남은 친구는 --queue-index만 줄어서
+// transition으로 스르륵 앞당겨진다(한 역 안에서 번호 중복 없음 — 반증 확인).
 function updateQueue(document, root, state) {
   const queueHost = root.querySelector(".ktx-queue");
   const key = state.queue.join(",");
   if (queueHost.dataset.queueKey === key) return;
   queueHost.dataset.queueKey = key;
-  queueHost.replaceChildren();
+  const existing = new Map();
+  for (const child of [...queueHost.children]) {
+    existing.set(child.dataset.number, child);
+  }
+  const kept = new Set();
   state.queue.forEach((number, index) => {
-    const person = passengerImg(document, number, "ktx-queue-person");
+    const id = String(number);
+    let person = existing.get(id);
+    if (!person) {
+      person = passengerImg(document, number, "ktx-queue-person");
+      person.dataset.number = id;
+      queueHost.append(person);
+    }
+    kept.add(id);
     person.style.setProperty("--queue-index", String(index));
-    queueHost.append(person);
   });
+  for (const [id, node] of existing) {
+    if (!kept.has(id)) node.remove();
+  }
 }
 
-export function updateKtxScene(root, state, view, events = []) {
+// 탑승 워커 — 문까지의 델타는 스폰 시 실측(반증 C5), 측정 불가 환경은 74px.
+function spawnWalker(document, root, event) {
+  const host = root.querySelector(".ktx-walker-host");
+  if (!host) return;
+  const walker = el(document, "div", "ktx-walker");
+  walker.append(passengerImg(document, event.number, "ktx-walker-img"));
+  let deltaX = 74;
+  const door = root.querySelector(".ktx-view-side .ktx-door");
+  if (door?.getBoundingClientRect && host.getBoundingClientRect) {
+    const doorBox = door.getBoundingClientRect();
+    const hostBox = host.getBoundingClientRect();
+    if (doorBox.width > 0) {
+      deltaX = Math.max(30, doorBox.left + doorBox.width / 2 - hostBox.left);
+    }
+  }
+  walker.style.setProperty("--walk-x", `${Math.round(deltaX)}px`);
+  host.replaceChildren(walker);
+}
+
+// 지물 풀 스폰 — 라운드로빈 재사용, duration은 스폰 순간의 v로 고정(협회 §4.2).
+function spawnObj(root, kind, lane, value, v) {
+  const host = root.querySelector(".ktx-lineside");
+  if (!host || !host.children.length) return;
+  const index = Number(host.dataset.next ?? 0);
+  const node = host.children[index % host.children.length];
+  host.dataset.next = String((index + 1) % host.children.length);
+  node.dataset.kind = kind;
+  node.dataset.lane = lane;
+  node.innerHTML = linesideArt(kind, value);
+  const dur = Math.max(1600, Math.min(6500, Math.round(936000 / Math.max(v, 1))));
+  node.style.animationDuration = `${dur}ms`;
+  pulse(node, "ktx-obj-run");
+}
+
+// 터널 포털 트리거 지점 — 구간의 터널 밴드 시작 미터(없으면 null).
+function portalStartFor(state) {
+  const seg = KTX_SEGMENTS[state.segIndex];
+  let from = 0;
+  for (const band of seg.bands) {
+    if (band.land === "tunnel") return from * seg.length;
+    from = band.until;
+  }
+  return null;
+}
+
+function updateLineside(root, state, band, dxM) {
+  if (state.phase !== "driving" || dxM <= 0 || state.zoneEntered) return;
+  if (band.land === "tunnel") {
+    const debt = Number(root.dataset.lampDebt ?? 0) + dxM;
+    if (debt >= TUNNEL_LAMP_GAP_M) {
+      root.dataset.lampDebt = String(debt - TUNNEL_LAMP_GAP_M);
+      const side = root.dataset.lampSide === "l" ? "r" : "l";
+      root.dataset.lampSide = side;
+      spawnObj(root, "tunnellamp", side, "", state.v);
+    } else {
+      root.dataset.lampDebt = String(debt);
+    }
+    return;
+  }
+  const poleDebt = Number(root.dataset.poleDebt ?? 60) + dxM;
+  if (poleDebt >= POLE_GAP_M) {
+    root.dataset.poleDebt = String(poleDebt - POLE_GAP_M);
+    spawnObj(root, "pole", "r", "", state.v);
+  } else {
+    root.dataset.poleDebt = String(poleDebt);
+  }
+  const signalDebt = Number(root.dataset.signalDebt ?? 250) + dxM;
+  if (signalDebt >= SIGNAL_GAP_M) {
+    root.dataset.signalDebt = String(signalDebt - SIGNAL_GAP_M);
+    spawnObj(root, "signal", "l", "", state.v);
+  } else {
+    root.dataset.signalDebt = String(signalDebt);
+  }
+  // 킬로포스트 — 남은 km가 줄어드는 순간(세기 카운트다운)
+  const remain = distanceToMarker(state);
+  const km = Math.ceil(remain / 1000);
+  if (km >= 1 && remain > 350 && root.dataset.kmMark !== String(km)) {
+    root.dataset.kmMark = String(km);
+    spawnObj(root, "kilopost", "r", String(km), state.v);
+  }
+}
+
+export function updateKtxScene(root, state, view, events = [], held = {}) {
   const document = root.ownerDocument ?? globalThis.document;
   const band = currentBand(state);
   root.dataset.view = view;
@@ -287,50 +600,121 @@ export function updateKtxScene(root, state, view, events = []) {
   root.dataset.tunnel = String(band.land === "tunnel");
   root.dataset.armed = String(state.armed && state.phase === "driving");
   root.dataset.moving = String(state.phase === "driving" || state.phase === "stopping");
+  root.dataset.speedTier = String(speedTier(state.v));
+  root.dataset.lever = leverPosition(state, held);
+  root.dataset.zone = String(state.zoneEntered &&
+    ["driving", "stopping", "correcting"].includes(state.phase));
+  root.dataset.doorWarning = String(
+    state.doorCountdownMs !== null && state.doorCountdownMs !== undefined &&
+    state.doorCountdownMs > 0 && state.doorCountdownMs <= 3200);
 
-  // 속도계·게이지
+  // 속도계 — 디지털 숫자 + 바늘(0~300 → ±120°)
   const speedNode = root.querySelector(".ktx-speed-number");
   const speed = Math.round(state.v);
   if (speedNode.textContent !== String(speed)) {
     speedNode.textContent = String(speed);
   }
-  const gaugeLevel = state.phase === "driving" && state.zoneEntered
-    ? distanceGauge(state)
-    : 5;
-  root.querySelectorAll(".ktx-gauge-cell").forEach((cell, index) => {
-    cell.dataset.on = String(index >= gaugeLevel);
-  });
+  root.style.setProperty("--needle-deg", `${(state.v * 0.8 - 120).toFixed(1)}deg`);
 
-  // 움직임 — 모델 주도 위치, CSS transition이 보간
-  const worldPx = (state.segIndex * 100000 + state.x) * NEAR_SCALE;
-  const sleepers = root.querySelector(".ktx-sleepers");
-  if (sleepers) {
-    sleepers.style.setProperty("stroke-dashoffset", String(-worldPx));
+  // 계기 텍스트 — 전광판·다음 키 필
+  const destText = root.querySelector(".ktx-dest-text");
+  const board = destboardText(state);
+  if (destText && destText.textContent !== board) destText.textContent = board;
+  const nextKey = nextKeyFor(state);
+  root.dataset.hint = nextKey ? nextKey.tone : "none";
+  if (nextKey) {
+    const kbd = root.querySelector(".ktx-next-kbd");
+    const word = root.querySelector(".ktx-next-word");
+    if (kbd && kbd.textContent !== nextKey.key) kbd.textContent = nextKey.key;
+    if (word && word.textContent !== nextKey.word) word.textContent = nextKey.word;
   }
-  root.querySelectorAll(".ktx-env-land").forEach(layer => {
-    setLoop(layer, worldPx * FAR_RATIO, LAND_LOOP);
-  });
-  const ground = root.querySelector(".ktx-side-ground");
-  if (ground) setLoop(ground, worldPx, 240);
 
-  // 승강장 — 존에 들어오면 화면 안으로
+  // 움직임 — 모델 주도 위치, CSS transition이 보간, wrap은 무봉합
+  const planePx = (state.segIndex * 100000 + state.x) * PLANE_PX_PER_M;
+  const worldPx = (state.segIndex * 100000 + state.x) * NEAR_SCALE;
+  const ties = root.querySelector(".ktx-ties");
+  if (ties) setLoopSeam(ties, planePx, TIE_LOOP, "--tie-px", 1);
+  root.querySelectorAll(".ktx-env-land").forEach(layer => {
+    setLoopSeam(layer, worldPx * FAR_RATIO, LAND_LOOP);
+  });
+  const mid = root.querySelector(".ktx-side-mid");
+  if (mid) setLoopSeam(mid, worldPx * MID_RATIO, LAND_LOOP);
+  const ground = root.querySelector(".ktx-side-ground");
+  if (ground) setLoopSeam(ground, worldPx, 240);
+  const near = root.querySelector(".ktx-side-near");
+  if (near) setLoopSeam(near, worldPx * NEAR_RATIO, 480);
+
+  // 지물 스폰 — 이동 델타(m). 구간 전환·정차 리셋의 거대 점프는 가드.
+  const prevSpawn = root.dataset.spawnPrevPx === undefined
+    ? planePx
+    : Number(root.dataset.spawnPrevPx);
+  let dxM = planePx - prevSpawn;
+  root.dataset.spawnPrevPx = String(planePx);
+  if (Math.abs(dxM) >= 50) dxM = 0;
+  updateLineside(root, state, band, dxM);
+
+  // 터널 포털 — 진입 2.2초 전(속도 반영) 1회 발사
+  if (root.dataset.portalSeg !== String(state.segIndex)) {
+    root.dataset.portalSeg = String(state.segIndex);
+    const at = portalStartFor(state);
+    root.dataset.portalAt = at === null ? "" : String(at);
+    root.dataset.portalFired = "false";
+  }
+  if (state.phase === "driving" && root.dataset.portalAt !== "" &&
+    root.dataset.portalFired !== "true") {
+    const at = Number(root.dataset.portalAt);
+    if (state.x >= at - (state.v / 3.6) * 2.2) {
+      root.dataset.portalFired = "true";
+      pulse(root.querySelector(".ktx-portal"), "ktx-portal-run");
+    }
+  }
+
+  // 터널 출구 번쩍 (상한 opacity .32 — 아이 렌즈)
+  if (root.dataset.prevLand === "tunnel" && band.land !== "tunnel") {
+    pulse(root.querySelector(".ktx-flash"), "ktx-flash-run");
+  }
+  root.dataset.prevLand = band.land;
+
+  // 승강장 — 존에 들어오면 화면 안으로 (3인칭) + 소실점에서 성장 (1인칭)
   const platform = root.querySelector(".ktx-platform");
   const driving = state.phase === "driving" || state.phase === "stopping" ||
     state.phase === "correcting";
-  // 마커가 다가오는 것이 보여야 조준이 된다 — 320m 앞부터 미끄러져 들어온다.
   const distance = driving ? distanceToMarker(state) : 0;
   const nearStop = !driving || distance < 320;
   platform.dataset.visible = String(nearStop);
+  root.dataset.nearStop = String(nearStop);
   const sideView = root.querySelector(".ktx-view-side");
   sideView.dataset.nearStop = String(nearStop);
+  const stationName = driving ? KTX_SEGMENTS[state.segIndex].to : state.station;
   if (nearStop) {
-    // 열차 코(200px)에 마커가 오면 정지 지점. 승강장 왼끝은 마커 -90m.
     const markerX = TRAIN_NOSE_X + distance * NEAR_SCALE;
     const shift = markerX - MARKER_FROM_ZONE * NEAR_SCALE;
     sideView.style.setProperty("--platform-x", `${shift}px`);
     const name = root.querySelector(".ktx-platform-name");
-    const stationName = driving ? KTX_SEGMENTS[state.segIndex].to : state.station;
     if (name.textContent !== stationName) name.textContent = stationName;
+  }
+  const cabPlat = root.querySelector(".ktx-cab-platform");
+  if (cabPlat) {
+    cabPlat.dataset.visible = String(nearStop);
+    if (nearStop) {
+      // t 하한 클램프 — 오버런(d<0)에서 폭주 금지(반증 B5)
+      const t = 1 - Math.max(0, Math.min(distance, 320)) / 320;
+      cabPlat.style.setProperty("--plat-x", `${(12 + 96 * t * t).toFixed(1)}px`);
+      cabPlat.style.setProperty("--plat-y", `${(6 + 120 * t * t).toFixed(1)}px`);
+      cabPlat.style.setProperty("--plat-s", (0.07 + 2.13 * t ** 3).toFixed(3));
+      const cabName = root.querySelector(".ktx-cabplat-name");
+      if (cabName && cabName.textContent !== stationName) {
+        cabName.textContent = stationName;
+        const waitHost = root.querySelector(".ktx-cabplat-queue");
+        if (waitHost) {
+          waitHost.replaceChildren();
+          const waiting = (state.manifest.stops[stationName] ?? []).slice(0, 3);
+          for (const number of waiting) {
+            waitHost.append(passengerImg(document, number, "ktx-cabplat-person"));
+          }
+        }
+      }
+    }
   }
   updateQueue(document, root, state);
   updateWindows(root, state);
@@ -359,12 +743,12 @@ export function updateKtxScene(root, state, view, events = []) {
     boardedNode.textContent = boardedText;
   }
 
-  // 속도 풍선 — 다음 마일스톤이 20 안이면 떠서 기다린다
+  // 속도 풍선 — 존 안에서는 억제(시선 깔때기, 아이 렌즈 §6)
   const nextMilestone = SPEED_MILESTONES.find(milestone =>
     !state.milestones.includes(milestone) && milestone > state.v - 1);
   const balloon = root.querySelector(".ktx-speed-balloon");
   const balloonOn = state.phase === "driving" && nextMilestone !== undefined &&
-    nextMilestone - state.v <= 20;
+    nextMilestone - state.v <= 20 && !state.zoneEntered;
   balloon.dataset.on = String(balloonOn);
   if (balloonOn) {
     const numberNode = root.querySelector(".ktx-balloon-number");
@@ -373,13 +757,21 @@ export function updateKtxScene(root, state, view, events = []) {
     }
   }
 
-  // 이벤트 무대 — 활성 이벤트 스프라이트
+  // 이벤트 무대 — passing은 전용 교행 레이어가 담당하므로 제외
   const stageHost = root.querySelector(".ktx-event-stage");
   const active = activeEvent(state);
   const eventKey = active?.type ?? "";
-  if (stageHost.dataset.event !== eventKey) {
-    stageHost.dataset.event = eventKey;
-    stageHost.innerHTML = eventKey ? eventSpriteSvg(eventKey) : "";
+  const stageKey = eventKey === "passing" ? "" : eventKey;
+  if (stageHost.dataset.event !== stageKey) {
+    stageHost.dataset.event = stageKey;
+    stageHost.innerHTML = stageKey ? eventSpriteSvg(stageKey) : "";
+  }
+  // 운전실 미러 — 경적 응답 상대가 운전실에서도 보인다
+  const cabEvent = root.querySelector(".ktx-cab-event");
+  const mirrorKey = ["river", "cows", "seagull"].includes(eventKey) ? eventKey : "";
+  if (cabEvent && cabEvent.dataset.event !== mirrorKey) {
+    cabEvent.dataset.event = mirrorKey;
+    cabEvent.innerHTML = mirrorKey ? eventSpriteSvg(mirrorKey) : "";
   }
 
   // 순간 연출 — 틱 이벤트를 data 속성 펄스로 넘긴다(CSS 애니메이션 재생)
@@ -388,6 +780,26 @@ export function updateKtxScene(root, state, view, events = []) {
       stageHost.dataset.hornLevel = String(event.level);
       pulse(stageHost, "ktx-horn-pulse");
       pulse(root.querySelector(".ktx-side-train"), "ktx-train-toot");
+      if (cabEvent && mirrorKey) {
+        cabEvent.dataset.hornLevel = String(event.level);
+        pulse(cabEvent, "ktx-horn-pulse");
+      }
+      pulse(root.querySelector(".ktx-cab-frame"), "ktx-wiper-go");
+      if (event.response === "passing") {
+        pulse(root.querySelector(".ktx-oncoming-cab"), "ktx-oncome-run");
+        pulse(root.querySelector(".ktx-side-oncoming"), "ktx-oncoming-run");
+      }
+    }
+    if (event.type === "event" && event.event === "passing") {
+      pulse(root.querySelector(".ktx-oncoming-cab"), "ktx-oncome-run");
+      pulse(root.querySelector(".ktx-side-oncoming"), "ktx-oncoming-run");
+      pulse(root.querySelector(".ktx-cab-world"), "ktx-cab-shake");
+    }
+    if (event.type === "zone-enter") {
+      spawnObj(root, "speed35", "l", "", state.v);
+    }
+    if (event.type === "event" && event.event === "sprint300") {
+      spawnObj(root, "sign300", "r", "", state.v);
     }
     if (event.type === "boarded") {
       const pop = root.querySelector(".ktx-board-pop");
@@ -396,6 +808,14 @@ export function updateKtxScene(root, state, view, events = []) {
       root.querySelector(".ktx-board-count").textContent = String(event.ordinal);
       pop.dataset.guest = String(Boolean(event.guest));
       pulse(pop, "ktx-board-show");
+      spawnWalker(document, root, event);
+    }
+    if (event.type === "door-countdown") {
+      const counter = root.querySelector(".ktx-door-countdown");
+      if (counter) {
+        counter.textContent = String(event.secondsLeft);
+        pulse(counter, "ktx-count-pop");
+      }
     }
     if (event.type === "stopped") {
       root.dataset.lastStars = String(event.stars);
@@ -410,14 +830,6 @@ export function updateKtxScene(root, state, view, events = []) {
     }
   }
   return root;
-}
-
-function pulse(node, className) {
-  if (!node) return;
-  node.classList.remove(className);
-  // 강제 리플로우로 애니메이션 재시작 — FakeElement에는 offsetWidth가 없어도 무해
-  void node.offsetWidth;
-  node.classList.add(className);
 }
 
 function showFinale(document, root, event) {

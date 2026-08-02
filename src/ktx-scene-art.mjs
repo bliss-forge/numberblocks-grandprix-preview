@@ -28,6 +28,45 @@ const RAIL = "#8d95a0";
 const TIE = "#7a6a55";
 const TIE_NIGHT = "#4d4335";
 
+// v2 신규 명명 토큰 (협회 판정 R5 — 신규 회색은 RAIL 파생 2단계 + 등재된 소품색만)
+const RAIL_LIGHT = "#c8ccd4";        // 레일 광택면
+const WIRE = "#6b7686";              // 전차선
+const BALLAST = "#cfc3ad";           // 자갈 (기존 cabTrack 값 승격)
+const BALLAST_SHOULDER = "#b9ac93";  // 자갈 어깨
+const TUNNEL_HOLE = "#262c3a";       // = LAND_PALETTES.tunnel.accent (R7)
+const GLASS = "#dff0fb";             // 기존 창유리 값
+const DOOR_GLASS = "#cfe3f5";        // 문짝
+const JOINT = "#2a3648";             // 관절 연결부
+const JOINT_TOP = "#4a5a72";         // 관절 주름 상단
+const SLAB = "#dce6f0";              // 승강장 슬래브
+const ROOF = "#a8bed4";              // 승강장 지붕
+const PILLAR = "#cfd9e4";            // 승강장 기둥
+const HEADLAMP = "#f4e9c8";          // = SKY_PALETTES.night.glow
+const POP_YELLOW = "#f4c542";
+const POP_RED = "#e8564a";
+const POP_GREEN = "#2fa25c";
+const POP_BLUE = "#5aa9e6";
+const GRAY = "#7d8ea1";              // = LAND_PALETTES.city.accent
+const DIAL_LOW = "#bfe8ff";          // = SKY_PALETTES.day.sky
+
+// 계기·지물이 쓰는 색 전체 — 아트 계약 테스트의 허용 집합.
+export const KTX_ART_TOKENS = Object.freeze([
+  INK, PAPER, RAIL, TIE, TIE_NIGHT, RAIL_LIGHT, WIRE, BALLAST,
+  BALLAST_SHOULDER, TUNNEL_HOLE, GLASS, DOOR_GLASS, JOINT, JOINT_TOP,
+  SLAB, ROOF, PILLAR, HEADLAMP, POP_YELLOW, POP_RED, POP_GREEN, POP_BLUE,
+  GRAY, DIAL_LOW
+]);
+
+// 1인칭 지면 평면의 땅 색 — land 밴드 크로스페이드에 편승 (R5: city는 기존 base)
+export const GROUND_SKINS = Object.freeze({
+  city: LAND_PALETTES.city.base,
+  field: LAND_PALETTES.field.base,
+  river: "#9ccf7e",
+  mountain: "#7b8a74",
+  tunnel: TUNNEL_HOLE,
+  sea: "#e8d9a8"
+});
+
 function svgWrap(className, viewBox, body, preserve = "xMidYMax slice") {
   return `<svg class="${className}" viewBox="${viewBox}" ` +
     `preserveAspectRatio="${preserve}" aria-hidden="true" ` +
@@ -127,75 +166,384 @@ export const ALL_LANDS = Object.freeze(Object.keys(LAND_PALETTES));
 
 // ── 3인칭 열차 (색은 고른 열차가 정한다) ──────────────────────────────────
 
+// v2 — KTX 실루엣: 긴 유선형 노즈 + 연속 차체 + 관절 대차 + 문/글로우.
+// 계약 유지: .ktx-window-slot[data-slot=0..7] g 안에 62×52 rect, 씬이 image를 얹는다.
 export function sideTrainSvg(train, windows = 8) {
+  const carW = 200;
+  const carAt = index => 300 + index * 208;
   const slots = Array.from({ length: windows }, (unused, index) => {
     const car = Math.floor(index / 2);
-    const x = 236 + car * 172 + (index % 2) * 78;
-    return `<g class="ktx-window-slot" data-slot="${index}" transform="translate(${x} 40)">` +
-      `<rect width="62" height="52" rx="10" fill="#dff0fb"/></g>`;
+    const x = carAt(car) + 20 + (index % 2) * 72;
+    return `<g class="ktx-window-slot" data-slot="${index}" transform="translate(${x} 54)">` +
+      `<rect width="62" height="52" rx="8" fill="${GLASS}"/>` +
+      `<rect class="ktx-window-glow" width="62" height="52" rx="8" fill="${HEADLAMP}" opacity="0"/>` +
+      `</g>`;
   }).join("");
-  const cars = Array.from({ length: 4 }, (unused, index) =>
-    `<rect x="${226 + index * 172}" y="22" width="160" height="86" rx="16" fill="${train.color}"/>` +
-    `<rect x="${226 + index * 172}" y="94" width="160" height="14" fill="${train.nose}"/>`
+  const cars = Array.from({ length: 4 }, (unused, index) => {
+    const x = carAt(index);
+    return `<rect x="${x}" y="44" width="${carW}" height="74" rx="4" fill="${train.color}"/>` +
+      `<rect x="${x}" y="52" width="${carW}" height="56" fill="${train.nose}" opacity=".18"/>` +
+      `<rect x="${x}" y="108" width="${carW}" height="26" fill="${train.nose}"/>`;
+  }).join("");
+  const doors = Array.from({ length: 4 }, (unused, index) => {
+    const x = carAt(index) + 156;
+    return `<g class="ktx-door" transform="translate(${x} 52)">` +
+      `<rect width="36" height="76" rx="6" fill="${train.nose}"/>` +
+      `<rect x="2" y="3" width="32" height="70" rx="4" fill="${JOINT}"/>` +
+      `<g class="ktx-door-leaf ktx-door-leaf-l"><rect x="1" y="3" width="17" height="70" rx="4" fill="${DOOR_GLASS}"/></g>` +
+      `<g class="ktx-door-leaf ktx-door-leaf-r"><rect x="18" y="3" width="17" height="70" rx="4" fill="${DOOR_GLASS}"/></g>` +
+      `<circle class="ktx-door-warnlamp" cx="18" cy="-8" r="5" fill="${POP_RED}" opacity="0"/>` +
+      `</g>`;
+  }).join("");
+  const joints = [500, 708, 916].map(x =>
+    `<rect x="${x}" y="56" width="8" height="62" rx="3" fill="${JOINT}"/>` +
+    `<rect x="${x - 2}" y="56" width="12" height="6" rx="3" fill="${JOINT_TOP}"/>`
   ).join("");
-  return svgWrap("ktx-side-train-art", "0 0 950 132", [
-    // 유선형 선두차
-    `<path d="M8 108 Q10 54 84 34 L216 26 L216 108z" fill="${train.color}"/>`,
-    `<path d="M8 108 Q9 84 30 72 L216 72 L216 108z" fill="${train.nose}"/>`,
-    `<rect x="118" y="40" width="72" height="34" rx="9" fill="#dff0fb"/>`,
+  // 자코브스 대차 — 량 경계 공유가 KTX 특징. 스포크가 있어 회전이 보인다.
+  const wheels = [70, 130, 504, 712, 920, 1100, 1160].map(cx =>
+    `<g transform="translate(${cx} 140)"><g class="ktx-wheel">` +
+    `<circle r="14" fill="${INK}"/><circle r="5" fill="${RAIL}"/>` +
+    `<rect x="-12" y="-2" width="24" height="4" rx="2" fill="${RAIL}"/>` +
+    `</g></g>`
+  ).join("");
+  return svgWrap("ktx-side-train-art", "0 0 1200 170", [
+    // 전두부 — 긴 유선형 노즈
+    `<path d="M8 132 C10 92 28 66 96 52 L300 44 L300 132z" fill="${train.color}"/>`,
+    `<path d="M8 132 C9 110 20 96 52 90 L300 90 L300 132z" fill="${train.nose}"/>`,
+    `<path d="M150 88 L166 56 L238 52 L238 88z" fill="${GLASS}"/>`,
+    `<circle cx="26" cy="104" r="7" fill="${HEADLAMP}"/>`,
+    // 팬터그래프
+    `<g class="ktx-panto">` +
+    `<rect x="196" y="40" width="70" height="6" rx="3" fill="${train.nose}"/>` +
+    `<path d="M208 40 L228 22 L248 40" fill="none" stroke="${INK}" stroke-width="4"/>` +
+    `<rect x="216" y="18" width="44" height="4" rx="2" fill="${INK}"/></g>`,
     cars,
+    joints,
     slots,
-    // 바퀴
-    ...Array.from({ length: 9 }, (unused, index) =>
-      `<circle cx="${80 + index * 100}" cy="116" r="13" fill="${INK}"/>` +
-      `<circle cx="${80 + index * 100}" cy="116" r="5" fill="${RAIL}"/>`),
-    `<rect x="0" y="126" width="950" height="6" rx="3" fill="${RAIL}"/>`
+    doors,
+    // 후미 — 양쪽 노즈(산천 실루엣 완성)
+    `<path d="M1192 132 C1190 92 1172 66 1104 52 L1124 44 L1124 132z" fill="${train.color}"/>`,
+    `<path d="M1192 132 C1191 110 1180 96 1148 90 L1124 90 L1124 132z" fill="${train.nose}"/>`,
+    wheels,
+    `<rect x="0" y="156" width="1200" height="6" rx="3" fill="${RAIL}"/>`
   ].join(""), "xMidYMid meet");
 }
 
-// ── 1인칭 운전실 ───────────────────────────────────────────────────────────
-// 침목은 세로로 흐르는 dasharray 줄무늬 — 사다리꼴 클립 안에서 "다가오는"
-// 움직임으로 읽힌다(협회 공학 렌즈 E3). 야간이면 침목 색이 어두워진다.
+// ── 1인칭 운전실 v2 ────────────────────────────────────────────────────────
+// 세계는 CSS perspective 평면(씬·CSS 몫)이고, 여기는 계기·프레임 아트만.
 
-export function cabTrackSvg() {
-  // preserveAspectRatio="none" — 트랙 밴드를 컨테이너에 정확히 맞춰 늘린다.
-  // 소실점은 상단 중앙(지평선), 아래로 갈수록 넓어진다.
-  return `<svg class="ktx-cab-track-art" viewBox="0 0 1000 300" ` +
-    `preserveAspectRatio="none" aria-hidden="true" ` +
-    `xmlns="http://www.w3.org/2000/svg">` + [
-    `<defs><clipPath id="ktx-track-clip">`,
-    `<path d="M448 0 L552 0 L900 300 L100 300z"/>`,
-    `</clipPath></defs>`,
-    // 땅바닥 전체
-    `<rect class="ktx-ground-plane" width="1000" height="300" fill="#a9df7d"/>`,
-    // 자갈 바닥 사다리꼴
-    `<path d="M430 0 L570 0 L980 300 L20 300z" class="ktx-ballast" fill="#cfc3ad"/>`,
-    // 침목: 굵은 세로선의 가로 줄무늬(dasharray)가 아래로 흐른다
-    `<g clip-path="url(#ktx-track-clip)">`,
-    `<line class="ktx-sleepers" x1="500" y1="-60" x2="500" y2="360" ` +
-    `stroke="${TIE}" stroke-width="820" stroke-dasharray="14 34"/>`,
-    `</g>`,
-    // 레일 두 줄 — 소실점으로 모인다
-    `<path d="M474 0 L266 300 L306 300 L486 0z" fill="${RAIL}"/>`,
-    `<path d="M526 0 L734 300 L694 300 L514 0z" fill="${RAIL}"/>`
-  ].join("") + `</svg>`;
+// 운전대 배경판 — 계기 도형은 전부 별도 노드(찌그러지면 안 되므로).
+export function cabDashSvg(train) {
+  return svgWrap("ktx-cab-dash-art", "0 0 1000 220", [
+    `<path d="M0 22 Q500 -14 1000 22 L1000 220 L0 220z" fill="${train.nose}"/>`,
+    `<path d="M0 44 Q500 8 1000 44 L1000 220 L0 220z" fill="${train.color}"/>`,
+    // 계기 웰 3개
+    `<rect x="40" y="70" width="250" height="140" rx="24" fill="${PAPER}" opacity=".16"/>`,
+    `<circle cx="500" cy="170" r="130" fill="${PAPER}" opacity=".16"/>`,
+    `<rect x="690" y="70" width="270" height="140" rx="24" fill="${PAPER}" opacity=".16"/>`,
+    // 장난감 디테일 — 나사·통풍구
+    ...[[26, 60], [974, 60], [26, 204], [974, 204]].map(([x, y]) =>
+      `<circle cx="${x}" cy="${y}" r="5" fill="${train.nose}"/>`),
+    ...[0, 1, 2].map(step =>
+      `<rect x="${318 + step * 56}" y="52" width="40" height="6" rx="3" fill="${train.nose}"/>`)
+  ].join(""), "none");
 }
 
-// 운전대(계기판) — 속도 숫자·게이지·문 램프는 DOM이 얹는다.
-export function cabDashSvg(train) {
-  return svgWrap("ktx-cab-dash-art", "0 0 1000 240", [
-    `<path d="M0 34 Q500 -30 1000 34 L1000 240 L0 240z" fill="${train.nose}"/>`,
-    `<path d="M0 60 Q500 0 1000 60 L1000 240 L0 240z" fill="${train.color}"/>`,
-    // 속도계 자리
-    `<circle cx="500" cy="150" r="92" fill="${INK}"/>`,
-    `<circle cx="500" cy="150" r="82" fill="${PAPER}"/>`,
-    // 노치 레버
-    `<rect x="778" y="96" width="26" height="104" rx="13" fill="${INK}"/>`,
-    `<circle class="ktx-notch-knob" cx="791" cy="180" r="22" fill="#f4c542"/>`,
-    // 문 램프 자리
-    `<circle class="ktx-door-lamp-shape" cx="212" cy="140" r="20" fill="#7d8ea1"/>`,
-    `<rect x="180" y="176" width="64" height="12" rx="6" fill="${train.nose}"/>`
-  ].join(""), "xMidYMax slice");
+// 캡 프레임 — 천장 립 + A필러 + 와이퍼. "운전석에 앉아 있음" 프레이밍.
+export function cabFrameSvg(train) {
+  return svgWrap("ktx-cab-frame-art", "0 0 1000 720", [
+    `<path d="M0 0 H1000 V34 Q500 58 0 34z" fill="${train.nose}"/>`,
+    `<path d="M0 0 H62 L20 520 H0z" fill="${train.nose}"/>`,
+    `<path d="M62 0 H70 L28 520 H20z" fill="${PAPER}" opacity=".18"/>`,
+    `<path d="M1000 0 H938 L980 520 H1000z" fill="${train.nose}"/>`,
+    `<path d="M938 0 H930 L972 520 H980z" fill="${PAPER}" opacity=".18"/>`,
+    `<g transform="translate(250 520)"><g class="ktx-wiper-arm">` +
+    `<rect x="-3" y="-170" width="6" height="170" rx="3" fill="${INK}"/>` +
+    `<rect x="-26" y="-176" width="52" height="8" rx="4" fill="${INK}"/>` +
+    `</g></g>`
+  ].join(""), "none");
+}
+
+function polar(cx, cy, r, deg) {
+  const rad = (deg * Math.PI) / 180;
+  return [cx + r * Math.sin(rad), cy - r * Math.cos(rad)];
+}
+
+function arcPath(cx, cy, r, fromDeg, toDeg) {
+  const [x1, y1] = polar(cx, cy, r, fromDeg);
+  const [x2, y2] = polar(cx, cy, r, toDeg);
+  const large = toDeg - fromDeg > 180 ? 1 : 0;
+  return `M${x1.toFixed(1)} ${y1.toFixed(1)} A${r} ${r} 0 ${large} 1 ` +
+    `${x2.toFixed(1)} ${y2.toFixed(1)}`;
+}
+
+// 원형 아날로그 속도계 — 바늘 각도 = v×0.8 − 120 (0~300 → ±120°).
+// .ktx-speed-number 셀렉터는 기존 계약 그대로(씬이 textContent 갱신).
+export function speedoDialSvg() {
+  const majors = Array.from({ length: 7 }, (unused, index) => {
+    const deg = -120 + index * 40;
+    const [x1, y1] = polar(110, 110, 94, deg);
+    const [x2, y2] = polar(110, 110, 78, deg);
+    return `<line x1="${x1.toFixed(1)}" y1="${y1.toFixed(1)}" ` +
+      `x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}" stroke="${INK}" ` +
+      `stroke-width="5" stroke-linecap="round"/>`;
+  }).join("");
+  const minors = Array.from({ length: 12 }, (unused, index) => {
+    const deg = -120 + 20 + index * 20;
+    if ((deg + 120) % 40 === 0) return "";
+    const [x1, y1] = polar(110, 110, 94, deg);
+    const [x2, y2] = polar(110, 110, 86, deg);
+    return `<line x1="${x1.toFixed(1)}" y1="${y1.toFixed(1)}" ` +
+      `x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}" stroke="${GRAY}" stroke-width="3"/>`;
+  }).join("");
+  const numbers = [0, 100, 200, 300].map(value => {
+    const [x, y] = polar(110, 110, 60, value * 0.8 - 120);
+    return `<text x="${x.toFixed(1)}" y="${(y + 6).toFixed(1)}" text-anchor="middle" ` +
+      `font-size="17" font-weight="900" fill="${INK}">${value}</text>`;
+  }).join("");
+  return svgWrap("ktx-dial-art", "0 0 220 220", [
+    `<circle cx="110" cy="110" r="106" fill="${INK}" class="ktx-dial-bezel"/>`,
+    `<circle cx="110" cy="110" r="94" fill="${PAPER}"/>`,
+    // 빠름 단계 존 아크 (경고 아님 — 벌점 없음 톤)
+    `<path d="${arcPath(110, 110, 84, -120, 0)}" fill="none" stroke="${DIAL_LOW}" stroke-width="12"/>`,
+    `<path d="${arcPath(110, 110, 84, 0, 80)}" fill="none" stroke="${LAND_PALETTES.field.base}" stroke-width="12"/>`,
+    `<path d="${arcPath(110, 110, 84, 80, 120)}" fill="none" stroke="${POP_YELLOW}" stroke-width="12"/>`,
+    majors, minors, numbers,
+    `<g class="ktx-needle"><path d="M103 120 L110 30 L117 120 L110 132z" fill="${POP_RED}"/></g>`,
+    `<circle cx="110" cy="110" r="11" fill="${INK}"/>`,
+    `<circle cx="110" cy="110" r="4.5" fill="${PAPER}"/>`,
+    // 디지털 창 — 바늘 궤적(±120°) 비간섭 하부
+    `<rect x="58" y="134" width="104" height="44" rx="10" fill="${GLASS}" ` +
+    `stroke="${INK}" stroke-width="3"/>`,
+    `<text class="ktx-speed-number" x="110" y="166" text-anchor="middle" ` +
+    `font-size="34" font-weight="900" fill="${INK}">0</text>`,
+    `<text x="110" y="189" text-anchor="middle" font-size="12" fill="${GRAY}">km/h</text>`
+  ].join(""), "xMidYMid meet");
+}
+
+// 노치 레버 — 표시 전용. 손잡이는 CSS translateY(var(--lever-y))로 움직인다.
+// 노치(위→아래): P(가속)·D(달림=고정속도)·N(중립)·B(브레이크), y=30/74/112/148.
+export function leverSvg() {
+  const marks = [30, 74, 112, 148].map(y =>
+    `<rect x="20" y="${y - 2.5}" width="14" height="5" rx="2.5" fill="${GRAY}"/>`
+  ).join("");
+  return svgWrap("ktx-lever-art", "0 0 84 190", [
+    `<rect x="36" y="14" width="12" height="150" rx="6" fill="${INK}"/>`,
+    marks,
+    `<circle class="ktx-halo ktx-halo-power" cx="62" cy="30" r="11" fill="${PAPER}" opacity="0"/>`,
+    `<path d="M56 36 L62 24 L68 36z" fill="${POP_GREEN}"/>`,
+    `<circle class="ktx-halo ktx-halo-cruise" cx="62" cy="74" r="11" fill="${PAPER}" opacity="0"/>`,
+    `<path d="M56 68 L68 74 L56 80z" fill="${POP_BLUE}"/>`,
+    `<circle class="ktx-halo ktx-halo-neutral" cx="62" cy="112" r="11" fill="${PAPER}" opacity="0"/>`,
+    `<circle cx="62" cy="112" r="5" fill="${GRAY}"/>`,
+    `<circle class="ktx-halo ktx-halo-brake" cx="62" cy="148" r="11" fill="${PAPER}" opacity="0"/>`,
+    `<path d="M56 142 L68 142 L62 154z" fill="${POP_RED}"/>`,
+    `<g class="ktx-lever-knob">` +
+    `<circle cx="42" cy="0" r="19" fill="${POP_YELLOW}" stroke="${PAPER}" stroke-width="4"/>` +
+    `<rect x="34" y="-4" width="16" height="3" fill="${INK}" opacity=".4"/>` +
+    `<rect x="34" y="2" width="16" height="3" fill="${INK}" opacity=".4"/>` +
+    `</g>`
+  ].join(""), "xMidYMid meet");
+}
+
+// 접근 스트립 — 정차 단서의 단일 원본(협회 R2). 1.3833px/m, d 120m→0 = 166px.
+// 미니 열차 코(로컬 x=56)가 초록 밴드(⭐⭐⭐ press 창)에 닿으면 ⎵.
+export function approachStripSvg(trainColor) {
+  return svgWrap("ktx-approach-art", "0 0 260 64", [
+    `<rect y="46" width="260" height="6" rx="3" fill="${RAIL}"/>`,
+    `<line x1="0" y1="55" x2="260" y2="55" stroke="${BALLAST}" ` +
+    `stroke-width="4" stroke-dasharray="4 10"/>`,
+    `<rect x="162" y="54" width="48" height="8" rx="4" fill="${LAND_PALETTES.field.base}"/>`,
+    `<rect class="ktx-band3" x="182" y="54" width="28" height="8" rx="4" fill="${POP_GREEN}"/>`,
+    `<rect x="196" y="18" width="58" height="28" rx="6" fill="${POP_YELLOW}"/>`,
+    `<rect x="196" y="18" width="58" height="6" rx="3" fill="${PAPER}"/>`,
+    `<g class="ktx-mini"><g transform="translate(0 26)">` +
+    `<rect width="44" height="20" rx="9" fill="${trainColor}"/>` +
+    `<path d="M44 20 Q56 18 56 10 Q56 2 44 2z" fill="${trainColor}"/>` +
+    `<circle cx="12" cy="20" r="4" fill="${INK}"/>` +
+    `<circle cx="34" cy="20" r="4" fill="${INK}"/>` +
+    `</g></g>`
+  ].join(""), "xMidYMid meet");
+}
+
+// 문 패널 — 미니 문짝이 실제 문과 동조해 열리고 닫힌다.
+export function doorPanelSvg() {
+  return svgWrap("ktx-doorpanel-art", "0 0 120 84", [
+    `<circle class="ktx-door-lamp-ring" cx="60" cy="12" r="13" fill="${POP_GREEN}" opacity="0"/>`,
+    `<circle class="ktx-door-lamp-dot" cx="60" cy="12" r="8" fill="${GRAY}"/>`,
+    `<rect x="34" y="26" width="52" height="50" rx="6" fill="${INK}"/>`,
+    `<rect x="37" y="29" width="46" height="44" fill="${POP_GREEN}"/>`,
+    `<g class="ktx-door-leaf ktx-door-leaf-l"><rect x="37" y="29" width="23" height="44" fill="${SLAB}"/></g>`,
+    `<g class="ktx-door-leaf ktx-door-leaf-r"><rect x="60" y="29" width="23" height="44" fill="${SLAB}"/></g>`
+  ].join(""), "xMidYMid meet");
+}
+
+// 전차선 가선 — 정적 V자 수렴(운전석에서 보는 접촉선은 준정지, 협회 §4.4).
+export function cabWiresSvg() {
+  const droppers = [0.25, 0.45, 0.65, 0.85].flatMap(t => {
+    const y = 144 - 144 * t;
+    return [
+      `<line x1="${(500 - 67 * t).toFixed(0)}" y1="${y.toFixed(0)}" ` +
+      `x2="${(500 - 67 * t).toFixed(0)}" y2="${(y - 18).toFixed(0)}" stroke="${WIRE}" stroke-width="2"/>`,
+      `<line x1="${(500 + 67 * t).toFixed(0)}" y1="${y.toFixed(0)}" ` +
+      `x2="${(500 + 67 * t).toFixed(0)}" y2="${(y - 18).toFixed(0)}" stroke="${WIRE}" stroke-width="2"/>`
+    ];
+  }).join("");
+  return svgWrap("ktx-wires-art", "0 0 1000 400", [
+    `<path d="M500 144 L433 0" stroke="${WIRE}" stroke-width="3" fill="none"/>`,
+    `<path d="M500 144 L567 0" stroke="${WIRE}" stroke-width="3" fill="none"/>`,
+    droppers
+  ].join(""), "none");
+}
+
+// 스쳐 지나가는 지물 — .ktx-obj 풀 노드의 innerHTML. 밑변 앵커는 CSS 몫.
+export function linesideArt(kind, value = "") {
+  if (kind === "pole") {
+    return svgWrap("ktx-obj-art", "0 0 90 130", [
+      `<rect x="8" y="6" width="10" height="124" rx="3" fill="${RAIL}"/>`,
+      `<rect x="8" y="18" width="70" height="8" rx="4" fill="${RAIL}"/>`,
+      `<circle cx="48" cy="22" r="5" fill="${WIRE}"/>`,
+      `<circle cx="68" cy="22" r="5" fill="${WIRE}"/>`
+    ].join(""), "xMidYMax meet");
+  }
+  if (kind === "signal") {
+    // 벌점 없음 = 항상 초록(협회 거부권 10 — 빨간 신호 금지)
+    return svgWrap("ktx-obj-art", "0 0 44 110", [
+      `<rect x="18" y="14" width="8" height="96" rx="3" fill="${RAIL}"/>`,
+      `<rect x="6" y="0" width="32" height="42" rx="10" fill="${INK}"/>`,
+      `<circle class="ktx-lamp" cx="22" cy="21" r="12" fill="${POP_GREEN}"/>`
+    ].join(""), "xMidYMax meet");
+  }
+  if (kind === "kilopost") {
+    return svgWrap("ktx-obj-art", "0 0 48 76", [
+      `<rect x="20" y="40" width="8" height="36" fill="${RAIL}"/>`,
+      `<rect x="2" y="0" width="44" height="44" rx="8" fill="${PAPER}" ` +
+      `stroke="${INK}" stroke-width="4"/>`,
+      `<text x="24" y="32" text-anchor="middle" font-size="26" font-weight="900" ` +
+      `fill="${INK}">${value}</text>`
+    ].join(""), "xMidYMax meet");
+  }
+  if (kind === "speed35") {
+    return svgWrap("ktx-obj-art", "0 0 64 96", [
+      `<rect x="28" y="56" width="8" height="40" fill="${RAIL}"/>`,
+      `<circle cx="32" cy="32" r="30" fill="${POP_YELLOW}"/>`,
+      `<circle cx="32" cy="32" r="24" fill="${PAPER}"/>`,
+      `<text x="32" y="42" text-anchor="middle" font-size="26" font-weight="900" ` +
+      `fill="${INK}">35</text>`
+    ].join(""), "xMidYMax meet");
+  }
+  if (kind === "sign300") {
+    return svgWrap("ktx-obj-art", "0 0 64 96", [
+      `<rect x="28" y="56" width="8" height="40" fill="${RAIL}"/>`,
+      `<circle cx="32" cy="32" r="30" fill="${POP_RED}"/>`,
+      `<circle cx="32" cy="32" r="24" fill="${PAPER}"/>`,
+      `<text x="32" y="40" text-anchor="middle" font-size="20" font-weight="900" ` +
+      `fill="${POP_RED}">300</text>`
+    ].join(""), "xMidYMax meet");
+  }
+  if (kind === "tunnellamp") {
+    return svgWrap("ktx-obj-art", "0 0 30 30", [
+      `<circle cx="15" cy="15" r="10" fill="${POP_YELLOW}"/>`,
+      `<circle cx="15" cy="15" r="5" fill="${HEADLAMP}"/>`
+    ].join(""), "xMidYMid meet");
+  }
+  return "";
+}
+
+// 터널 포털 — 홀 중심이 소실점에 정렬돼 "구멍 속으로" 들어간다. R7: 홀은
+// TUNNEL_HOLE(#262c3a), 최종 scale 12 — 삼킴 공포 제거.
+export function portalSvg() {
+  return svgWrap("ktx-portal-art", "0 0 200 200", [
+    `<path d="M14 200 L14 96 Q100 -4 186 96 L186 200 L150 200 L150 108 ` +
+    `Q100 52 50 108 L50 200z" fill="#3a4152"/>`,
+    `<path d="M50 200 L50 108 Q100 52 150 108 L150 200z" fill="${TUNNEL_HOLE}"/>`,
+    `<rect x="14" y="182" width="36" height="8" fill="${PAPER}"/>`,
+    `<rect x="150" y="182" width="36" height="8" fill="${PAPER}"/>`
+  ].join(""), "xMidYMax meet");
+}
+
+// 1인칭 역 접근 — 소실점에서 자라는 승강장(모델 구동, 씬이 scale 변수 세팅).
+// 로컬 x=23의 노란 타일이 정차 마커(★) — 스트립·✋과 자동 정합.
+export function cabPlatformSvg() {
+  return svgWrap("ktx-cabplat-art", "0 0 560 150", [
+    `<path d="M0 150 L28 96 L560 96 L560 150z" fill="${SLAB}"/>`,
+    `<rect x="28" y="96" width="532" height="10" fill="${PAPER}"/>`,
+    `<rect x="28" y="106" width="532" height="8" fill="${POP_YELLOW}"/>`,
+    `<rect x="23" y="112" width="46" height="34" rx="6" fill="${POP_YELLOW}"/>`,
+    `<text x="46" y="138" text-anchor="middle" font-size="24" font-weight="900" ` +
+    `fill="${INK}">★</text>`,
+    `<rect x="150" y="16" width="12" height="80" fill="${PILLAR}"/>`,
+    `<rect x="400" y="16" width="12" height="80" fill="${PILLAR}"/>`,
+    `<rect x="120" y="4" width="330" height="14" rx="7" fill="${ROOF}"/>`,
+    `<rect x="230" y="30" width="120" height="40" rx="8" fill="${INK}"/>`
+  ].join(""), "xMinYMax meet");
+}
+
+// 교행 열차(1인칭) — 맞은편 선로 위를 훑는 3량 스프라이트.
+export function cabOncomingSvg(part) {
+  if (part === "lead") {
+    return svgWrap("ktx-oncome-art", "0 0 200 90", [
+      `<path d="M196 82 C194 52 180 34 130 26 L8 20 L8 82z" fill="${POP_GREEN}"/>`,
+      `<path d="M196 82 C195 66 188 56 164 52 L8 52 L8 82z" fill="#1d7a42"/>`,
+      `<rect x="20" y="28" width="90" height="18" rx="6" fill="${GLASS}"/>`
+    ].join(""), "xMidYMax meet");
+  }
+  return svgWrap("ktx-oncome-art", "0 0 200 90", [
+    `<rect x="0" y="20" width="200" height="62" rx="6" fill="${POP_GREEN}"/>`,
+    `<rect x="0" y="52" width="200" height="30" fill="#1d7a42"/>`,
+    ...Array.from({ length: 3 }, (unused, index) =>
+      `<rect x="${18 + index * 62}" y="30" width="44" height="16" rx="5" fill="${GLASS}"/>`)
+  ].join(""), "xMidYMax meet");
+}
+
+// 교행 열차(3인칭) — 화면을 가로지르는 미러 스트립.
+export function oncomingTrainSvg() {
+  return svgWrap("ktx-oncoming-art", "0 0 760 100", [
+    `<path d="M6 92 C8 62 20 44 62 36 L200 30 L200 92z" fill="${POP_GREEN}"/>`,
+    `<rect x="200" y="30" width="264" height="62" rx="4" fill="${POP_GREEN}"/>`,
+    `<rect x="470" y="30" width="264" height="62" rx="4" fill="${POP_GREEN}"/>`,
+    `<rect x="6" y="64" width="728" height="28" fill="#1d7a42"/>`,
+    ...Array.from({ length: 7 }, (unused, index) =>
+      `<rect x="${90 + index * 90}" y="40" width="52" height="18" rx="5" fill="${GLASS}"/>`),
+    `<path d="M754 92 C752 62 740 44 698 36 L560 30 L560 92z" fill="${POP_GREEN}"/>`
+  ].join(""), "xMidYMax meet");
+}
+
+// 중경 스트립(3인칭) — 언덕·집·간이역 실루엣. 색은 currentColor(CSS가 밤낮 지정).
+export function midStripSvg() {
+  const strip = [
+    `<path d="M0 140 Q170 84 340 128 Q510 168 680 116 Q850 70 1000 132 L1000 200 L0 200z" fill="currentColor"/>`,
+    `<rect x="120" y="112" width="40" height="34" rx="4" fill="currentColor"/>`,
+    `<path d="M112 116 L140 96 L168 116z" fill="currentColor"/>`,
+    `<rect x="520" y="120" width="36" height="28" rx="4" fill="currentColor"/>`,
+    `<path d="M512 124 L538 106 L564 124z" fill="currentColor"/>`,
+    // 간이역 — 역 통과 풍경(모델 변경 0)
+    `<rect x="780" y="128" width="120" height="10" rx="4" fill="currentColor"/>`,
+    `<rect x="796" y="96" width="8" height="34" fill="currentColor"/>`,
+    `<rect x="876" y="96" width="8" height="34" fill="currentColor"/>`,
+    `<rect x="772" y="86" width="136" height="12" rx="6" fill="currentColor"/>`
+  ].join("");
+  return svgWrap("ktx-mid-art", "0 0 2000 200", [
+    `<g>${strip}</g>`,
+    `<g transform="translate(1000 0)">${strip}</g>`
+  ].join(""), "xMinYMax slice");
+}
+
+// 전경 스트립(3인칭) — 열차 앞을 스치는 전신주·가로수(최고 속도 큐).
+export function nearStripSvg() {
+  const strip = [
+    `<line x1="0" y1="16" x2="480" y2="16" stroke="currentColor" stroke-width="4"/>`,
+    `<rect x="24" y="4" width="12" height="256" rx="4" fill="currentColor"/>`,
+    `<rect x="24" y="28" width="60" height="7" rx="3" fill="currentColor"/>`,
+    `<circle cx="42" cy="24" r="5" fill="currentColor"/>`,
+    `<circle cx="72" cy="24" r="5" fill="currentColor"/>`,
+    `<circle cx="300" cy="150" r="30" fill="currentColor"/>`,
+    `<rect x="294" y="172" width="12" height="88" fill="currentColor"/>`
+  ].join("");
+  return svgWrap("ktx-near-art", "0 0 960 260", [
+    `<g>${strip}</g>`,
+    `<g transform="translate(480 0)">${strip}</g>`
+  ].join(""), "xMinYMax slice");
 }
 
 export const TIE_COLORS = Object.freeze({ day: TIE, night: TIE_NIGHT });
