@@ -203,6 +203,32 @@ test("세기 결과 표현에는 식을 추가하지 않는다", () => {
   );
 });
 
+test("환승 하차는 멜로디 없이 발빠짐 안내만 고른다", () => {
+  assert.equal(typeof appBehavior.subwayArrivingCue, "function");
+  assert.deepEqual(appBehavior.subwayArrivingCue("transfer", "forward"), {
+    realKey: "mind-gap",
+    fallback: "subway-mind-gap",
+    nextKey: null,
+    sfx: "door",
+    hint: "환승역이에요! 빨간 표시가 노란 칸에 올 때 ⎵!"
+  });
+});
+
+test("최종 목적지는 이동 방향에 맞는 도착 멜로디 뒤 발빠짐 안내를 고른다", () => {
+  assert.equal(typeof appBehavior.subwayArrivingCue, "function");
+  assert.deepEqual(appBehavior.subwayArrivingCue("destination", "back"), {
+    realKey: "arrive-melody-up",
+    fallback: null,
+    nextKey: "mind-gap",
+    sfx: "win",
+    hint: "도착 멜로디가 나와요! 곧 문이 열려요"
+  });
+  assert.equal(
+    appBehavior.subwayArrivingCue("destination", "forward").realKey,
+    "arrive-melody-down"
+  );
+});
+
 test("캐릭터 숫자를 지정된 다섯 배율 단계로 나눈다", () => {
   const boundaries = [
     [1, "base"],

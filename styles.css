@@ -1743,9 +1743,25 @@ body[data-state="celebrating"] .answer-box {
 
 /* Safety route: flat picture-book neighborhood */
 .mode-grid {
-  grid-template-columns: repeat(6, minmax(0, 205px));
+  grid-template-columns: repeat(5, minmax(0, 220px));
   justify-content: center;
-  width: min(100%, 1330px);
+  gap: clamp(12px, 1.6vw, 24px);
+  width: min(96vw, 1180px);
+}
+
+body[data-state="home"] #home {
+  gap: clamp(10px, 1.8vh, 20px);
+  padding: clamp(18px, 2.5vh, 32px) 3vw clamp(14px, 2vh, 24px);
+}
+
+body[data-state="home"] .mode-card {
+  min-height: clamp(205px, 27vh, 255px);
+  padding: 13px 14px 16px;
+}
+
+body[data-state="home"] .mode-card img {
+  width: min(76%, 142px);
+  height: clamp(105px, 16vh, 155px);
 }
 
 .mode-card:nth-child(5) {

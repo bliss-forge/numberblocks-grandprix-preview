@@ -871,6 +871,8 @@ function renderArrivingPhase(document, state, stage) {
   const room = document.createElement("div");
   room.className = "subway-arriving";
   room.dataset.stage = state.arriving?.stage ?? "melody";
+  const kind = state.arriving?.kind ?? "destination";
+  room.dataset.kind = kind;
 
   // The doors open while still inside the carriage, so reuse the train scenery
   // instead of leaving this step on an empty pale field.
@@ -885,15 +887,19 @@ function renderArrivingPhase(document, state, stage) {
 
   const sign = document.createElement("div");
   sign.className = "subway-station-sign";
-  sign.textContent = stationLabel(state.station);
+  sign.textContent = `${stationLabel(state.station)}${
+    kind === "transfer" ? " · 환승" : ""
+  }`;
   room.append(sign);
 
   const hopping = state.arriving?.stage === "hop";
   const note = document.createElement("p");
   note.className = "subway-arriving-note";
-  note.textContent = hopping
-    ? "빨간 불이 가운데 노란 칸에 올 때 ⎵! 폴짝 뛰어 내려요"
-    : "🎵 도착 멜로디 — 곧 문이 열려요";
+  note.textContent = kind === "transfer"
+    ? "빨간 표시가 노란 칸에 올 때 ⎵! 폴짝 뛰어 내려요"
+    : hopping
+      ? "빨간 불이 가운데 노란 칸에 올 때 ⎵! 폴짝 뛰어 내려요"
+      : "🎵 도착 멜로디 — 곧 문이 열려요";
   room.append(note);
 
   // The open doorway with the platform gap under it: train floor on the

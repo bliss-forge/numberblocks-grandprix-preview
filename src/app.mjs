@@ -23,7 +23,8 @@ import {
   playPromptCue,
   playRetryCue,
   quantityParts,
-  retireAnimationClass
+  retireAnimationClass,
+  subwayArrivingCue
 } from "./app-behavior.mjs";
 import {
   CHARACTER_VISUAL_METRICS,
@@ -1413,17 +1414,12 @@ function moveSubway(direction) {
     audio.cancel();
     playStationSound(event.station, "subway-transfer");
   } else if (event.type === "arriving") {
-    state.subwayDoorCue = false;
-    // 발빠짐 주의는 문이 열리고 폴짝 뛰어 내리는 이 순간에 나와야 한다.
-    playSubwayReal(
-      state.subway.travelSide === "back"
-        ? "arrive-melody-up"
-        : "arrive-melody-down",
-      null,
-      "mind-gap"
-    );
-    audio.playSfx("win");
-    showHint("도착 멜로디가 나와요! 곧 문이 열려요");
+    const cue = subwayArrivingCue(event.kind, state.subway.travelSide);
+    state.subwayDoorCue = event.kind === "transfer";
+    // 목적지는 멜로디 뒤 발빠짐 안내, 환승은 음악 없이 안내부터 튼다.
+    playSubwayReal(cue.realKey, cue.fallback, cue.nextKey);
+    audio.playSfx(cue.sfx);
+    showHint(cue.hint);
   } else if (event.type === "hop-miss") {
     audio.playSfx("pop");
     showHint("아직! 표시가 가운데 노란 칸에 올 때 ⎵");
@@ -1944,30 +1940,6 @@ document.addEventListener("keydown", event => {
     } else if (state.subway?.phase === "gate") {
       event.preventDefault();
       chooseSubwayLineInput(lineForKey(digit));
-    }
-    return;
-  }
-
-  if (state.phase === "home") {
-    const difficulties = { 7: "easy", 8: "steady", 9: "challenge" };
-    if (difficulties[digit]) {
-      event.preventDefault();
-      audio.playSfx("key");
-      setDifficulty(difficulties[digit]);
-      return;
-    }
-
-    const modes = {
-      1: "count",
-      2: "add",
-      3: "sub",
-      4: "mul",
-      5: "safety",
-      6: "subway"
-    };
-    if (modes[digit]) {
-      event.preventDefault();
-      startMode(modes[digit]);
     }
     return;
   }
