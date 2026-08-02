@@ -37,6 +37,7 @@ export const BOARD_HINT_MS = 5500;     // 탑승 힌트
 export const AUTO_BOARD_MS = 10000;    // 자동 탑승 개시
 export const AUTO_BOARD_GAP_MS = 1100; // 자동 탑승 간격 — 수사 음성과 안 겹치게
 export const BOARD_LOCK_MS = 1200;     // 마지막 승객 후 합계 연출 잠금
+export const DOOR_COUNTDOWN_MS = 6000; // 대기열 0 → 자동 문닫기 카운트다운(앞 3초는 감상 유예)
 export const ASSIST_TARGET = 80;       // 자동 크리프 목표 속도
 export const CORRECT_SPEED = 22;       // 오버런 복귀 후진 속도
 export const BASELINE_RESPONSES = Object.freeze(["magpie", "scarecrow", "wave"]);
@@ -91,6 +92,7 @@ export function createKtxJourney(seed = 0, trainId = "srt") {
     pendingStars: 0,
     idleMs: 0,
     lockMs: 0,
+    doorCountdownMs: null,
     assist: false,
     autoBoard: false,
     done: false
@@ -177,7 +179,8 @@ function openDoors(state, events) {
     metThisStop: 0,
     idleMs: 0,
     autoBoard: false,
-    lockMs: 0
+    lockMs: 0,
+    doorCountdownMs: null
   };
 }
 
@@ -209,7 +212,14 @@ function boardOne(state, events, auto = false) {
 
 function closeDoors(state, events) {
   events.push({ type: "doors-closed", next: segment(state).to });
-  return { ...state, doors: "closed", phase: "ready", idleMs: 0 };
+  // doorCountdownMs 리셋을 여기서 — 안 하면 문 경고 램프가 주행 내내 점멸(반증 B4)
+  return {
+    ...state,
+    doors: "closed",
+    phase: "ready",
+    idleMs: 0,
+    doorCountdownMs: null
+  };
 }
 
 function depart(state, events, auto = false) {
@@ -336,12 +346,24 @@ export function tickKtx(state, held = {}, elapsedMs = 150) {
         next.boardHinted = true;
         events.push({ type: "hint", what: "board" });
       }
-    } else if (next.idleMs >= ASSIST_IDLE_MS) {
+    } else if (held.up) {
+      // ↑ 지름길 — "타자마자 출발" 멘탈 모델. 다음 틱 ready에서 기존 로직이 출발.
       next = closeDoors(next, events);
-      events.push({ type: "auto", what: "doors-closed" });
-    } else if (next.idleMs >= HINT_IDLE_MS && !next.closeHinted) {
-      next.closeHinted = true;
-      events.push({ type: "hint", what: "close-doors" });
+    } else if (next.doorCountdownMs === null) {
+      // 대기열 0 → 자동 카운트다운 시작. Space 함정(문 닫기용 추가 입력) 해소.
+      next.doorCountdownMs = DOOR_COUNTDOWN_MS;
+      events.push({ type: "door-countdown-start", ms: DOOR_COUNTDOWN_MS });
+    } else {
+      const before = Math.ceil(next.doorCountdownMs / 1000);
+      next.doorCountdownMs = Math.max(0, next.doorCountdownMs - elapsedMs);
+      const after = Math.ceil(next.doorCountdownMs / 1000);
+      if (after < before && after >= 1 && after <= 3) {
+        events.push({ type: "door-countdown", secondsLeft: after });
+      }
+      if (next.doorCountdownMs === 0) {
+        next = closeDoors(next, events);
+        events.push({ type: "auto", what: "doors-closed" });
+      }
     }
     return { state: next, events };
   }

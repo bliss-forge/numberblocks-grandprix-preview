@@ -13,6 +13,7 @@ import {
   stopDistance
 } from "../src/ktx-route-data.mjs";
 import {
+  DOOR_COUNTDOWN_MS,
   createKtxJourney,
   distanceGauge,
   distanceToMarker,
@@ -119,6 +120,42 @@ test("마지막 승객 뒤 1.2초 잠금 — 그동안 Space는 무시된다", (
   const close = pressKtxSpace(state);
   assert.equal(close.events[0].type, "doors-closed");
   assert.equal(close.state.phase, "ready");
+});
+
+test("다 태우면 문이 스스로 닫힌다 — 6초 카운트다운, 3·2·1만 알린다", () => {
+  let state = createKtxJourney(3);
+  while (state.queue.length > 0) state = pressKtxSpace(state).state;
+  const run = drain(state, {}, 1500 + DOOR_COUNTDOWN_MS + 300);
+  const types = run.events.map(event => event.type);
+  assert.ok(types.includes("door-countdown-start"), "카운트다운 시작");
+  const seconds = run.events
+    .filter(event => event.type === "door-countdown")
+    .map(event => event.secondsLeft);
+  assert.deepEqual(seconds, [3, 2, 1], "앞 3초는 감상 유예, 알림은 3·2·1만");
+  assert.ok(types.includes("doors-closed"), "자동 문닫힘");
+  assert.equal(run.state.phase, "ready");
+  assert.equal(run.state.doorCountdownMs, null, "닫힐 때 리셋(경고 램프 소등)");
+});
+
+test("다 태운 뒤 ↑만 잡아도 문 닫고 출발한다 — Space 함정 해소", () => {
+  let state = createKtxJourney(3);
+  while (state.queue.length > 0) state = pressKtxSpace(state).state;
+  state = drain(state, {}, 1500).state;             // 합계 잠금 해제
+  const run = drain(state, { up: true }, 600);       // ↑ 홀드만
+  const types = run.events.map(event => event.type);
+  assert.ok(types.includes("doors-closed"), "↑ 지름길이 문을 닫는다");
+  assert.ok(types.includes("depart"), "이어서 바로 출발");
+  assert.equal(run.state.phase, "driving");
+});
+
+test("카운트다운 중 Space는 즉시 닫는다 — 기존 학습 보존", () => {
+  let state = createKtxJourney(3);
+  while (state.queue.length > 0) state = pressKtxSpace(state).state;
+  state = drain(state, {}, 3000).state;              // 잠금 해제 + 카운트다운 진입
+  assert.ok(state.doorCountdownMs !== null && state.doorCountdownMs > 0);
+  const close = pressKtxSpace(state);
+  assert.equal(close.events[0].type, "doors-closed");
+  assert.equal(close.state.doorCountdownMs, null);
 });
 
 test("↑를 놓아도 감속하지 않는다 — 코스트 순항", () => {
