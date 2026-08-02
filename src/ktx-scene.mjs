@@ -722,11 +722,16 @@ export function updateKtxScene(root, state, view, events = [], held = {}) {
   root.dataset.nearStop = String(nearStop);
   const sideView = root.querySelector(".ktx-view-side");
   sideView.dataset.nearStop = String(nearStop);
+  // 열차는 스테이지 %폭인데 승강장·대기줄은 설계 px(스테이지 1217 기준)라서,
+  // 다른 창 크기에서는 같은 비율로 함께 스케일해야 문 앞 정렬이 유지된다.
+  const stage = root.querySelector(".ktx-stage");
+  const sideScale = stage && stage.clientWidth ? stage.clientWidth / 1217 : 1;
+  sideView.style.setProperty("--side-scale", sideScale.toFixed(4));
   const stationName = driving ? KTX_SEGMENTS[state.segIndex].to : state.station;
   if (nearStop) {
     const markerX = TRAIN_NOSE_X + distance * NEAR_SCALE;
-    const shift = markerX - MARKER_FROM_ZONE * NEAR_SCALE;
-    sideView.style.setProperty("--platform-x", `${shift}px`);
+    const shift = (markerX - MARKER_FROM_ZONE * NEAR_SCALE) * sideScale;
+    sideView.style.setProperty("--platform-x", `${shift.toFixed(1)}px`);
     const name = root.querySelector(".ktx-platform-name");
     if (name.textContent !== stationName) name.textContent = stationName;
   }

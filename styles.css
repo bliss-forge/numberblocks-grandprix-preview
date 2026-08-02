@@ -5953,7 +5953,8 @@ body[data-mode="ktx"] .game-keyboard-note {
 
 body[data-mode="ktx"] .stage-frame {
   width: min(97vw, 1760px);
-  background: #eef3f8;
+  /* 반실사 패스: 미세 수직 그라데이션(흰→연청) — 테두리·라운드는 기본 규칙 유지 */
+  background: linear-gradient(to bottom, #ffffff, #e7eff8);
 }
 
 body[data-mode="ktx"] .stage,
@@ -6054,7 +6055,7 @@ body[data-mode="ktx"] .stage-lights {
 
 /* ── 운전실(1인칭) — 하늘 36% / 원근 세계 / 대시 28% ─────────────────── */
 
-.ktx-cab-backdrop { position: absolute; inset: 0 0 64% 0; z-index: 1; }
+.ktx-cab-backdrop { position: absolute; inset: 0 0 64% 0; z-index: 1; background-color: #cfe8f7; }
 
 .ktx-cab-horizon {
   position: absolute;
@@ -6081,9 +6082,9 @@ body[data-mode="ktx"] .stage-lights {
   position: absolute;
   top: 0;
   left: 50%;
-  width: 1300px;
+  width: 2000px;
   height: 500px;
-  margin-left: -650px;
+  margin-left: -1000px;
   transform-origin: 50% 0;
   transform: rotateX(84deg);
 }
@@ -6111,7 +6112,8 @@ body[data-mode="ktx"] .stage-lights {
   bottom: 0;
   left: calc(50% - 64px);
   width: 128px;
-  background: #cfc3ad;
+  /* 반실사 패스: 좌우 가장자리가 어두운 자갈 베드 — 볼록한 도상 인상 */
+  background: linear-gradient(to right, #b3a68c, #d4c8b2 24%, #d9ceb9 50%, #d4c8b2 76%, #b3a68c);
   border-left: 5px solid #b9ac93;
   border-right: 5px solid #b9ac93;
   z-index: 2;
@@ -6125,7 +6127,7 @@ body[data-mode="ktx"] .stage-lights {
   bottom: 0;
   left: -107px;
   width: 92px;
-  background: #cfc3ad;
+  background: linear-gradient(to right, #b3a68c, #d4c8b2 26%, #d9ceb9 50%, #d4c8b2 74%, #b3a68c);
   border-left: 5px solid #b9ac93;
   border-right: 5px solid #b9ac93;
 }
@@ -6155,7 +6157,8 @@ body[data-mode="ktx"] .stage-lights {
   top: 0;
   bottom: 0;
   width: 9px;
-  background: linear-gradient(to right, #8d95a0, #c8ccd4 40%, #8d95a0);
+  /* 반실사 패스: 레일 두부 하이라이트 스톱 추가 — 닦인 금속의 광 */
+  background: linear-gradient(to right, #79818d, #aab1bb 28%, #e9edf3 46%, #f7f9fc 54%, #bfc5cf 72%, #79818d);
   z-index: 4;
 }
 
@@ -6391,6 +6394,9 @@ body[data-mode="ktx"] .stage-lights {
   pointer-events: none;
   z-index: 4;
 }
+
+/* 밤엔 흰 헤이즈가 부자연 — 감쇠(정적, 색만) */
+.ktx-game[data-sky="night"] .ktx-horizon-haze { opacity: .35; }
 
 /* 경적 응답 미러 — 운전실에서도 오리·갈매기가 보인다 */
 .ktx-cab-event {
@@ -6827,6 +6833,7 @@ body[data-mode="ktx"] .stage-lights {
   position: absolute;
   inset: 0;
   width: calc(100% + 1000px);
+  background-color: #cfe8f7;
   transform: translate3d(var(--loop-px, 0px), 0, 0);
   transition: transform .16s linear;
   z-index: 0;
@@ -6869,9 +6876,14 @@ body[data-mode="ktx"] .stage-lights {
   bottom: 0;
   width: calc(100% + 240px);
   height: 30%;
+  /* 반실사 패스: 위 22px 자갈밴드 회갈색 수직 그라데이션 + 아래 풀밭 2스톱
+     수직 그라데이션을 기존 반복 패턴과 합성. 세로 그라데이션은 가로 균일이라
+     --loop-px 루프 무봉합 유지. 풀 층은 반투명 — 밤 background-color가 비친다. */
   background:
+    linear-gradient(to bottom, rgba(255, 255, 255, .26), rgba(139, 117, 88, .18) 55%, rgba(84, 66, 46, .3)) left top / 100% 22px no-repeat,
     repeating-linear-gradient(90deg, #b9ac93 0 16px, #cfc3ad 16px 60px) left top / 240px 22px repeat-x,
     repeating-linear-gradient(90deg, rgba(255, 255, 255, .12) 0 10px, transparent 10px 120px) left bottom / 240px 70% repeat-x,
+    linear-gradient(to bottom, rgba(214, 244, 168, .55), rgba(116, 178, 82, .4)) left 22px / 100% calc(100% - 22px) no-repeat,
     #a9df7d;
   transform: translate3d(var(--loop-px, 0px), 0, 0);
   transition: transform .16s linear;
@@ -6891,7 +6903,8 @@ body[data-mode="ktx"] .stage-lights {
   width: 480px;
   height: 26px;
   visibility: hidden;
-  transform: translate3d(var(--platform-x, 2000px), 0, 0);
+  transform: translate3d(var(--platform-x, 2000px), 0, 0) scale(var(--side-scale, 1));
+  transform-origin: left bottom;
   transition: transform .16s linear;
   background:
     repeating-linear-gradient(90deg, #f4c542 0 26px, #fff 26px 34px) left top / 100% 8px no-repeat,
@@ -7201,7 +7214,7 @@ body[data-mode="ktx"] .stage-lights {
   position: absolute;
   bottom: calc(24% + 2px);
   left: 0;
-  transform: translate3d(calc(var(--platform-x, 2000px) + 316px), 0, 0);
+  transform: translate3d(calc(var(--platform-x, 2000px) + 316px * var(--side-scale, 1)), 0, 0);
   transition: transform .16s linear;
   visibility: hidden;
   pointer-events: none;
@@ -7214,9 +7227,9 @@ body[data-mode="ktx"] .stage-lights {
   position: absolute;
   bottom: 0;
   left: 0;
-  width: 48px;
+  width: calc(48px * var(--side-scale, 1));
   height: auto;
-  transform: translateX(calc(var(--queue-index, 0) * 50px));
+  transform: translateX(calc(var(--queue-index, 0) * 50px * var(--side-scale, 1)));
   transition: transform .3s ease;
 }
 
@@ -7225,15 +7238,15 @@ body[data-mode="ktx"] .stage-lights {
   position: absolute;
   bottom: calc(24% + 2px);
   left: 0;
-  transform: translate3d(calc(var(--platform-x, 2000px) + 316px), 0, 0);
+  transform: translate3d(calc(var(--platform-x, 2000px) + 316px * var(--side-scale, 1)), 0, 0);
   pointer-events: none;
   z-index: 10;
 }
 
-.ktx-walker { width: 44px; animation: ktx-walk-x 780ms ease-in both; }
+.ktx-walker { width: calc(48px * var(--side-scale, 1)); animation: ktx-walk-x 780ms ease-in both; }
 
 .ktx-walker-img {
-  width: 44px;
+  width: 100%;
   height: auto;
   display: block;
   animation: ktx-walk-hop 130ms ease-in-out 4 alternate;
