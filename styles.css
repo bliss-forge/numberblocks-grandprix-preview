@@ -5919,3 +5919,545 @@ body[data-mode="subway"] .toast {
   .subway-photo-frame { transition: none; }
   .subway-photo-slot[data-fresh="true"] { animation: none; }
 }
+
+/* ── 칙칙폭폭 기관사 ──────────────────────────────────────────────────── */
+
+.ktx-game {
+  position: relative;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  justify-self: stretch;
+  align-self: stretch;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  padding: 8px 12px 12px;
+  gap: 8px;
+}
+
+.ktx-stage {
+  position: relative;
+  min-height: 0;
+  border-radius: 22px;
+  border: 4px solid #fff;
+  overflow: hidden;
+  box-shadow: 0 6px 0 rgba(37, 52, 93, .1);
+}
+
+/* 두 뷰는 동시 마운트 — data-view가 보일 쪽만 고른다(크로스페이드 250ms) */
+.ktx-view {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .25s ease;
+}
+
+.ktx-game[data-view="cab"] .ktx-view-cab,
+.ktx-game[data-view="side"] .ktx-view-side {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* 배경 레이어 — 전부 미리 그려 두고 활성만 보인다 (1.5s 크로스페이드) */
+.ktx-env {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transition: opacity 1.5s ease;
+  pointer-events: none;
+}
+
+.ktx-env svg { width: 100%; height: 100%; display: block; }
+
+.ktx-game[data-sky="morning"] .ktx-env[data-sky="morning"],
+.ktx-game[data-sky="day"] .ktx-env[data-sky="day"],
+.ktx-game[data-sky="sunset"] .ktx-env[data-sky="sunset"],
+.ktx-game[data-sky="night"] .ktx-env[data-sky="night"],
+.ktx-game[data-sky="dawn"] .ktx-env[data-sky="dawn"],
+.ktx-game[data-land="city"] .ktx-env[data-land="city"],
+.ktx-game[data-land="field"] .ktx-env[data-land="field"],
+.ktx-game[data-land="river"] .ktx-env[data-land="river"],
+.ktx-game[data-land="mountain"] .ktx-env[data-land="mountain"],
+.ktx-game[data-land="tunnel"] .ktx-env[data-land="tunnel"],
+.ktx-game[data-land="sea"] .ktx-env[data-land="sea"] {
+  opacity: 1;
+}
+
+/* 배경 스트립 이동 — 모델이 --loop-px를 주고 transition이 틱 사이를 보간.
+   한 바퀴 감길 때는 data-no-transition으로 점프한다. */
+.ktx-env-land {
+  transform: translateX(var(--loop-px, 0px));
+  transition: opacity 1.5s ease, transform .16s linear;
+  width: 200%;
+}
+
+.ktx-env-land[data-no-transition="true"] { transition: opacity 1.5s ease; }
+
+/* ── 1인칭 운전실 ── */
+
+.ktx-cab-backdrop { position: absolute; inset: 0 0 38% 0; overflow: hidden; }
+.ktx-cab-horizon { position: absolute; inset: auto 0 0 0; height: 34%; }
+
+.ktx-cab-track {
+  position: absolute;
+  inset: 30% 0 0 0;
+}
+
+.ktx-cab-track svg { width: 100%; height: 100%; display: block; }
+
+/* 침목 — stroke-dashoffset 누적값, transition 보간으로 "다가온다" */
+.ktx-sleepers { transition: stroke-dashoffset .16s linear; }
+
+.ktx-game[data-sky="night"] .ktx-ballast { fill: #8d8272; }
+.ktx-game[data-sky="night"] .ktx-sleepers { stroke: #4d4335; }
+
+/* 터널 실내등 — 1인칭 전용 재미 */
+.ktx-cab-tunnel {
+  position: absolute;
+  inset: 0;
+  background: rgba(20, 26, 40, 0);
+  transition: background .8s ease;
+  pointer-events: none;
+}
+
+.ktx-game[data-tunnel="true"] .ktx-cab-tunnel { background: rgba(20, 26, 40, .45); }
+
+.ktx-cab-lamp {
+  position: absolute;
+  top: 14px;
+  left: 50%;
+  width: 120px;
+  height: 14px;
+  margin-left: -60px;
+  border-radius: 7px;
+  background: #fdf3d0;
+  opacity: 0;
+  transition: opacity .8s ease;
+}
+
+.ktx-game[data-tunnel="true"] .ktx-cab-lamp {
+  opacity: 1;
+  box-shadow: 0 4px 30px 8px rgba(253, 243, 208, .55);
+}
+
+/* 속도 풍선 — 다음 마일스톤이 떠서 기다린다 */
+.ktx-speed-balloon {
+  position: absolute;
+  top: 16%;
+  right: 18%;
+  display: grid;
+  place-items: center;
+  width: 92px;
+  height: 92px;
+  border-radius: 50%;
+  background: #fff;
+  border: 5px solid #e8564a;
+  opacity: 0;
+  transform: translateY(16px);
+  transition: opacity .4s ease, transform .4s ease;
+  pointer-events: none;
+}
+
+.ktx-speed-balloon[data-on="true"] { opacity: 1; transform: translateY(0); }
+
+.ktx-balloon-number { font-size: 30px; font-weight: 900; color: #e8564a; }
+
+.ktx-balloon-pop { animation: ktx-pop .5s ease; }
+
+/* 계기판 */
+.ktx-cab-dash {
+  position: absolute;
+  inset: auto 0 0 0;
+  height: 34%;
+}
+
+.ktx-cab-dash svg { width: 100%; height: 100%; display: block; }
+
+.ktx-speedo {
+  position: absolute;
+  left: 50%;
+  bottom: 12%;
+  transform: translateX(-50%);
+  display: grid;
+  justify-items: center;
+  width: 170px;
+}
+
+.ktx-speed-number {
+  font-size: clamp(40px, 5.4vw, 64px);
+  font-weight: 900;
+  color: #31445b;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.ktx-speed-unit { font-size: 14px; font-weight: 800; color: #7d8ea1; }
+
+.ktx-speed-pop .ktx-speed-number { animation: ktx-pop .5s ease; }
+
+/* 정지 거리 게이지 5칸 + 손바닥 */
+.ktx-stop-gauge {
+  position: absolute;
+  right: 6%;
+  bottom: 42%;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ktx-gauge-cell {
+  width: 22px;
+  height: 22px;
+  border-radius: 7px;
+  background: #dce6f0;
+  border: 3px solid #fff;
+}
+
+.ktx-gauge-cell[data-on="true"] { background: #f4c542; }
+
+.ktx-palm {
+  font-size: 30px;
+  opacity: 0;
+  transition: opacity .2s ease;
+}
+
+.ktx-game[data-armed="true"] .ktx-palm { opacity: 1; animation: ktx-palm-blink 1s ease infinite; }
+
+@keyframes ktx-palm-blink {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.25); }
+}
+
+.ktx-door-lamp {
+  position: absolute;
+  left: 21.2%;
+  bottom: 52%;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #7d8ea1;
+}
+
+.ktx-game[data-doors="open"] .ktx-door-lamp { background: #2fa25c; box-shadow: 0 0 12px #2fa25c; }
+
+/* ── 3인칭 바깥 ── */
+
+.ktx-side-backdrop { position: absolute; inset: 0 0 30% 0; overflow: hidden; }
+.ktx-view-side .ktx-env-land { bottom: 30%; top: auto; height: 34%; }
+
+.ktx-side-ground {
+  position: absolute;
+  inset: auto 0 0 0;
+  height: 30%;
+  background:
+    repeating-linear-gradient(90deg,
+      #cfc3ad 0 34px, #c3b7a1 34px 40px, #cfc3ad 40px 80px),
+    #cfc3ad;
+  transform: translateX(var(--loop-px, 0px));
+  transition: transform .16s linear;
+  width: 200%;
+}
+
+.ktx-side-ground[data-no-transition="true"] { transition: none; }
+
+.ktx-game[data-sky="night"] .ktx-side-ground { filter: none; background:
+  repeating-linear-gradient(90deg,
+    #8d8272 0 34px, #7f7466 34px 40px, #8d8272 40px 80px),
+  #8d8272; }
+
+.ktx-side-train {
+  position: absolute;
+  left: 3%;
+  bottom: 24%;
+  width: 62%;
+}
+
+.ktx-side-train svg { width: 100%; height: auto; display: block; }
+
+.ktx-train-toot { animation: ktx-toot .4s ease; }
+
+@keyframes ktx-toot {
+  0%, 100% { transform: translateY(0); }
+  40% { transform: translateY(-8px); }
+}
+
+/* 승강장 — 존과 함께 오른쪽에서 들어온다 */
+.ktx-platform {
+  position: absolute;
+  bottom: 24%;
+  left: 0;
+  width: 480px;
+  transform: translateX(var(--platform-x, 1400px));
+  transition: transform .16s linear;
+  opacity: 0;
+}
+
+.ktx-platform[data-visible="true"] { opacity: 1; }
+
+.ktx-platform::before {
+  content: "";
+  display: block;
+  height: 20px;
+  border-radius: 10px 10px 0 0;
+  background: #dce6f0;
+  border: 4px solid #fff;
+  border-bottom: none;
+}
+
+.ktx-platform-sign {
+  position: absolute;
+  top: -86px;
+  left: 40px;
+  padding: 8px 18px;
+  border-radius: 14px;
+  background: #31445b;
+  color: #fff;
+  font-size: 22px;
+  font-weight: 900;
+}
+
+.ktx-stop-marker {
+  position: absolute;
+  top: -46px;
+  left: 0;
+  width: 46px;
+  height: 46px;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  background: #f4c542;
+  border: 4px solid #fff;
+  font-size: 24px;
+  color: #b23a2f;
+}
+
+.ktx-queue {
+  position: absolute;
+  top: -72px;
+  left: 120px;
+  display: flex;
+  align-items: flex-end;
+  gap: 4px;
+}
+
+.ktx-queue-person {
+  height: 64px;
+  width: auto;
+  transform: translateX(calc(var(--queue-index) * 2px));
+}
+
+/* 이벤트 무대 */
+.ktx-event-stage {
+  position: absolute;
+  right: 4%;
+  bottom: 32%;
+  width: 300px;
+  opacity: 0;
+  transition: opacity .8s ease;
+  pointer-events: none;
+}
+
+.ktx-event-stage[data-event]:not([data-event=""]) { opacity: 1; }
+
+.ktx-event-stage svg { width: 100%; height: auto; display: block; }
+
+.ktx-horn-pulse { animation: ktx-horn-bounce .5s ease; }
+
+.ktx-horn-pulse[data-horn-level="2"] { animation-duration: .4s; }
+.ktx-horn-pulse[data-horn-level="3"] { animation-duration: .3s; }
+
+@keyframes ktx-horn-bounce {
+  0%, 100% { transform: translateY(0) scale(1); }
+  45% { transform: translateY(-14px) scale(1.06); }
+}
+
+/* ── HUD ── */
+
+.ktx-hud {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 6px 10px;
+  border-radius: 16px;
+  background: #fff;
+  border: 4px solid #eef4fa;
+}
+
+.ktx-plan { display: flex; gap: 10px; }
+
+.ktx-plan-stop {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+  font-weight: 800;
+  color: #7d8ea1;
+}
+
+.ktx-plan-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #dce6f0;
+  border: 2px solid #fff;
+}
+
+.ktx-plan-stop[data-done="true"] { color: #11705f; }
+.ktx-plan-stop[data-done="true"] .ktx-plan-dot { background: #2fa25c; }
+.ktx-plan-stop[data-here="true"] { color: #31445b; }
+.ktx-plan-stop[data-here="true"] .ktx-plan-dot {
+  background: #f4c542;
+  animation: ktx-here-blink 1.2s ease infinite;
+}
+
+@keyframes ktx-here-blink {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.35); }
+}
+
+.ktx-score { display: flex; gap: 12px; font-size: 16px; font-weight: 900; color: #31445b; }
+
+.ktx-stars-pop { animation: ktx-pop .6s ease; }
+
+.ktx-view-keys { display: flex; gap: 6px; }
+
+.ktx-view-key {
+  padding: 5px 10px;
+  border-radius: 9px;
+  background: #eef4fa;
+  font-size: 13px;
+  font-weight: 800;
+  color: #31445b;
+}
+
+.ktx-game[data-view="cab"] .ktx-view-key[data-view-key="cab"],
+.ktx-game[data-view="side"] .ktx-view-key[data-view-key="side"] {
+  background: #31445b;
+  color: #fff;
+}
+
+/* 탑승 세기 팝 */
+.ktx-board-pop {
+  position: absolute;
+  top: 22%;
+  left: 50%;
+  transform: translateX(-50%) scale(.6);
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.ktx-board-img { height: 110px; width: auto; }
+
+.ktx-board-count {
+  font-size: 54px;
+  font-weight: 900;
+  color: #2f7de1;
+  -webkit-text-stroke: 3px #fff;
+  paint-order: stroke;
+}
+
+.ktx-board-pop[data-guest="true"] .ktx-board-count { color: #e8564a; }
+
+.ktx-board-show { animation: ktx-board-in 1s ease; }
+
+@keyframes ktx-board-in {
+  0% { opacity: 0; transform: translateX(-50%) scale(.6); }
+  25% { opacity: 1; transform: translateX(-50%) scale(1.1); }
+  70% { opacity: 1; transform: translateX(-50%) scale(1); }
+  100% { opacity: 0; transform: translateX(-50%) scale(.9); }
+}
+
+@keyframes ktx-pop {
+  0% { transform: scale(1); }
+  40% { transform: scale(1.3); }
+  100% { transform: scale(1); }
+}
+
+/* 종착 피날레 */
+.ktx-finale {
+  position: absolute;
+  inset: 0;
+  display: none;
+  place-content: center;
+  justify-items: center;
+  gap: 14px;
+  background: rgba(255, 255, 255, .92);
+  border-radius: 22px;
+  z-index: 5;
+}
+
+.ktx-finale[data-on="true"] { display: grid; }
+
+.ktx-finale-title { margin: 0; font-size: 40px; font-weight: 900; color: #11705f; }
+
+.ktx-finale-friends {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+  max-width: 760px;
+}
+
+.ktx-finale-friend { height: 84px; width: auto; animation: ktx-toot .8s ease infinite; }
+
+.ktx-finale-friend:nth-child(2n) { animation-delay: .2s; }
+.ktx-finale-friend:nth-child(3n) { animation-delay: .4s; }
+
+.ktx-finale-words { margin: 0; font-size: 22px; font-weight: 900; color: #31445b; }
+
+/* 시작 화면 — 열차 고르기 */
+.ktx-picker {
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 16px;
+  height: 100%;
+}
+
+.ktx-picker-title { margin: 0; font-size: 34px; font-weight: 900; color: #31445b; }
+.ktx-picker-note { margin: 0; font-size: 17px; font-weight: 700; color: #5b6b81; }
+
+.ktx-picker-row { display: flex; gap: 24px; }
+
+.ktx-train-card {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  width: 300px;
+  padding: 18px;
+  border-radius: 24px;
+  border: 5px solid #eef4fa;
+  background: #fff;
+  cursor: pointer;
+  transition: transform .15s ease;
+}
+
+.ktx-train-card[data-selected="true"] {
+  border-color: #f4c542;
+  background: #fffaea;
+  transform: translateY(-6px);
+  box-shadow: 0 8px 0 #e0a800;
+}
+
+.ktx-train-face svg { width: 250px; height: auto; display: block; }
+
+.ktx-train-name { font-size: 24px; font-weight: 900; color: #31445b; }
+
+.ktx-train-card:focus-visible { outline: 4px solid #31445b; outline-offset: 2px; }
+
+/* reduced-motion: 전방 광류·스크롤 정지, 속도감은 숫자와 소리가 담당 */
+@media (prefers-reduced-motion: reduce) {
+  .ktx-sleepers,
+  .ktx-env-land,
+  .ktx-side-ground,
+  .ktx-platform { transition: none; }
+
+  .ktx-palm,
+  .ktx-plan-stop[data-here="true"] .ktx-plan-dot,
+  .ktx-finale-friend { animation: none; }
+}
