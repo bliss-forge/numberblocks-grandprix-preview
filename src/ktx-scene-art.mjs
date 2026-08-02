@@ -5,7 +5,7 @@
 // (하늘 5장×2뷰, 땅 6장×2뷰 등) 모든 <defs> id는 "함수 인자별 유니크"다:
 //   ktx-g-sky-{sky} · ktx-g-sun-{sky}                (skyLayerSvg)
 //   ktx-g-land-{land} · ktx-g-land2/fog/lamp-{land}  (landLayerSvg — defs는 래퍼에 1회)
-//   ktx-g-body/skirt/glass/band/shadow/roof-{train.id} (sideTrainSvg)
+//   ktx-g-body/nose/waist/blend/skirt/glass/band/shadow/roof-{train.id} (sideTrainSvg)
 //   ktx-g-card*-{train.id}                           (trainCardSvg)
 //   ktx-g-onc-* / ktx-g-oncab-{part}*                (oncoming 계열)
 //   ktx-g-plat-* / ktx-g-portal-*                    (승강장·포털)
@@ -60,12 +60,18 @@ const POP_BLUE = "#5aa9e6";
 const GRAY = "#7d8ea1";              // = LAND_PALETTES.city.accent
 const DIAL_LOW = "#bfe8ff";          // = SKY_PALETTES.day.sky
 
+// v5 신규 리버리 토큰 — 실차 투톤(은백 차체 + 색 허리 밴드)용 은백/회색 계열
+const BODY_SILVER = "#f7f9fc";       // 차체 상부 은백
+const BODY_SILVER_DEEP = "#dfe6ee"; // 차체 은백 음영(하단·도어 리프)
+const SKIRT_STEEL = "#3a4152";      // 스커트/하부 금속 (= LAND_PALETTES.tunnel.base)
+const ROOF_GEAR = "#98a2b3";        // 지붕 장비(에어컨 유닛·판토 베이스) 회색
+
 // 계기·지물이 쓰는 색 전체 — 아트 계약 테스트의 허용 집합.
 export const KTX_ART_TOKENS = Object.freeze([
   INK, PAPER, RAIL, TIE, TIE_NIGHT, RAIL_LIGHT, WIRE, BALLAST,
   BALLAST_SHOULDER, TUNNEL_HOLE, GLASS, DOOR_GLASS, JOINT, JOINT_TOP,
   SLAB, ROOF, PILLAR, HEADLAMP, POP_YELLOW, POP_RED, POP_GREEN, POP_BLUE,
-  GRAY, DIAL_LOW
+  GRAY, DIAL_LOW, BODY_SILVER, BODY_SILVER_DEEP, SKIRT_STEEL, ROOF_GEAR
 ]);
 
 // 1인칭 지면 평면의 땅 색 — land 밴드 크로스페이드에 편승 (R5: city는 기존 base)
@@ -328,9 +334,11 @@ export const ALL_LANDS = Object.freeze(Object.keys(LAND_PALETTES));
 
 // ── 3인칭 열차 (색은 고른 열차가 정한다) ──────────────────────────────────
 
-// v4 — 반실사 렌더: 차체 수직 그라데이션(위 밝음→아래 어두움), 지붕 하이라이트
-// 그라데이션 립, 거의 검정(#1d2634) 연속 창띠 + 유리 대각 반사 스트릭,
-// 하부 스커트 금속 그라데이션, 지면 그림자(radialGradient 타원), 노즈 하이라이트.
+// v5 — 실차 리버리 렌더: 투톤(은백 상부 그라데이션 + train.color 허리 밴드 +
+// 짙은 회색 금속 스커트). 노즈만 train.color 그라데이션이고 은백 상부와의
+// 경계는 곡선 블렌드 패스 1장이 잇는다. 지붕 에어컨 유닛·지붕 라인, 대차
+// 프레임, 도어 세로 라인으로 디테일 밀도 보강. 검정 창띠·유리 반사·지면
+// 그림자(radialGradient 타원)는 v4 유지.
 // 계약 유지: .ktx-window-slot[data-slot=0..7] g 안에 62×52 rect + .ktx-window-glow,
 // .ktx-door×4(leaf ±14px), .ktx-wheel g들, .ktx-panto, .ktx-beam, viewBox 1200×170.
 // 실루엣 분기: srt = 원호 노즈 + 원형 헤드라이트 / ktx = 쐐기 노즈 + 지붕 뒤 핀.
@@ -339,12 +347,24 @@ export function sideTrainSvg(train, windows = 8) {
   const gid = suffix => `ktx-g-${suffix}-${train.id}`;
   const defs = `<defs>` +
     linGrad(gid("body"), [
+      ["0%", lighten(BODY_SILVER, 0.5)], ["45%", BODY_SILVER],
+      ["100%", BODY_SILVER_DEEP]
+    ]) +
+    linGrad(gid("nose"), [
       ["0%", lighten(train.color, 0.34)], ["30%", lighten(train.color, 0.12)],
       ["62%", train.color], ["100%", darken(train.color, 0.24)]
     ]) +
+    linGrad(gid("waist"), [
+      ["0%", lighten(train.color, 0.16)], ["60%", train.color],
+      ["100%", darken(train.color, 0.28)]
+    ]) +
+    linGrad(gid("blend"), [
+      ["0%", train.color, 0.9], ["55%", train.color, 0.35],
+      ["100%", train.color, 0]
+    ], "h") +
     linGrad(gid("skirt"), [
-      ["0%", lighten(train.nose, 0.24)], ["55%", train.nose],
-      ["100%", darken(train.nose, 0.3)]
+      ["0%", lighten(SKIRT_STEEL, 0.3)], ["55%", SKIRT_STEEL],
+      ["100%", darken(SKIRT_STEEL, 0.32)]
     ]) +
     linGrad(gid("band"), [
       ["0%", "#2c3950"], ["60%", "#1d2634"], ["100%", "#161e2b"]
@@ -376,13 +396,18 @@ export function sideTrainSvg(train, windows = 8) {
       `<rect width="36" height="54" rx="4" fill="url(#${gid("skirt")})"/>` +
       `<rect x="2" y="4" width="32" height="46" rx="3" fill="${JOINT}"/>` +
       `<g class="ktx-door-leaf ktx-door-leaf-l">` +
-      `<rect x="2" y="4" width="16" height="46" rx="3" fill="${lighten(train.color, 0.08)}"/>` +
+      `<rect x="2" y="4" width="16" height="46" rx="3" fill="${BODY_SILVER_DEEP}"/>` +
       `<rect x="6" y="10" width="8" height="20" rx="2" fill="url(#${gid("glass")})"/>` +
+      `<rect x="16.6" y="5" width="1.4" height="44" fill="${INK}" opacity=".3"/>` +
       `</g>` +
       `<g class="ktx-door-leaf ktx-door-leaf-r">` +
-      `<rect x="18" y="4" width="16" height="46" rx="3" fill="${lighten(train.color, 0.08)}"/>` +
+      `<rect x="18" y="4" width="16" height="46" rx="3" fill="${BODY_SILVER_DEEP}"/>` +
       `<rect x="22" y="10" width="8" height="20" rx="2" fill="url(#${gid("glass")})"/>` +
+      `<rect x="18" y="5" width="1.4" height="44" fill="${INK}" opacity=".3"/>` +
       `</g>` +
+      // 도어 라인 — 문 테두리 세로 라인(실차의 도어 컷 라인)
+      `<rect x="0" y="2" width="1.4" height="50" fill="${INK}" opacity=".38"/>` +
+      `<rect x="34.6" y="2" width="1.4" height="50" fill="${INK}" opacity=".38"/>` +
       `<circle class="ktx-door-warnlamp" cx="18" cy="-5" r="5" fill="${POP_RED}" opacity="0"/>` +
       `</g>`;
   }).join("");

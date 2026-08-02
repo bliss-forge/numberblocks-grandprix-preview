@@ -19,8 +19,10 @@ import {
   distanceToMarker,
   ktxSummary,
   pressKtxSpace,
+  selectKtxRoute,
   tickKtx
 } from "../src/ktx-journey.mjs";
+import { KTX_ROUTES, KTX_ROUTE_STATIONS } from "../src/ktx-route-data.mjs";
 import { mulberry } from "../src/ktx-route-data.mjs";
 
 const TICK = 150;
@@ -246,6 +248,77 @@ test("아무것도 누르지 않으면 오버런 → 통통 복귀 → 별 1개"
   assert.ok(seen.includes("overrun"), "오버런 발생");
   assert.equal(state.phase, "stopped");
   assert.equal(state.stars[0], 1, "그래도 별 1개");
+});
+
+// 동탄 문 닫힘 직후(분기 화면)까지 자동으로 몰아간다.
+function atBranch(seed = 3) {
+  let state = readyToDrive(createKtxJourney(seed));
+  for (let guard = 0; guard < 4000 && state.phase !== "stopped"; guard += 1) {
+    if (state.phase === "driving" && state.armed) {
+      state = pressKtxSpace(state).state;
+    }
+    state = tickKtx(state, { up: true }, TICK).state;
+  }
+  assert.equal(state.station, "동탄");
+  state = pressKtxSpace(state).state;                 // 문 열기
+  while (state.queue.length > 0) state = pressKtxSpace(state).state;
+  state = drain(state, {}, 1500).state;               // 합계 잠금 해제
+  state = pressKtxSpace(state).state;                 // 문 닫기 → 분기
+  assert.equal(state.phase, "branch");
+  return state;
+}
+
+test("목포 노선 데이터가 정합하다 — 동탄 분기, 밤·터널·바다를 지난다", () => {
+  assert.deepEqual(KTX_ROUTE_STATIONS.mokpo,
+    ["수서", "동탄", "익산", "광주송정", "목포"]);
+  const segs = KTX_ROUTES.mokpo;
+  assert.equal(segs.length, 4);
+  segs.forEach((seg, index) => {
+    assert.equal(seg.from, KTX_ROUTE_STATIONS.mokpo[index]);
+    assert.equal(seg.to, KTX_ROUTE_STATIONS.mokpo[index + 1]);
+    assert.equal(seg.bands.at(-1).until, 1);
+  });
+  const lands = new Set(segs.flatMap(seg => seg.bands.map(band => band.land)));
+  for (const wanted of ["tunnel", "sea"]) assert.ok(lands.has(wanted), wanted);
+});
+
+test("동탄에서 문을 닫으면 하늘 분기 화면 — ←목포 고르고 ⎵로 확정", () => {
+  let state = atBranch(3);
+  const picked = selectKtxRoute(state, "mokpo");
+  assert.equal(picked.events[0].type, "route-select");
+  state = picked.state;
+  const confirmed = pressKtxSpace(state);
+  const types = confirmed.events.map(event => event.type);
+  assert.ok(types.includes("route-chosen"));
+  state = confirmed.state;
+  assert.equal(state.route, "mokpo");
+  assert.equal(state.phase, "ready");
+  assert.ok(Array.isArray(state.manifest.stops["익산"]), "익산 대기열 준비");
+  // 이미 태운 수서·동탄 몫은 번호가 그대로(시드 결정성)
+  const again = createKtxJourney(3);
+  assert.deepEqual(state.manifest.stops["수서"], again.manifest.stops["수서"]);
+});
+
+test("분기에서 가만히 있으면 12초 뒤 부산으로 자동 확정 — 무스톨 유지", () => {
+  let state = atBranch(5);
+  const run = drain(state, {}, 13000);
+  assert.equal(run.state.routeChosen, true);
+  assert.equal(run.state.route, "busan");
+  assert.equal(run.state.phase, "ready");
+  assert.ok(run.events.some(event =>
+    event.type === "auto" && event.what === "route"));
+});
+
+test("목포 노선도 부산처럼 반드시 완주한다", () => {
+  let state = atBranch(7);
+  state = selectKtxRoute(state, "mokpo").state;
+  state = pressKtxSpace(state).state;
+  for (let guard = 0; guard < 8000 && !state.done; guard += 1) {
+    state = tickKtx(state, {}, TICK).state;
+  }
+  assert.ok(state.done, "목포 도달");
+  assert.equal(state.station, "목포");
+  assert.equal(state.stars.length, 4);
 });
 
 test("무스톨 불변식: 입력 0으로도 유한 시간 안에 부산 피날레", () => {

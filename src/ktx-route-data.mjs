@@ -93,6 +93,61 @@ export const KTX_SEGMENTS = Object.freeze([
   })
 ]);
 
+// ── 호남선(목포 방면) — 동탄에서 갈라진다 ─────────────────────────────────
+// 분기 선택은 동탄 문 닫힘 뒤 하늘(탑다운) 뷰에서 ←목포/→부산.
+// 신규 역 음성은 아직 없어 자막 안내로 폴백(SILENT 관례).
+export const KTX_SEGMENTS_MOKPO = Object.freeze([
+  KTX_SEGMENTS[0], // 수서→동탄은 공유
+  Object.freeze({
+    from: "동탄", to: "익산", length: 4200,
+    bands: Object.freeze([
+      Object.freeze({ until: 0.35, sky: "day", land: "field" }),
+      Object.freeze({ until: 0.7, sky: "day", land: "river" }),
+      Object.freeze({ until: 1, sky: "day", land: "field" })
+    ]),
+    events: Object.freeze([
+      Object.freeze({ type: "river", at: 0.38, until: 0.68 })
+    ])
+  }),
+  Object.freeze({
+    from: "익산", to: "광주송정", length: 4600,
+    bands: Object.freeze([
+      Object.freeze({ until: 0.3, sky: "sunset", land: "field" }),
+      Object.freeze({ until: 0.55, sky: "night", land: "field" }),
+      Object.freeze({ until: 0.8, sky: "night", land: "tunnel" }),
+      Object.freeze({ until: 1, sky: "night", land: "city" })
+    ]),
+    events: Object.freeze([
+      Object.freeze({ type: "tunnel", at: 0.55, until: 0.8 })
+    ])
+  }),
+  Object.freeze({
+    from: "광주송정", to: "목포", length: 4400,
+    bands: Object.freeze([
+      Object.freeze({ until: 0.35, sky: "dawn", land: "field" }),
+      Object.freeze({ until: 0.9, sky: "dawn", land: "sea" }),
+      Object.freeze({ until: 1, sky: "day", land: "city" })
+    ]),
+    events: Object.freeze([
+      Object.freeze({ type: "seagull", at: 0.4, until: 0.85 })
+    ])
+  })
+]);
+
+export const KTX_ROUTES = Object.freeze({
+  busan: KTX_SEGMENTS,
+  mokpo: KTX_SEGMENTS_MOKPO
+});
+
+export const KTX_ROUTE_STATIONS = Object.freeze({
+  busan: SRT_STATIONS,
+  mokpo: Object.freeze(["수서", "동탄", "익산", "광주송정", "목포"])
+});
+
+export const KTX_ROUTE_LABELS = Object.freeze({
+  busan: "부산", mokpo: "목포"
+});
+
 // 랜덤 이벤트 풀 2종 — 매판 시드로 1종을 뽑아 2 또는 3구간의 빈 자리에 놓는다.
 // (전량 삭제는 7세 변주 0, 4종 유지는 밀도 초과 — 협회 절충)
 export const KTX_RANDOM_EVENTS = Object.freeze([

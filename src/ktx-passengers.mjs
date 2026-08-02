@@ -13,14 +13,16 @@ export const GUEST_COUNT = 2;
 
 const MET_KEY = "numberblocks:ktx-friends";
 
-// 정차역 = 종착(부산)을 뺀 앞 네 역.
-export function boardingStations() {
-  return KTX_STATIONS.slice(0, -1);
+// 정차역 = 종착을 뺀 앞 네 역. 노선(부산/목포)에 따라 역 이름이 달라진다.
+export function boardingStations(allStations = KTX_STATIONS) {
+  return allStations.slice(0, -1);
 }
 
-export function buildPassengerManifest(seed = 0) {
+// 같은 시드면 역 이름이 달라도 배정 "번호"는 같다 — 분기 후 재구성해도
+// 이미 태운 수서·동탄 몫이 흔들리지 않는다(인덱스 기반 배정).
+export function buildPassengerManifest(seed = 0, allStations = KTX_STATIONS) {
   const random = mulberry(seed + 7);
-  const stations = boardingStations();
+  const stations = boardingStations(allStations);
 
   const base = Array.from({ length: 12 }, (unused, index) => index + 1);
   for (let index = base.length - 1; index > 0; index -= 1) {

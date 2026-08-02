@@ -101,6 +101,7 @@ import { lineForKey, stationLabel } from "./subway-map-data.mjs";
 import {
   createKtxJourney,
   pressKtxSpace,
+  selectKtxRoute,
   tickKtx
 } from "./ktx-journey.mjs";
 import { KTX_TRAINS } from "./ktx-route-data.mjs";
@@ -1115,6 +1116,13 @@ function handleKtxEvents(events) {
         audio.cancel();
         void audio.playPrompt("srt-depart");
       }
+    } else if (event.type === "branch-open") {
+      audio.playSfx("bell");
+      showHint("하늘에서 봐요! ← 목포, → 부산 — ⎵ 로 정해요");
+    } else if (event.type === "route-chosen") {
+      audio.playSfx("jingle");
+      const label = event.route === "mokpo" ? "목포" : "부산";
+      showHint(`${label} 쪽으로 가요! ↑ 를 꾹 눌러 출발!`);
     } else if (event.type === "door-countdown-start") {
       showHint("다 탔어요! 문이 곧 닫혀요~ (⎵ 로 바로 닫기)");
     } else if (event.type === "door-countdown") {
@@ -1165,6 +1173,7 @@ function handleKtxEvents(events) {
         board: "⎵ 눌러서 태워 볼까?",
         "close-doors": "⎵ 눌러서 문을 닫아요",
         "open-doors": "⎵ 눌러서 문을 열어요",
+        branch: "← → 로 길을 골라 볼까요?",
         depart: "↑ 를 꾹 눌러 볼까요?",
         go: "↑ 를 눌러 다시 출발해요"
       };
@@ -1186,9 +1195,12 @@ function completeKtxJourney(event) {
   state.stars += totalStars;
   dom.stars.textContent = String(state.stars);
   const fresh = recordMetFriends(event.boarded);
+  const finalStation = state.ktx?.station ?? "부산";
   audio.playSfx("win");
-  audio.cancel();
-  void audio.playPrompt("srt-station-busan");
+  if (finalStation === "부산") {
+    audio.cancel();
+    void audio.playPrompt("srt-station-busan");
+  }
   showHint(event.perfect
     ? "⭐ 퍼펙트 기관사! 별을 다 모았어요!"
     : fresh.length > 0
@@ -1197,7 +1209,7 @@ function completeKtxJourney(event) {
   schedule(() => {
     dom.cheer.textContent = event.perfect
       ? "⭐ 퍼펙트 기관사! ⭐"
-      : `🚄 부산 도착! 별 ${totalStars}개`;
+      : `🚄 ${finalStation} 도착! 별 ${totalStars}개`;
     dom.cheer.classList.add("show");
     schedule(() => {
       dom.cheer.classList.remove("show");
@@ -1721,6 +1733,15 @@ document.addEventListener("keyup", event => {
 });
 
 dom.stage.addEventListener("click", event => {
+  const branchChoice = event.target.closest(".ktx-branch-choice");
+  if (branchChoice && state.mode === "ktx" && state.ktx?.phase === "branch") {
+    const picked = selectKtxRoute(state.ktx, branchChoice.dataset.route);
+    state.ktx = picked.state;
+    audio.playSfx("key");
+    updateKtxScene(state.ktxScene, state.ktx, state.ktxView, picked.events,
+      state.ktxHeld);
+    return;
+  }
   const trainCard = event.target.closest("[data-train-id]");
   if (trainCard && state.mode === "ktx" && state.ktxPicking) {
     audio.playSfx("key");
@@ -1835,7 +1856,17 @@ document.addEventListener("keydown", event => {
     }
     if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
       event.preventDefault();
-      if (!event.repeat) audio.playSfx("pop");
+      if (event.repeat) return;
+      if (state.ktx?.phase === "branch") {
+        const routeId = event.key === "ArrowLeft" ? "mokpo" : "busan";
+        const picked = selectKtxRoute(state.ktx, routeId);
+        state.ktx = picked.state;
+        if (picked.events.length > 0) audio.playSfx("key");
+        updateKtxScene(state.ktxScene, state.ktx, state.ktxView, picked.events,
+          state.ktxHeld);
+        return;
+      }
+      audio.playSfx("pop");
       return;
     }
   }
