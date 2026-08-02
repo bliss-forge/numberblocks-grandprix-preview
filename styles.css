@@ -6081,9 +6081,9 @@ body[data-mode="ktx"] .stage-lights {
   position: absolute;
   top: 0;
   left: 50%;
-  width: 1300px;
+  width: 2000px;
   height: 500px;
-  margin-left: -650px;
+  margin-left: -1000px;
   transform-origin: 50% 0;
   transform: rotateX(84deg);
 }
@@ -6891,7 +6891,8 @@ body[data-mode="ktx"] .stage-lights {
   width: 480px;
   height: 26px;
   visibility: hidden;
-  transform: translate3d(var(--platform-x, 2000px), 0, 0);
+  transform: translate3d(var(--platform-x, 2000px), 0, 0) scale(var(--side-scale, 1));
+  transform-origin: left bottom;
   transition: transform .16s linear;
   background:
     repeating-linear-gradient(90deg, #f4c542 0 26px, #fff 26px 34px) left top / 100% 8px no-repeat,
@@ -7201,7 +7202,7 @@ body[data-mode="ktx"] .stage-lights {
   position: absolute;
   bottom: calc(24% + 2px);
   left: 0;
-  transform: translate3d(calc(var(--platform-x, 2000px) + 316px), 0, 0);
+  transform: translate3d(calc(var(--platform-x, 2000px) + 316px * var(--side-scale, 1)), 0, 0);
   transition: transform .16s linear;
   visibility: hidden;
   pointer-events: none;
@@ -7214,9 +7215,9 @@ body[data-mode="ktx"] .stage-lights {
   position: absolute;
   bottom: 0;
   left: 0;
-  width: 48px;
+  width: calc(48px * var(--side-scale, 1));
   height: auto;
-  transform: translateX(calc(var(--queue-index, 0) * 50px));
+  transform: translateX(calc(var(--queue-index, 0) * 50px * var(--side-scale, 1)));
   transition: transform .3s ease;
 }
 
@@ -7225,15 +7226,15 @@ body[data-mode="ktx"] .stage-lights {
   position: absolute;
   bottom: calc(24% + 2px);
   left: 0;
-  transform: translate3d(calc(var(--platform-x, 2000px) + 316px), 0, 0);
+  transform: translate3d(calc(var(--platform-x, 2000px) + 316px * var(--side-scale, 1)), 0, 0);
   pointer-events: none;
   z-index: 10;
 }
 
-.ktx-walker { width: 44px; animation: ktx-walk-x 780ms ease-in both; }
+.ktx-walker { width: calc(48px * var(--side-scale, 1)); animation: ktx-walk-x 780ms ease-in both; }
 
 .ktx-walker-img {
-  width: 44px;
+  width: 100%;
   height: auto;
   display: block;
   animation: ktx-walk-hop 130ms ease-in-out 4 alternate;
