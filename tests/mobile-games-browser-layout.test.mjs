@@ -1,0 +1,440 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import { createServer } from "node:http";
+import { readFile } from "node:fs/promises";
+import { execFileSync } from "node:child_process";
+import { createRequire } from "node:module";
+import { dirname, extname, resolve, sep } from "node:path";
+import { fileURLToPath } from "node:url";
+
+const require = createRequire(import.meta.url);
+const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+const contentTypes = {
+  ".css": "text/css",
+  ".html": "text/html",
+  ".js": "text/javascript",
+  ".mjs": "text/javascript",
+  ".mp3": "audio/mpeg",
+  ".png": "image/png",
+  ".svg": "image/svg+xml"
+};
+
+function loadChromium() {
+  try {
+    const globalModules = execFileSync("npm", ["root", "-g"], {
+      encoding: "utf8"
+    }).trim();
+    return require(resolve(globalModules, "playwright")).chromium;
+  } catch {
+    return null;
+  }
+}
+
+async function startStaticServer() {
+  const server = createServer(async (request, response) => {
+    const pathname = new URL(request.url, "http://localhost").pathname;
+    const file = resolve(root, `.${pathname === "/" ? "/index.html" : pathname}`);
+
+    if (file !== root && !file.startsWith(`${root}${sep}`)) {
+      response.writeHead(403).end();
+      return;
+    }
+
+    try {
+      const body = await readFile(file);
+      response.writeHead(200, {
+        "content-type": contentTypes[extname(file)] ?? "application/octet-stream"
+      });
+      response.end(body);
+    } catch {
+      response.writeHead(404).end();
+    }
+  });
+
+  await new Promise(resolveServer => server.listen(0, "127.0.0.1", resolveServer));
+  const { port } = server.address();
+  return { server, url: `http://127.0.0.1:${port}` };
+}
+
+function observeErrors(page) {
+  const consoleErrors = [];
+  const pageErrors = [];
+  page.on("console", message => {
+    if (message.type() === "error") consoleErrors.push(message.text());
+  });
+  page.on("pageerror", error => pageErrors.push(error.message));
+  return { consoleErrors, pageErrors };
+}
+
+test("390×844 홈은 두 열과 넓은 5번 카드로 잘림 없이 표시된다", async t => {
+  const chromium = loadChromium();
+  if (!chromium) {
+    t.skip("Playwright is not installed globally");
+    return;
+  }
+
+  const { server, url } = await startStaticServer();
+  const browser = await chromium.launch({ headless: true });
+  t.after(async () => {
+    await browser.close();
+    await new Promise(resolveServer => server.close(resolveServer));
+  });
+
+  const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
+  const errors = observeErrors(page);
+  await page.goto(url, { waitUntil: "networkidle" });
+  await page.locator(".mode-grid").waitFor({ state: "visible" });
+
+  const metrics = await page.evaluate(() => {
+    const grid = document.querySelector(".mode-grid");
+    const cards = [...document.querySelectorAll(".mode-card")].slice(0, 5);
+    const rects = cards.map(card => card.getBoundingClientRect());
+    return {
+      columns: getComputedStyle(grid).gridTemplateColumns.split(" ").length,
+      horizontalOverflow: document.documentElement.scrollWidth > innerWidth,
+      firstWidth: rects[0].width,
+      fifthWidth: rects[4].width,
+      cardsInsideWidth: rects.every(
+        rect => rect.left >= -0.5 && rect.right <= innerWidth + 0.5
+      ),
+      homeHeight: document.querySelector("#home").getBoundingClientRect().height,
+      viewportHeight: innerHeight
+    };
+  });
+
+  assert.equal(metrics.columns, 2);
+  assert.equal(metrics.horizontalOverflow, false);
+  assert.equal(metrics.cardsInsideWidth, true);
+  assert.ok(metrics.fifthWidth >= metrics.firstWidth * 1.8);
+  assert.ok(metrics.homeHeight >= metrics.viewportHeight);
+  const stacking = await page.evaluate(() => {
+    const home = document.querySelector("#home");
+    home.scrollTop = home.scrollHeight;
+    const credit = document.querySelector(".creator-credit").getBoundingClientRect();
+    const stack = document.elementsFromPoint(
+      credit.left + credit.width / 2,
+      credit.top + credit.height / 2
+    );
+    return {
+      cardIndex: stack.findIndex(node => node.classList?.contains("mode-card")),
+      creditIndex: stack.findIndex(node => node.classList?.contains("creator-credit"))
+    };
+  });
+  assert.ok(stacking.cardIndex >= 0);
+  assert.ok(
+    stacking.creditIndex === -1 || stacking.cardIndex < stacking.creditIndex,
+    JSON.stringify(stacking)
+  );
+  assert.deepEqual(errors, { consoleErrors: [], pageErrors: [] });
+});
+
+test("390×844 수학 게임은 무대와 큰 숫자판을 한 화면에 유지한다", async t => {
+  const chromium = loadChromium();
+  if (!chromium) {
+    t.skip("Playwright is not installed globally");
+    return;
+  }
+
+  const { server, url } = await startStaticServer();
+  const browser = await chromium.launch({ headless: true });
+  t.after(async () => {
+    await browser.close();
+    await new Promise(resolveServer => server.close(resolveServer));
+  });
+
+  for (const mode of ["count", "add", "sub", "mul"]) {
+    const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
+    const errors = observeErrors(page);
+    await page.goto(url, { waitUntil: "networkidle" });
+    await page.locator(`[data-mode="${mode}"]`).click();
+    await page.locator(".number-pad").waitFor({ state: "visible" });
+
+    const metrics = await page.evaluate(() => {
+      const rectangle = selector => {
+        const rect = document.querySelector(selector).getBoundingClientRect();
+        return {
+          left: rect.left,
+          right: rect.right,
+          top: rect.top,
+          bottom: rect.bottom,
+          width: rect.width,
+          height: rect.height
+        };
+      };
+      const buttonRects = [...document.querySelectorAll(".number-pad button")]
+        .map(button => button.getBoundingClientRect());
+      const firstDigit = document.querySelector('[data-digit="1"]')
+        .getBoundingClientRect();
+      const zero = document.querySelector('[data-digit="0"]')
+        .getBoundingClientRect();
+      return {
+        viewport: { width: innerWidth, height: innerHeight },
+        game: rectangle("#game"),
+        problem: rectangle(".problem-pill"),
+        stage: rectangle(".stage-frame"),
+        answer: rectangle(".answer-dock"),
+        pad: rectangle(".number-pad"),
+        columnCount: getComputedStyle(document.querySelector(".number-pad"))
+          .gridTemplateColumns.split(" ").length,
+        horizontalOverflow: document.documentElement.scrollWidth > innerWidth,
+        minimumButtonWidth: Math.min(...buttonRects.map(rect => rect.width)),
+        minimumButtonHeight: Math.min(...buttonRects.map(rect => rect.height)),
+        zeroRatio: zero.width / firstDigit.width
+      };
+    });
+
+    const contained = rect =>
+      rect.left >= -0.5 &&
+      rect.right <= metrics.viewport.width + 0.5 &&
+      rect.top >= -0.5 &&
+      rect.bottom <= metrics.viewport.height + 0.5;
+
+    assert.equal(metrics.columnCount, 3, mode);
+    assert.equal(metrics.horizontalOverflow, false, mode);
+    assert.ok(contained(metrics.game), `${mode} game`);
+    assert.ok(contained(metrics.problem), `${mode} problem`);
+    assert.ok(contained(metrics.stage), `${mode} stage`);
+    assert.ok(contained(metrics.answer), `${mode} answer`);
+    assert.ok(contained(metrics.pad), `${mode} pad`);
+    assert.ok(metrics.problem.bottom <= metrics.stage.top + 0.5, `${mode} problem-stage`);
+    assert.ok(metrics.stage.bottom <= metrics.answer.top + 0.5, `${mode} stage-answer`);
+    assert.ok(metrics.answer.bottom <= metrics.pad.top + 0.5, `${mode} answer-pad`);
+    assert.ok(metrics.minimumButtonWidth >= 48, `${mode} button width`);
+    assert.ok(metrics.minimumButtonHeight >= 48, `${mode} button height`);
+    assert.ok(metrics.zeroRatio >= 1.8, `${mode} zero key`);
+    assert.deepEqual(errors, { consoleErrors: [], pageErrors: [] }, mode);
+    await page.close();
+  }
+});
+
+test("390×844 길찾기는 지도 안에 안전한 엄지 방향키를 유지한다", async t => {
+  const chromium = loadChromium();
+  if (!chromium) {
+    t.skip("Playwright is not installed globally");
+    return;
+  }
+
+  const { server, url } = await startStaticServer();
+  const browser = await chromium.launch({ headless: true });
+  t.after(async () => {
+    await browser.close();
+    await new Promise(resolveServer => server.close(resolveServer));
+  });
+
+  const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
+  const errors = observeErrors(page);
+  await page.goto(url, { waitUntil: "networkidle" });
+  await page.locator('[data-mode="safety"]').click();
+  await page.locator(".safety-viewport").waitFor({ state: "visible" });
+
+  const metrics = await page.evaluate(() => {
+    const rectangle = selector => {
+      const rect = document.querySelector(selector).getBoundingClientRect();
+      return {
+        left: rect.left,
+        right: rect.right,
+        top: rect.top,
+        bottom: rect.bottom,
+        width: rect.width,
+        height: rect.height
+      };
+    };
+    const buttonRects = [...document.querySelectorAll(".route-pad button")]
+      .map(button => button.getBoundingClientRect());
+    const padNode = document.querySelector(".route-pad");
+    const pad = rectangle(".route-pad");
+    const padStyle = getComputedStyle(padNode);
+    return {
+      viewport: { width: innerWidth, height: innerHeight },
+      game: rectangle("#game"),
+      prompt: rectangle(".problem-pill"),
+      route: rectangle(".safety-route"),
+      routeTop: rectangle(".safety-route-top"),
+      map: rectangle(".safety-viewport"),
+      minimap: rectangle(".route-minimap"),
+      pad,
+      padBottom: padStyle.bottom,
+      padRight: padStyle.right,
+      rightMargin: innerWidth - pad.right,
+      bottomMargin: innerHeight - pad.bottom,
+      minimumButtonWidth: Math.min(...buttonRects.map(rect => rect.width)),
+      minimumButtonHeight: Math.min(...buttonRects.map(rect => rect.height)),
+      horizontalOverflow: document.documentElement.scrollWidth > innerWidth
+    };
+  });
+
+  const contained = rect =>
+    rect.left >= -0.5 &&
+    rect.right <= metrics.viewport.width + 0.5 &&
+    rect.top >= -0.5 &&
+    rect.bottom <= metrics.viewport.height + 0.5;
+  const overlaps = (first, second) => !(
+    first.right <= second.left ||
+    second.right <= first.left ||
+    first.bottom <= second.top ||
+    second.bottom <= first.top
+  );
+
+  assert.equal(metrics.horizontalOverflow, false);
+  assert.ok(contained(metrics.game));
+  assert.ok(contained(metrics.prompt));
+  assert.ok(contained(metrics.route));
+  assert.ok(contained(metrics.map));
+  assert.ok(contained(metrics.pad));
+  assert.ok(metrics.prompt.bottom <= metrics.route.top + 0.5);
+  assert.ok(metrics.routeTop.bottom <= metrics.map.top + 0.5);
+  assert.equal(overlaps(metrics.minimap, metrics.pad), false);
+  assert.equal(metrics.padRight, "8px");
+  assert.equal(metrics.padBottom, "8px");
+  assert.ok(metrics.rightMargin >= 8);
+  assert.ok(metrics.bottomMargin >= 8);
+  assert.ok(metrics.minimumButtonWidth >= 48);
+  assert.ok(metrics.minimumButtonHeight >= 48);
+  assert.deepEqual(errors, { consoleErrors: [], pageErrors: [] });
+});
+
+test("최소·대형 휴대전화에서도 1~5 조작 화면이 뷰포트에 들어온다", async t => {
+  const chromium = loadChromium();
+  if (!chromium) {
+    t.skip("Playwright is not installed globally");
+    return;
+  }
+
+  const { server, url } = await startStaticServer();
+  const browser = await chromium.launch({ headless: true });
+  t.after(async () => {
+    await browser.close();
+    await new Promise(resolveServer => server.close(resolveServer));
+  });
+
+  for (const viewport of [
+    { width: 360, height: 640, target: 44 },
+    { width: 430, height: 932, target: 48 }
+  ]) {
+    const home = await browser.newPage({ viewport });
+    const homeErrors = observeErrors(home);
+    await home.goto(url, { waitUntil: "networkidle" });
+    const homeMetrics = await home.evaluate(() => {
+      const cards = [...document.querySelectorAll(".mode-card")].slice(0, 5)
+        .map(card => card.getBoundingClientRect());
+      const credit = document.querySelector(".creator-credit").getBoundingClientRect();
+      const overlapsCredit = cards.some(card => !(
+        card.right <= credit.left ||
+        credit.right <= card.left ||
+        card.bottom <= credit.top ||
+        credit.bottom <= card.top
+      ));
+      return {
+        columns: getComputedStyle(document.querySelector(".mode-grid"))
+          .gridTemplateColumns.split(" ").length,
+        horizontalOverflow: document.documentElement.scrollWidth > innerWidth,
+        cardsInsideWidth: cards.every(
+          rect => rect.left >= -0.5 && rect.right <= innerWidth + 0.5
+        ),
+        overlapsCredit,
+        firstWidth: cards[0].width,
+        fifthWidth: cards[4].width
+      };
+    });
+    assert.equal(homeMetrics.columns, 2, `${viewport.width} home columns`);
+    assert.equal(homeMetrics.horizontalOverflow, false, `${viewport.width} home overflow`);
+    assert.equal(homeMetrics.cardsInsideWidth, true, `${viewport.width} home cards`);
+    assert.equal(homeMetrics.overlapsCredit, false, `${viewport.width} home credit`);
+    assert.ok(
+      homeMetrics.fifthWidth >= homeMetrics.firstWidth * 1.8,
+      `${viewport.width} fifth card`
+    );
+    assert.deepEqual(homeErrors, { consoleErrors: [], pageErrors: [] });
+    await home.close();
+
+    for (const mode of ["count", "add", "sub", "mul", "safety"]) {
+      const page = await browser.newPage({ viewport });
+      const errors = observeErrors(page);
+      await page.goto(url, { waitUntil: "networkidle" });
+      await page.locator(`[data-mode="${mode}"]`).click();
+      const controlSelector = mode === "safety" ? ".route-pad" : ".number-pad";
+      await page.locator(controlSelector).waitFor({ state: "visible" });
+
+      const metrics = await page.evaluate(({ modeName, targetSize }) => {
+        const controls = [
+          ...document.querySelectorAll(
+            modeName === "safety" ? ".route-pad button" : ".number-pad button"
+          )
+        ].map(button => button.getBoundingClientRect());
+        const required = modeName === "safety"
+          ? ["#game", ".problem-pill", ".safety-route", ".route-pad"]
+          : ["#game", ".problem-pill", ".stage-frame", ".answer-dock", ".number-pad"];
+        const rectangles = required.map(selector => {
+          const rect = document.querySelector(selector).getBoundingClientRect();
+          return { selector, left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom };
+        });
+        const countCharacter = modeName === "count"
+          ? document.querySelector(".count-character")?.getBoundingClientRect()
+          : null;
+        const countStage = modeName === "count"
+          ? document.querySelector(".stage-frame")?.getBoundingClientRect()
+          : null;
+        return {
+          targetSize,
+          rectangles,
+          horizontalOverflow: document.documentElement.scrollWidth > innerWidth,
+          minimumWidth: Math.min(...controls.map(rect => rect.width)),
+          minimumHeight: Math.min(...controls.map(rect => rect.height)),
+          countCharacterContained: !countCharacter || !countStage || (
+            countCharacter.left >= countStage.left - 0.5 &&
+            countCharacter.right <= countStage.right + 0.5 &&
+            countCharacter.top >= countStage.top - 0.5 &&
+            countCharacter.bottom <= countStage.bottom + 0.5
+          ),
+          allContained: rectangles.every(rect =>
+            rect.left >= -0.5 &&
+            rect.right <= innerWidth + 0.5 &&
+            rect.top >= -0.5 &&
+            rect.bottom <= innerHeight + 0.5
+          )
+        };
+      }, { modeName: mode, targetSize: viewport.target });
+
+      assert.equal(metrics.horizontalOverflow, false, `${viewport.width} ${mode} overflow`);
+      assert.equal(metrics.allContained, true, `${viewport.width} ${mode} contained`);
+      assert.ok(metrics.minimumWidth >= viewport.target, `${viewport.width} ${mode} width`);
+      assert.ok(metrics.minimumHeight >= viewport.target, `${viewport.width} ${mode} height`);
+      assert.equal(
+        metrics.countCharacterContained,
+        true,
+        `${viewport.width} ${mode} character`
+      );
+      assert.deepEqual(errors, { consoleErrors: [], pageErrors: [] });
+      await page.close();
+    }
+  }
+});
+
+test("844×390 가로형은 기존의 큰 조작 버튼을 유지한다", async t => {
+  const chromium = loadChromium();
+  if (!chromium) {
+    t.skip("Playwright is not installed globally");
+    return;
+  }
+
+  const { server, url } = await startStaticServer();
+  const browser = await chromium.launch({ headless: true });
+  t.after(async () => {
+    await browser.close();
+    await new Promise(resolveServer => server.close(resolveServer));
+  });
+
+  const page = await browser.newPage({ viewport: { width: 844, height: 390 } });
+  await page.goto(url, { waitUntil: "networkidle" });
+  await page.locator('[data-mode="safety"]').click();
+  await page.locator(".route-pad").waitFor({ state: "visible" });
+  const sizes = await page.locator(".route-pad button").evaluateAll(buttons =>
+    buttons.map(button => {
+      const rect = button.getBoundingClientRect();
+      return { width: rect.width, height: rect.height };
+    })
+  );
+
+  assert.ok(Math.min(...sizes.map(size => size.width)) >= 48);
+  assert.ok(Math.min(...sizes.map(size => size.height)) >= 48);
+});

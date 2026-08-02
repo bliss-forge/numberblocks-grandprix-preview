@@ -11,6 +11,18 @@ test("정적 셸이 스타일과 앱 모듈을 로드한다", () => {
   assert.match(html, /<script type="module" src="src\/app\.mjs"><\/script>/);
 });
 
+test("1~5 모바일 보정 스타일은 기본 스타일 뒤에 로드된다", () => {
+  const baseIndex = html.indexOf(
+    'href="styles.css?v=20260726-pc-route-visual"'
+  );
+  const mobileIndex = html.indexOf(
+    'href="mobile-games.css?v=20260802-games-1-5"'
+  );
+
+  assert.ok(baseIndex >= 0);
+  assert.ok(mobileIndex > baseIndex);
+});
+
 test("PC 안전길 시각 개선은 새 CSS 캐시 주소를 사용한다", () => {
   assert.match(
     html,

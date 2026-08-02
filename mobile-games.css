@@ -1,0 +1,390 @@
+/* Portrait-phone presentation for home and games 1–5 only. */
+@media (max-width: 640px) {
+  body[data-state="home"] {
+    min-height: 100vh;
+    min-height: 100dvh;
+    overflow-x: clip;
+    overflow-y: auto;
+  }
+
+  body[data-state="home"] #home {
+    position: absolute;
+    height: auto;
+    min-height: 100vh;
+    min-height: 100dvh;
+    align-content: start;
+    gap: 14px;
+    padding: max(64px, env(safe-area-inset-top)) 12px
+      max(52px, env(safe-area-inset-bottom));
+    overflow-x: clip;
+    overflow-y: auto;
+  }
+
+  body[data-state="home"] .home-heading {
+    width: 100%;
+  }
+
+  body[data-state="home"] .eyebrow {
+    padding: 5px 12px;
+    font-size: 12px;
+  }
+
+  body[data-state="home"] .logo {
+    margin-top: 4px;
+    font-size: clamp(38px, 12vw, 52px);
+  }
+
+  body[data-state="home"] .lead {
+    margin-top: 8px;
+    font-size: clamp(13px, 3.8vw, 16px);
+    line-height: 1.5;
+  }
+
+  body[data-state="home"] .difficulty-picker {
+    width: 100%;
+    gap: 4px;
+    padding: 4px;
+    border-width: 3px;
+  }
+
+  body[data-state="home"] .difficulty-label {
+    display: none;
+  }
+
+  body[data-state="home"] .difficulty-button {
+    flex: 1;
+    min-width: 0;
+    min-height: 46px;
+    padding: 6px 3px;
+    font-size: 13px;
+  }
+
+  body[data-state="home"] .mode-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+    width: 100%;
+  }
+
+  body[data-state="home"] .mode-card {
+    min-width: 0;
+    min-height: clamp(190px, 54vw, 230px);
+    padding: 10px 8px 12px;
+    border-width: 4px;
+    border-radius: 24px;
+    transform: none;
+  }
+
+  body[data-state="home"] .mode-card img {
+    width: min(82%, 132px);
+    height: clamp(108px, 31vw, 138px);
+  }
+
+  body[data-state="home"] .mode-card:nth-child(5) {
+    grid-column: 1 / -1;
+    grid-template-columns: minmax(100px, .8fr) minmax(0, 1.2fr);
+    grid-template-rows: 1fr;
+    min-height: 170px;
+    padding-inline: 30px;
+  }
+
+  body[data-state="home"] .mode-card:nth-child(5) img {
+    align-self: center;
+    height: 138px;
+  }
+
+  body[data-state="home"] .mode-card:nth-child(5) .card-copy {
+    align-self: center;
+  }
+
+  body[data-state="home"] .card-number {
+    left: 9px;
+    top: 9px;
+    width: 42px;
+    height: 42px;
+    border-width: 3px;
+    border-radius: 12px;
+    font-size: 23px;
+  }
+
+  body[data-state="home"] .card-copy strong {
+    font-size: clamp(14px, 4vw, 17px);
+    line-height: 1.25;
+  }
+
+  body[data-state="home"] .card-copy small {
+    font-size: clamp(10px, 2.9vw, 12px);
+    line-height: 1.35;
+  }
+
+  body[data-state="home"] .keyboard-note {
+    margin: 0;
+    padding: 7px 11px;
+    font-size: 11px;
+  }
+
+  body[data-state="home"] .creator-credit {
+    left: 8px;
+    right: auto;
+    top: max(8px, env(safe-area-inset-top));
+    bottom: auto;
+    z-index: 1;
+    font-size: 9px;
+  }
+
+  body:is(
+    [data-mode="count"],
+    [data-mode="add"],
+    [data-mode="sub"],
+    [data-mode="mul"]
+  ) #game {
+    height: 100vh;
+    height: 100svh;
+    height: 100dvh;
+    min-height: 0;
+    grid-template-rows: auto minmax(0, 1fr) auto auto;
+    gap: 6px;
+    padding: max(62px, env(safe-area-inset-top)) 8px
+      max(8px, env(safe-area-inset-bottom));
+    overflow: hidden;
+  }
+
+  body:is(
+    [data-mode="count"],
+    [data-mode="add"],
+    [data-mode="sub"],
+    [data-mode="mul"]
+  ) .problem-pill {
+    max-width: calc(100vw - 76px);
+    max-height: 3.15em;
+    padding: 7px 14px 9px;
+    overflow: hidden;
+    font-size: clamp(17px, 5vw, 22px);
+    line-height: 1.25;
+  }
+
+  body:is(
+    [data-mode="count"],
+    [data-mode="add"],
+    [data-mode="sub"],
+    [data-mode="mul"]
+  ) .stage-frame {
+    width: 100%;
+    min-height: 0;
+    border-width: 5px;
+    border-radius: 26px 26px 22px 22px;
+  }
+
+  body:is(
+    [data-mode="count"],
+    [data-mode="add"],
+    [data-mode="sub"],
+    [data-mode="mul"]
+  ) :is(
+    .stage,
+    .count-friends,
+    .operand-scene,
+    .operand-friends,
+    .celebration-result,
+    .celebration-character-zone
+  ) {
+    min-height: 0;
+  }
+
+  body:is(
+    [data-mode="count"],
+    [data-mode="add"],
+    [data-mode="sub"],
+    [data-mode="mul"]
+  ) .stage {
+    padding: 4px 8px 7px;
+  }
+
+  body:is(
+    [data-mode="count"],
+    [data-mode="add"],
+    [data-mode="sub"],
+    [data-mode="mul"]
+  ) .answer-dock {
+    min-height: 56px;
+    padding: 4px 8px 7px 13px;
+    border-width: 4px;
+    border-radius: 18px;
+  }
+
+  body:is(
+    [data-mode="count"],
+    [data-mode="add"],
+    [data-mode="sub"],
+    [data-mode="mul"]
+  ) .answer-box {
+    min-width: 76px;
+    height: 50px;
+    padding-inline: 10px;
+    font-size: clamp(30px, 9vw, 40px);
+  }
+
+  body:is(
+    [data-mode="count"],
+    [data-mode="add"],
+    [data-mode="sub"],
+    [data-mode="mul"]
+  ) .number-pad {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px;
+    width: min(100%, 360px);
+    padding: 2px;
+  }
+
+  body:is(
+    [data-mode="count"],
+    [data-mode="add"],
+    [data-mode="sub"],
+    [data-mode="mul"]
+  ) .number-pad button {
+    min-width: 48px;
+    min-height: 48px;
+    border-width: 3px;
+    border-radius: 13px;
+    font-size: 24px;
+    touch-action: manipulation;
+  }
+
+  body:is(
+    [data-mode="count"],
+    [data-mode="add"],
+    [data-mode="sub"],
+    [data-mode="mul"]
+  ) .number-pad [data-digit="0"] {
+    grid-column: 2 / 4;
+  }
+
+  body:is(
+    [data-mode="count"],
+    [data-mode="add"],
+    [data-mode="sub"],
+    [data-mode="mul"]
+  ) .game-keyboard-note {
+    display: none;
+  }
+
+  body[data-mode="safety"] #game {
+    height: 100vh;
+    height: 100svh;
+    height: 100dvh;
+    min-height: 0;
+    grid-template-rows: auto minmax(0, 1fr);
+    gap: 5px;
+    padding: max(62px, env(safe-area-inset-top)) 5px 5px;
+    overflow: hidden;
+  }
+
+  body[data-mode="safety"] .problem-pill {
+    max-width: calc(100vw - 76px);
+    padding: 7px 14px 9px;
+    font-size: clamp(17px, 5vw, 22px);
+    line-height: 1.25;
+  }
+
+  body[data-mode="safety"] .stage-frame,
+  body[data-mode="safety"] .safety-route,
+  body[data-mode="safety"] .safety-viewport {
+    min-height: 0;
+  }
+
+  body[data-mode="safety"] .stage-frame {
+    width: 100%;
+    border-width: 5px;
+    border-radius: 24px;
+  }
+
+  body[data-mode="safety"] .safety-route-top {
+    min-height: 64px;
+    height: 64px;
+    padding: 5px 7px;
+  }
+
+  body[data-mode="safety"] .safety-goal {
+    max-width: 44%;
+    font-size: 12px;
+    line-height: 1.25;
+  }
+
+  body[data-mode="safety"] .safety-collected {
+    max-width: 54%;
+    gap: 3px;
+  }
+
+  body[data-mode="safety"] .safety-viewport {
+    --route-cell-size: min(
+      calc((100vw - 30px) / var(--viewport-cols, 5)),
+      calc((100dvh - 143px) / var(--viewport-rows, 5))
+    );
+  }
+
+  body[data-mode="safety"] .route-minimap {
+    right: 8px;
+    width: 132px;
+  }
+
+  body[data-mode="safety"] .route-pad {
+    right: max(8px, env(safe-area-inset-right));
+    bottom: max(8px, env(safe-area-inset-bottom));
+    opacity: 1;
+  }
+
+  body[data-mode="safety"] .route-pad button {
+    min-width: 48px;
+    min-height: 48px;
+    touch-action: manipulation;
+  }
+}
+
+@media (max-width: 640px) and (max-height: 700px) {
+  body:is(
+    [data-mode="count"],
+    [data-mode="add"],
+    [data-mode="sub"],
+    [data-mode="mul"]
+  ) #game {
+    gap: 4px;
+    padding: max(56px, env(safe-area-inset-top)) 6px
+      max(5px, env(safe-area-inset-bottom));
+  }
+
+  body:is(
+    [data-mode="count"],
+    [data-mode="add"],
+    [data-mode="sub"],
+    [data-mode="mul"]
+  ) .number-pad {
+    gap: 4px;
+  }
+
+  body:is(
+    [data-mode="count"],
+    [data-mode="add"],
+    [data-mode="sub"],
+    [data-mode="mul"]
+  ) .number-pad button {
+    min-height: 44px;
+  }
+
+  body[data-mode="count"] .count-friends .count-character {
+    width: auto;
+    height: min(18vh, 108px);
+    max-width: 88%;
+    max-height: min(18vh, 108px);
+    --layout-scale-cap: 1;
+  }
+
+  body[data-mode="safety"] .route-pad {
+    grid-template-columns: repeat(3, 44px);
+    grid-template-rows: repeat(2, 44px);
+  }
+
+  body[data-mode="safety"] .route-pad button {
+    min-width: 44px;
+    min-height: 44px;
+  }
+}
