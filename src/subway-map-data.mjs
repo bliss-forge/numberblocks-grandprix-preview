@@ -1,26 +1,27 @@
-// 도하네 가족. 10호선은 이 사람들이 사는 곳만 이어 놓은 보너스 노선이라
-// 순서가 곧 노선 순서이고, 도하는 가운데에 있습니다.
+// 도하네 가족. 여섯 분이 각자 살던 역에서 도하네 집(도하역)으로 모여
+// 마중 나온다. 역마다 내렸다 타는 것이 지루해서, 지금은 지나가며 이름만
+// 보고 마지막에 한꺼번에 만난다.
 export const FAMILY_STATIONS = Object.freeze([
-  Object.freeze({ id: "mom", station: "엄마", label: "엄마", greeting: "엄마를 만났어요!" }),
-  Object.freeze({ id: "dad", station: "아빠", label: "아빠", greeting: "아빠를 만났어요!" }),
+  Object.freeze({ id: "mom", station: "엄마", label: "엄마" }),
+  Object.freeze({ id: "dad", station: "아빠", label: "아빠" }),
   Object.freeze({
-    id: "goyang-grandpa", station: "고양 할아버지", label: "고양 할아버지",
-    greeting: "고양 할아버지를 만났어요!"
+    id: "goyang-grandpa", station: "고양 할아버지", label: "고양 할아버지"
   }),
   Object.freeze({
-    id: "goyang-grandma", station: "고양 할머니", label: "고양 할머니",
-    greeting: "고양 할머니를 만났어요!"
-  }),
-  Object.freeze({ id: "doha", station: "도하", label: "도하", greeting: "도하네 집이에요!" }),
-  Object.freeze({
-    id: "gimhae-grandpa", station: "김해 할아버지", label: "김해 할아버지",
-    greeting: "김해 할아버지를 만났어요!"
+    id: "goyang-grandma", station: "고양 할머니", label: "고양 할머니"
   }),
   Object.freeze({
-    id: "gimhae-grandma", station: "김해 할머니", label: "김해 할머니",
-    greeting: "김해 할머니를 만났어요!"
+    id: "gimhae-grandpa", station: "김해 할아버지", label: "김해 할아버지"
+  }),
+  Object.freeze({
+    id: "gimhae-grandma", station: "김해 할머니", label: "김해 할머니"
   })
 ]);
+
+// 가족이 다 모이는 곳 — 도하네 집.
+export const FAMILY_HOME = Object.freeze({
+  id: "family", label: "도하네 집", station: "도하", icon: "⭐"
+});
 
 export const SUBWAY_LINES = Object.freeze([
   Object.freeze({
@@ -112,7 +113,13 @@ export const SUBWAY_LINES = Object.freeze([
     color: "#00B3A4",
     loop: false,
     family: true,
-    stations: Object.freeze(FAMILY_STATIONS.map(member => member.station))
+    // 신도림에서 2호선과 만나 남쪽으로 내려간다. 진짜 노선망에 붙어 있어야
+    // 갈아타며 찾아가는 여정이 된다.
+    stations: Object.freeze([
+      "신도림",
+      ...FAMILY_STATIONS.map(member => member.station),
+      FAMILY_HOME.station
+    ])
   })
 ]);
 
@@ -197,15 +204,15 @@ export const STATION_COORDS = Object.freeze({
   국회의사당: Object.freeze({ x: 24, y: 60 }),
   노량진: Object.freeze({ x: 34, y: 63 }),
   봉은사: Object.freeze({ x: 68, y: 56 }),
-  // 가족 노선은 진짜 노선과 만나는 데가 없어서 도시 아래 빈 자리에 한 줄로
-  // 눕혀 둡니다. 여정 지도는 다니는 구간만 잘라 보여 주므로 서로 안 겹칩니다.
-  엄마: Object.freeze({ x: 18, y: 95 }),
-  아빠: Object.freeze({ x: 29, y: 95 }),
-  "고양 할아버지": Object.freeze({ x: 39, y: 95 }),
-  "고양 할머니": Object.freeze({ x: 50, y: 95 }),
-  도하: Object.freeze({ x: 61, y: 95 }),
-  "김해 할아버지": Object.freeze({ x: 71, y: 95 }),
-  "김해 할머니": Object.freeze({ x: 82, y: 95 })
+  // 가족 노선은 신도림에서 갈라져 도시 남쪽 빈 자리를 지나 도하네 집에서
+  // 끝난다. 다른 노선과 겹치지 않는 길로 내려간다.
+  엄마: Object.freeze({ x: 20, y: 76 }),
+  아빠: Object.freeze({ x: 18, y: 85 }),
+  "고양 할아버지": Object.freeze({ x: 24, y: 92 }),
+  "고양 할머니": Object.freeze({ x: 33, y: 96 }),
+  "김해 할아버지": Object.freeze({ x: 43, y: 97 }),
+  "김해 할머니": Object.freeze({ x: 53, y: 96 }),
+  도하: Object.freeze({ x: 62, y: 93 })
 });
 
 export const SUBWAY_PLACES = Object.freeze([

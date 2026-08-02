@@ -315,25 +315,25 @@ export function familyPlatformSvg(lineColour, name) {
   ].join("");
 }
 
-// 다 만나면 일곱이 한 줄로 서서 손을 흔든다.
+// 도하네 집 앞. 여섯 분이 한 줄로 서서 마중 나와 있다.
 export function familyReunionSvg() {
-  const order = ["mom", "dad", "goyang-grandpa", "doha", "goyang-grandma",
+  const order = ["mom", "dad", "goyang-grandpa", "goyang-grandma",
     "gimhae-grandpa", "gimhae-grandma"];
   const people = order.map((id, index) => {
     const draw = DRAWINGS[id];
     const inner = draw()
       .replace(/^<svg[^>]*>/, "")
       .replace(/<\/svg>$/, "");
-    const scale = id === "doha" ? 1.16 : 1;
-    const lift = id === "doha" ? -14 : 0;
-    return `<g transform="translate(${index * 132} ${lift}) scale(${scale})">` +
-      `${inner}</g>`;
+    // 앞뒤로 조금씩 어긋나게 세워 한 줄이 밋밋해 보이지 않게 한다.
+    const lift = index % 2 === 0 ? 0 : -10;
+    return `<g class="family-reunion-person" ` +
+      `transform="translate(${index * 152} ${lift})">${inner}</g>`;
   }).join("");
   return [
-    `<svg class="family-reunion-art" viewBox="0 0 950 200" role="img" `,
-    `aria-label="가족이 다 모였어요" focusable="false" `,
+    `<svg class="family-reunion-art" viewBox="0 0 1000 210" role="img" `,
+    `aria-label="가족이 모두 마중 나왔어요" focusable="false" `,
     `preserveAspectRatio="xMidYMax meet" xmlns="http://www.w3.org/2000/svg">`,
-    `<g transform="translate(6 34)">${people}</g>`,
+    `<g transform="translate(30 36)">${people}</g>`,
     `</svg>`
   ].join("");
 }

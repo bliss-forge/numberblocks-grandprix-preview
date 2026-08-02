@@ -8,14 +8,11 @@ import {
   lineKeyLabel,
   stationLabel
 } from "./subway-map-data.mjs";
-import { familyPersonSvg, familyStampSvg } from "./family-line-art.mjs";
-import { familyFaceSvg } from "./family-line-art.mjs";
+import { familyFaceSvg, familyReunionSvg } from "./family-line-art.mjs";
 import {
   DIRECTION_ARROWS,
   HOP_PERIOD_MS,
-  familyBoard,
   gateLines,
-  isFamilyJourney,
   lineNeighbors,
   subwayAnnouncement,
   subwayCompass
@@ -967,20 +964,20 @@ function renderArrivedPhase(document, state, stage) {
 
   // The destination itself is the celebration: a painted scene the hero and
   // friends stand inside, instead of a lone emoji on an empty field.
-  // 가족역에는 그린 도착지 그림이 없다. 대신 마중 나온 가족이 서 있다.
-  const member = state.place.family;
-  const painted = member
-    ? familyPersonSvg(member.id)
+  // 도하네 집에는 그린 도착지 그림 대신 마중 나온 여섯 분이 한꺼번에 선다.
+  const family = Boolean(state.place.family);
+  const painted = family
+    ? familyReunionSvg()
     : arrivedSceneSvg(state.place.id);
   ending.dataset.painted = String(Boolean(painted));
-  ending.dataset.family = String(Boolean(member));
+  ending.dataset.family = String(family);
   if (painted) {
     const art = document.createElement("div");
     art.className = "subway-arrived-scene";
     art.setAttribute("role", "img");
     art.setAttribute(
       "aria-label",
-      member ? `${member.label}를 만났어요` : `${state.place.label}에 도착한 모습`
+      family ? "가족이 모두 마중 나왔어요" : `${state.place.label}에 도착한 모습`
     );
     art.innerHTML = painted;
     ending.append(art);
@@ -1065,17 +1062,11 @@ function renderRoomPhase(document, state, stage) {
   const rail = document.createElement("div");
   rail.className = "subway-rail";
 
-  // 가족 노선은 한 줄짜리라 노선도를 볼 일이 없다. 그 자리에 누구를 만났는지
-  // 보여 주는 도장판이 들어간다.
-  if (isFamilyJourney(state)) {
-    rail.append(renderFamilyStamps(document, state));
-  } else {
-    const minimap = document.createElement("div");
-    minimap.className = "subway-minimap-box";
-    minimap.dataset.guide = String(Boolean(state.showRecommended));
-    minimap.innerHTML = minimapSvg(state, rideBounds(state), compass);
-    rail.append(minimap);
-  }
+  const minimap = document.createElement("div");
+  minimap.className = "subway-minimap-box";
+  minimap.dataset.guide = String(Boolean(state.showRecommended));
+  minimap.innerHTML = minimapSvg(state, rideBounds(state), compass);
+  rail.append(minimap);
 
   const hud = document.createElement("div");
   hud.className = "subway-hud";
@@ -1173,41 +1164,6 @@ function patchPlayer(view, state) {
     String(onStairs ? room.walkX - room.stairsFrom + 1 : 0)
   );
   player.dataset.facing = room.facing;
-}
-
-function renderFamilyStamps(document, state) {
-  const box = document.createElement("div");
-  box.className = "subway-family-box";
-  const title = document.createElement("h3");
-  title.className = "subway-family-title";
-  const board = familyBoard(state);
-  const met = board.filter(entry => entry.met).length;
-  title.textContent = `가족 도장  ${met} / ${board.length}`;
-  box.append(title);
-
-  const grid = document.createElement("div");
-  grid.className = "subway-family-grid";
-  for (const entry of board) {
-    const cell = document.createElement("div");
-    cell.className = "subway-family-cell";
-    cell.dataset.met = String(entry.met);
-    cell.dataset.here = String(entry.here);
-    const face = document.createElement("span");
-    face.className = "subway-family-face";
-    face.innerHTML = familyStampSvg(entry.id, entry.met);
-    face.setAttribute("aria-hidden", "true");
-    const name = document.createElement("span");
-    name.className = "subway-family-name";
-    name.textContent = entry.label;
-    cell.append(face, name);
-    cell.setAttribute(
-      "aria-label",
-      `${entry.label} ${entry.met ? "만났어요" : "아직이에요"}`
-    );
-    grid.append(cell);
-  }
-  box.append(grid);
-  return box;
 }
 
 export function renderSubwayJourney(document, state) {

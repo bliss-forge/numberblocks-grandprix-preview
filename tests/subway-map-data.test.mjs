@@ -31,45 +31,44 @@ test("서울 지하철 1~9호선이 실제 노선 색으로 준비된다", () =>
   assert.equal(lineByNumber(2).loop, true, "2호선은 순환선");
 });
 
-test("10호선은 도하네 가족만 사는 보너스 노선이다", () => {
+test("10호선은 신도림에서 갈라져 도하네 집까지 간다", () => {
   const ten = lineByNumber(10);
   assert.ok(ten, "10호선이 있다");
   assert.equal(ten.family, true, "가족 노선으로 표시된다");
-  assert.deepEqual(
-    ten.stations,
-    ["엄마", "아빠", "고양 할아버지", "고양 할머니", "도하", "김해 할아버지", "김해 할머니"]
-  );
-  assert.equal(ten.stations[3 + 1], "도하", "도하는 한가운데");
-  assert.equal(ten.stations.length, FAMILY_STATIONS.length);
-
-  for (const member of FAMILY_STATIONS) {
-    assert.deepEqual(
-      linesAtStation(member.station).map(line => line.number),
-      [10],
-      `${member.label}역은 가족 노선에만 있다`
-    );
-    assert.equal(isTransferStation(member.station), false, member.label);
-    assert.ok(STATION_COORDS[member.station], `${member.label} 좌표`);
-    assert.ok(member.greeting.length > 0, `${member.label} 인사말`);
-  }
+  assert.equal(ten.stations[0], "신도림", "진짜 노선망에 붙어 있다");
   assert.equal(
-    new Set(FAMILY_STATIONS.map(member => member.id)).size,
-    FAMILY_STATIONS.length,
-    "가족 id는 겹치지 않는다"
+    ten.stations[ten.stations.length - 1],
+    "도하",
+    "도하네 집에서 끝난다"
   );
+  assert.deepEqual(
+    ten.stations.slice(1, -1),
+    FAMILY_STATIONS.map(member => member.station),
+    "가운데는 가족 여섯 분의 역"
+  );
+  assert.deepEqual(
+    linesAtStation("신도림").map(line => line.number),
+    [2, 10],
+    "신도림에서 2호선과 갈아탄다"
+  );
+  assert.equal(isTransferStation("신도림"), true);
 });
 
-test("가족 노선은 진짜 지하철과 만나는 데가 없다", () => {
-  const family = new Set(FAMILY_STATIONS.map(member => member.station));
-  for (const line of SUBWAY_LINES) {
-    if (line.number === 10) continue;
-    for (const station of line.stations) {
-      assert.equal(family.has(station), false, `${station}은 가족역이 아니다`);
-    }
+test("가족역과 도하네 집은 10호선에만 있다", () => {
+  for (const station of [...FAMILY_STATIONS.map(m => m.station), "도하"]) {
+    assert.deepEqual(
+      linesAtStation(station).map(line => line.number),
+      [10],
+      station
+    );
+    assert.equal(isTransferStation(station), false, station);
+    assert.ok(STATION_COORDS[station], `${station} 좌표`);
   }
-  for (const place of SUBWAY_PLACES) {
-    assert.equal(family.has(place.station), false, `${place.label}은 가족역이 아니다`);
-  }
+  assert.equal(FAMILY_STATIONS.length, 6, "마중 나오는 가족은 여섯 분");
+  assert.equal(
+    new Set(FAMILY_STATIONS.map(member => member.id)).size,
+    FAMILY_STATIONS.length
+  );
 });
 
 test("10호선은 숫자키 0으로 부른다", () => {
@@ -82,6 +81,11 @@ test("10호선은 숫자키 0으로 부른다", () => {
   }
   const keys = SUBWAY_LINES.map(line => lineKeyLabel(line.number));
   assert.equal(new Set(keys).size, keys.length, "노선마다 키가 겹치지 않는다");
+  // 신도림에서 2호선과 10호선 중에 골라야 하니 이 키가 실제로 쓰인다.
+  assert.deepEqual(
+    linesAtStation("신도림").map(line => lineKeyLabel(line.number)),
+    ["2", "0"]
+  );
 });
 
 test("모든 역은 고유 좌표를 가지고 노선 안에서 중복되지 않는다", () => {

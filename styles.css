@@ -5806,9 +5806,16 @@ body[data-mode="subway"] .toast {
   text-align: center;
 }
 
+/* 마중 나온 가족은 위쪽 말풍선에 얼굴이 가리지 않게 조금 내려 세운다. */
+.subway-arrived[data-family="true"] .subway-arrived-scene {
+  display: grid;
+  align-content: center;
+  padding-block-start: clamp(40px, 9vh, 84px);
+}
+
 .subway-arrived[data-family="true"] .subway-arrived-scene svg {
-  width: auto;
-  height: clamp(150px, 34vh, 300px);
+  width: min(100%, 980px);
+  height: clamp(160px, 36vh, 300px);
   margin-inline: auto;
   display: block;
 }
