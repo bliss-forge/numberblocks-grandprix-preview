@@ -535,13 +535,11 @@ export function midStripSvg() {
 // 전경 스트립(3인칭) — 열차 앞을 스치는 전신주·가로수(최고 속도 큐).
 export function nearStripSvg() {
   const strip = [
-    `<line x1="0" y1="16" x2="480" y2="16" stroke="currentColor" stroke-width="4"/>`,
-    `<rect x="24" y="4" width="12" height="256" rx="4" fill="currentColor"/>`,
-    `<rect x="24" y="28" width="60" height="7" rx="3" fill="currentColor"/>`,
-    `<circle cx="42" cy="24" r="5" fill="currentColor"/>`,
-    `<circle cx="72" cy="24" r="5" fill="currentColor"/>`,
-    `<circle cx="300" cy="150" r="30" fill="currentColor"/>`,
-    `<rect x="294" y="172" width="12" height="88" fill="currentColor"/>`
+    `<line x1="0" y1="16" x2="480" y2="16" stroke="currentColor" stroke-width="3"/>`,
+    `<rect x="24" y="4" width="11" height="256" rx="4" fill="currentColor"/>`,
+    `<rect x="24" y="26" width="56" height="6" rx="3" fill="currentColor"/>`,
+    `<circle cx="46" cy="22" r="4" fill="currentColor"/>`,
+    `<circle cx="72" cy="22" r="4" fill="currentColor"/>`
   ].join("");
   return svgWrap("ktx-near-art", "0 0 2400 260", [
     `<g>${strip}</g>`,

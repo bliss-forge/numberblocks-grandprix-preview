@@ -6109,20 +6109,33 @@ body[data-mode="ktx"] .stage-lights {
   position: absolute;
   top: 0;
   bottom: 0;
-  left: calc(50% - 180px);
-  width: 252px;
+  left: calc(50% - 64px);
+  width: 128px;
   background: #cfc3ad;
-  border-left: 6px solid #b9ac93;
-  border-right: 6px solid #b9ac93;
+  border-left: 5px solid #b9ac93;
+  border-right: 5px solid #b9ac93;
   z-index: 2;
+}
+
+/* 맞은편 선로의 좁은 베드 — 복선 풍경 */
+.ktx-ballast-bed::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -107px;
+  width: 92px;
+  background: #cfc3ad;
+  border-left: 5px solid #b9ac93;
+  border-right: 5px solid #b9ac93;
 }
 
 /* 침목 — 유일하게 움직이는 평면 자식. 모델이 --tie-px를 주고 transition이
    150ms 틱 사이를 보간, wrap은 setLoopSeam이 무봉합 처리. */
 .ktx-ties {
   position: absolute;
-  left: calc(50% - 180px);
-  width: 252px;
+  left: calc(50% - 60px);
+  width: 120px;
   top: -640px;
   height: 1140px;
   background: repeating-linear-gradient(to bottom,
@@ -6192,7 +6205,7 @@ body[data-mode="ktx"] .stage-lights {
   right: 0;
   bottom: 100%;
   height: 88%;
-  opacity: 1;
+  opacity: .8;
   transition: opacity .6s ease;
   pointer-events: none;
 }
@@ -6527,7 +6540,7 @@ body[data-mode="ktx"] .stage-lights {
   position: absolute;
   left: 50%;
   transform: translateX(-50%);
-  bottom: calc(28% - 22px);
+  top: 7.5%;
   min-width: 290px;
   padding: 7px 18px;
   display: flex;
@@ -6673,10 +6686,13 @@ body[data-mode="ktx"] .stage-lights {
 /* 문 패널 — 미니 문짝이 실제 문과 동조 */
 .ktx-door-panel {
   position: absolute;
-  left: 22px;
-  bottom: 96px;
+  left: 190px;
+  bottom: 22px;
   width: 120px;
   height: 84px;
+  padding: 4px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, .14);
   transition: opacity .4s ease;
   pointer-events: none;
   z-index: 12;
@@ -7099,9 +7115,9 @@ body[data-mode="ktx"] .stage-lights {
   left: 0;
   bottom: 22%;
   width: 100%;
-  height: 58%;
+  height: 46%;
   color: #5b6b81;
-  opacity: .9;
+  opacity: .8;
   transform: translate3d(var(--loop-px, 0px), 0, 0);
   transition: transform .16s linear, opacity .5s ease;
   pointer-events: none;
@@ -7119,7 +7135,7 @@ body[data-mode="ktx"] .stage-lights {
 /* 대기줄 — 승강장 데크 위, 문 쪽으로 스르륵 전진(diff 갱신) */
 .ktx-queue {
   position: absolute;
-  bottom: calc(24% + 26px);
+  bottom: calc(24% + 2px);
   left: 0;
   transform: translate3d(calc(var(--platform-x, 2000px) + 316px), 0, 0);
   transition: transform .16s linear;
@@ -7134,7 +7150,7 @@ body[data-mode="ktx"] .stage-lights {
   position: absolute;
   bottom: 0;
   left: 0;
-  width: 44px;
+  width: 48px;
   height: auto;
   transform: translateX(calc(var(--queue-index, 0) * 50px));
   transition: transform .3s ease;
@@ -7143,7 +7159,7 @@ body[data-mode="ktx"] .stage-lights {
 /* 탑승 워커 — ⎵마다 맨 앞 친구가 문까지 걸어가서 스며든다 */
 .ktx-walker-host {
   position: absolute;
-  bottom: calc(24% + 26px);
+  bottom: calc(24% + 2px);
   left: 0;
   transform: translate3d(calc(var(--platform-x, 2000px) + 316px), 0, 0);
   pointer-events: none;
