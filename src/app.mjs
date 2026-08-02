@@ -1944,30 +1944,6 @@ document.addEventListener("keydown", event => {
     return;
   }
 
-  if (state.phase === "home") {
-    const difficulties = { 7: "easy", 8: "steady", 9: "challenge" };
-    if (difficulties[digit]) {
-      event.preventDefault();
-      audio.playSfx("key");
-      setDifficulty(difficulties[digit]);
-      return;
-    }
-
-    const modes = {
-      1: "count",
-      2: "add",
-      3: "sub",
-      4: "mul",
-      5: "safety",
-      6: "subway"
-    };
-    if (modes[digit]) {
-      event.preventDefault();
-      startMode(modes[digit]);
-    }
-    return;
-  }
-
   if (state.phase === "playing") {
     event.preventDefault();
     onDigit(digit);

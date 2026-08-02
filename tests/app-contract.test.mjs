@@ -50,30 +50,11 @@ test("게임 화면은 화면 전환 뒤 프로그램 방식으로 포커스를 
   );
 });
 
-test("홈은 일곱 가지 놀이를 제공하고 1~6은 바로가기 키를 가진다", () => {
+test("홈은 번호 배지가 있는 일곱 가지 놀이를 제공한다", () => {
   assert.equal((html.match(/class="mode-card(?: [^"]*)?"/g) ?? []).length, 7);
-  for (const [mode, key] of [
-    ["count", "1"],
-    ["add", "2"],
-    ["sub", "3"],
-    ["mul", "4"],
-    ["safety", "5"],
-    ["subway", "6"]
-  ]) {
-    assert.match(
-      html,
-      new RegExp(`data-mode="${mode}"[^>]*aria-keyshortcuts="${key}"`)
-    );
-  }
   assert.match(html, /안전한 길찾기/);
   assert.match(html, /지하철 여행/);
   assert.match(html, /칙칙폭폭 기관사/);
-  // 7번 카드는 숫자키가 없다 — 7·8·9는 난이도가 점유(협회 판정).
-  // 진입은 ←/→ 카드 포커스 이동 + Space, 또는 클릭.
-  const ktxCard = html.match(/<button class="mode-card ktx-mode-card"[^>]*>/)[0];
-  assert.doesNotMatch(ktxCard, /aria-keyshortcuts/);
-  assert.match(html, /<kbd>5<\/kbd>/);
-  assert.match(html, /<kbd>6<\/kbd>/);
 });
 
 test("홈 카드 번호는 같은 번호의 블럭 친구를 사용한다", () => {
@@ -126,7 +107,6 @@ test("길찾기는 모델, 장면, 키보드와 모바일 방향 버튼을 앱�
     app,
     /import\s*\{[^}]*renderSafetyRouteScene[^}]*\}\s*from "\.\/safety-route-scene\.mjs";/s
   );
-  assert.match(app, /const modes = \{[^}]*5:\s*"safety"/s);
   assert.match(app, /directionForKey\(event\.key\)/);
   assert.match(app, /closest\("\[data-route-direction\]"\)/);
   assert.match(app, /attemptSafetyMove\(state\.safety,\s*direction\)/);
@@ -174,15 +154,9 @@ test("길찾기 카메라는 첫 장면만 마운트하고 이후 월드 틱은 
   assert.match(app, /scheduleSafetyWorldTick\(nowMs\);[\s\S]*?},\s*100\);/);
 });
 
-test("홈에는 7~9 바로가기 키가 있는 세 난이도 버튼과 도전 세기 안내가 있다", () => {
+test("홈에는 세 난이도 버튼과 도전 세기 안내가 있다", () => {
   assert.match(html, /id="difficulty-picker"/);
   assert.equal((html.match(/class="difficulty-button"/g) ?? []).length, 3);
-  for (const [difficulty, key] of [["easy", "7"], ["steady", "8"], ["challenge", "9"]]) {
-    assert.match(
-      html,
-      new RegExp(`data-difficulty="${difficulty}"[^>]*aria-keyshortcuts="${key}"`)
-    );
-  }
   assert.match(html, /id="count-unavailable"/);
   assert.match(app, /도전에서는 더하기, 빼기와 곱하기를 해요\./);
 });

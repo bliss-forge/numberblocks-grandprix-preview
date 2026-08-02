@@ -66,6 +66,57 @@ function observeErrors(page) {
   return { consoleErrors, pageErrors };
 }
 
+test("홈 숫자키는 게임이나 난이도를 바꾸지 않고 버튼 선택은 계속 동작한다", async t => {
+  const chromium = loadChromium();
+  if (!chromium) {
+    t.skip("Playwright is not installed globally");
+    return;
+  }
+
+  const { server, url } = await startStaticServer();
+  const browser = await chromium.launch({ headless: true });
+  t.after(async () => {
+    await browser.close();
+    await new Promise(resolveServer => server.close(resolveServer));
+  });
+
+  for (const key of ["1", "7", "8", "9"]) {
+    const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
+    const errors = observeErrors(page);
+    await page.goto(url, { waitUntil: "networkidle" });
+    const before = await page.locator(".difficulty-button.selected")
+      .getAttribute("data-difficulty");
+
+    await page.keyboard.press(key);
+
+    assert.equal(await page.locator("body").getAttribute("data-state"), "home", key);
+    assert.equal(
+      await page.locator(".difficulty-button.selected")
+        .getAttribute("data-difficulty"),
+      before,
+      key
+    );
+    assert.deepEqual(errors, { consoleErrors: [], pageErrors: [] }, key);
+    await page.close();
+  }
+
+  const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
+  await page.goto(url, { waitUntil: "networkidle" });
+  assert.equal(await page.locator(".lead").count(), 0);
+  assert.equal(await page.locator(".keyboard-note").count(), 0);
+  assert.equal(await page.locator(".mode-card[aria-keyshortcuts]").count(), 0);
+  assert.equal(await page.locator(".difficulty-button kbd").count(), 0);
+
+  await page.locator('[data-difficulty="challenge"]').click();
+  assert.equal(
+    await page.locator(".difficulty-button.selected")
+      .getAttribute("data-difficulty"),
+    "challenge"
+  );
+  await page.locator('[data-mode="add"]').click();
+  assert.equal(await page.locator("body").getAttribute("data-state"), "playing");
+});
+
 test("390×844 홈은 두 열과 넓은 5번 카드로 잘림 없이 표시된다", async t => {
   const chromium = loadChromium();
   if (!chromium) {
