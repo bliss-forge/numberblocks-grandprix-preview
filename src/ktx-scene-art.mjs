@@ -151,13 +151,15 @@ function landStrip(land) {
   return "";
 }
 
-// 두 장을 이어 붙여 CSS translateX 무한 루프가 이음새 없이 돌게 한다.
+// 세 장을 이어 붙여 CSS translateX 무한 루프가 이음새 없이 돌게 한다.
+// (스테이지 폭 1217px + 루프 주기 1000px를 항상 덮으려면 3000px 필요)
 export function landLayerSvg(land) {
   const strip = landStrip(land);
   if (!strip) return "";
-  return svgWrap(`ktx-land ktx-land-${land}`, "0 0 2000 200", [
+  return svgWrap(`ktx-land ktx-land-${land}`, "0 0 3000 200", [
     `<g>${strip}</g>`,
-    `<g transform="translate(1000 0)">${strip}</g>`
+    `<g transform="translate(1000 0)">${strip}</g>`,
+    `<g transform="translate(2000 0)">${strip}</g>`
   ].join(""), "xMinYMax slice");
 }
 
@@ -381,7 +383,7 @@ export function doorPanelSvg() {
 // 전차선 가선 — 정적 V자 수렴(운전석에서 보는 접촉선은 준정지, 협회 §4.4).
 export function cabWiresSvg() {
   const droppers = [0.25, 0.45, 0.65, 0.85].flatMap(t => {
-    const y = 144 - 144 * t;
+    const y = 400 - 400 * t;
     return [
       `<line x1="${(500 - 67 * t).toFixed(0)}" y1="${y.toFixed(0)}" ` +
       `x2="${(500 - 67 * t).toFixed(0)}" y2="${(y - 18).toFixed(0)}" stroke="${WIRE}" stroke-width="2"/>`,
@@ -390,8 +392,8 @@ export function cabWiresSvg() {
     ];
   }).join("");
   return svgWrap("ktx-wires-art", "0 0 1000 400", [
-    `<path d="M500 144 L433 0" stroke="${WIRE}" stroke-width="3" fill="none"/>`,
-    `<path d="M500 144 L567 0" stroke="${WIRE}" stroke-width="3" fill="none"/>`,
+    `<path d="M500 400 L433 0" stroke="${WIRE}" stroke-width="3" fill="none"/>`,
+    `<path d="M500 400 L567 0" stroke="${WIRE}" stroke-width="3" fill="none"/>`,
     droppers
   ].join(""), "none");
 }
@@ -523,9 +525,10 @@ export function midStripSvg() {
     `<rect x="876" y="96" width="8" height="34" fill="currentColor"/>`,
     `<rect x="772" y="86" width="136" height="12" rx="6" fill="currentColor"/>`
   ].join("");
-  return svgWrap("ktx-mid-art", "0 0 2000 200", [
+  return svgWrap("ktx-mid-art", "0 0 3000 200", [
     `<g>${strip}</g>`,
-    `<g transform="translate(1000 0)">${strip}</g>`
+    `<g transform="translate(1000 0)">${strip}</g>`,
+    `<g transform="translate(2000 0)">${strip}</g>`
   ].join(""), "xMinYMax slice");
 }
 
@@ -540,9 +543,12 @@ export function nearStripSvg() {
     `<circle cx="300" cy="150" r="30" fill="currentColor"/>`,
     `<rect x="294" y="172" width="12" height="88" fill="currentColor"/>`
   ].join("");
-  return svgWrap("ktx-near-art", "0 0 960 260", [
+  return svgWrap("ktx-near-art", "0 0 2400 260", [
     `<g>${strip}</g>`,
-    `<g transform="translate(480 0)">${strip}</g>`
+    `<g transform="translate(480 0)">${strip}</g>`,
+    `<g transform="translate(960 0)">${strip}</g>`,
+    `<g transform="translate(1440 0)">${strip}</g>`,
+    `<g transform="translate(1920 0)">${strip}</g>`
   ].join(""), "xMinYMax slice");
 }
 

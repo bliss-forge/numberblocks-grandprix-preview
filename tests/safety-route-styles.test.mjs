@@ -127,7 +127,8 @@ test("건물과 생활안전 요소를 입체 이미지 없이 평면 CSS 그림
   assert.match(css, /\.route-construction::after/);
   assert.doesNotMatch(css, /\.route-place[\s{-]/);
   assert.doesNotMatch(css, /\.route-school-goal/);
-  assert.doesNotMatch(css, /\.safety-route[\s\S]*?perspective\s*:/);
+  // 안전길 규칙 안에서만 perspective 금지 — 다른 게임(ktx 운전실)의 원근은 무관.
+  assert.doesNotMatch(css, /\.(safety-route|route-)[^{}]*\{[^}]*perspective\s*:/);
 });
 
 test("열린 맨홀·포크레인 공사장·SVG 이동체는 원본 CSS/SVG 그림을 사용한다", () => {

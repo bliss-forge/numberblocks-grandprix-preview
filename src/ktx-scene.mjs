@@ -604,6 +604,14 @@ export function updateKtxScene(root, state, view, events = [], held = {}) {
   root.dataset.lever = leverPosition(state, held);
   root.dataset.zone = String(state.zoneEntered &&
     ["driving", "stopping", "correcting"].includes(state.phase));
+  if (root.dataset.zone === "true") {
+    const approach = root.querySelector(".ktx-approach");
+    if (approach) {
+      const dApp = Math.max(0, Math.min(120, distanceToMarker(state)));
+      approach.style.setProperty("--approach-px",
+        `${(154 - 1.3833 * dApp).toFixed(1)}px`);
+    }
+  }
   root.dataset.doorWarning = String(
     state.doorCountdownMs !== null && state.doorCountdownMs !== undefined &&
     state.doorCountdownMs > 0 && state.doorCountdownMs <= 3200);
