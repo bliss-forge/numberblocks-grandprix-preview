@@ -50,8 +50,8 @@ test("게임 화면은 화면 전환 뒤 프로그램 방식으로 포커스를 
   );
 });
 
-test("홈은 여섯 가지 놀이와 1~6 바로가기 키를 제공한다", () => {
-  assert.equal((html.match(/class="mode-card(?: [^"]*)?"/g) ?? []).length, 6);
+test("홈은 일곱 가지 놀이를 제공하고 1~6은 바로가기 키를 가진다", () => {
+  assert.equal((html.match(/class="mode-card(?: [^"]*)?"/g) ?? []).length, 7);
   for (const [mode, key] of [
     ["count", "1"],
     ["add", "2"],
@@ -67,6 +67,11 @@ test("홈은 여섯 가지 놀이와 1~6 바로가기 키를 제공한다", () =
   }
   assert.match(html, /안전한 길찾기/);
   assert.match(html, /지하철 여행/);
+  assert.match(html, /칙칙폭폭 기관사/);
+  // 7번 카드는 숫자키가 없다 — 7·8·9는 난이도가 점유(협회 판정).
+  // 진입은 ←/→ 카드 포커스 이동 + Space, 또는 클릭.
+  const ktxCard = html.match(/<button class="mode-card ktx-mode-card"[^>]*>/)[0];
+  assert.doesNotMatch(ktxCard, /aria-keyshortcuts/);
   assert.match(html, /<kbd>5<\/kbd>/);
   assert.match(html, /<kbd>6<\/kbd>/);
 });
@@ -78,7 +83,8 @@ test("홈 카드 번호는 같은 번호의 블럭 친구를 사용한다", () =
     ["sub", "3", "three"],
     ["mul", "4", "four"],
     ["safety", "5", "five"],
-    ["subway", "6", "six"]
+    ["subway", "6", "six"],
+    ["ktx", "7", "seven"]
   ]) {
     const card = html.match(
       new RegExp(

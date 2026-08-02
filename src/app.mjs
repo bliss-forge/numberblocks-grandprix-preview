@@ -98,6 +98,19 @@ import {
 } from "./subway-sound-manifest.mjs";
 import { lineForKey, stationLabel } from "./subway-map-data.mjs";
 import {
+  createKtxJourney,
+  pressKtxSpace,
+  tickKtx
+} from "./ktx-journey.mjs";
+import { KTX_TRAINS } from "./ktx-route-data.mjs";
+import { recordMetFriends } from "./ktx-passengers.mjs";
+import {
+  movePickerSelection,
+  renderKtxPicker,
+  renderKtxScene,
+  updateKtxScene
+} from "./ktx-scene.mjs";
+import {
   addPhoto,
   createPhotoHunt,
   loadAlbum,
@@ -145,6 +158,14 @@ const state = {
   subwayTickMs: 0,
   subwayHoldBlock: false,
   subwayDoorCue: false,
+  ktx: null,
+  ktxScene: null,
+  ktxView: "cab",
+  ktxHeld: { up: false, down: false },
+  ktxTickMs: 0,
+  ktxPicking: false,
+  ktxPickIndex: 0,
+  ktxViewMs: 0,
   wrongCount: 0,
   round: 0,
   hintTimer: 0,
@@ -1013,6 +1034,212 @@ function movePhoto(input) {
   updateSubwayJourney(state.subwayScene, journey);
 }
 
+const KTX_EVENT_HINTS = Object.freeze({
+  sprint300: "쭉 뻗은 길! 300까지 가 볼까?",
+  river: "강이에요! 빵빵 하면 오리들이 인사해요",
+  tunnel: "터널이에요! 빵빵 해볼까?",
+  seagull: "바다다! 빵빵 하면 갈매기가 답해요",
+  passing: "반대편 기차예요! 빵빵 인사해요",
+  cows: "소 떼예요! 빵빵 하면 음머~"
+});
+
+function startKtxPicker() {
+  stopSafetyHold();
+  clearTimers();
+  audio.cancel();
+  state.round += 1;
+  state.problem = null;
+  state.buffer = "";
+  setPhase("playing");
+  state.ktxPicking = true;
+  state.ktxPickIndex = 0;
+  state.ktxScene = renderKtxPicker(document, 0);
+  dom.stage.replaceChildren(state.ktxScene);
+  dom.problem.textContent = "칙칙폭폭 기관사";
+  dom.stage.setAttribute("aria-live", "off");
+  showHint("← → 로 기차를 고르고 ⎵ 로 출발!");
+}
+
+function startKtxJourney(trainId) {
+  state.ktxPicking = false;
+  const seed = Math.floor(Math.random() * 0x100000000);
+  state.ktx = createKtxJourney(seed, trainId);
+  // 밖에서 타고, 안에서 몬다 — 탑승은 바깥 뷰에서 시작한다.
+  state.ktxView = "side";
+  state.ktxHeld = { up: false, down: false };
+  state.ktxScene = renderKtxScene(document, state.ktx, "cab");
+  dom.stage.replaceChildren(state.ktxScene);
+  dom.problem.textContent = "🚄 부산까지 가요!";
+  audio.playSfx("win");
+  showHint("기관사님, 준비 완료! ⎵ 눌러서 친구들을 태워요");
+  state.ktxTickMs = performance.now();
+  scheduleKtxTick();
+}
+
+function handleKtxEvents(events) {
+  const journey = state.ktx;
+  for (const event of events) {
+    if (event.type === "boarded") {
+      audio.playSfx("pop");
+      audio.cancel();
+      if (event.guest) {
+        // 큰 손님은 이름(수)을 불러 준다 — "백!"
+        void audio.playAnswer(event.number);
+        showHint(`와! ${event.number} 손님이 탔어요!`);
+      } else {
+        void audio.playAnswer(event.ordinal);
+        if (event.remaining === 0) {
+          showHint("다 탔어요!");
+        }
+      }
+    } else if (event.type === "all-aboard") {
+      audio.playSfx("win");
+      showHint(`${event.count}명 탔어요! ⎵ 눌러서 문을 닫아요`);
+    } else if (event.type === "doors-closed") {
+      audio.playSfx("door");
+      showHint(`문 닫았어요! ↑ 를 꾹 눌러 출발! 다음 역, ${event.next}!`);
+    } else if (event.type === "depart") {
+      audio.playSfx("jingle");
+      state.ktxView = "cab";       // 출발 컷: 운전석에 앉는 순간
+      if (!event.auto) {
+        audio.cancel();
+        void audio.playPrompt("srt-depart");
+      }
+    } else if (event.type === "milestone") {
+      audio.playSfx("pop");
+      if (event.speed <= 150) {
+        audio.cancel();
+        void audio.playAnswer(event.speed);
+      } else if (event.speed === 300) {
+        audio.playSfx("win");
+        showHint("삼백!! 최고 속도예요!!");
+      }
+    } else if (event.type === "event") {
+      const hint = KTX_EVENT_HINTS[event.event];
+      if (hint) showHint(hint);
+    } else if (event.type === "zone-enter") {
+      audio.playSfx("bell");
+      showHint(`${event.station}역이 보여요! 천천히, 천천히~`);
+    } else if (event.type === "armed") {
+      audio.playSfx("key");
+      showHint("✋ 노란 불이에요! ⎵ 눌러서 딱 멈추기!");
+    } else if (event.type === "early-stop") {
+      showHint("조금만 더 가서 멈춰요~");
+    } else if (event.type === "overrun") {
+      audio.playSfx("pop");
+      showHint("어이쿠~ 살짝 지나쳤어요! 뒤로 통통~");
+    } else if (event.type === "stopped") {
+      audio.playSfx("win");
+      state.ktxView = "side";      // 도착 컷: 승강장의 친구들이 보인다
+      const starText = "⭐".repeat(event.stars);
+      showHint(event.stars === 3
+        ? `${starText} 딱 멈췄어요! 최고, 기관사님!`
+        : `${starText} ${event.station}역이에요! ⎵ 눌러서 문 열기`);
+      const voiceKey = SRT_STATION_VOICES[event.station];
+      if (voiceKey) {
+        audio.cancel();
+        void audio.playPrompt(voiceKey);
+      }
+    } else if (event.type === "doors-open") {
+      audio.playSfx("door");
+      showHint("친구들이 기다려요! ⎵ 한 명씩 태워요");
+    } else if (event.type === "horn") {
+      audio.playSfx("horn");
+    } else if (event.type === "hint") {
+      const words = {
+        board: "⎵ 눌러서 태워 볼까?",
+        "close-doors": "⎵ 눌러서 문을 닫아요",
+        "open-doors": "⎵ 눌러서 문을 열어요",
+        depart: "↑ 를 꾹 눌러 볼까요?",
+        go: "↑ 를 눌러 다시 출발해요"
+      };
+      if (words[event.what]) showHint(words[event.what]);
+    } else if (event.type === "auto") {
+      if (event.what === "creep") showHint("같이 가 볼까요? 칙칙폭폭~");
+      if (event.what === "doors-open") showHint("문이 열려요! 친구들을 태워요");
+    } else if (event.type === "auto-board-start") {
+      showHint("같이 태워 볼게요! 하나, 둘~");
+    } else if (event.type === "finale") {
+      void completeKtxJourney(event);
+    }
+  }
+  void journey;
+}
+
+function completeKtxJourney(event) {
+  const totalStars = event.stars.reduce((sum, count) => sum + count, 0);
+  state.stars += totalStars;
+  dom.stars.textContent = String(state.stars);
+  const fresh = recordMetFriends(event.boarded);
+  audio.playSfx("win");
+  audio.cancel();
+  void audio.playPrompt("srt-station-busan");
+  showHint(event.perfect
+    ? "⭐ 퍼펙트 기관사! 별을 다 모았어요!"
+    : fresh.length > 0
+      ? `처음 만난 친구가 ${fresh.length}명 있어요!`
+      : "고마워요, 기관사님!");
+  schedule(() => {
+    dom.cheer.textContent = event.perfect
+      ? "⭐ 퍼펙트 기관사! ⭐"
+      : `🚄 부산 도착! 별 ${totalStars}개`;
+    dom.cheer.classList.add("show");
+    schedule(() => {
+      dom.cheer.classList.remove("show");
+      goHome();
+    }, 2400);
+  }, 2600);
+}
+
+function scheduleKtxTick() {
+  schedule(() => {
+    if (state.phase !== "playing" || state.mode !== "ktx" || !state.ktx) {
+      return;
+    }
+    const nowMs = performance.now();
+    const elapsed = Math.min(400, nowMs - (state.ktxTickMs || nowMs));
+    state.ktxTickMs = nowMs;
+    const result = tickKtx(state.ktx, state.ktxHeld, elapsed);
+    state.ktx = result.state;
+    handleKtxEvents(result.events);
+    if (state.ktx) {
+      updateKtxScene(state.ktxScene, state.ktx, state.ktxView, result.events);
+    }
+    scheduleKtxTick();
+  }, 150);
+}
+
+function moveKtxSpace() {
+  if (state.phase !== "playing" || !state.ktx) return;
+  // 판정 공정성: 누른 순간까지의 실측 경과를 먼저 시뮬에 반영한다
+  const nowMs = performance.now();
+  const elapsed = Math.min(400, nowMs - (state.ktxTickMs || nowMs));
+  state.ktxTickMs = nowMs;
+  const ticked = tickKtx(state.ktx, state.ktxHeld, elapsed);
+  state.ktx = ticked.state;
+  handleKtxEvents(ticked.events);
+  const pressed = pressKtxSpace(state.ktx);
+  state.ktx = pressed.state;
+  handleKtxEvents(pressed.events);
+  if (state.ktx) {
+    updateKtxScene(state.ktxScene, state.ktx, state.ktxView,
+      [...ticked.events, ...pressed.events]);
+  }
+}
+
+function switchKtxView(view) {
+  if (!state.ktx || state.ktxView === view) {
+    audio.playSfx("key");
+    return;
+  }
+  const nowMs = performance.now();
+  if (nowMs - state.ktxViewMs < 400) return;  // 쿨다운 — 플리커 방지
+  state.ktxViewMs = nowMs;
+  state.ktxView = view;
+  audio.playSfx("key");
+  updateKtxScene(state.ktxScene, state.ktx, view, []);
+}
+
 function chooseSubwayLineInput(lineNumber) {
   if (state.phase !== "playing" || !state.subway) return;
   const result = chooseSubwayLine(state.subway, lineNumber);
@@ -1378,12 +1605,19 @@ function startMode(mode) {
   state.subway = null;
   state.subwayScene = null;
   state.subwayChoosing = false;
+  state.ktx = null;
+  state.ktxScene = null;
+  state.ktxPicking = false;
   if (mode === "safety") {
     startSafetyRoute();
   } else if (mode === "subway") {
     state.safety = null;
     state.safetyView = null;
     startSubwayJourney();
+  } else if (mode === "ktx") {
+    state.safety = null;
+    state.safetyView = null;
+    startKtxPicker();
   } else {
     state.safety = null;
     state.safetyView = null;
@@ -1408,6 +1642,10 @@ function goHome() {
   state.subway = null;
   state.subwayScene = null;
   state.subwayChoosing = false;
+  state.ktx = null;
+  state.ktxScene = null;
+  state.ktxPicking = false;
+  state.ktxHeld = { up: false, down: false };
   dom.stage.setAttribute("aria-live", "polite");
   state.buffer = "";
   setMode(null);
@@ -1456,7 +1694,22 @@ dom.stage.addEventListener("pointerdown", event => {
   button.setPointerCapture?.(event.pointerId);
   startSafetyHold(button.dataset.routeDirection);
 });
+document.addEventListener("keyup", event => {
+  if (state.mode !== "ktx" || !state.ktx) return;
+  if (event.key === "ArrowUp") {
+    state.ktxHeld = { ...state.ktxHeld, up: false };
+  } else if (event.key === "ArrowDown") {
+    state.ktxHeld = { ...state.ktxHeld, down: false };
+  }
+});
+
 dom.stage.addEventListener("click", event => {
+  const trainCard = event.target.closest("[data-train-id]");
+  if (trainCard && state.mode === "ktx" && state.ktxPicking) {
+    audio.playSfx("key");
+    startKtxJourney(trainCard.dataset.trainId);
+    return;
+  }
   const bonusCard = event.target.closest('[data-bonus="family"]');
   if (bonusCard && state.mode === "subway" && state.subwayChoosing) {
     audio.playSfx("key");
@@ -1509,6 +1762,61 @@ document.addEventListener("keydown", event => {
       startFamilyLine();
     }
     return;
+  }
+
+  // 기관사 게임 — 열차 고르기와 운전이 키를 먼저 가져간다.
+  if (state.phase === "playing" && state.mode === "ktx") {
+    if (state.ktxPicking) {
+      if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
+        event.preventDefault();
+        if (!event.repeat) {
+          const delta = event.key === "ArrowRight" ? 1 : -1;
+          state.ktxPickIndex =
+            (state.ktxPickIndex + delta + KTX_TRAINS.length) % KTX_TRAINS.length;
+          movePickerSelection(state.ktxScene, state.ktxPickIndex);
+          audio.playSfx("key");
+        }
+        return;
+      }
+      if (event.key === " " || event.key === "Spacebar" || event.key === "Enter") {
+        event.preventDefault();
+        if (!event.repeat) {
+          startKtxJourney(KTX_TRAINS[state.ktxPickIndex].id);
+        }
+        return;
+      }
+      return;
+    }
+    if (event.key === " " || event.key === "Spacebar") {
+      event.preventDefault();
+      if (!event.repeat) moveKtxSpace();
+      return;
+    }
+    if (event.key === "ArrowUp" || event.key === "ArrowDown") {
+      event.preventDefault();
+      if (!event.repeat) {
+        state.ktxHeld = {
+          ...state.ktxHeld,
+          [event.key === "ArrowUp" ? "up" : "down"]: true
+        };
+      }
+      return;
+    }
+    if (event.key === "1" || event.key === "3") {
+      event.preventDefault();
+      if (!event.repeat) switchKtxView(event.key === "1" ? "cab" : "side");
+      return;
+    }
+    if (/^[0-9]$/.test(event.key)) {
+      event.preventDefault();
+      if (!event.repeat) audio.playSfx("pop");
+      return;
+    }
+    if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
+      event.preventDefault();
+      if (!event.repeat) audio.playSfx("pop");
+      return;
+    }
   }
 
   // 사진 찍는 동안에는 사진 쪽이 방향키와 스페이스바를 먼저 가져간다.
@@ -1600,6 +1908,23 @@ document.addEventListener("keydown", event => {
       (current + offset + difficultyControls.length) %
       difficultyControls.length;
     difficultyControls[next].focus();
+    return;
+  }
+
+  // 홈에서 ←/→ 는 카드 사이를 오간다 — 숫자키 없는 7번 카드의 1차 진입로.
+  if (
+    state.phase === "home" &&
+    ["ArrowLeft", "ArrowRight"].includes(event.key) &&
+    !difficultyControls.includes(document.activeElement)
+  ) {
+    event.preventDefault();
+    const cards = modeControls.filter(card => !card.disabled);
+    const current = cards.indexOf(document.activeElement);
+    const offset = event.key === "ArrowRight" ? 1 : -1;
+    const next = current === -1
+      ? (offset === 1 ? 0 : cards.length - 1)
+      : (current + offset + cards.length) % cards.length;
+    cards[next]?.focus();
     return;
   }
 

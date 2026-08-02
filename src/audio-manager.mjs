@@ -37,6 +37,13 @@ const SFX = Object.freeze({
     duration: 0.14,
     gain: 0.06,
     wave: "triangle"
+  },
+  // 기관사 게임의 경적 — 낮은 2음 "빵-빵". 연타해도 짧아서 겹침이 순하다.
+  horn: {
+    notes: [311.13, 233.08],
+    duration: 0.3,
+    gain: 0.07,
+    wave: "triangle"
   }
 });
 
