@@ -17,8 +17,7 @@ import {
   activeEvent,
   currentBand,
   distanceGauge,
-  distanceToMarker,
-  segmentProgress
+  distanceToMarker
 } from "./ktx-journey.mjs";
 import {
   ALL_LANDS,
@@ -36,7 +35,6 @@ import { characterAsset } from "./character-spec.mjs";
 const WINDOW_SLOTS = 8;
 const NEAR_SCALE = 3;          // 1 game m = 3 px (가까운 층)
 const FAR_RATIO = 0.18;        // 원경 시차
-const SLEEPER_PERIOD = 60;     // 침목 dasharray 16+44
 const LAND_LOOP = 1000;        // 배경 스트립 반복 폭
 const TRAIN_NOSE_X = 200;      // 3인칭 열차 코 위치(px)
 
