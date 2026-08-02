@@ -50,6 +50,7 @@ import { characterAsset } from "./character-spec.mjs";
 const WINDOW_SLOTS = 8;
 const NEAR_SCALE = 3;          // 3인칭: 1 game m = 3 px
 const PLANE_PX_PER_M = 1;      // 1인칭 평면: 1 game m = 1 px (하단 투영 ≈7.6배)
+const SKY_RATIO = 0.03;        // L0 하늘 드리프트 (5단 패럴랙스 최상층)
 const FAR_RATIO = 0.12;        // 원경 시차 (v2: 0.18→0.12, 원근 대비 강화)
 const MID_RATIO = 0.45;        // 중경 시차
 const NEAR_RATIO = 1.6;        // 전경(전신주) 시차
@@ -263,8 +264,10 @@ function buildSideView(document, state) {
   mid.innerHTML = midStripSvg();
   view.append(mid);
 
-  const ground = el(document, "div", "ktx-side-ground");
-  view.append(ground);
+  // 지면 rig — 카메라 변형은 rig에, --loop-px는 자식에(transition 충돌 분리)
+  const groundRig = el(document, "div", "ktx-ground-rig");
+  groundRig.append(el(document, "div", "ktx-side-ground"));
+  view.append(groundRig);
 
   // 승강장 v2 — 지붕·기둥·역명판·시계·안전선 구조물
   const platform = el(document, "div", "ktx-platform");
@@ -298,14 +301,21 @@ function buildSideView(document, state) {
   const events = el(document, "div", "ktx-event-stage");
   view.append(events);
 
+  // 열차 rig — 카메라·틸트는 rig에 걸어 .ktx-train-toot(경적 바운스)의
+  // transform 애니메이션과 분리. boarding(platform 모드)에서는 rig 무변형이라
+  // 워커의 문 위치 실측(getBoundingClientRect)도 보존된다.
+  const trainRig = el(document, "div", "ktx-train-rig");
   const train = el(document, "div", "ktx-side-train");
   train.innerHTML = sideTrainSvg(state.train, WINDOW_SLOTS);
-  view.append(train);
+  trainRig.append(train);
+  view.append(trainRig);
 
   // 전경 전신주 — 열차 앞을 스치는 최고 속도 큐 (정차 근접 시 CSS가 숨김)
+  const nearRig = el(document, "div", "ktx-near-rig");
   const near = el(document, "div", "ktx-side-near");
   near.innerHTML = nearStripSvg();
-  view.append(near);
+  nearRig.append(near);
+  view.append(nearRig);
 
   const queue = el(document, "div", "ktx-queue");
   view.append(queue);
@@ -421,6 +431,21 @@ export function leverPosition(state, held = {}) {
 
 export function speedTier(v) {
   return v === 0 ? 0 : Math.min(5, Math.ceil(v / 60));
+}
+
+// 상태 → 3인칭 카메라 모드 — 디자인 팩 TrainState↔카메라 표의 phase 매핑.
+// platform(정차·탑승) / approach(역 진입 조망) / rear(저속 후방 사선) /
+// side(고속 측면). CSS가 data-camera로 rig 변형을 건다.
+export function cameraModeFor(state) {
+  if (["boarding", "ready", "stopped", "finale"].includes(state.phase)) {
+    return "platform";
+  }
+  if (state.phase === "stopping" || state.phase === "correcting" ||
+    (state.zoneEntered && state.phase === "driving")) {
+    return "approach";
+  }
+  if (state.phase === "driving" && state.v < 180) return "rear";
+  return "side"; // 고속주행
 }
 
 function destboardText(state) {
@@ -602,6 +627,7 @@ export function updateKtxScene(root, state, view, events = [], held = {}) {
   root.dataset.moving = String(state.phase === "driving" || state.phase === "stopping");
   root.dataset.speedTier = String(speedTier(state.v));
   root.dataset.lever = leverPosition(state, held);
+  root.dataset.camera = cameraModeFor(state);
   root.dataset.zone = String(state.zoneEntered &&
     ["driving", "stopping", "correcting"].includes(state.phase));
   if (root.dataset.zone === "true") {
@@ -642,6 +668,9 @@ export function updateKtxScene(root, state, view, events = [], held = {}) {
   const worldPx = (state.segIndex * 100000 + state.x) * NEAR_SCALE;
   const ties = root.querySelector(".ktx-ties");
   if (ties) setLoopSeam(ties, planePx, TIE_LOOP, "--tie-px", 1);
+  // L0 하늘 드리프트 — .ktx-env 5장을 겹친 컨테이너째 움직여 크로스페이드와 무관
+  const skyDrift = root.querySelector(".ktx-side-backdrop");
+  if (skyDrift) setLoopSeam(skyDrift, worldPx * SKY_RATIO, LAND_LOOP);
   root.querySelectorAll(".ktx-env-land").forEach(layer => {
     setLoopSeam(layer, worldPx * FAR_RATIO, LAND_LOOP);
   });

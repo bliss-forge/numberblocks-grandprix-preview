@@ -6819,9 +6819,20 @@ body[data-mode="ktx"] .stage-lights {
   100% { transform: scale(1); }
 }
 
-/* ── 바깥(3인칭) — 패럴랙스 3층 + KTX 실루엣 + 승강장 구조물 ───────────── */
+/* ── 바깥(3인칭) — 패럴랙스 5층(L0 하늘~전경) + KTX 실루엣 + 승강장 ────── */
 
-.ktx-side-backdrop { position: absolute; inset: 0; z-index: 0; }
+/* L0 하늘 드리프트 — 컨테이너째 setLoopSeam이라 .ktx-env 크로스페이드와 무관.
+   width 여유 1000px = 루프 주기(드리프트 범위가 항상 덮인다). */
+.ktx-side-backdrop {
+  position: absolute;
+  inset: 0;
+  width: calc(100% + 1000px);
+  transform: translate3d(var(--loop-px, 0px), 0, 0);
+  transition: transform .16s linear;
+  z-index: 0;
+}
+
+.ktx-side-backdrop[data-no-transition="true"] { transition: none; }
 
 .ktx-side-far {
   position: absolute;
@@ -7132,6 +7143,59 @@ body[data-mode="ktx"] .stage-lights {
 
 .ktx-game[data-sky="night"] .ktx-side-near { color: #3b455c; }
 
+/* ── 상태 기반 카메라 — cameraModeFor(state)가 data-camera를 준다 ──────────
+   변형은 세계 레이어의 부모 rig에만(HUD·계기·승강장 제외). --loop-px 자식과
+   .ktx-train-toot의 transform 애니메이션과 충돌하지 않게 분리, 전환 .6s. */
+.ktx-view-side { perspective: 1400px; }
+
+.ktx-ground-rig,
+.ktx-train-rig,
+.ktx-near-rig {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  transform-origin: left center;
+  transition: transform .6s ease;
+}
+
+.ktx-ground-rig { z-index: 3; }
+
+.ktx-train-rig {
+  z-index: 7;
+  transform: var(--cam, translateX(0)) rotate(var(--tilt, 0deg));
+}
+
+.ktx-near-rig { z-index: 8; transition: transform .4s ease; }
+
+/* rear: 후방 사선 — 노즈(왼쪽)가 가깝고 꼬리가 멀다. approach: 전방 사선의
+   역 진입 조망(승강장은 정차 판정 시각 요소라 변형 금지). platform·side: 무변형. */
+.ktx-game[data-camera="rear"] .ktx-train-rig { --cam: rotateY(10deg) translateX(-2%) scale(1.03); }
+
+.ktx-game[data-camera="rear"] .ktx-ground-rig,
+.ktx-game[data-camera="rear"] .ktx-near-rig { transform: rotateY(4deg); }
+
+.ktx-game[data-camera="approach"] .ktx-train-rig { --cam: rotateY(-6deg) scale(.98); }
+
+/* 가감속 차체 틸트 — 상태 전환만(상시 진동 아님), ±0.8° 이내.
+   boarding에서는 data-moving=false라 rig 무변형(워커 문 실측 보존). */
+.ktx-game[data-moving="true"][data-lever="power"] .ktx-train-rig { --tilt: -.6deg; }
+.ktx-game[data-moving="true"][data-lever="brake"] .ktx-train-rig { --tilt: .7deg; }
+
+/* 고속 근경 스미어 — filter 금지: rig scaleX로 전신주가 옆으로 늘어난 인상.
+   scale이 자식 --loop-px 바깥에 걸려 무봉합 루프가 유지된다(tier 5는 rear와
+   공존 불가 — rear는 v<180). */
+.ktx-game[data-speed-tier="5"] .ktx-near-rig { transform: scaleX(1.5); }
+.ktx-game[data-speed-tier="5"] .ktx-side-near { opacity: .55; }
+
+/* NIGHT_CHASE — 밤: 전조등 빔(아트의 .ktx-beam, 기본 opacity 0)과 탑승 창문
+   상시 온기. 점멸 없는 정적 규칙(아이 렌즈) — 글로우 펄스는 밤에만 대체. */
+.ktx-game[data-sky="night"] .ktx-beam { opacity: .5; }
+
+.ktx-game[data-sky="night"] .ktx-window-slot[data-filled]:not([data-filled=""]) .ktx-window-glow {
+  animation: none;
+  opacity: .35;
+}
+
 /* 대기줄 — 승강장 데크 위, 문 쪽으로 스르륵 전진(diff 갱신) */
 .ktx-queue {
   position: absolute;
@@ -7217,7 +7281,7 @@ body[data-mode="ktx"] .stage-lights {
   justify-content: space-between;
   gap: 16px;
   padding: 8px 18px;
-  background: #fff;
+  background: rgba(255, 255, 255, .92);
   border-radius: 16px;
   border: 3px solid #eef4fa;
 }
@@ -7391,9 +7455,13 @@ body[data-mode="ktx"] .stage-lights {
 @media (prefers-reduced-motion: reduce) {
   .ktx-ties,
   .ktx-env-land,
+  .ktx-side-backdrop,
   .ktx-side-ground,
   .ktx-side-mid,
   .ktx-side-near,
+  .ktx-ground-rig,
+  .ktx-train-rig,
+  .ktx-near-rig,
   .ktx-platform,
   .ktx-queue,
   .ktx-queue-person,
@@ -7401,6 +7469,10 @@ body[data-mode="ktx"] .stage-lights {
   .ktx-needle,
   .ktx-mini,
   .ktx-lever-knob { transition: none; }
+
+  /* 스미어 무효화 — 카메라·틸트는 이산 상태라 유지, 빔은 정적이라 유지 */
+  .ktx-game[data-speed-tier="5"] .ktx-near-rig { transform: none; }
+  .ktx-game[data-speed-tier="5"] .ktx-side-near { opacity: .8; }
 
   .ktx-lineside,
   .ktx-speedlines,
