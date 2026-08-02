@@ -644,15 +644,33 @@ export function eventSpriteSvg(type) {
 }
 
 // 시작 화면 열차 고르기 카드 얼굴.
+// 실차 비율 실루엣 미니어처 — 본편 sideTrainSvg v3와 같은 문법(SRT 원호 / KTX 쐐기+핀).
 export function trainCardSvg(train) {
+  const isSrt = train.id === "srt";
+  const hull = isSrt
+    ? `<path d="M10 96 C10 84 12 74 26 69 C58 61 108 55 150 54 L288 54 L288 96z" fill="${train.color}"/>`
+    : `<path d="M6 96 L16 72 C56 62 106 56 150 54 L288 54 L288 96z" fill="${train.color}"/>`;
+  const band = isSrt
+    ? `<path d="M10 96 C10 88 14 84 30 82 L288 84 L288 96z" fill="${train.nose}"/>`
+    : `<path d="M6 96 L12 84 L288 84 L288 96z" fill="${train.nose}"/>`;
+  const fin = isSrt
+    ? `<circle cx="20" cy="82" r="4" fill="${HEADLAMP}"/>`
+    : `<path d="M236 54 L248 45 L260 54z" fill="${train.color}"/>`;
   return svgWrap("ktx-train-card-art", "0 0 300 120", [
-    `<path d="M12 96 Q14 52 72 38 L288 30 L288 96z" fill="${train.color}"/>`,
-    `<path d="M12 96 Q13 76 30 68 L288 68 L288 96z" fill="${train.nose}"/>`,
-    `<rect x="96" y="42" width="52" height="24" rx="7" fill="#dff0fb"/>`,
-    `<rect x="170" y="42" width="52" height="24" rx="7" fill="#dff0fb"/>`,
-    `<circle cx="70" cy="102" r="11" fill="${INK}"/>`,
-    `<circle cx="150" cy="102" r="11" fill="${INK}"/>`,
-    `<circle cx="230" cy="102" r="11" fill="${INK}"/>`,
-    `<rect x="0" y="112" width="300" height="5" rx="2.5" fill="${RAIL}"/>`
+    hull,
+    band,
+    // 연속 창띠 + 창 2개
+    `<rect x="130" y="60" width="158" height="20" rx="7" fill="${JOINT}"/>`,
+    `<rect x="142" y="62" width="42" height="16" rx="5" fill="${GLASS}"/>`,
+    `<rect x="200" y="62" width="42" height="16" rx="5" fill="${GLASS}"/>`,
+    // 지붕 하이라이트 — 본편과 같은 최소 질감
+    `<rect x="60" y="57" width="200" height="3" rx="1.5" fill="${PAPER}" opacity=".25"/>`,
+    fin,
+    // 스커트에 반쯤 가린 바퀴
+    `<rect x="10" y="96" width="278" height="8" fill="${train.nose}"/>`,
+    `<circle cx="70" cy="102" r="8" fill="${INK}"/>`,
+    `<circle cx="150" cy="102" r="8" fill="${INK}"/>`,
+    `<circle cx="230" cy="102" r="8" fill="${INK}"/>`,
+    `<rect x="0" y="110" width="300" height="5" rx="2.5" fill="${RAIL}"/>`
   ].join(""), "xMidYMid meet");
 }
