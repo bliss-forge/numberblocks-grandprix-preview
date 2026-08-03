@@ -64,3 +64,29 @@ Result: 398 passed, 0 failed.
 
 No simulation code changed. Task 3 intentionally leaves loading-veil and
 keep-current-image-until-next-load behavior to Task 5, as scoped by the plan.
+
+## Review fix round 1
+
+Review identified two state-contract gaps: the scene reported `ready` before
+both current images loaded, and same-path cab updates skipped alt synchronization.
+
+RED command:
+
+```sh
+node --test tests/ktx-realistic-scene.test.mjs tests/ktx-journey.test.mjs
+```
+
+RED result: 30 passed, 5 failed. The new regressions observed `ready` instead
+of `pending` on initial render/path change, and stale
+`실사 SRT morning city 운전실` alt text after moving to the day/field band.
+
+GREEN command:
+
+```sh
+node --test tests/ktx-realistic-scene.test.mjs tests/ktx-journey.test.mjs
+```
+
+GREEN result: 35 passed, 0 failed. The scene now requires both current images'
+`data-loaded="true"` before `ready`, enters `fallback` on any current failure,
+returns to `pending` when a selected path changes, and refreshes alt text without
+rewriting an unchanged `src`.

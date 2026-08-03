@@ -84,6 +84,13 @@ class FakeElement {
   querySelectorAll(selector) {
     const target = selector.trim().split(/\s+/).at(-1);
     const descendants = this.children.flatMap(child => [child, ...child.#descendants()]);
+    if (selector === ".ktx-real-scene img") {
+      const scenes = descendants.filter(node =>
+        node.className.split(/\s+/).includes("ktx-real-scene")
+      );
+      return scenes.flatMap(scene => scene.#descendants())
+        .filter(node => node.tagName === "IMG");
+    }
     if (target.startsWith(".")) {
       const className = target.slice(1);
       return descendants.filter(node => node.className.split(/\s+/).includes(className));
@@ -127,6 +134,18 @@ test("운전실과 바깥 뷰는 실사 이미지와 기존 SVG 폴백을 함께
   assert.ok(root.querySelector(".ktx-side-train"), "기존 폴백 유지");
 });
 
+test("현재 실사 이미지가 모두 로드된 뒤에만 준비 상태가 된다", () => {
+  const root = renderKtxScene(fakeDocument(), createKtxJourney(3, "srt"), "cab");
+  const cab = root.querySelector(".ktx-real-cab-image");
+  const exterior = root.querySelector(".ktx-real-exterior-image");
+
+  assert.equal(root.dataset.realistic, "pending");
+  cab.dispatch("load");
+  assert.equal(root.dataset.realistic, "pending", "한 장만 로드되면 대기 유지");
+  exterior.dispatch("load");
+  assert.equal(root.dataset.realistic, "ready");
+});
+
 test("장면 갱신은 이미지 노드를 재마운트하지 않고 경로가 바뀔 때만 src를 바꾼다", () => {
   const initial = createKtxJourney(3, "srt");
   const root = renderKtxScene(fakeDocument(), initial, "cab");
@@ -150,11 +169,41 @@ test("장면 갱신은 이미지 노드를 재마운트하지 않고 경로가 �
   assert.equal(exterior.srcWrites, 2, "환경이 바뀐 외부 경로만 갱신");
 });
 
+test("환경 이미지 경로가 바뀌면 새 이미지가 로드될 때까지 대기한다", () => {
+  const initial = createKtxJourney(3, "srt");
+  const root = renderKtxScene(fakeDocument(), initial, "cab");
+  const cab = root.querySelector(".ktx-real-cab-image");
+  const exterior = root.querySelector(".ktx-real-exterior-image");
+  cab.dispatch("load");
+  exterior.dispatch("load");
+  assert.equal(root.dataset.realistic, "ready");
+
+  updateKtxScene(root, { ...initial, phase: "driving", x: 2000 }, "side");
+
+  assert.equal(cab.dataset.loaded, "true", "같은 운전실 자산은 로드 상태 유지");
+  assert.equal(exterior.dataset.loaded, undefined, "바뀐 외부 자산은 다시 대기");
+  assert.equal(root.dataset.realistic, "pending");
+  exterior.dispatch("load");
+  assert.equal(root.dataset.realistic, "ready");
+});
+
+test("같은 이미지 경로를 써도 현재 장면 대체 텍스트를 갱신한다", () => {
+  const initial = createKtxJourney(3, "srt");
+  const root = renderKtxScene(fakeDocument(), initial, "cab");
+  const cab = root.querySelector(".ktx-real-cab-image");
+
+  assert.equal(cab.alt, "실사 SRT morning city 운전실");
+  updateKtxScene(root, { ...initial, phase: "driving", x: 2000 }, "cab");
+
+  assert.equal(cab.srcWrites, 1, "같은 주간 이미지 경로는 유지");
+  assert.equal(cab.alt, "실사 SRT day field 운전실");
+});
+
 test("실사 이미지 오류는 즉시 SVG 폴백 상태로 전환한다", () => {
   const root = renderKtxScene(fakeDocument(), createKtxJourney(3, "srt"), "cab");
   const cab = root.querySelector(".ktx-real-cab-image");
 
-  assert.equal(root.dataset.realistic, "ready");
+  assert.equal(root.dataset.realistic, "pending");
   cab.dispatch("error");
 
   assert.equal(cab.dataset.failed, "true");
@@ -172,5 +221,5 @@ test("브라우저 NodeList처럼 배열 메서드가 없어도 실사 상태를
     : querySelectorAll(selector);
 
   assert.doesNotThrow(() => updateKtxScene(root, state, "cab"));
-  assert.equal(root.dataset.realistic, "ready");
+  assert.equal(root.dataset.realistic, "pending");
 });

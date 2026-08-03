@@ -121,16 +121,22 @@ function buildRealisticScene(document, state, onStateChange) {
 }
 
 function syncRealisticState(root) {
-  const images = root.querySelectorAll(".ktx-real-scene img");
-  root.dataset.realistic = [...images].some(image => image.dataset.failed === "true")
-    ? "fallback"
-    : "ready";
+  const images = [...root.querySelectorAll(".ktx-real-scene img")];
+  if (images.some(image => image.dataset.failed === "true")) {
+    root.dataset.realistic = "fallback";
+    return;
+  }
+  root.dataset.realistic = images.length === 2 &&
+    images.every(image => image.dataset.loaded === "true")
+    ? "ready"
+    : "pending";
 }
 
 function updateRealisticImage(image, src, alt) {
-  if (!image || image.dataset.assetSrc === src) return;
-  image.dataset.assetSrc = src;
+  if (!image) return;
   image.alt = alt;
+  if (image.dataset.assetSrc === src) return;
+  image.dataset.assetSrc = src;
   delete image.dataset.loaded;
   delete image.dataset.failed;
   image.src = src;
