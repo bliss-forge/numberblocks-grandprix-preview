@@ -346,34 +346,132 @@ export function sideTrainSvg(train, windows = 8) {
   return trainSideSvg(train, { windows });
 }
 
-// ── 1인칭 운전실 v2 ────────────────────────────────────────────────────────
+// ── 1인칭 운전실 v3 — 다크 콕핏 재질 ─────────────────────────────────────
 // 세계는 CSS perspective 평면(씬·CSS 몫)이고, 여기는 계기·프레임 아트만.
+// 실차 운전대 문법: 짙은 차콜 콘솔 + MFD 스크린 2면 + 금속 트림 + 버튼 클러스터.
+// train.color는 아이덴티티 액센트 라인으로만 쓴다.
+
+const CAB_DARK = "#1d232f";    // 콘솔 최암부
+const CAB_PANEL = "#2b3342";   // 패널 중간톤
+const CAB_EDGE = "#414c60";    // 모서리 수광부
+const SCREEN_BG = "#0c1322";   // MFD 스크린 바탕
+const SCREEN_LINE = "#27405c"; // 스크린 그리드
+const LCD_GREEN = "#8ff0b1";   // 디지털 숫자
 
 // 운전대 배경판 — 계기 도형은 전부 별도 노드(찌그러지면 안 되므로).
 export function cabDashSvg(train) {
+  const defs = `<defs>` +
+    linGrad("ktx-g-dash-base", [
+      ["0%", CAB_EDGE], ["18%", CAB_PANEL], ["100%", CAB_DARK]
+    ]) +
+    linGrad("ktx-g-dash-inset", [
+      ["0%", "#161c28"], ["60%", "#1f2634"], ["100%", "#242c3c"]
+    ]) +
+    linGrad("ktx-g-dash-screen", [
+      ["0%", "#101b30"], ["55%", SCREEN_BG], ["100%", "#0a101c"]
+    ]) +
+    `</defs>`;
+  // MFD — 베젤 + 스크린 + 그리드. 좌: 노선 프로파일 / 우: 계통 바.
+  // 레이아웃 계약: 좌 MFD 36~232 · 문 패널 리세스 244~348(HTML .ktx-door-panel이
+  // 이 위에 정렬) · 중앙 비너클 354~646(HTML 속도계) · 우 MFD 706~964.
+  const screen = (x, w, label) =>
+    `<rect x="${x}" y="60" width="${w}" height="152" rx="14" fill="#10151f"/>` +
+    `<rect x="${x + 4}" y="64" width="${w - 8}" height="144" rx="11" fill="${CAB_EDGE}" opacity=".35"/>` +
+    `<rect x="${x + 10}" y="70" width="${w - 20}" height="126" rx="8" fill="url(#ktx-g-dash-screen)"/>` +
+    [96, 130, 164].map(y =>
+      `<line x1="${x + 18}" y1="${y}" x2="${x + w - 18}" y2="${y}" stroke="${SCREEN_LINE}" stroke-width="1.2" opacity=".7"/>`
+    ).join("") +
+    [0.3, 0.55, 0.8].map(t =>
+      `<line x1="${(x + w * t).toFixed(0)}" y1="78" x2="${(x + w * t).toFixed(0)}" y2="188" stroke="${SCREEN_LINE}" stroke-width="1.2" opacity=".5"/>`
+    ).join("") +
+    (label === "route"
+      // 좌: 노선 고저 프로파일 + 현재 위치점 + 구간 바
+      ? `<path d="M${x + 20} 170 C${x + 56} 152 ${x + 84} 110 ${x + 112} 102 ` +
+        `C${x + 142} 94 ${x + 160} 118 ${x + 176} 112" fill="none" ` +
+        `stroke="${POP_BLUE}" stroke-width="4" stroke-linecap="round"/>` +
+        `<circle cx="${x + 62}" cy="146" r="6" fill="${POP_YELLOW}"/>` +
+        `<rect x="${x + 18}" y="180" width="66" height="8" rx="4" fill="${POP_GREEN}" opacity=".8"/>` +
+        `<rect x="${x + 92}" y="180" width="34" height="8" rx="4" fill="${SCREEN_LINE}"/>`
+      // 우: 계통 바 그래프 3열 + 상태 블록 2개
+      : `<rect x="${x + 26}" y="100" width="26" height="88" rx="5" fill="${SCREEN_LINE}"/>` +
+        `<rect x="${x + 26}" y="128" width="26" height="60" rx="5" fill="${POP_GREEN}"/>` +
+        `<rect x="${x + 66}" y="100" width="26" height="88" rx="5" fill="${SCREEN_LINE}"/>` +
+        `<rect x="${x + 66}" y="112" width="26" height="76" rx="5" fill="${POP_BLUE}"/>` +
+        `<rect x="${x + 106}" y="100" width="26" height="88" rx="5" fill="${SCREEN_LINE}"/>` +
+        `<rect x="${x + 106}" y="150" width="26" height="38" rx="5" fill="${POP_YELLOW}"/>` +
+        `<rect x="${x + 152}" y="100" width="84" height="38" rx="8" fill="${SCREEN_LINE}" opacity=".6"/>` +
+        `<rect x="${x + 152}" y="150" width="84" height="38" rx="8" fill="${SCREEN_LINE}" opacity=".6"/>`) +
+    // 스크린 유리 반사
+    `<path d="M${x + 14} 74 L${x + 62} 74 L${x + 30} 196 L${x + 14} 196z" fill="#ffffff" opacity=".045"/>`;
+  const button = (cx, cy, color) =>
+    `<circle cx="${cx}" cy="${cy}" r="11" fill="#10151f"/>` +
+    `<circle cx="${cx}" cy="${cy}" r="8" fill="${color}"/>` +
+    `<circle cx="${cx - 2.5}" cy="${cy - 2.5}" r="2.6" fill="#ffffff" opacity=".5"/>`;
   return svgWrap("ktx-cab-dash-art", "0 0 1000 220", [
-    `<path d="M0 22 Q500 -14 1000 22 L1000 220 L0 220z" fill="${train.nose}"/>`,
-    `<path d="M0 44 Q500 8 1000 44 L1000 220 L0 220z" fill="${train.color}"/>`,
-    // 계기 웰 3개
-    `<rect x="40" y="70" width="250" height="140" rx="24" fill="${PAPER}" opacity=".16"/>`,
-    `<circle cx="500" cy="170" r="130" fill="${PAPER}" opacity=".16"/>`,
-    `<rect x="690" y="70" width="270" height="140" rx="24" fill="${PAPER}" opacity=".16"/>`,
-    // 장난감 디테일 — 나사·통풍구
-    ...[[26, 60], [974, 60], [26, 204], [974, 204]].map(([x, y]) =>
-      `<circle cx="${x}" cy="${y}" r="5" fill="${train.nose}"/>`),
+    defs,
+    `<path d="M0 22 Q500 -14 1000 22 L1000 220 L0 220z" fill="url(#ktx-g-dash-base)"/>`,
+    // 상단 금속 트림 + 리버리 액센트 라인
+    `<path d="M0 24 Q500 -12 1000 24" fill="none" stroke="${RAIL_LIGHT}" stroke-width="2.5" opacity=".55"/>`,
+    `<path d="M0 31 Q500 -5 1000 31" fill="none" stroke="${train.color}" stroke-width="3.5" opacity=".9"/>`,
+    // 중앙 비너클 리세스(HTML 속도계가 이 위에 앉는다)
+    `<circle cx="500" cy="196" r="146" fill="url(#ktx-g-dash-inset)"/>`,
+    `<path d="M354 196 A146 146 0 0 1 646 196" fill="none" stroke="${CAB_EDGE}" stroke-width="4" opacity=".8"/>`,
+    screen(36, 196, "route"),
+    screen(706, 258, "bars"),
+    // 문 패널 리세스 — HTML .ktx-door-panel 이 이 창 안에 앉는다
+    `<rect x="244" y="66" width="104" height="140" rx="12" fill="#10151f"/>`,
+    `<rect x="248" y="70" width="96" height="132" rx="9" fill="url(#ktx-g-dash-inset)"/>`,
+    `<rect x="248" y="70" width="96" height="132" rx="9" fill="none" stroke="${CAB_EDGE}" stroke-width="1.4" opacity=".7"/>`,
+    // 버튼 클러스터 — 비너클 좌우 바깥
+    button(672, 92, POP_BLUE), button(672, 128, POP_RED),
+    `<rect x="658" y="152" width="28" height="46" rx="8" fill="#10151f"/>`,
+    `<rect x="662" y="178" width="20" height="17" rx="5" fill="${CAB_EDGE}"/>`,
+    // 통풍구 + 나사
     ...[0, 1, 2].map(step =>
-      `<rect x="${318 + step * 56}" y="52" width="40" height="6" rx="3" fill="${train.nose}"/>`)
+      `<rect x="${378 + step * 12}" y="50" width="6" height="18" rx="3" fill="${CAB_DARK}"/>`),
+    ...[0, 1, 2].map(step =>
+      `<rect x="${604 + step * 12}" y="50" width="6" height="18" rx="3" fill="${CAB_DARK}"/>`),
+    ...[[22, 56], [978, 56], [22, 206], [978, 206]].map(([x, y]) =>
+      `<circle cx="${x}" cy="${y}" r="4.5" fill="#10151f"/>` +
+      `<circle cx="${x - 1}" cy="${y - 1}" r="1.4" fill="${RAIL_LIGHT}" opacity=".6"/>`)
   ].join(""), "none");
 }
 
-// 캡 프레임 — 천장 립 + A필러 + 와이퍼. "운전석에 앉아 있음" 프레이밍.
+// 캡 프레임 — 입체 천장 + A필러(수광 모서리·고무 실) + 썬바이저 + 와이퍼.
 export function cabFrameSvg(train) {
+  const defs = `<defs>` +
+    linGrad("ktx-g-frame-ceil", [
+      ["0%", "#2c3444"], ["70%", "#1e2532"], ["100%", "#171d28"]
+    ]) +
+    linGrad("ktx-g-frame-pillar", [
+      ["0%", "#333c4d"], ["100%", "#1a202c"]
+    ], "h") +
+    linGrad("ktx-g-frame-pillar-r", [
+      ["0%", "#1a202c"], ["100%", "#333c4d"]
+    ], "h") +
+    `</defs>`;
   return svgWrap("ktx-cab-frame-art", "0 0 1000 720", [
-    `<path d="M0 0 H1000 V34 Q500 58 0 34z" fill="${train.nose}"/>`,
-    `<path d="M0 0 H62 L20 520 H0z" fill="${train.nose}"/>`,
-    `<path d="M62 0 H70 L28 520 H20z" fill="${PAPER}" opacity=".18"/>`,
-    `<path d="M1000 0 H938 L980 520 H1000z" fill="${train.nose}"/>`,
-    `<path d="M938 0 H930 L972 520 H980z" fill="${PAPER}" opacity=".18"/>`,
+    defs,
+    // 천장 — 곡면 그라데이션 + 실내등 스트립 + 고무 실
+    `<path d="M0 0 H1000 V40 Q500 66 0 40z" fill="url(#ktx-g-frame-ceil)"/>`,
+    `<rect x="380" y="10" width="240" height="10" rx="5" fill="#0f141d"/>`,
+    `<rect x="388" y="12" width="224" height="5" rx="2.5" fill="${HEADLAMP}" opacity=".8"/>`,
+    `<path d="M0 40 Q500 66 1000 40" fill="none" stroke="#0c1018" stroke-width="4"/>`,
+    `<path d="M0 34 Q500 60 994 34" fill="none" stroke="${CAB_EDGE}" stroke-width="1.6" opacity=".5"/>`,
+    // 썬바이저 2매
+    `<path d="M96 44 L236 46 L228 78 L104 74z" fill="#141924" opacity=".92"/>`,
+    `<path d="M904 44 L764 46 L772 78 L896 74z" fill="#141924" opacity=".92"/>`,
+    // A필러 — 폭 있는 입체 기둥 + 수광 모서리 + 고무 실 + 리버리 핀라인
+    `<path d="M0 0 H74 L28 540 H0z" fill="url(#ktx-g-frame-pillar)"/>`,
+    `<path d="M74 0 H86 L38 540 H28z" fill="${CAB_EDGE}"/>`,
+    `<path d="M86 0 H92 L43 540 H38z" fill="#0c1018"/>`,
+    `<path d="M60 8 L18 522" fill="none" stroke="${train.color}" stroke-width="3" opacity=".45"/>`,
+    `<path d="M1000 0 H926 L972 540 H1000z" fill="url(#ktx-g-frame-pillar-r)"/>`,
+    `<path d="M926 0 H914 L962 540 H972z" fill="${CAB_EDGE}"/>`,
+    `<path d="M914 0 H908 L957 540 H962z" fill="#0c1018"/>`,
+    `<path d="M940 8 L982 522" fill="none" stroke="${train.color}" stroke-width="3" opacity=".45"/>`,
+    // 유리 상단 틴트 밴드(선셰이드)
+    `<path d="M92 0 H908 L904 30 Q500 56 96 30z" fill="#0c1322" opacity=".28"/>`,
     `<g transform="translate(250 520)"><g class="ktx-wiper-arm">` +
     `<rect x="-3" y="-170" width="6" height="170" rx="3" fill="${INK}"/>` +
     `<rect x="-26" y="-176" width="52" height="8" rx="4" fill="${INK}"/>` +
@@ -418,22 +516,38 @@ export function speedoDialSvg() {
     return `<text x="${x.toFixed(1)}" y="${(y + 6).toFixed(1)}" text-anchor="middle" ` +
       `font-size="17" font-weight="900" fill="${INK}">${value}</text>`;
   }).join("");
+  const dialDefs = `<defs>` +
+    linGrad("ktx-g-dial-ring", [
+      ["0%", "#5a6578"], ["45%", "#39424f"], ["100%", "#1a202c"]
+    ]) +
+    radGrad("ktx-g-dial-face", [
+      ["0%", "#141d30"], ["70%", "#0f1624"], ["100%", "#0a0f1a"]
+    ]) +
+    `</defs>`;
   return svgWrap("ktx-dial-art", "0 0 220 220", [
-    `<circle cx="110" cy="110" r="106" fill="${INK}" class="ktx-dial-bezel"/>`,
-    `<circle cx="110" cy="110" r="94" fill="${PAPER}"/>`,
-    // 빠름 단계 존 아크 (경고 아님 — 벌점 없음 톤)
-    `<path d="${arcPath(110, 110, 84, -120, 0)}" fill="none" stroke="${DIAL_LOW}" stroke-width="12"/>`,
-    `<path d="${arcPath(110, 110, 84, 0, 80)}" fill="none" stroke="${LAND_PALETTES.field.base}" stroke-width="12"/>`,
-    `<path d="${arcPath(110, 110, 84, 80, 120)}" fill="none" stroke="${POP_YELLOW}" stroke-width="12"/>`,
+    dialDefs,
+    // 금속 베젤 링 + 다크 MFD 페이스
+    `<circle cx="110" cy="110" r="106" fill="url(#ktx-g-dial-ring)" class="ktx-dial-bezel"/>`,
+    `<circle cx="110" cy="110" r="97" fill="#0c1018"/>`,
+    `<circle cx="110" cy="110" r="94" fill="url(#ktx-g-dial-face)"/>`,
+    // 빠름 단계 존 아크 (경고 아님 — 벌점 없음 톤, 다크 페이스 위 글로우)
+    `<path d="${arcPath(110, 110, 84, -120, 0)}" fill="none" stroke="${POP_BLUE}" stroke-width="10" opacity=".85"/>`,
+    `<path d="${arcPath(110, 110, 84, 0, 80)}" fill="none" stroke="${POP_GREEN}" stroke-width="10" opacity=".9"/>`,
+    `<path d="${arcPath(110, 110, 84, 80, 120)}" fill="none" stroke="${POP_YELLOW}" stroke-width="10" opacity=".95"/>`,
     majors, minors, numbers,
-    `<g class="ktx-needle"><path d="M103 120 L110 30 L117 120 L110 132z" fill="${POP_RED}"/></g>`,
-    `<circle cx="110" cy="110" r="11" fill="${INK}"/>`,
-    `<circle cx="110" cy="110" r="4.5" fill="${PAPER}"/>`,
-    // 디지털 창 — 바늘 궤적(±120°) 비간섭 하부
-    `<rect x="58" y="134" width="104" height="44" rx="10" fill="${GLASS}" ` +
-    `stroke="${INK}" stroke-width="3"/>`,
+    // 유리 반사
+    `<path d="M40 74 A80 80 0 0 1 180 74 L150 96 A52 52 0 0 0 70 96z" fill="#ffffff" opacity=".05"/>`,
+    `<g class="ktx-needle"><path d="M103 120 L110 30 L117 120 L110 132z" fill="${POP_RED}"/>` +
+    `<path d="M107 90 L110 34 L113 90z" fill="#ffffff" opacity=".35"/></g>`,
+    `<circle cx="110" cy="110" r="11" fill="#39424f"/>`,
+    `<circle cx="110" cy="110" r="11" fill="none" stroke="#0c1018" stroke-width="2"/>`,
+    `<circle cx="110" cy="110" r="4.5" fill="${RAIL_LIGHT}"/>`,
+    // 디지털 창 — LCD (바늘 궤적 ±120° 비간섭 하부)
+    `<rect x="58" y="134" width="104" height="44" rx="10" fill="#0a0f1a" ` +
+    `stroke="#2b3342" stroke-width="3"/>`,
+    `<rect x="61" y="137" width="98" height="38" rx="8" fill="#0d1524"/>`,
     `<text class="ktx-speed-number" x="110" y="166" text-anchor="middle" ` +
-    `font-size="34" font-weight="900" fill="${INK}">0</text>`,
+    `font-size="34" font-weight="900" fill="${LCD_GREEN}">0</text>`,
     `<text x="110" y="189" text-anchor="middle" font-size="12" fill="${GRAY}">km/h</text>`
   ].join(""), "xMidYMid meet");
 }
@@ -444,8 +558,22 @@ export function leverSvg() {
   const marks = [30, 74, 112, 148].map(y =>
     `<rect x="20" y="${y - 2.5}" width="14" height="5" rx="2.5" fill="${GRAY}"/>`
   ).join("");
+  const leverDefs = `<defs>` +
+    linGrad("ktx-g-lever-plate", [
+      ["0%", "#39424f"], ["55%", "#2b3342"], ["100%", "#1a202c"]
+    ]) +
+    linGrad("ktx-g-lever-knob", [
+      ["0%", "#ffe07a"], ["45%", POP_YELLOW], ["100%", "#c9992e"]
+    ]) +
+    `</defs>`;
   return svgWrap("ktx-lever-art", "0 0 84 190", [
-    `<rect x="36" y="14" width="12" height="150" rx="6" fill="${INK}"/>`,
+    leverDefs,
+    // 게이트 플레이트 — 금속 베이스 + 검은 슬롯 + 노치 게이트
+    `<rect x="28" y="8" width="28" height="168" rx="9" fill="url(#ktx-g-lever-plate)"/>`,
+    `<rect x="28" y="8" width="28" height="168" rx="9" fill="none" stroke="#10151f" stroke-width="2"/>`,
+    `<rect x="37" y="16" width="10" height="150" rx="5" fill="#0c1018"/>`,
+    ...[30, 74, 112, 148].map(y =>
+      `<rect x="33" y="${y - 4}" width="18" height="8" rx="3" fill="#10151f"/>`),
     marks,
     `<circle class="ktx-halo ktx-halo-power" cx="62" cy="30" r="11" fill="${PAPER}" opacity="0"/>`,
     `<path d="M56 36 L62 24 L68 36z" fill="${POP_GREEN}"/>`,
@@ -455,10 +583,14 @@ export function leverSvg() {
     `<circle cx="62" cy="112" r="5" fill="${GRAY}"/>`,
     `<circle class="ktx-halo ktx-halo-brake" cx="62" cy="148" r="11" fill="${PAPER}" opacity="0"/>`,
     `<path d="M56 142 L68 142 L62 154z" fill="${POP_RED}"/>`,
+    // 노브 — 스템 + 입체 T그립(수광 그라데이션 + 손가락 홈 + 스페큘러)
     `<g class="ktx-lever-knob">` +
-    `<circle cx="42" cy="0" r="19" fill="${POP_YELLOW}" stroke="${PAPER}" stroke-width="4"/>` +
-    `<rect x="34" y="-4" width="16" height="3" fill="${INK}" opacity=".4"/>` +
-    `<rect x="34" y="2" width="16" height="3" fill="${INK}" opacity=".4"/>` +
+    `<rect x="38" y="-3" width="8" height="10" rx="3" fill="#10151f"/>` +
+    `<rect x="24" y="-14" width="36" height="28" rx="12" fill="url(#ktx-g-lever-knob)" ` +
+    `stroke="#a87f22" stroke-width="2"/>` +
+    `<rect x="30" y="-6" width="24" height="3" rx="1.5" fill="#7a5c18" opacity=".55"/>` +
+    `<rect x="30" y="0" width="24" height="3" rx="1.5" fill="#7a5c18" opacity=".55"/>` +
+    `<ellipse cx="34" cy="-8" rx="7" ry="4" fill="#ffffff" opacity=".45"/>` +
     `</g>`
   ].join(""), "xMidYMid meet");
 }
@@ -484,14 +616,24 @@ export function approachStripSvg(trainColor) {
 }
 
 // 문 패널 — 미니 문짝이 실제 문과 동조해 열리고 닫힌다.
+// 문 패널 — 다크 콘솔 리세스 안의 도어 모듈(램프 + 미니 문짝 + 프레임).
 export function doorPanelSvg() {
   return svgWrap("ktx-doorpanel-art", "0 0 120 84", [
     `<circle class="ktx-door-lamp-ring" cx="60" cy="12" r="13" fill="${POP_GREEN}" opacity="0"/>`,
+    `<circle cx="60" cy="12" r="11" fill="#0c1018"/>`,
     `<circle class="ktx-door-lamp-dot" cx="60" cy="12" r="8" fill="${GRAY}"/>`,
-    `<rect x="34" y="26" width="52" height="50" rx="6" fill="${INK}"/>`,
-    `<rect x="37" y="29" width="46" height="44" fill="${POP_GREEN}"/>`,
-    `<g class="ktx-door-leaf ktx-door-leaf-l"><rect x="37" y="29" width="23" height="44" fill="${SLAB}"/></g>`,
-    `<g class="ktx-door-leaf ktx-door-leaf-r"><rect x="60" y="29" width="23" height="44" fill="${SLAB}"/></g>`
+    `<rect x="32" y="26" width="56" height="52" rx="7" fill="#0c1018"/>`,
+    `<rect x="35" y="29" width="50" height="46" rx="4" fill="#1d232f"/>`,
+    `<rect x="37" y="31" width="46" height="42" fill="${POP_GREEN}" opacity=".85"/>`,
+    `<g class="ktx-door-leaf ktx-door-leaf-l">` +
+    `<rect x="37" y="31" width="23" height="42" fill="${SLAB}"/>` +
+    `<rect x="40" y="36" width="16" height="18" rx="3" fill="${DOOR_GLASS}"/>` +
+    `</g>`,
+    `<g class="ktx-door-leaf ktx-door-leaf-r">` +
+    `<rect x="60" y="31" width="23" height="42" fill="${SLAB}"/>` +
+    `<rect x="64" y="36" width="16" height="18" rx="3" fill="${DOOR_GLASS}"/>` +
+    `</g>`,
+    `<rect x="35" y="29" width="50" height="46" rx="4" fill="none" stroke="#414c60" stroke-width="2"/>`
   ].join(""), "xMidYMid meet");
 }
 
@@ -680,7 +822,17 @@ export function midStripSvg() {
     `<rect x="796" y="96" width="8" height="34" fill="currentColor"/>`,
     `<rect x="876" y="96" width="8" height="34" fill="currentColor"/>`,
     `<rect x="772" y="86" width="136" height="12" rx="6" fill="currentColor"/>`,
-    `<circle cx="840" cy="92" r="5" fill="${PAPER}" opacity=".4"/>`
+    `<circle cx="840" cy="92" r="5" fill="${PAPER}" opacity=".4"/>`,
+    // 방음벽 — 선로변 연속 패널(기둥 리듬 + 상단 곡면 캡)
+    `<rect x="0" y="150" width="1000" height="34" fill="currentColor"/>`,
+    `<rect x="0" y="150" width="1000" height="4" fill="${PAPER}" opacity=".25"/>`,
+    ...Array.from({ length: 12 }, (unused, index) =>
+      `<rect x="${index * 84 + 6}" y="150" width="5" height="34" fill="${PAPER}" opacity=".14"/>`),
+    // 신호기 2기 — 항상 초록(벌점 없음 규칙)
+    ...[300, 700].map(x =>
+      `<rect x="${x}" y="112" width="6" height="44" fill="currentColor"/>` +
+      `<rect x="${x - 8}" y="98" width="22" height="26" rx="7" fill="currentColor"/>` +
+      `<circle cx="${x + 3}" cy="110" r="6" fill="${POP_GREEN}" opacity=".85"/>`)
   ].join("");
   return svgWrap("ktx-mid-art", "0 0 3000 200", [
     `<g>${strip}</g>`,
@@ -692,16 +844,27 @@ export function midStripSvg() {
 // 전경 스트립(3인칭) — 열차 앞을 스치는 전신주·가로수(최고 속도 큐).
 export function nearStripSvg() {
   const strip = [
-    `<line x1="0" y1="16" x2="480" y2="16" stroke="currentColor" stroke-width="3"/>`,
-    `<rect x="24" y="4" width="11" height="256" rx="4" fill="currentColor"/>`,
+    // 전차선 — 조가선(위)·접촉선(아래) 2줄 + 드로퍼
+    `<line x1="0" y1="10" x2="480" y2="10" stroke="currentColor" stroke-width="2.5"/>`,
+    `<line x1="0" y1="30" x2="480" y2="30" stroke="currentColor" stroke-width="3.5"/>`,
+    ...[110, 190, 270, 350, 430].map(x =>
+      `<line x1="${x}" y1="10" x2="${x}" y2="30" stroke="currentColor" stroke-width="2" opacity=".7"/>`),
+    // 전신주 — 기초 + 주 + 완철 + 사재 + 애자 2조
+    `<rect x="20" y="248" width="19" height="12" rx="3" fill="currentColor"/>`,
+    `<rect x="24" y="4" width="11" height="252" rx="4" fill="currentColor"/>`,
+    `<rect x="25" y="6" width="3.4" height="250" fill="${PAPER}" opacity=".16"/>`,
     `<rect x="24" y="26" width="56" height="6" rx="3" fill="currentColor"/>`,
+    `<path d="M35 60 L78 32" stroke="currentColor" stroke-width="4" fill="none"/>`,
     `<circle cx="46" cy="22" r="4" fill="currentColor"/>`,
     `<circle cx="72" cy="22" r="4" fill="currentColor"/>`,
     // 애자 하이라이트 + 보조 완철
     `<circle cx="46" cy="21" r="1.6" fill="${PAPER}" opacity=".45"/>`,
     `<circle cx="72" cy="21" r="1.6" fill="${PAPER}" opacity=".45"/>`,
     `<rect x="24" y="44" width="40" height="5" rx="2.5" fill="currentColor"/>`,
-    `<circle cx="42" cy="41" r="3" fill="currentColor"/>`
+    `<circle cx="42" cy="41" r="3" fill="currentColor"/>`,
+    // 킬로포스트 — 전신주 사이 낮은 표지
+    `<rect x="240" y="196" width="6" height="60" fill="currentColor"/>`,
+    `<rect x="230" y="180" width="26" height="20" rx="4" fill="currentColor"/>`
   ].join("");
   return svgWrap("ktx-near-art", "0 0 2400 260", [
     `<g>${strip}</g>`,
