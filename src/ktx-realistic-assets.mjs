@@ -14,7 +14,10 @@ export const REALISTIC_TRAIN_ASSETS = Object.freeze({
 });
 
 export function realisticExteriorAsset(trainId, land) {
-  return REALISTIC_TRAIN_ASSETS[trainId]?.exterior[land]
+  const train = Object.hasOwn(REALISTIC_TRAIN_ASSETS, trainId)
+    ? REALISTIC_TRAIN_ASSETS[trainId]
+    : REALISTIC_TRAIN_ASSETS.srt;
+  return train.exterior[land]
     ?? REALISTIC_TRAIN_ASSETS.srt.exterior.city;
 }
 

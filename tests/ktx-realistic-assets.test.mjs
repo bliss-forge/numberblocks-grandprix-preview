@@ -19,3 +19,10 @@ test("알 수 없는 열차와 환경은 안전한 기본 장면을 고른다", 
   assert.equal(realisticExteriorAsset("unknown", "unknown"),
     "assets/train-realistic/srt-exterior-city.webp");
 });
+
+test("프로토타입 열차 ID도 안전한 기본 장면을 고른다", () => {
+  assert.equal(realisticExteriorAsset("constructor", "city"),
+    "assets/train-realistic/srt-exterior-city.webp");
+  assert.equal(realisticExteriorAsset("toString", "city"),
+    "assets/train-realistic/srt-exterior-city.webp");
+});
