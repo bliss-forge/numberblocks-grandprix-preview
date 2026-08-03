@@ -192,8 +192,10 @@ node scripts/import_station_sounds.mjs subway_sound/original_subway_sound --appl
 
 ## 어떻게 만들어졌나
 
-의존성이 없습니다. 브라우저가 바로 읽는 ES 모듈과 CSS, 그리고 인라인 SVG로 그린 그림뿐입니다.
-캐릭터만 미리 렌더한 PNG를 쓰고, 나머지 그림 — 지하철 승강장, 동네 골목, 도착지 열 곳 — 은 전부 코드가 그립니다.
+런타임 의존성이 없습니다. 브라우저가 바로 읽는 ES 모듈과 CSS, 인라인 SVG가 기본이고,
+7번 **칙칙폭폭 기관사**만 저장소에서 직접 만든 WebP 장면 레이어를 사용합니다. WebP를 불러오지
+못하면 기존 SVG 열차·풍경으로 자동 복귀하며, 빌드 단계 없는 정적 배포 방식은 그대로입니다.
+캐릭터는 미리 렌더한 PNG를 쓰고, 지하철 승강장·동네 골목·도착지 열 곳은 코드가 그립니다.
 
 <details>
 <summary><b>파일 구성</b></summary>
@@ -215,6 +217,7 @@ src/
   station-sound-import.mjs  안내방송 파일명 해석
 assets/
   characters/               숫자블록 캐릭터 161장
+  train-realistic/           7번 게임 실사형 SRT 외부·운전실 WebP 장면
   audio/voice/{ko,en}/      안내 음성
 subway_sound/               실제 지하철 안내방송
 scripts/                    캐릭터 렌더·음성 생성·안내방송 정리

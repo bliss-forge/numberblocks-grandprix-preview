@@ -67,14 +67,16 @@
 
 ## 4. 자산 계약
 
-신규 자산은 `assets/train-realistic/` 아래에 둔다.
+신규 자산은 `assets/train-realistic/` 아래에 둔다. Task 6에서 실제 매니페스트와 파일을
+대조한 최종 자산 계약은 다음 아홉 장이다.
 
-- `srt-exterior-side.webp`: 투명 배경 측면 열차
-- `srt-exterior-quarter.webp`: 투명 배경 3/4 전면 열차
-- `srt-front.webp`, `srt-rear.webp`: 선택·결과 화면
-- `cab-day.webp`, `cab-night.webp`, `cab-tunnel.webp`: 운전실 베이스
-- `env-{plain,city,suburb,mountain,coast,tunnel}.webp`: 환경 원경
-- `foreground-{rail,poles,barrier}.webp`: 반복 가능한 전경
+- `srt-exterior-{city,field,river,mountain,sea,tunnel}.webp`: 환경과 열차를 함께 잠근 외부 장면 6장
+- `cab-{day,night,tunnel}.webp`: 동일한 계기판 구도를 유지한 운전실 베이스 3장
+
+초기안의 투명 열차·별도 전경 합성 대신 전체 프레임 외부 장면을 채택했다. 이렇게 해야 환경을
+바꿔도 열차 실루엣, 도색, 카메라 높이와 조명 방향이 흔들리지 않는다. 노선 구현에는 원안의
+교외 장면 대신 기존 주행 이벤트와 맞는 강변(`river`) 장면이 들어갔다. 선택·결과 화면과 이미지
+실패 상태는 별도 래스터 없이 기존 캐노니컬 SVG를 사용한다.
 
 자산 생성 규칙:
 
@@ -139,4 +141,3 @@
 - 역·노선·음성·게임 규칙 변경
 - 1~6번 게임 리디자인
 - 외부 상용 사진이나 영상의 저장소 포함
-
