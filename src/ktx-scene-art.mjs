@@ -5,8 +5,8 @@
 // (하늘 5장×2뷰, 땅 6장×2뷰 등) 모든 <defs> id는 "함수 인자별 유니크"다:
 //   ktx-g-sky-{sky} · ktx-g-sun-{sky}                (skyLayerSvg)
 //   ktx-g-land-{land} · ktx-g-land2/fog/lamp-{land}  (landLayerSvg — defs는 래퍼에 1회)
-//   ktx-g-body/nose/waist/blend/skirt/glass/band/shadow/roof-{train.id} (sideTrainSvg)
-//   ktx-g-card*-{train.id}                           (trainCardSvg)
+//   ktx-tm-side-*-{train.id}                         (sideTrainSvg → ktx-train-model 위임)
+//   ktx-tm-quarter-*-{train.id}                      (trainCardSvg → ktx-train-model 위임)
 //   ktx-g-onc-* / ktx-g-oncab-{part}*                (oncoming 계열)
 //   ktx-g-plat-* / ktx-g-portal-*                    (승강장·포털)
 // 같은 함수+같은 인자의 중복 인라인(2뷰)은 동일 정의라 렌더가 어긋나지 않는다.
@@ -15,6 +15,8 @@
 // 그려 두고, 씬이 data-sky/data-land 속성만 바꾸면 CSS가 1.5초 크로스페이드
 // 한다(지하철 창밖 환경 전환과 같은 계보). 움직임은 전부 CSS 애니메이션 —
 // 속도는 data-speed-tier(0~5)가 고른다.
+
+import { trainSideSvg, trainQuarterSvg } from "./ktx-train-model.mjs";
 
 export const SKY_PALETTES = Object.freeze({
   morning: Object.freeze({ sky: "#cfe8f7", glow: "#ffd98e", cloud: "#ffffff" }),
@@ -334,178 +336,14 @@ export const ALL_LANDS = Object.freeze(Object.keys(LAND_PALETTES));
 
 // ── 3인칭 열차 (색은 고른 열차가 정한다) ──────────────────────────────────
 
-// v5 — 실차 리버리 렌더: 투톤(은백 상부 그라데이션 + train.color 허리 밴드 +
-// 짙은 회색 금속 스커트). 노즈만 train.color 그라데이션이고 은백 상부와의
-// 경계는 곡선 블렌드 패스 1장이 잇는다. 지붕 에어컨 유닛·지붕 라인, 대차
-// 프레임, 도어 세로 라인으로 디테일 밀도 보강. 검정 창띠·유리 반사·지면
-// 그림자(radialGradient 타원)는 v4 유지.
+// v6 — Canonical Train Model 위임: 열차 아트의 유일한 원본은
+// src/ktx-train-model.mjs(trainSideSvg)다. 리버리는 TRAIN_LIVERIES(흰 차체 +
+// 짙은 보라/남색 루프 밴드 + 전면 보라 노즈 + 창 아래 리버리 라인) 참조.
 // 계약 유지: .ktx-window-slot[data-slot=0..7] g 안에 62×52 rect + .ktx-window-glow,
 // .ktx-door×4(leaf ±14px), .ktx-wheel g들, .ktx-panto, .ktx-beam, viewBox 1200×170.
-// 실루엣 분기: srt = 원호 노즈 + 원형 헤드라이트 / ktx = 쐐기 노즈 + 지붕 뒤 핀.
+// 실루엣 분기: srt = 원호 노즈 / ktx = 쐐기 노즈 + 지붕 뒤 핀 — 전부 위임처 소관.
 export function sideTrainSvg(train, windows = 8) {
-  const isSrt = train.id === "srt";
-  const gid = suffix => `ktx-g-${suffix}-${train.id}`;
-  const defs = `<defs>` +
-    linGrad(gid("body"), [
-      ["0%", lighten(BODY_SILVER, 0.5)], ["45%", BODY_SILVER],
-      ["100%", BODY_SILVER_DEEP]
-    ]) +
-    linGrad(gid("nose"), [
-      ["0%", lighten(train.color, 0.34)], ["30%", lighten(train.color, 0.12)],
-      ["62%", train.color], ["100%", darken(train.color, 0.24)]
-    ]) +
-    linGrad(gid("waist"), [
-      ["0%", lighten(train.color, 0.16)], ["60%", train.color],
-      ["100%", darken(train.color, 0.28)]
-    ]) +
-    linGrad(gid("blend"), [
-      ["0%", train.color, 0.9], ["55%", train.color, 0.35],
-      ["100%", train.color, 0]
-    ], "h") +
-    linGrad(gid("skirt"), [
-      ["0%", lighten(SKIRT_STEEL, 0.3)], ["55%", SKIRT_STEEL],
-      ["100%", darken(SKIRT_STEEL, 0.32)]
-    ]) +
-    linGrad(gid("band"), [
-      ["0%", "#2c3950"], ["60%", "#1d2634"], ["100%", "#161e2b"]
-    ]) +
-    linGrad(gid("glass"), [
-      ["0%", "#3c4a63"], ["45%", "#1d2634"], ["100%", "#141b27"]
-    ]) +
-    linGrad(gid("roof"), [
-      ["0%", "#ffffff", 0.55], ["100%", "#ffffff", 0]
-    ]) +
-    radGrad(gid("shadow"), [
-      ["0%", "#0c1420", 0.3], ["70%", "#0c1420", 0.14], ["100%", "#0c1420", 0]
-    ]) +
-    `</defs>`;
-  const carAt = index => 330 + index * 200; // 차체 330~1130, 량 피치 200
-  const slots = Array.from({ length: windows }, (unused, index) => {
-    const car = Math.floor(index / 2);
-    const x = carAt(car) + 7 + (index % 2) * 75;
-    return `<g class="ktx-window-slot" data-slot="${index}" transform="translate(${x} 60)">` +
-      `<rect width="62" height="52" rx="8" fill="url(#${gid("glass")})"/>` +
-      `<polygon points="6,52 26,0 40,0 14,52" fill="${PAPER}" opacity=".2"/>` +
-      `<polygon points="34,52 50,6 56,6 42,52" fill="${PAPER}" opacity=".1"/>` +
-      `<rect class="ktx-window-glow" width="62" height="52" rx="8" fill="${HEADLAMP}" opacity="0"/>` +
-      `</g>`;
-  }).join("");
-  const doors = Array.from({ length: 4 }, (unused, index) => {
-    const x = carAt(index) + 157;
-    return `<g class="ktx-door" transform="translate(${x} 58)">` +
-      `<rect width="36" height="54" rx="4" fill="url(#${gid("skirt")})"/>` +
-      `<rect x="2" y="4" width="32" height="46" rx="3" fill="${JOINT}"/>` +
-      `<g class="ktx-door-leaf ktx-door-leaf-l">` +
-      `<rect x="2" y="4" width="16" height="46" rx="3" fill="${BODY_SILVER_DEEP}"/>` +
-      `<rect x="6" y="10" width="8" height="20" rx="2" fill="url(#${gid("glass")})"/>` +
-      `<rect x="16.6" y="5" width="1.4" height="44" fill="${INK}" opacity=".3"/>` +
-      `</g>` +
-      `<g class="ktx-door-leaf ktx-door-leaf-r">` +
-      `<rect x="18" y="4" width="16" height="46" rx="3" fill="${BODY_SILVER_DEEP}"/>` +
-      `<rect x="22" y="10" width="8" height="20" rx="2" fill="url(#${gid("glass")})"/>` +
-      `<rect x="18" y="5" width="1.4" height="44" fill="${INK}" opacity=".3"/>` +
-      `</g>` +
-      // 도어 라인 — 문 테두리 세로 라인(실차의 도어 컷 라인)
-      `<rect x="0" y="2" width="1.4" height="50" fill="${INK}" opacity=".38"/>` +
-      `<rect x="34.6" y="2" width="1.4" height="50" fill="${INK}" opacity=".38"/>` +
-      `<circle class="ktx-door-warnlamp" cx="18" cy="-5" r="5" fill="${POP_RED}" opacity="0"/>` +
-      `</g>`;
-  }).join("");
-  const joints = [530, 730, 930].map(x =>
-    `<rect x="${x - 4}" y="62" width="8" height="50" rx="3" fill="${JOINT}"/>` +
-    `<rect x="${x - 6}" y="62" width="12" height="6" rx="3" fill="${JOINT_TOP}"/>`
-  ).join("");
-  // 자코브스 대차 문법 유지 — 량 경계 공유 + 선두·후미 동력차 대차.
-  // 스커트(y112~128)가 위를 가려 노출은 하부 원호만(먼저 그리고 차체가 덮는다).
-  // v5: 바퀴 뒤에 어두운 대차 프레임 rect(량 경계 아래) — 하부 디테일 밀도.
-  const bogieFrames = [[86, 96], [506, 48], [706, 48], [906, 48], [1064, 112]]
-    .map(([x, w]) =>
-      `<rect x="${x}" y="124" width="${w}" height="15" rx="4" ` +
-      `fill="${darken(SKIRT_STEEL, 0.22)}"/>`
-    ).join("");
-  const wheels = [110, 158, 530, 730, 930, 1090, 1152].map(cx =>
-    `<g transform="translate(${cx} 136)"><g class="ktx-wheel">` +
-    `<circle r="14" fill="${INK}"/><circle r="5" fill="${RAIL}"/>` +
-    `<rect x="-12" y="-2" width="24" height="4" rx="2" fill="${RAIL}"/>` +
-    `</g></g>`
-  ).join("");
-  // 지붕 장비 — 낮은 에어컨 유닛 박스 + 상면 하이라이트 (판토 386~450 회피).
-  const roofGear = [[512, 62], [788, 62], [986, 40]].map(([x, w]) =>
-    `<rect x="${x}" y="51" width="${w}" height="7" rx="2.5" fill="${ROOF_GEAR}"/>` +
-    `<rect x="${x + 3}" y="51" width="${w - 6}" height="2" rx="1" ` +
-    `fill="${lighten(ROOF_GEAR, 0.4)}"/>`
-  ).join("");
-  // 노즈-은백 경계 블렌드 — 지붕 스트립(y58~66)을 따라 색이 뒤로 흘러 빠진다.
-  const noseBlend = `<path d="M332 58 L332 66 C362 65 380 62 398 58z" ` +
-    `fill="url(#${gid("blend")})"/>`;
-  const noseHull = isSrt
-    ? "M8 128 C8 114 10 102 26 96 C110 74 220 62 332 58 L332 128z"
-    : "M4 128 L14 100 C90 78 210 63 332 58 L332 128z";
-  const noseBand = isSrt
-    ? "M8 128 C8 116 14 110 36 107 L332 112 L332 128z"
-    : "M4 128 L10 106 L332 112 L332 128z";
-  const noseSheen = isSrt
-    ? "M28 95 C110 74 220 63 332 58 L332 64 C224 68 118 80 38 99z"
-    : "M15 99 C90 78 210 64 332 58 L332 64 C216 69 98 83 21 102z";
-  const tailHull = isSrt
-    ? "M1192 128 C1192 114 1190 102 1174 96 C1156 88 1144 70 1130 58 L1130 128z"
-    : "M1196 128 L1186 100 C1170 84 1150 68 1130 58 L1130 128z";
-  const tailBand = isSrt
-    ? "M1192 128 C1192 116 1186 110 1164 107 L1130 112 L1130 128z"
-    : "M1196 128 L1190 106 L1130 112 L1130 128z";
-  const cabGlass = isSrt
-    ? "M190 90 L210 70 L272 66 L272 90z"
-    : "M182 92 L212 72 L276 66 L276 92z";
-  const cabStreak = isSrt
-    ? "M216 90 L234 69 L248 68 L230 90z"
-    : "M212 92 L236 70 L250 69 L226 92z";
-  const idMark = isSrt
-    ? `<circle cx="28" cy="106" r="6" fill="${HEADLAMP}"/>`
-    : `<path d="M1044 58 L1058 46 L1072 58z" fill="${train.nose}"/>`;
-  return svgWrap("ktx-side-train-art", "0 0 1200 170", [
-    defs,
-    // 전조등 빔 — CSS가 밤에 켠다(viewBox 왼쪽 밖 -80까지, overflow visible 전제)
-    `<polygon class="ktx-beam" points="12,98 -80,80 -80,146 12,128" fill="${HEADLAMP}" opacity="0"/>`,
-    // 지면 그림자 — 차체 아래 부드러운 접지감
-    `<ellipse cx="600" cy="152" rx="560" ry="9" fill="url(#${gid("shadow")})"/>`,
-    bogieFrames,
-    wheels,
-    // 선두 장노즈 — id별 실루엣, 노즈만 train.color(실차도 노즈는 색이 진하다)
-    `<path d="${noseHull}" fill="url(#${gid("nose")})"/>`,
-    `<path d="${noseBand}" fill="url(#${gid("skirt")})"/>`,
-    `<path d="${noseSheen}" fill="${PAPER}" opacity=".28"/>`,
-    // 연속 차체(은백 투톤 상부) + 금속 스커트
-    `<rect x="330" y="58" width="800" height="54" fill="url(#${gid("body")})"/>`,
-    `<rect x="330" y="112" width="800" height="16" fill="url(#${gid("skirt")})"/>`,
-    // 후미 미러 노즈
-    `<path d="${tailHull}" fill="url(#${gid("nose")})"/>`,
-    `<path d="${tailBand}" fill="url(#${gid("skirt")})"/>`,
-    // 노즈 블렌드(선두) + 미러 블렌드(후미) — 은백 경계의 곡선 이음.
-    // 창띠·슬롯보다 먼저 그려 유리에 색이 비치지 않게 한다.
-    noseBlend,
-    `<g transform="translate(1462 0) scale(-1 1)">${noseBlend}</g>`,
-    // 지붕 라인 + 하이라이트 립 + 에어컨 유닛
-    `<rect x="330" y="58" width="800" height="1.6" fill="${darken(BODY_SILVER_DEEP, 0.28)}"/>`,
-    `<rect x="340" y="59" width="780" height="6" rx="3" fill="url(#${gid("roof")})"/>`,
-    roofGear,
-    // 연속 창띠(거의 검정)
-    `<rect x="334" y="66" width="792" height="40" rx="12" fill="url(#${gid("band")})"/>`,
-    joints,
-    slots,
-    doors,
-    // 허리 밴드 — 창띠 아래를 노즈까지 흐르는 리버리 라인(SRT 자주/KTX 파랑)
-    `<rect x="330" y="106" width="800" height="10" fill="url(#${gid("waist")})"/>`,
-    `<path d="${cabGlass}" fill="url(#${gid("glass")})"/>`,
-    `<path d="${cabStreak}" fill="${PAPER}" opacity=".3"/>`,
-    idMark,
-    // 팬터그래프 — 낮아진 지붕(y58)에 맞춤
-    `<g class="ktx-panto">` +
-    `<rect x="386" y="52" width="64" height="6" rx="3" fill="${ROOF_GEAR}"/>` +
-    `<path d="M398 52 L418 32 L438 52" fill="none" stroke="${INK}" stroke-width="4"/>` +
-    `<rect x="406" y="28" width="44" height="4" rx="2" fill="${INK}"/></g>`,
-    `<rect x="0" y="156" width="1200" height="6" rx="3" fill="${RAIL}"/>`,
-    `<rect x="0" y="156" width="1200" height="2" rx="1" fill="${RAIL_LIGHT}"/>`
-  ].join(""), "xMidYMid meet");
+  return trainSideSvg(train, { windows });
 }
 
 // ── 1인칭 운전실 v2 ────────────────────────────────────────────────────────
@@ -944,78 +782,11 @@ export function eventSpriteSvg(type) {
   return "";
 }
 
-// 시작 화면 열차 고르기 카드 얼굴.
-// 실차 비율 실루엣 미니어처 — 본편 sideTrainSvg v5와 같은 리버리 문법
-// (SRT 원호 / KTX 쐐기+핀 + 은백 투톤 차체·색 노즈·허리 밴드·금속 스커트·
-// 검정 창띠·유리 반사·지붕 장비·지면 그림자).
+// 시작 화면 열차 고르기 카드 얼굴 — Canonical Train Model의 3/4 뷰
+// (trainQuarterSvg front-left) 축소판. 기준본과 같은 리버리(흰 차체 +
+// 짙은 보라/남색 루프·전면 보라 노즈·창 아래 리버리 라인·LED)이며,
+// viewBox 900×360은 기존 카드 300×120과 같은 2.5:1 비율이라
+// .ktx-train-face svg { width: 250px; height: auto } 슬롯에 그대로 맞는다.
 export function trainCardSvg(train) {
-  const isSrt = train.id === "srt";
-  const gid = suffix => `ktx-g-card${suffix}-${train.id}`;
-  const defs = `<defs>` +
-    linGrad(gid(""), [
-      ["0%", lighten(train.color, 0.34)], ["30%", lighten(train.color, 0.12)],
-      ["62%", train.color], ["100%", darken(train.color, 0.24)]
-    ]) +
-    linGrad(gid("silver"), [
-      ["0%", lighten(BODY_SILVER, 0.5)], ["45%", BODY_SILVER],
-      ["100%", BODY_SILVER_DEEP]
-    ]) +
-    linGrad(gid("waist"), [
-      ["0%", lighten(train.color, 0.16)], ["60%", train.color],
-      ["100%", darken(train.color, 0.28)]
-    ]) +
-    linGrad(gid("blend"), [
-      ["0%", train.color, 0.9], ["55%", train.color, 0.35],
-      ["100%", train.color, 0]
-    ], "h") +
-    linGrad(gid("skirt"), [
-      ["0%", lighten(SKIRT_STEEL, 0.3)], ["55%", SKIRT_STEEL],
-      ["100%", darken(SKIRT_STEEL, 0.32)]
-    ]) +
-    linGrad(gid("glass"), [["0%", "#3c4a63"], ["100%", "#1d2634"]]) +
-    radGrad(gid("shadow"), [
-      ["0%", "#0c1420", 0.28], ["70%", "#0c1420", 0.12], ["100%", "#0c1420", 0]
-    ]) +
-    `</defs>`;
-  const hull = isSrt
-    ? `<path d="M10 96 C10 84 12 74 26 69 C58 61 108 55 150 54 L288 54 L288 96z" fill="url(#${gid("")})"/>`
-    : `<path d="M6 96 L16 72 C56 62 106 56 150 54 L288 54 L288 96z" fill="url(#${gid("")})"/>`;
-  const band = isSrt
-    ? `<path d="M10 96 C10 88 14 84 30 82 L288 84 L288 96z" fill="url(#${gid("skirt")})"/>`
-    : `<path d="M6 96 L12 84 L288 84 L288 96z" fill="url(#${gid("skirt")})"/>`;
-  const fin = isSrt
-    ? `<circle cx="20" cy="82" r="4" fill="${HEADLAMP}"/>`
-    : `<path d="M236 54 L248 45 L260 54z" fill="${train.color}"/>`;
-  return svgWrap("ktx-train-card-art", "0 0 300 120", [
-    defs,
-    `<ellipse cx="150" cy="111" rx="142" ry="6" fill="url(#${gid("shadow")})"/>`,
-    hull,
-    // 은백 투톤 상부 — 노즈 뒤 객차부를 덮고 경계는 곡선 블렌드로 잇는다
-    `<rect x="146" y="54" width="142" height="42" fill="url(#${gid("silver")})"/>`,
-    `<path d="M146 54 L146 60 C162 59 172 57 182 54z" fill="url(#${gid("blend")})"/>`,
-    // 연속 창띠(거의 검정) + 창 2개 + 유리 대각 반사
-    `<rect x="130" y="60" width="158" height="20" rx="7" fill="#1d2634"/>`,
-    `<rect x="142" y="62" width="42" height="16" rx="5" fill="url(#${gid("glass")})"/>`,
-    `<polygon points="150,78 158,62 164,62 156,78" fill="${PAPER}" opacity=".25"/>`,
-    `<rect x="200" y="62" width="42" height="16" rx="5" fill="url(#${gid("glass")})"/>`,
-    `<polygon points="208,78 216,62 222,62 214,78" fill="${PAPER}" opacity=".25"/>`,
-    // 허리 밴드 — 창띠 아래를 노즈까지 흐르는 리버리 라인
-    `<rect x="140" y="78" width="148" height="8" fill="url(#${gid("waist")})"/>`,
-    // 지붕 라인 + 하이라이트 + 에어컨 유닛(미니어처)
-    `<rect x="146" y="54" width="142" height="1.2" fill="${darken(BODY_SILVER_DEEP, 0.28)}"/>`,
-    `<rect x="60" y="56" width="200" height="4" rx="2" fill="${PAPER}" opacity=".35"/>`,
-    `<rect x="190" y="49.5" width="36" height="5" rx="2" fill="${ROOF_GEAR}"/>`,
-    `<rect x="193" y="49.5" width="30" height="1.6" rx="0.8" fill="${lighten(ROOF_GEAR, 0.4)}"/>`,
-    fin,
-    // 금속 스커트 밴드 + 대차 힌트 + 스커트에 반쯤 가린 바퀴
-    band,
-    `<rect x="10" y="96" width="278" height="8" fill="url(#${gid("skirt")})"/>`,
-    `<rect x="60" y="98" width="20" height="9" rx="2" fill="${darken(SKIRT_STEEL, 0.22)}"/>`,
-    `<rect x="140" y="98" width="20" height="9" rx="2" fill="${darken(SKIRT_STEEL, 0.22)}"/>`,
-    `<rect x="220" y="98" width="20" height="9" rx="2" fill="${darken(SKIRT_STEEL, 0.22)}"/>`,
-    `<circle cx="70" cy="102" r="8" fill="${INK}"/>`,
-    `<circle cx="150" cy="102" r="8" fill="${INK}"/>`,
-    `<circle cx="230" cy="102" r="8" fill="${INK}"/>`,
-    `<rect x="0" y="110" width="300" height="5" rx="2.5" fill="${RAIL}"/>`
-  ].join(""), "xMidYMid meet");
+  return trainQuarterSvg(train, { facing: "front", side: "left" });
 }
