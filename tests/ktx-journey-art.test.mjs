@@ -28,3 +28,8 @@ test("실사 준비 상태에서는 승강장 구조물만 숨기고 정차 단�
   assert.match(css,
     /data-realistic="ready"[^\{]*\.ktx-queue\s*\{[^}]*bottom:\s*calc\(35%\s*\+\s*2px\)/s);
 });
+
+test("실사 외부 콘솔은 모든 모션 레이어 위에서 하단 35%를 차단한다", () => {
+  assert.match(css,
+    /data-view="side"\][^\{]*\.ktx-view-cab::before\s*\{[^}]*height:\s*35%[^}]*z-index:\s*10/s);
+});
