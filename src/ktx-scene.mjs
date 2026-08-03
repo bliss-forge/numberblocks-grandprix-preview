@@ -19,8 +19,11 @@ import {
 import {
   activeEvent,
   currentBand,
-  distanceToMarker
+  distanceToMarker,
+  routeSegments,
+  routeStations
 } from "./ktx-journey.mjs";
+import { KTX_ROUTE_LABELS } from "./ktx-route-data.mjs";
 import {
   ALL_LANDS,
   ALL_SKIES,
@@ -272,6 +275,8 @@ function buildSideView(document, state) {
   // 승강장 v2 — 지붕·기둥·역명판·시계·안전선 구조물
   const platform = el(document, "div", "ktx-platform");
   platform.append(el(document, "div", "ktx-platform-roof"));
+  // 캐노피 — 지붕이 선로 위까지 드리워 "역 안으로 들어온" 인상
+  platform.append(el(document, "div", "ktx-platform-canopy"));
   for (const pos of ["a", "b", "c"]) {
     const pillar = el(document, "div", "ktx-platform-pillar");
     pillar.dataset.pos = pos;
@@ -329,6 +334,45 @@ function buildSideView(document, state) {
   return view;
 }
 
+// 하늘에서 내려다본 분기 지도 — Y 선로, 아래에서 올라온 미니 열차, 좌우 행선지.
+// (아트 모듈이 아니라 씬 로컬: 분기 화면 전용 1회성 배경이라 여기 둔다)
+function branchMapSvg() {
+  const tracks = [
+    "M400 500 L400 300",
+    "M400 300 C400 220 330 180 220 120",
+    "M400 300 C400 220 470 180 580 120"
+  ].map(d =>
+    `<path d="${d}" fill="none" stroke="#cfc3ad" stroke-width="46"/>` +
+    `<path d="${d}" fill="none" stroke="#7a6a55" stroke-width="34" ` +
+    `stroke-dasharray="6 14"/>` +
+    `<path d="${d}" fill="none" stroke="#8d95a0" stroke-width="4" ` +
+    `transform="translate(-8 0)"/>` +
+    `<path d="${d}" fill="none" stroke="#8d95a0" stroke-width="4" ` +
+    `transform="translate(8 0)"/>`
+  ).join("");
+  return `<svg viewBox="0 0 800 500" preserveAspectRatio="xMidYMid slice" ` +
+    `aria-hidden="true" xmlns="http://www.w3.org/2000/svg">` +
+    `<defs>` +
+    `<linearGradient id="ktx-g-branch-land" x1="0" y1="0" x2="0" y2="1">` +
+    `<stop offset="0" stop-color="#bfe39a"/><stop offset="1" stop-color="#8fce6f"/>` +
+    `</linearGradient>` +
+    `</defs>` +
+    `<rect width="800" height="500" fill="url(#ktx-g-branch-land)"/>` +
+    `<rect x="40" y="60" width="150" height="90" rx="16" fill="#a9df7d" opacity=".7"/>` +
+    `<rect x="600" y="180" width="160" height="100" rx="16" fill="#cde79d" opacity=".7"/>` +
+    `<ellipse cx="120" cy="420" rx="90" ry="34" fill="#9fd0f5" opacity=".8"/>` +
+    tracks +
+    // 위에서 본 미니 열차 — 분기점 아래 스템 위.
+    // 배치는 바깥 g의 속성 transform, 둥실 애니메이션은 안쪽 g의 CSS —
+    // CSS transform이 속성 transform을 통째로 대체하므로 반드시 분리한다.
+    `<g transform="translate(400 430)"><g class="ktx-branch-train">` +
+    `<rect x="-16" y="-60" width="32" height="104" rx="14" fill="#e9edf3"/>` +
+    `<rect x="-16" y="-6" width="32" height="50" rx="14" fill="#31445b" opacity=".2"/>` +
+    `<path d="M-16 -44 Q-16 -74 0 -78 Q16 -74 16 -44z" fill="#5b2d86"/>` +
+    `<rect x="-10" y="-30" width="20" height="60" rx="8" fill="#1d2634" opacity=".85"/>` +
+    `</g></g></svg>`;
+}
+
 export function renderKtxScene(document, state, view = "cab") {
   const root = el(document, "div", "ktx-game");
   root.dataset.view = view;
@@ -363,6 +407,29 @@ export function renderKtxScene(document, state, view = "cab") {
 
   // 문 닫힘 카운트다운 숫자 — 어느 뷰에서든 보인다
   root.append(el(document, "div", "ktx-door-countdown", ""));
+
+  // 하늘 분기 화면 — 동탄에서 부산/목포 갈림길 (data-branch로 켠다)
+  const branch = el(document, "div", "ktx-branch");
+  const branchMap = el(document, "div", "ktx-branch-map");
+  branchMap.innerHTML = branchMapSvg();
+  branch.append(branchMap);
+  branch.append(el(document, "h2", "ktx-branch-title", "어느 쪽으로 갈까요?"));
+  for (const [routeId, pos, word] of [
+    ["mokpo", "left", "서쪽 항구"],
+    ["busan", "right", "동쪽 바다"]
+  ]) {
+    const choice = document.createElement("button");
+    choice.type = "button";
+    choice.className = "ktx-branch-choice";
+    choice.dataset.route = routeId;
+    choice.dataset.pos = pos;
+    choice.append(el(document, "kbd", "ktx-branch-key", pos === "left" ? "←" : "→"));
+    choice.append(el(document, "strong", "ktx-branch-name", KTX_ROUTE_LABELS[routeId]));
+    choice.append(el(document, "span", "ktx-branch-word", word));
+    branch.append(choice);
+  }
+  branch.append(el(document, "p", "ktx-branch-note", "← → 로 고르고 ⎵ 로 정하기!"));
+  root.append(branch);
 
   // 탑승 세기 팝 — 방금 탄 친구가 크게 뜬다
   const pop = el(document, "div", "ktx-board-pop");
@@ -449,11 +516,12 @@ export function cameraModeFor(state) {
 }
 
 function destboardText(state) {
+  if (state.phase === "branch") return "어느 쪽으로 갈까요?";
   if (state.phase === "boarding") return `여기는 ${state.station}`;
-  if (state.phase === "ready") return `${KTX_SEGMENTS[state.segIndex].to} 출발 준비`;
+  if (state.phase === "ready") return `${routeStations(state)[state.segIndex + 1]} 출발 준비`;
   if (state.phase === "driving" || state.phase === "stopping" ||
     state.phase === "correcting") {
-    return `다음역 ▶ ${KTX_SEGMENTS[state.segIndex].to}`;
+    return `다음역 ▶ ${routeStations(state)[state.segIndex + 1]}`;
   }
   if (state.phase === "stopped") return `${state.station} 도착`;
   if (state.phase === "finale") return "종착역 부산";
@@ -462,6 +530,7 @@ function destboardText(state) {
 
 // 다음 올바른 키 하나만 알려 주는 필 — 프리리더는 kbd 글리프가 실질 정보.
 function nextKeyFor(state) {
+  if (state.phase === "branch") return { key: "←→", word: "길 고르기", tone: "act" };
   if (state.phase === "boarding") {
     return state.queue.length > 0
       ? { key: "⎵", word: "태우기", tone: "act" }
@@ -568,7 +637,7 @@ function spawnObj(root, kind, lane, value, v) {
 
 // 터널 포털 트리거 지점 — 구간의 터널 밴드 시작 미터(없으면 null).
 function portalStartFor(state) {
-  const seg = KTX_SEGMENTS[state.segIndex];
+  const seg = routeSegments(state)[state.segIndex];
   let from = 0;
   for (const band of seg.bands) {
     if (band.land === "tunnel") return from * seg.length;
@@ -641,6 +710,23 @@ export function updateKtxScene(root, state, view, events = [], held = {}) {
   root.dataset.doorWarning = String(
     state.doorCountdownMs !== null && state.doorCountdownMs !== undefined &&
     state.doorCountdownMs > 0 && state.doorCountdownMs <= 3200);
+  root.dataset.branch = String(state.phase === "branch");
+  root.dataset.routePick = state.selectedRoute ?? "busan";
+  // 노선이 정해지면 계획 스트립을 그 노선의 역들로 다시 짠다
+  if (root.dataset.route !== (state.route ?? "busan")) {
+    root.dataset.route = state.route ?? "busan";
+    const plan = root.querySelector(".ktx-plan");
+    if (plan) {
+      plan.replaceChildren();
+      for (const station of routeStations(state)) {
+        const chip = el(document, "span", "ktx-plan-stop");
+        chip.dataset.station = station;
+        chip.append(el(document, "i", "ktx-plan-dot"));
+        chip.append(el(document, "span", "ktx-plan-name", station));
+        plan.append(chip);
+      }
+    }
+  }
 
   // 속도계 — 디지털 숫자 + 바늘(0~300 → ±120°)
   const speedNode = root.querySelector(".ktx-speed-number");
@@ -691,8 +777,9 @@ export function updateKtxScene(root, state, view, events = [], held = {}) {
   updateLineside(root, state, band, dxM);
 
   // 터널 포털 — 진입 2.2초 전(속도 반영) 1회 발사
-  if (root.dataset.portalSeg !== String(state.segIndex)) {
-    root.dataset.portalSeg = String(state.segIndex);
+  const portalKey = `${state.route ?? "busan"}-${state.segIndex}`;
+  if (root.dataset.portalSeg !== portalKey) {
+    root.dataset.portalSeg = portalKey;
     const at = portalStartFor(state);
     root.dataset.portalAt = at === null ? "" : String(at);
     root.dataset.portalFired = "false";
@@ -727,7 +814,9 @@ export function updateKtxScene(root, state, view, events = [], held = {}) {
   const stage = root.querySelector(".ktx-stage");
   const sideScale = stage && stage.clientWidth ? stage.clientWidth / 1217 : 1;
   sideView.style.setProperty("--side-scale", sideScale.toFixed(4));
-  const stationName = driving ? KTX_SEGMENTS[state.segIndex].to : state.station;
+  const stationName = driving
+    ? routeStations(state)[state.segIndex + 1]
+    : state.station;
   if (nearStop) {
     const markerX = TRAIN_NOSE_X + distance * NEAR_SCALE;
     const shift = (markerX - MARKER_FROM_ZONE * NEAR_SCALE) * sideScale;

@@ -16,6 +16,8 @@ import {
   ENVELOPE_FLOOR,
   KTX_SEGMENTS,
   KTX_RANDOM_EVENTS,
+  KTX_ROUTES,
+  KTX_ROUTE_STATIONS,
   KTX_STATIONS,
   KTX_TRAINS,
   MARKER_FROM_ZONE,
@@ -31,6 +33,8 @@ import {
 } from "./ktx-route-data.mjs";
 import { buildPassengerManifest } from "./ktx-passengers.mjs";
 
+export const BRANCH_STATION = "동탄";  // 분기역 — 문 닫힘 뒤 하늘 뷰 선택
+
 export const HINT_IDLE_MS = 6000;      // 6초 무진행 → 그림 힌트
 export const ASSIST_IDLE_MS = 12000;   // 12초 무진행 → 자동 어시스트
 export const BOARD_HINT_MS = 5500;     // 탑승 힌트
@@ -43,7 +47,15 @@ export const CORRECT_SPEED = 22;       // 오버런 복귀 후진 속도
 export const BASELINE_RESPONSES = Object.freeze(["magpie", "scarecrow", "wave"]);
 
 function segment(state) {
-  return KTX_SEGMENTS[state.segIndex];
+  return KTX_ROUTES[state.route ?? "busan"][state.segIndex];
+}
+
+export function routeSegments(state) {
+  return KTX_ROUTES[state.route ?? "busan"];
+}
+
+export function routeStations(state) {
+  return KTX_ROUTE_STATIONS[state.route ?? "busan"];
 }
 
 function markerPosition(seg) {
@@ -51,11 +63,11 @@ function markerPosition(seg) {
 }
 
 // 시드로 이번 판의 랜덤 이벤트 1종을 뽑아 구간 일정에 끼워 넣는다.
-function scheduleEvents(seed) {
+function scheduleEvents(seed, route = "busan") {
   const random = mulberry(seed);
   const pick = KTX_RANDOM_EVENTS[Math.floor(random() * KTX_RANDOM_EVENTS.length)];
   const slot = pick.segments[Math.floor(random() * pick.segments.length)];
-  return KTX_SEGMENTS.map((seg, index) => {
+  return KTX_ROUTES[route].map((seg, index) => {
     const extra = index === slot
       ? [{ type: pick.type, at: pick.at, until: pick.until }]
       : [];
@@ -70,6 +82,9 @@ export function createKtxJourney(seed = 0, trainId = "srt") {
     seed,
     train,
     manifest,
+    route: "busan",
+    selectedRoute: "busan",
+    routeChosen: false,
     schedule: scheduleEvents(seed),
     segIndex: 0,
     station: KTX_STATIONS[0],
@@ -113,7 +128,8 @@ export function currentBand(state) {
     return segmentBand(segment(state), segmentProgress(state));
   }
   // 정차 중에는 다음 구간의 첫 밴드(승강장 조명은 씬이 밝게 처리)
-  const seg = KTX_SEGMENTS[Math.min(state.segIndex, KTX_SEGMENTS.length - 1)];
+  const segsAll = routeSegments(state);
+  const seg = segsAll[Math.min(state.segIndex, segsAll.length - 1)];
   return segmentBand(seg, state.phase === "finale" ? 1 : 0);
 }
 
@@ -147,7 +163,7 @@ function arriveStopped(state, stars, events, how) {
     doors: "closed",
     station,
     // 다음에 몰 구간으로 넘어간다. 종착에서는 제자리(피날레 판정은 별 개수로).
-    segIndex: Math.min(state.segIndex + 1, KTX_SEGMENTS.length - 1),
+    segIndex: Math.min(state.segIndex + 1, routeSegments(state).length - 1),
     stars: [...state.stars, stars],
     idleMs: 0,
     assist: false
@@ -158,8 +174,9 @@ function arriveStopped(state, stars, events, how) {
 
 function openDoors(state, events) {
   const station = state.station;
-  if (state.segIndex >= KTX_SEGMENTS.length - 1 &&
-    state.stars.length === KTX_SEGMENTS.length) {
+  const segs = routeSegments(state);
+  if (state.segIndex >= segs.length - 1 &&
+    state.stars.length === segs.length) {
     // 종착 부산 — 전원 하차 피날레
     events.push({
       type: "finale",
@@ -211,6 +228,18 @@ function boardOne(state, events, auto = false) {
 }
 
 function closeDoors(state, events) {
+  // 동탄에서 아직 노선을 안 골랐으면 하늘(탑다운) 분기 선택으로 — 부산/목포.
+  if (state.station === BRANCH_STATION && !state.routeChosen) {
+    events.push({ type: "doors-closed", next: null });
+    events.push({ type: "branch-open", selected: state.selectedRoute });
+    return {
+      ...state,
+      doors: "closed",
+      phase: "branch",
+      idleMs: 0,
+      doorCountdownMs: null
+    };
+  }
   events.push({ type: "doors-closed", next: segment(state).to });
   // doorCountdownMs 리셋을 여기서 — 안 하면 문 경고 램프가 주행 내내 점멸(반증 B4)
   return {
@@ -220,6 +249,39 @@ function closeDoors(state, events) {
     idleMs: 0,
     doorCountdownMs: null
   };
+}
+
+// 분기 미리 선택(←/→) — branch 화면에서만.
+export function selectKtxRoute(state, routeId) {
+  if (state.phase !== "branch" || !KTX_ROUTES[routeId]) {
+    return { state, events: [] };
+  }
+  if (state.selectedRoute === routeId) return { state, events: [] };
+  return {
+    state: { ...state, selectedRoute: routeId, idleMs: 0 },
+    events: [{ type: "route-select", route: routeId }]
+  };
+}
+
+// 분기 확정 — 노선·일정·승객 배정을 그 노선의 역 이름으로 다시 짠다.
+// 같은 시드라 수서·동탄 몫(이미 태운 친구들)은 번호가 그대로다.
+function confirmRoute(state, events) {
+  const route = state.selectedRoute;
+  const next = {
+    ...state,
+    route,
+    routeChosen: true,
+    phase: "ready",
+    idleMs: 0,
+    schedule: scheduleEvents(state.seed, route),
+    manifest: buildPassengerManifest(state.seed, KTX_ROUTE_STATIONS[route])
+  };
+  events.push({
+    type: "route-chosen",
+    route,
+    next: KTX_ROUTES[route][next.segIndex].to
+  });
+  return next;
 }
 
 function depart(state, events, auto = false) {
@@ -255,6 +317,10 @@ export function pressKtxSpace(state) {
 
   if (state.phase === "stopped") {
     return { state: openDoors(state, events), events };
+  }
+
+  if (state.phase === "branch") {
+    return { state: confirmRoute(state, events), events };
   }
 
   if (state.phase !== "driving") return { state, events };
@@ -375,6 +441,20 @@ export function tickKtx(state, held = {}, elapsedMs = 150) {
     } else if (next.idleMs >= HINT_IDLE_MS && !next.openHinted) {
       next.openHinted = true;
       events.push({ type: "hint", what: "open-doors" });
+    }
+    return { state: next, events };
+  }
+
+  if (next.phase === "branch") {
+    if (held.up) {
+      // ↑ = "가자!" — 골라 둔 쪽으로 확정, 다음 틱 ready에서 출발
+      next = confirmRoute(next, events);
+    } else if (next.idleMs >= ASSIST_IDLE_MS) {
+      next = confirmRoute(next, events);
+      events.push({ type: "auto", what: "route" });
+    } else if (next.idleMs >= HINT_IDLE_MS && !next.branchHinted) {
+      next.branchHinted = true;
+      events.push({ type: "hint", what: "branch" });
     }
     return { state: next, events };
   }
@@ -509,7 +589,7 @@ export function ktxSummary(state) {
     speed: Math.round(state.v),
     boardedCount: state.boarded.length,
     stars: state.stars.reduce((sum, count) => sum + count, 0),
-    perfect: state.stars.length === KTX_SEGMENTS.length &&
+    perfect: state.stars.length === routeSegments(state).length &&
       state.stars.every(count => count === 3)
   };
 }
