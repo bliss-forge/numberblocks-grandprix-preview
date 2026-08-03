@@ -196,7 +196,7 @@ test("다음 환경 이미지는 미리 읽고 로드된 뒤에만 현재 장면
   assert.equal(root.dataset.loading, "false");
 });
 
-test("다음 환경 이미지 미리 읽기가 실패하면 즉시 SVG 폴백으로 전환한다", () => {
+test("다음 환경 이미지 미리 읽기가 실패해도 현재 실사 장면을 유지한다", () => {
   const document = fakeDocument();
   const initial = createKtxJourney(3, "srt");
   const root = renderKtxScene(document, initial, "cab");
@@ -225,7 +225,39 @@ test("다음 환경 이미지 미리 읽기가 실패하면 즉시 SVG 폴백으
   assert.equal(exterior.src,
     "https://game.test/assets/train-realistic/srt-exterior-city.webp",
     "실패한 자산은 현재 이미지에 쓰지 않음");
-  assert.equal(root.dataset.realistic, "fallback");
+  assert.equal(exterior.dataset.loaded, "true", "이미 로드된 현재 자산은 유효함");
+  assert.equal(exterior.dataset.failed, undefined);
+  assert.equal(root.dataset.realistic, "ready");
+  assert.equal(root.dataset.loading, "false");
+});
+
+test("로드된 A에서 B 미리 읽기 실패 후 A로 돌아오면 ready를 유지한다", () => {
+  const document = fakeDocument();
+  const initial = createKtxJourney(3, "srt");
+  const root = renderKtxScene(document, initial, "cab");
+  const cab = root.querySelector(".ktx-real-cab-image");
+  const exterior = root.querySelector(".ktx-real-exterior-image");
+  cab.dispatch("load");
+  exterior.dispatch("load");
+
+  const field = { ...initial, phase: "driving", x: 2000 };
+  updateKtxScene(root, field, "side");
+  const preloader = document.createdElements.find(element =>
+    element.tagName === "IMG" &&
+    element !== cab &&
+    element !== exterior &&
+    element.src.endsWith("/assets/train-realistic/srt-exterior-field.webp")
+  );
+  assert.ok(preloader);
+  preloader.dispatch("error");
+
+  updateKtxScene(root, initial, "side");
+
+  assert.equal(exterior.src,
+    "https://game.test/assets/train-realistic/srt-exterior-city.webp");
+  assert.equal(exterior.dataset.loaded, "true");
+  assert.equal(exterior.dataset.failed, undefined);
+  assert.equal(root.dataset.realistic, "ready");
   assert.equal(root.dataset.loading, "false");
 });
 

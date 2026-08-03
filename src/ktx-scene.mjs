@@ -144,10 +144,11 @@ function updateRealisticImage(image, src, alt, onStateChange) {
   image.alt = alt;
   if (image.dataset.assetSrc === src) {
     delete image.dataset.pendingSrc;
+    delete image.dataset.preloadFailedSrc;
     onStateChange?.();
     return;
   }
-  if (image.dataset.pendingSrc === src || image.dataset.failedSrc === src) return;
+  if (image.dataset.pendingSrc === src || image.dataset.preloadFailedSrc === src) return;
 
   image.dataset.pendingSrc = src;
   const preloader = image.ownerDocument.createElement("img");
@@ -157,6 +158,7 @@ function updateRealisticImage(image, src, alt, onStateChange) {
     delete image.dataset.pendingSrc;
     delete image.dataset.failed;
     delete image.dataset.failedSrc;
+    delete image.dataset.preloadFailedSrc;
     image.dataset.assetSrc = src;
     image.dataset.loaded = "true";
     image.src = src;
@@ -165,9 +167,7 @@ function updateRealisticImage(image, src, alt, onStateChange) {
   preloader.addEventListener?.("error", () => {
     if (image.dataset.pendingSrc !== src) return;
     delete image.dataset.pendingSrc;
-    delete image.dataset.loaded;
-    image.dataset.failed = "true";
-    image.dataset.failedSrc = src;
+    image.dataset.preloadFailedSrc = src;
     onStateChange?.();
   });
   preloader.src = src;
