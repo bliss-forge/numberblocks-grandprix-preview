@@ -48,6 +48,7 @@ import {
   speedoDialSvg,
   trainCardSvg
 } from "./ktx-scene-art.mjs";
+import { trainFrontSvg } from "./ktx-train-model.mjs";
 import { characterAsset } from "./character-spec.mjs";
 
 const WINDOW_SLOTS = 8;
@@ -440,6 +441,10 @@ export function renderKtxScene(document, state, view = "cab") {
   // 종착 피날레
   const finale = el(document, "div", "ktx-finale");
   finale.append(el(document, "h2", "ktx-finale-title", ""));
+  const finaleTrain = el(document, "div", "ktx-finale-train");
+  finaleTrain.innerHTML = trainFrontSvg(state.train);
+  finale.append(finaleTrain);
+  finale.append(el(document, "div", "ktx-finale-stops"));
   finale.append(el(document, "div", "ktx-finale-friends"));
   finale.append(el(document, "p", "ktx-finale-words", ""));
   root.append(finale);
@@ -957,19 +962,31 @@ export function updateKtxScene(root, state, view, events = [], held = {}) {
       pulse(balloon, "ktx-balloon-pop");
     }
     if (event.type === "finale") {
-      showFinale(document, root, event);
+      showFinale(document, root, event, state);
     }
   }
   return root;
 }
 
-function showFinale(document, root, event) {
+function showFinale(document, root, event, state) {
   const finale = root.querySelector(".ktx-finale");
   finale.dataset.on = "true";
   const title = root.querySelector(".ktx-finale-title");
   title.textContent = event.perfect
     ? "⭐ 퍼펙트 기관사! ⭐"
     : "부산에 도착했어요!";
+  // 정차 결과 — 역별 별 줄 (Canonical 정면 뷰 아래)
+  const stopsHost = root.querySelector(".ktx-finale-stops");
+  if (stopsHost && state) {
+    stopsHost.replaceChildren();
+    const stations = routeStations(state);
+    event.stars.forEach((count, index) => {
+      const chip = el(document, "span", "ktx-finale-stop");
+      chip.append(el(document, "b", "ktx-finale-stop-name", stations[index + 1]));
+      chip.append(el(document, "span", "ktx-finale-stop-stars", "⭐".repeat(count)));
+      stopsHost.append(chip);
+    });
+  }
   const friends = root.querySelector(".ktx-finale-friends");
   friends.replaceChildren();
   for (const number of event.boarded) {

@@ -7587,6 +7587,46 @@ body[data-mode="ktx"] .stage-lights {
   background: linear-gradient(to bottom, rgba(49, 68, 91, .18), transparent);
 }
 
+/* ── P2: 정차 결과 — 피날레에 Canonical 정면 뷰 + 역별 별 ─────────────── */
+.ktx-finale-train svg { width: 170px; height: auto; display: block; }
+
+.ktx-finale-stops {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12px;
+}
+
+.ktx-finale-stop {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 8px 14px;
+  border-radius: 14px;
+  background: #fff;
+  border: 3px solid #eef4fa;
+}
+
+.ktx-finale-stop-name { font-size: 15px; font-weight: 900; color: #31445b; }
+.ktx-finale-stop-stars { font-size: 16px; }
+
+/* ── P4: 미세 모션 — 팬터그래프 스웨이 + 고속 차체 미세 진동(±1px) ────── */
+.ktx-panto {
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+  animation: ktx-panto-sway 3.2s ease-in-out infinite alternate;
+}
+
+@keyframes ktx-panto-sway { to { transform: translateY(-1.5px); } }
+
+.ktx-game[data-speed-tier="4"] .ktx-side-train svg,
+.ktx-game[data-speed-tier="5"] .ktx-side-train svg {
+  animation: ktx-body-vib 1.1s ease-in-out infinite alternate;
+}
+
+@keyframes ktx-body-vib { to { transform: translateY(-1px); } }
+
 /* reduced-motion: 연속 이동·무한 반복만 끄고, 상태 전달(150ms 이산 갱신)은
    유지 — 판정 채널은 접근 스트립·✋·숫자·소리가 담당한다 */
 @media (prefers-reduced-motion: reduce) {
@@ -7620,6 +7660,7 @@ body[data-mode="ktx"] .stage-lights {
 
   .ktx-obj-run,
   .ktx-oncome,
+  .ktx-panto,
   .ktx-wheel,
   .ktx-palm,
   .ktx-band3,
@@ -7636,5 +7677,7 @@ body[data-mode="ktx"] .stage-lights {
   .ktx-finale-friend { animation: none; }
 
   .ktx-flash { animation: none; opacity: 0; }
+  .ktx-game[data-speed-tier="4"] .ktx-side-train svg,
+  .ktx-game[data-speed-tier="5"] .ktx-side-train svg { animation: none; }
   .ktx-cab-shake { animation: none; }
 }
