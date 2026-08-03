@@ -95,12 +95,14 @@ function realisticImage(document, className, src, alt, onStateChange) {
   image.decoding = "async";
   image.addEventListener?.("load", () => {
     delete image.dataset.failed;
+    delete image.dataset.failedSrc;
     image.dataset.loaded = "true";
     onStateChange?.();
   });
   image.addEventListener?.("error", () => {
     delete image.dataset.loaded;
     image.dataset.failed = "true";
+    image.dataset.failedSrc = image.dataset.assetSrc;
     onStateChange?.();
   });
   return image;
@@ -117,6 +119,9 @@ function buildRealisticScene(document, state, onStateChange) {
       realisticExteriorAsset(state.train.id, band.land),
       realisticAssetAlt("외부", band.land), onStateChange)
   );
+  const veil = el(document, "div", "ktx-loading-veil");
+  veil.setAttribute("aria-hidden", "true");
+  scene.append(veil);
   return scene;
 }
 
@@ -124,34 +129,63 @@ function syncRealisticState(root) {
   const images = [...root.querySelectorAll(".ktx-real-scene img")];
   if (images.some(image => image.dataset.failed === "true")) {
     root.dataset.realistic = "fallback";
+    root.dataset.loading = "false";
     return;
   }
-  root.dataset.realistic = images.length === 2 &&
-    images.every(image => image.dataset.loaded === "true")
-    ? "ready"
-    : "pending";
+  const ready = images.length === 2 &&
+    images.every(image => image.dataset.loaded === "true");
+  const loading = !ready || images.some(image => image.dataset.pendingSrc);
+  root.dataset.realistic = ready ? "ready" : "pending";
+  root.dataset.loading = String(loading);
 }
 
-function updateRealisticImage(image, src, alt) {
+function updateRealisticImage(image, src, alt, onStateChange) {
   if (!image) return;
   image.alt = alt;
-  if (image.dataset.assetSrc === src) return;
-  image.dataset.assetSrc = src;
-  delete image.dataset.loaded;
-  delete image.dataset.failed;
-  image.src = src;
+  if (image.dataset.assetSrc === src) {
+    delete image.dataset.pendingSrc;
+    onStateChange?.();
+    return;
+  }
+  if (image.dataset.pendingSrc === src || image.dataset.failedSrc === src) return;
+
+  image.dataset.pendingSrc = src;
+  const preloader = image.ownerDocument.createElement("img");
+  preloader.decoding = "async";
+  preloader.addEventListener?.("load", () => {
+    if (image.dataset.pendingSrc !== src) return;
+    delete image.dataset.pendingSrc;
+    delete image.dataset.failed;
+    delete image.dataset.failedSrc;
+    image.dataset.assetSrc = src;
+    image.dataset.loaded = "true";
+    image.src = src;
+    onStateChange?.();
+  });
+  preloader.addEventListener?.("error", () => {
+    if (image.dataset.pendingSrc !== src) return;
+    delete image.dataset.pendingSrc;
+    delete image.dataset.loaded;
+    image.dataset.failed = "true";
+    image.dataset.failedSrc = src;
+    onStateChange?.();
+  });
+  preloader.src = src;
+  onStateChange?.();
 }
 
 function updateRealisticScene(root, state, band) {
   updateRealisticImage(
     root.querySelector(".ktx-real-cab-image"),
     realisticCabAsset(band.sky, band.land),
-    realisticAssetAlt("운전실", `${band.sky} ${band.land}`)
+    realisticAssetAlt("운전실", `${band.sky} ${band.land}`),
+    () => syncRealisticState(root)
   );
   updateRealisticImage(
     root.querySelector(".ktx-real-exterior-image"),
     realisticExteriorAsset(state.train.id, band.land),
-    realisticAssetAlt("외부", band.land)
+    realisticAssetAlt("외부", band.land),
+    () => syncRealisticState(root)
   );
   syncRealisticState(root);
 }

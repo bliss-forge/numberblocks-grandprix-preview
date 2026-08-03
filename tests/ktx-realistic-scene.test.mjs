@@ -105,8 +105,11 @@ class FakeElement {
 
 function fakeDocument() {
   const document = {
+    createdElements: [],
     createElement(tagName) {
-      return new FakeElement(document, tagName);
+      const element = new FakeElement(document, tagName);
+      document.createdElements.push(element);
+      return element;
     },
     createElementNS(_namespace, tagName) {
       return new FakeElement(document, tagName);
@@ -140,17 +143,23 @@ test("현재 실사 이미지가 모두 로드된 뒤에만 준비 상태가 된
   const exterior = root.querySelector(".ktx-real-exterior-image");
 
   assert.equal(root.dataset.realistic, "pending");
+  assert.equal(root.dataset.loading, "true");
+  assert.ok(root.querySelector(".ktx-loading-veil"));
   cab.dispatch("load");
   assert.equal(root.dataset.realistic, "pending", "한 장만 로드되면 대기 유지");
   exterior.dispatch("load");
   assert.equal(root.dataset.realistic, "ready");
+  assert.equal(root.dataset.loading, "false");
 });
 
-test("장면 갱신은 이미지 노드를 재마운트하지 않고 경로가 바뀔 때만 src를 바꾼다", () => {
+test("다음 환경 이미지는 미리 읽고 로드된 뒤에만 현재 장면을 교체한다", () => {
+  const document = fakeDocument();
   const initial = createKtxJourney(3, "srt");
-  const root = renderKtxScene(fakeDocument(), initial, "cab");
+  const root = renderKtxScene(document, initial, "cab");
   const cab = root.querySelector(".ktx-real-cab-image");
   const exterior = root.querySelector(".ktx-real-exterior-image");
+  cab.dispatch("load");
+  exterior.dispatch("load");
 
   updateKtxScene(root, initial, "side");
   assert.equal(root.querySelector(".ktx-real-cab-image"), cab);
@@ -165,13 +174,32 @@ test("장면 갱신은 이미지 노드를 재마운트하지 않고 경로가 �
   assert.equal(cab.src, "https://game.test/assets/train-realistic/cab-day.webp");
   assert.equal(cab.srcWrites, 1, "같은 주간 운전실 경로는 유지");
   assert.equal(exterior.src,
+    "https://game.test/assets/train-realistic/srt-exterior-city.webp",
+    "다음 사진이 준비되는 동안 현재 사진 유지");
+  assert.equal(exterior.srcWrites, 1);
+  assert.equal(root.dataset.realistic, "ready");
+  assert.equal(root.dataset.loading, "true");
+
+  const preloader = document.createdElements.find(element =>
+    element.tagName === "IMG" &&
+    element !== cab &&
+    element !== exterior &&
+    element.src.endsWith("/assets/train-realistic/srt-exterior-field.webp")
+  );
+  assert.ok(preloader, "다음 환경 자산을 별도 이미지로 미리 읽음");
+  preloader.dispatch("load");
+
+  assert.equal(exterior.src,
     "https://game.test/assets/train-realistic/srt-exterior-field.webp");
-  assert.equal(exterior.srcWrites, 2, "환경이 바뀐 외부 경로만 갱신");
+  assert.equal(exterior.srcWrites, 2, "미리 읽기가 끝난 뒤 현재 이미지 교체");
+  assert.equal(root.dataset.realistic, "ready");
+  assert.equal(root.dataset.loading, "false");
 });
 
-test("환경 이미지 경로가 바뀌면 새 이미지가 로드될 때까지 대기한다", () => {
+test("다음 환경 이미지 미리 읽기가 실패하면 즉시 SVG 폴백으로 전환한다", () => {
+  const document = fakeDocument();
   const initial = createKtxJourney(3, "srt");
-  const root = renderKtxScene(fakeDocument(), initial, "cab");
+  const root = renderKtxScene(document, initial, "cab");
   const cab = root.querySelector(".ktx-real-cab-image");
   const exterior = root.querySelector(".ktx-real-exterior-image");
   cab.dispatch("load");
@@ -181,10 +209,24 @@ test("환경 이미지 경로가 바뀌면 새 이미지가 로드될 때까지 
   updateKtxScene(root, { ...initial, phase: "driving", x: 2000 }, "side");
 
   assert.equal(cab.dataset.loaded, "true", "같은 운전실 자산은 로드 상태 유지");
-  assert.equal(exterior.dataset.loaded, undefined, "바뀐 외부 자산은 다시 대기");
-  assert.equal(root.dataset.realistic, "pending");
-  exterior.dispatch("load");
+  assert.equal(exterior.dataset.loaded, "true", "현재 외부 자산도 화면에 유지");
   assert.equal(root.dataset.realistic, "ready");
+  assert.equal(root.dataset.loading, "true");
+
+  const preloader = document.createdElements.find(element =>
+    element.tagName === "IMG" &&
+    element !== cab &&
+    element !== exterior &&
+    element.src.endsWith("/assets/train-realistic/srt-exterior-field.webp")
+  );
+  assert.ok(preloader);
+  preloader.dispatch("error");
+
+  assert.equal(exterior.src,
+    "https://game.test/assets/train-realistic/srt-exterior-city.webp",
+    "실패한 자산은 현재 이미지에 쓰지 않음");
+  assert.equal(root.dataset.realistic, "fallback");
+  assert.equal(root.dataset.loading, "false");
 });
 
 test("같은 이미지 경로를 써도 현재 장면 대체 텍스트를 갱신한다", () => {
