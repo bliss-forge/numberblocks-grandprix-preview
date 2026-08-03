@@ -50,6 +50,11 @@ import {
 } from "./ktx-scene-art.mjs";
 import { trainFrontSvg } from "./ktx-train-model.mjs";
 import { characterAsset } from "./character-spec.mjs";
+import {
+  realisticAssetAlt,
+  realisticCabAsset,
+  realisticExteriorAsset
+} from "./ktx-realistic-assets.mjs";
 
 const WINDOW_SLOTS = 8;
 const NEAR_SCALE = 3;          // 3인칭: 1 game m = 3 px
@@ -79,6 +84,70 @@ function passengerImg(document, number, className) {
   image.src = `assets/characters/${characterAsset(number)}`;
   image.alt = `숫자 ${number} 블록 친구`;
   return image;
+}
+
+function realisticImage(document, className, src, alt, onStateChange) {
+  const image = document.createElement("img");
+  image.className = className;
+  image.dataset.assetSrc = src;
+  image.src = src;
+  image.alt = alt;
+  image.decoding = "async";
+  image.addEventListener?.("load", () => {
+    delete image.dataset.failed;
+    image.dataset.loaded = "true";
+    onStateChange?.();
+  });
+  image.addEventListener?.("error", () => {
+    delete image.dataset.loaded;
+    image.dataset.failed = "true";
+    onStateChange?.();
+  });
+  return image;
+}
+
+function buildRealisticScene(document, state, onStateChange) {
+  const scene = el(document, "div", "ktx-real-scene");
+  const band = currentBand(state);
+  scene.append(
+    realisticImage(document, "ktx-real-cab-image",
+      realisticCabAsset(band.sky, band.land),
+      realisticAssetAlt("운전실", `${band.sky} ${band.land}`), onStateChange),
+    realisticImage(document, "ktx-real-exterior-image",
+      realisticExteriorAsset(state.train.id, band.land),
+      realisticAssetAlt("외부", band.land), onStateChange)
+  );
+  return scene;
+}
+
+function syncRealisticState(root) {
+  const images = root.querySelectorAll(".ktx-real-scene img");
+  root.dataset.realistic = [...images].some(image => image.dataset.failed === "true")
+    ? "fallback"
+    : "ready";
+}
+
+function updateRealisticImage(image, src, alt) {
+  if (!image || image.dataset.assetSrc === src) return;
+  image.dataset.assetSrc = src;
+  image.alt = alt;
+  delete image.dataset.loaded;
+  delete image.dataset.failed;
+  image.src = src;
+}
+
+function updateRealisticScene(root, state, band) {
+  updateRealisticImage(
+    root.querySelector(".ktx-real-cab-image"),
+    realisticCabAsset(band.sky, band.land),
+    realisticAssetAlt("운전실", `${band.sky} ${band.land}`)
+  );
+  updateRealisticImage(
+    root.querySelector(".ktx-real-exterior-image"),
+    realisticExteriorAsset(state.train.id, band.land),
+    realisticAssetAlt("외부", band.land)
+  );
+  syncRealisticState(root);
 }
 
 // ── 시작 화면: 열차 고르기 ────────────────────────────────────────────────
@@ -380,7 +449,11 @@ export function renderKtxScene(document, state, view = "cab") {
   root.dataset.train = state.train.id;
 
   const stage = el(document, "div", "ktx-stage");
-  stage.append(buildCabView(document, state), buildSideView(document, state));
+  stage.append(
+    buildRealisticScene(document, state, () => syncRealisticState(root)),
+    buildCabView(document, state),
+    buildSideView(document, state)
+  );
   root.append(stage);
 
   const hud = el(document, "div", "ktx-hud");
@@ -697,6 +770,7 @@ export function updateKtxScene(root, state, view, events = [], held = {}) {
   root.dataset.phase = state.phase;
   root.dataset.sky = band.sky;
   root.dataset.land = band.land;
+  updateRealisticScene(root, state, band);
   root.dataset.doors = state.doors;
   root.dataset.tunnel = String(band.land === "tunnel");
   root.dataset.armed = String(state.armed && state.phase === "driving");
