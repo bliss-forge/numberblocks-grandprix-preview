@@ -250,7 +250,16 @@ function landStrip(land) {
           `fill="url(#ktx-g-land-city)"/>${windows}`;
       })
       .join("");
-    return `${back}${blocks}<rect x="330" y="16" width="18" height="60" fill="${palette.pop}"/>`;
+    // 랜드마크 굴뚝 — 지면까지 내려오는 적백 밴드 스택(공중에 뜬 빨간 막대 금지)
+    const stack =
+      `<path d="M330 200 L333 24 L347 24 L350 200z" fill="${haze(palette.base)}"/>` +
+      `<path d="M331.6 108 L333 24 L347 24 L348.4 108z" fill="${palette.pop}"/>` +
+      [40, 66, 92].map(y =>
+        `<rect x="${331.4 + (y - 24) * 0.017}" y="${y}" ` +
+        `width="${17.2 - (y - 24) * 0.034}" height="9" fill="${PAPER}" opacity=".85"/>`
+      ).join("") +
+      `<circle cx="340" cy="20" r="3" fill="${palette.pop}"/>`;
+    return `${back}${blocks}${stack}`;
   }
   if (land === "field") {
     const back =
