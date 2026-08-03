@@ -507,6 +507,16 @@
     bottom: 5px;
   }
 
+  body[data-mode="ktx"] .ktx-game[data-realistic="ready"][data-view="cab"] .ktx-lever {
+    right: 10px;
+    left: auto;
+    transform-origin: right bottom;
+  }
+
+  body[data-mode="ktx"] .ktx-game[data-realistic="ready"][data-view="cab"] .ktx-next-key {
+    left: 10px;
+  }
+
   body[data-mode="ktx"] .ktx-game[data-realistic="ready"][data-view="side"] .ktx-next-key {
     left: 68px;
     bottom: 10px;

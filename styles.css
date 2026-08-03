@@ -7801,17 +7801,17 @@ body[data-mode="ktx"] .stage-lights {
   opacity: 1;
 }
 
-/* 바깥 뷰는 승인안처럼 상단 65%를 월드, 하단 35%를 실제 운전 계기로 쓴다. */
+/* 바깥 뷰는 승인안처럼 상단 71%를 월드, 하단 29%를 실제 운전 계기로 쓴다. */
 .ktx-game[data-realistic="ready"][data-view="side"] .ktx-real-exterior-image {
   inset: 0 0 auto;
-  height: 65%;
+  height: 71%;
   object-position: center 58%;
 }
 
 .ktx-game[data-realistic="ready"][data-view="side"] .ktx-view-cab::before {
   position: absolute;
   inset: auto 0 0;
-  height: 35%;
+  height: 29%;
   z-index: 10;
   border-top: 3px solid rgba(187, 204, 220, .5);
   background:
@@ -7875,9 +7875,15 @@ body[data-mode="ktx"] .stage-lights {
 .ktx-game[data-realistic="ready"] .ktx-view-side .ktx-side-backdrop,
 .ktx-game[data-realistic="ready"] .ktx-view-side .ktx-side-far,
 .ktx-game[data-realistic="ready"] .ktx-view-side .ktx-side-mid,
+.ktx-game[data-realistic="ready"] .ktx-view-side .ktx-side-near,
 .ktx-game[data-realistic="ready"] .ktx-view-side .ktx-ground-rig,
 .ktx-game[data-realistic="ready"] .ktx-view-side .ktx-side-train {
   opacity: 0;
+}
+
+/* 실사 열차 위를 가로지르는 레거시 전경 모션은 장면 준비 즉시 제거한다. */
+.ktx-game[data-realistic="ready"] .ktx-view-side .ktx-side-near {
+  display: none;
 }
 
 /* 사진 속 장식 계기는 한 톤 눌러 두고, 그 위의 실제 수치·노치·문 상태만 읽힌다. */
@@ -7912,6 +7918,17 @@ body[data-mode="ktx"] .stage-lights {
   transform: scale(1.4);
   transform-origin: right bottom;
   filter: drop-shadow(0 8px 12px rgba(0, 0, 0, .44));
+}
+
+/* 운전실 사진의 기존 계기판을 살리고, 실제 조작 레버는 승인안처럼 왼쪽에 둔다. */
+.ktx-game[data-realistic="ready"][data-view="cab"] .ktx-lever {
+  right: auto;
+  left: 34px;
+  transform-origin: left bottom;
+}
+
+.ktx-game[data-realistic="ready"][data-view="cab"] .ktx-next-key {
+  left: 190px;
 }
 
 .ktx-game[data-realistic="ready"] .ktx-approach {
@@ -7966,7 +7983,7 @@ body[data-mode="ktx"] .stage-lights {
 }
 
 .ktx-game[data-realistic="ready"] .ktx-platform {
-  bottom: 35%;
+  bottom: 29%;
   height: 0;
   background: none;
 }
@@ -7974,11 +7991,11 @@ body[data-mode="ktx"] .stage-lights {
 .ktx-game[data-realistic="ready"] .ktx-stop-marker { top: -52px; }
 
 .ktx-game[data-realistic="ready"] .ktx-queue {
-  bottom: calc(35% + 2px);
+  bottom: calc(29% + 2px);
 }
 
 .ktx-game[data-realistic="ready"] .ktx-walker-host {
-  bottom: calc(35% + 2px);
+  bottom: calc(29% + 2px);
 }
 
 /* 고속 블러는 사진·열차·계기가 아니라 카메라 가까운 전신주에만 적용한다. */
