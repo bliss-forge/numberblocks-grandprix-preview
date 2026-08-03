@@ -7801,6 +7801,54 @@ body[data-mode="ktx"] .stage-lights {
   opacity: 1;
 }
 
+/* 바깥 뷰는 승인안처럼 상단 65%를 월드, 하단 35%를 실제 운전 계기로 쓴다. */
+.ktx-game[data-realistic="ready"][data-view="side"] .ktx-real-exterior-image {
+  inset: 0 0 auto;
+  height: 65%;
+  object-position: center 58%;
+}
+
+.ktx-game[data-realistic="ready"][data-view="side"] .ktx-real-scene::after {
+  position: absolute;
+  inset: auto 0 0;
+  height: 35%;
+  border-top: 3px solid rgba(187, 204, 220, .5);
+  background:
+    linear-gradient(100deg, rgba(255, 255, 255, .07), transparent 22% 78%, rgba(255, 255, 255, .05)),
+    linear-gradient(to bottom, #27313c, #111821 62%, #080d13);
+  box-shadow: inset 0 10px 24px rgba(0, 0, 0, .32);
+  content: "";
+}
+
+/* 상태 갱신 중인 운전실 계기를 그대로 바깥 뷰의 콘솔 레이어로 재사용한다. */
+.ktx-game[data-realistic="ready"][data-view="side"] .ktx-view-cab {
+  z-index: 3;
+  opacity: 1;
+  visibility: visible;
+  transition: none;
+}
+
+.ktx-game[data-realistic="ready"][data-view="side"] .ktx-view-cab > * {
+  display: none;
+}
+
+.ktx-game[data-realistic="ready"][data-view="side"] .ktx-speedo,
+.ktx-game[data-realistic="ready"][data-view="side"] .ktx-lever,
+.ktx-game[data-realistic="ready"][data-view="side"] .ktx-door-panel,
+.ktx-game[data-realistic="ready"][data-view="side"] .ktx-next-key {
+  display: block;
+  animation-play-state: running;
+}
+
+.ktx-game[data-realistic="ready"][data-view="side"] .ktx-next-key { display: flex; }
+
+.ktx-game[data-realistic="ready"][data-view="side"] .ktx-speedo *,
+.ktx-game[data-realistic="ready"][data-view="side"] .ktx-lever *,
+.ktx-game[data-realistic="ready"][data-view="side"] .ktx-door-panel *,
+.ktx-game[data-realistic="ready"][data-view="side"] .ktx-next-key * {
+  animation-play-state: running;
+}
+
 /* 사진 자체는 끝까지 선명하다. 달리는 동안의 움직임은 1% 여유 안에서 카메라
    크롭만 천천히 이동시키고, 속도감은 별도 전경 레이어가 담당한다. */
 .ktx-game[data-realistic="ready"][data-moving="true"] .ktx-real-cab-image,
@@ -7831,7 +7879,7 @@ body[data-mode="ktx"] .stage-lights {
 }
 
 /* 사진 속 장식 계기는 한 톤 눌러 두고, 그 위의 실제 수치·노치·문 상태만 읽힌다. */
-.ktx-game[data-realistic="ready"] .ktx-view-cab::after {
+.ktx-game[data-realistic="ready"][data-view="cab"] .ktx-view-cab::after {
   position: absolute;
   inset: 0;
   z-index: 10;
@@ -7884,6 +7932,51 @@ body[data-mode="ktx"] .stage-lights {
 .ktx-game[data-realistic="ready"] .ktx-next-key {
   bottom: calc(31% + 4px);
   box-shadow: 0 5px 14px rgba(0, 0, 0, .28);
+}
+
+/* 바깥 콘솔은 승인안 계기 순서: 레버 · 현재 행동/경적 · 속도 · 문 상태. */
+.ktx-game[data-realistic="ready"][data-view="side"] .ktx-lever {
+  right: auto;
+  left: 36px;
+  bottom: 18px;
+  transform-origin: left bottom;
+}
+
+.ktx-game[data-realistic="ready"][data-view="side"] .ktx-next-key {
+  left: 166px;
+  bottom: 34px;
+}
+
+.ktx-game[data-realistic="ready"][data-view="side"] .ktx-door-panel {
+  right: 178px;
+  left: auto;
+  bottom: 18px;
+}
+
+/* 사진 열차 위에 역 지붕이 뜨지 않게 구조물만 제거한다. 별 정차표와 친구들은 유지. */
+.ktx-game[data-realistic="ready"] .ktx-platform-roof,
+.ktx-game[data-realistic="ready"] .ktx-platform-canopy,
+.ktx-game[data-realistic="ready"] .ktx-platform-pillar,
+.ktx-game[data-realistic="ready"] .ktx-platform-clock,
+.ktx-game[data-realistic="ready"] .ktx-platform-bench,
+.ktx-game[data-realistic="ready"] .ktx-platform-sign {
+  display: none;
+}
+
+.ktx-game[data-realistic="ready"] .ktx-platform {
+  bottom: 35%;
+  height: 0;
+  background: none;
+}
+
+.ktx-game[data-realistic="ready"] .ktx-stop-marker { top: -52px; }
+
+.ktx-game[data-realistic="ready"] .ktx-queue {
+  bottom: calc(35% + 2px);
+}
+
+.ktx-game[data-realistic="ready"] .ktx-walker-host {
+  bottom: calc(35% + 2px);
 }
 
 /* 고속 블러는 사진·열차·계기가 아니라 카메라 가까운 전신주에만 적용한다. */
