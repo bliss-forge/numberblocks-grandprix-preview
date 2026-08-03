@@ -167,18 +167,20 @@ export function trainSideSvg(train, { windows = 8 } = {}) {
     ]) +
     `</defs>`;
 
+  // 차체 세로 배분(실차 비율): 루프밴드 58~68 · 어깨 68~72 · 창 72~112(40) ·
+  // 벨트라인 112~117 · 스커트 117~128. 창이 차체를 다 먹지 않아야 "검은
+  // 직사각형"이 아니라 객차로 읽힌다.
   const slots = Array.from({ length: windows }, (unused, index) => {
     const car = Math.floor(index / 2);
     const x = carAt(car) + 7 + (index % 2) * 75;
-    // 알루미늄 프레임(외곽) + 고무 실(내곽) 안에 62×52 유리 — 계약 치수 유지
-    return `<g class="ktx-window-slot" data-slot="${index}" transform="translate(${x} 60)">` +
-      `<rect x="-3" y="-3" width="68" height="58" rx="10" fill="${frame}"/>` +
-      `<rect x="-1" y="-1" width="64" height="54" rx="9" fill="${darken(L.glass, 0.35)}"/>` +
-      `<rect width="62" height="52" rx="8" fill="url(#${gid("glass")})"/>` +
-      `<rect x="2" y="2" width="58" height="14" rx="6" fill="${L.glassHi}" opacity=".5"/>` +
-      `<polygon points="6,52 26,0 40,0 14,52" fill="#ffffff" opacity=".16"/>` +
-      `<polygon points="34,52 50,6 56,6 42,52" fill="#ffffff" opacity=".08"/>` +
-      `<rect class="ktx-window-glow" width="62" height="52" rx="8" ` +
+    // 고무 실(외곽 1px) 안에 62×40 유리 + 상단 틴트 밴드 + 사선 반사
+    return `<g class="ktx-window-slot" data-slot="${index}" transform="translate(${x} 76)">` +
+      `<rect x="-1.6" y="-1.6" width="65.2" height="37.2" rx="9" fill="${frame}"/>` +
+      `<rect width="62" height="34" rx="8" fill="url(#${gid("glass")})"/>` +
+      `<rect x="2" y="2" width="58" height="10" rx="5" fill="${L.glassHi}" opacity=".5"/>` +
+      `<polygon points="6,34 20,0 32,0 18,34" fill="#ffffff" opacity=".16"/>` +
+      `<polygon points="34,34 46,4 52,4 40,34" fill="#ffffff" opacity=".08"/>` +
+      `<rect class="ktx-window-glow" width="62" height="34" rx="8" ` +
       `fill="${BEAM}" opacity="0"/>` +
       `</g>`;
   }).join("");
@@ -187,7 +189,7 @@ export function trainSideSvg(train, { windows = 8 } = {}) {
   // (열림은 CSS translateX ±14px — 계약: 문짝 16×46, warnlamp)
   const doors = Array.from({ length: 4 }, (unused, index) => {
     const x = carAt(index) + 157;
-    return `<g class="ktx-door" transform="translate(${x} 58)">` +
+    return `<g class="ktx-door" transform="translate(${x} 68)">` +
       `<rect x="-2" y="-1" width="40" height="56" rx="5" fill="${frame}"/>` +
       `<rect width="36" height="54" rx="4" fill="${darken(L.skirt, 0.24)}"/>` +
       `<rect x="2" y="4" width="32" height="46" rx="3" fill="${darken(L.skirt, 0.1)}"/>` +
@@ -218,12 +220,12 @@ export function trainSideSvg(train, { windows = 8 } = {}) {
   // 차량 연결부 — 다중 주름 자바라 + 상부 커버(움직임은 CSS .ktx-gangway)
   const joints = [530, 730, 930].map(x =>
     `<g class="ktx-gangway">` +
-    `<rect x="${x - 7}" y="60" width="14" height="52" rx="2" fill="${darken(L.skirt, 0.3)}"/>` +
+    `<rect x="${x - 7}" y="62" width="14" height="56" rx="2" fill="${darken(L.skirt, 0.3)}"/>` +
     [-5, -1.5, 2, 5.5].map(dx =>
-      `<rect x="${x + dx - 0.7}" y="61" width="1.4" height="50" fill="${lighten(L.skirt, 0.16)}" opacity=".55"/>`
+      `<rect x="${x + dx - 0.7}" y="63" width="1.4" height="54" fill="${lighten(L.skirt, 0.16)}" opacity=".55"/>`
     ).join("") +
-    `<rect x="${x - 8}" y="59" width="16" height="5" rx="2.5" fill="${lighten(L.skirt, 0.2)}"/>` +
-    `<rect x="${x - 8}" y="108" width="16" height="4" rx="2" fill="${bogieDeep}"/>` +
+    `<rect x="${x - 8}" y="61" width="16" height="5" rx="2.5" fill="${lighten(L.skirt, 0.2)}"/>` +
+    `<rect x="${x - 8}" y="114" width="16" height="4" rx="2" fill="${bogieDeep}"/>` +
     `</g>`
   ).join("");
 
@@ -278,12 +280,12 @@ export function trainSideSvg(train, { windows = 8 } = {}) {
 
   // 루프 장비 — 에어컨 유닛(그릴 슬릿) + 배관 라인 (판토 380~460 회피)
   const roofGear = [[500, 70], [788, 70], [986, 46]].map(([x, w]) =>
-    `<rect x="${x}" y="50" width="${w}" height="8" rx="3" fill="url(#${gid("acunit")})"/>` +
+    `<rect x="${x}" y="49" width="${w}" height="9" rx="3" fill="url(#${gid("acunit")})"/>` +
     [0.22, 0.42, 0.62, 0.82].map(t =>
-      `<rect x="${(x + w * t).toFixed(0)}" y="51.5" width="2" height="5" rx="1" ` +
+      `<rect x="${(x + w * t).toFixed(0)}" y="50.5" width="2" height="6" rx="1" ` +
       `fill="${darken(GEAR, 0.4)}" opacity=".8"/>`
     ).join("") +
-    `<rect x="${x}" y="50" width="${w}" height="2" rx="1" fill="${lighten(GEAR, 0.45)}"/>`
+    `<rect x="${x}" y="49" width="${w}" height="2" rx="1" fill="${lighten(GEAR, 0.45)}"/>`
   ).join("");
 
   // ── 노즈 아트 v2 — 낮고 뾰족한 유선형 + 루프 캡 테이퍼 + LED 클러스터 ──
@@ -306,13 +308,13 @@ export function trainSideSvg(train, { windows = 8 } = {}) {
     ? "M226 88 L240 73 L252 72 L236 87z"
     : "M222 89 L238 72 L250 71 L232 88z";
   // 스트라이프 — 팁 하부에서 시작해 벨트라인(y111.5)으로 스윕
+  // 벨트라인 스윕 — 차체 스트라이프(112~117)와 팁을 잇는다
   const noseStripe = isSrt
-    ? "M26 113 C76 108 170 106.5 332 106.5 L332 112 C172 112 96 113 36 117.5 C31 116 28 114.5 26 113z"
-    : "M18 116 C78 107.5 174 105.5 332 106.5 L332 112 C174 111 98 113.5 24 119.5z"
-  ;
+    ? "M27 118 C77 113 170 114 332 114 L332 119 C172 119 96 119.5 36 122.5 C32 121 29 119.5 27 118z"
+    : "M19 121 C79 113 174 113 332 114 L332 119 C174 118.5 98 120 25 124.5z";
   const noseSkirt = isSrt
-    ? "M7 128 C7 124 8.5 119 14 116 L22 114 C16.5 119 14 123 13.5 128z"
-    : "M5 128 L6.5 118 L20 114 C14.5 119 12 123 11 128z";
+    ? "M7 128 C7 125.5 8.5 122 14 120 L24 118.5 C18 122 15 125 14 128z"
+    : "M5 128 L6.5 121.5 L22 118.5 C16 122 13 125 12 128z";
   const lampX = isSrt ? 26 : 20;
   const noseArt = (lampFill, isLampLens) =>
     `<path d="${noseHull}" fill="url(#${gid("body")})"/>` +
@@ -356,7 +358,7 @@ export function trainSideSvg(train, { windows = 8 } = {}) {
 
   // 차체 패널 심 — 량 중앙 세로 라인
   const panelSeams = [430, 630, 830, 1030].map(x =>
-    `<rect x="${x}" y="72" width="1" height="38" fill="${frame}" opacity=".3"/>`
+    `<rect x="${x}" y="68" width="1" height="50" fill="${frame}" opacity=".3"/>`
   ).join("");
 
   return svgWrap("ktx-side-train-art", "0 0 1200 170", [
@@ -377,26 +379,26 @@ export function trainSideSvg(train, { windows = 8 } = {}) {
     // 후미 노즈 — 같은 리버리 미러 + 빨간 후미등
     `<g transform="translate(1200 0) scale(-1 1)">${noseArt(L.tail, false)}</g>`,
     // 연속 차체 — 흰색 + 금속 스커트
-    `<rect x="330" y="58" width="800" height="54" fill="url(#${gid("body")})"/>`,
-    `<rect x="330" y="112" width="800" height="16" fill="url(#${gid("skirt")})"/>`,
-    `<rect x="330" y="112" width="800" height="2" fill="${lighten(L.skirt, 0.28)}" opacity=".7"/>`,
+    `<rect x="330" y="58" width="800" height="61" fill="url(#${gid("body")})"/>`,
+    `<rect x="330" y="119" width="800" height="9" fill="url(#${gid("skirt")})"/>`,
+    `<rect x="330" y="119" width="800" height="2" fill="${lighten(L.skirt, 0.28)}" opacity=".7"/>`,
     // 루프 밴드 — 짙은 보라 + 상단 광, 하단 분리선
-    `<rect x="330" y="58" width="800" height="12" fill="url(#${gid("roof")})"/>`,
+    `<rect x="330" y="58" width="800" height="8" fill="url(#${gid("roof")})"/>`,
     `<rect x="330" y="58" width="800" height="1.6" fill="${lighten(L.roof, 0.4)}" opacity=".8"/>`,
-    `<rect x="330" y="70" width="800" height="1.2" fill="${darken(L.roofDeep, 0.2)}"/>`,
+    `<rect x="330" y="66" width="800" height="1.2" fill="${darken(L.roofDeep, 0.2)}"/>`,
     // 차체 상부 사광 — 금속 반사
-    `<rect x="330" y="71" width="800" height="3" fill="#ffffff" opacity=".4"/>`,
-    `<rect x="330" y="74" width="800" height="14" fill="#ffffff" opacity=".08"/>`,
+    `<rect x="330" y="67.2" width="800" height="2.4" fill="#ffffff" opacity=".4"/>`,
+    `<rect x="330" y="69.6" width="800" height="9" fill="#ffffff" opacity=".08"/>`,
     panelSeams,
     roofGear,
     joints,
     slots,
     doors,
     // 벨트라인 스트라이프 — 창 아래 스커트 경계를 관통해 노즈 스윕과 이어진다
-    `<rect x="330" y="106.5" width="800" height="5.5" fill="url(#${gid("stripe")})"/>`,
+    `<rect x="330" y="114" width="800" height="5" fill="url(#${gid("stripe")})"/>`,
     // 로고 — 노즈 흰 측면(리버리색 이탤릭) + 차체 중앙 루프 밴드
     logoText(train, 150, 100, 21, L.roof),
-    logoText(train, 730, 67.5, 11, L.body),
+    logoText(train, 730, 65.4, 9, L.body),
     isSrt
       ? ""
       : `<path d="M1044 58 L1058 46 L1072 58z" fill="${L.roofDeep}"/>`,

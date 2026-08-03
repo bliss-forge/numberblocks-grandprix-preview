@@ -568,9 +568,11 @@ function updateWindows(root, state) {
         ? slot.ownerDocument.createElementNS("http://www.w3.org/2000/svg", "image")
         : null;
       if (image) {
+        // 창 유리 62×34 안에 정사각 34×34로 중앙 정렬(모델 v2 비율)
         image.setAttribute("href", `assets/characters/${characterAsset(number)}`);
-        image.setAttribute("width", "62");
-        image.setAttribute("height", "52");
+        image.setAttribute("x", "14");
+        image.setAttribute("width", "34");
+        image.setAttribute("height", "34");
         image.classList.add("ktx-window-face");
         slot.append(image);
       }

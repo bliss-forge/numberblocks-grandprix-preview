@@ -49,7 +49,9 @@ test("측면 뷰는 씬 계약(슬롯8·문4·바퀴7·판토1·빔1)을 만족�
     for (let slot = 0; slot < 8; slot += 1) {
       assert.ok(svg.includes(`data-slot="${slot}"`), `${train.id} data-slot ${slot}`);
     }
-    assert.equal(count(svg, 'width="62" height="52" rx="8"'), 16, `${train.id} 유리+글로우`);
+    // 창 유리는 62×40 — 차체(58~128) 안에서 루프밴드·벨트라인·스커트가
+    // 모두 보이는 실차 비율. 유리 + 글로우 2장이 같은 치수를 쓴다.
+    assert.equal(count(svg, 'width="62" height="34" rx="8"'), 16, `${train.id} 유리+글로우`);
     assert.equal(count(svg, 'class="ktx-window-glow"'), 8, `${train.id} glow`);
     assert.equal(count(svg, 'class="ktx-door"'), 4, `${train.id} doors`);
     assert.equal(count(svg, 'class="ktx-door-leaf ktx-door-leaf-l"'), 4, `${train.id} leaf-l`);
