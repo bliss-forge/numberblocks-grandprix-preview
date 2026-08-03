@@ -20,6 +20,7 @@ import {
   activeEvent,
   currentBand,
   distanceToMarker,
+  routeSegments,
   routeStations
 } from "./ktx-journey.mjs";
 import { KTX_ROUTE_LABELS } from "./ktx-route-data.mjs";
@@ -361,13 +362,15 @@ function branchMapSvg() {
     `<rect x="600" y="180" width="160" height="100" rx="16" fill="#cde79d" opacity=".7"/>` +
     `<ellipse cx="120" cy="420" rx="90" ry="34" fill="#9fd0f5" opacity=".8"/>` +
     tracks +
-    // 위에서 본 미니 열차 — 분기점 아래 스템 위
-    `<g class="ktx-branch-train" transform="translate(400 430)">` +
+    // 위에서 본 미니 열차 — 분기점 아래 스템 위.
+    // 배치는 바깥 g의 속성 transform, 둥실 애니메이션은 안쪽 g의 CSS —
+    // CSS transform이 속성 transform을 통째로 대체하므로 반드시 분리한다.
+    `<g transform="translate(400 430)"><g class="ktx-branch-train">` +
     `<rect x="-16" y="-60" width="32" height="104" rx="14" fill="#e9edf3"/>` +
     `<rect x="-16" y="-6" width="32" height="50" rx="14" fill="#31445b" opacity=".2"/>` +
     `<path d="M-16 -44 Q-16 -74 0 -78 Q16 -74 16 -44z" fill="#5b2d86"/>` +
     `<rect x="-10" y="-30" width="20" height="60" rx="8" fill="#1d2634" opacity=".85"/>` +
-    `</g></svg>`;
+    `</g></g></svg>`;
 }
 
 export function renderKtxScene(document, state, view = "cab") {
@@ -515,10 +518,10 @@ export function cameraModeFor(state) {
 function destboardText(state) {
   if (state.phase === "branch") return "어느 쪽으로 갈까요?";
   if (state.phase === "boarding") return `여기는 ${state.station}`;
-  if (state.phase === "ready") return `${KTX_SEGMENTS[state.segIndex].to} 출발 준비`;
+  if (state.phase === "ready") return `${routeStations(state)[state.segIndex + 1]} 출발 준비`;
   if (state.phase === "driving" || state.phase === "stopping" ||
     state.phase === "correcting") {
-    return `다음역 ▶ ${KTX_SEGMENTS[state.segIndex].to}`;
+    return `다음역 ▶ ${routeStations(state)[state.segIndex + 1]}`;
   }
   if (state.phase === "stopped") return `${state.station} 도착`;
   if (state.phase === "finale") return "종착역 부산";
@@ -634,7 +637,7 @@ function spawnObj(root, kind, lane, value, v) {
 
 // 터널 포털 트리거 지점 — 구간의 터널 밴드 시작 미터(없으면 null).
 function portalStartFor(state) {
-  const seg = KTX_SEGMENTS[state.segIndex];
+  const seg = routeSegments(state)[state.segIndex];
   let from = 0;
   for (const band of seg.bands) {
     if (band.land === "tunnel") return from * seg.length;
@@ -774,8 +777,9 @@ export function updateKtxScene(root, state, view, events = [], held = {}) {
   updateLineside(root, state, band, dxM);
 
   // 터널 포털 — 진입 2.2초 전(속도 반영) 1회 발사
-  if (root.dataset.portalSeg !== String(state.segIndex)) {
-    root.dataset.portalSeg = String(state.segIndex);
+  const portalKey = `${state.route ?? "busan"}-${state.segIndex}`;
+  if (root.dataset.portalSeg !== portalKey) {
+    root.dataset.portalSeg = portalKey;
     const at = portalStartFor(state);
     root.dataset.portalAt = at === null ? "" : String(at);
     root.dataset.portalFired = "false";
@@ -810,7 +814,9 @@ export function updateKtxScene(root, state, view, events = [], held = {}) {
   const stage = root.querySelector(".ktx-stage");
   const sideScale = stage && stage.clientWidth ? stage.clientWidth / 1217 : 1;
   sideView.style.setProperty("--side-scale", sideScale.toFixed(4));
-  const stationName = driving ? KTX_SEGMENTS[state.segIndex].to : state.station;
+  const stationName = driving
+    ? routeStations(state)[state.segIndex + 1]
+    : state.station;
   if (nearStop) {
     const markerX = TRAIN_NOSE_X + distance * NEAR_SCALE;
     const shift = (markerX - MARKER_FROM_ZONE * NEAR_SCALE) * sideScale;

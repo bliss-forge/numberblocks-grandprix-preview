@@ -417,12 +417,27 @@ export function sideTrainSvg(train, windows = 8) {
   ).join("");
   // 자코브스 대차 문법 유지 — 량 경계 공유 + 선두·후미 동력차 대차.
   // 스커트(y112~128)가 위를 가려 노출은 하부 원호만(먼저 그리고 차체가 덮는다).
+  // v5: 바퀴 뒤에 어두운 대차 프레임 rect(량 경계 아래) — 하부 디테일 밀도.
+  const bogieFrames = [[86, 96], [506, 48], [706, 48], [906, 48], [1064, 112]]
+    .map(([x, w]) =>
+      `<rect x="${x}" y="124" width="${w}" height="15" rx="4" ` +
+      `fill="${darken(SKIRT_STEEL, 0.22)}"/>`
+    ).join("");
   const wheels = [110, 158, 530, 730, 930, 1090, 1152].map(cx =>
     `<g transform="translate(${cx} 136)"><g class="ktx-wheel">` +
     `<circle r="14" fill="${INK}"/><circle r="5" fill="${RAIL}"/>` +
     `<rect x="-12" y="-2" width="24" height="4" rx="2" fill="${RAIL}"/>` +
     `</g></g>`
   ).join("");
+  // 지붕 장비 — 낮은 에어컨 유닛 박스 + 상면 하이라이트 (판토 386~450 회피).
+  const roofGear = [[512, 62], [788, 62], [986, 40]].map(([x, w]) =>
+    `<rect x="${x}" y="51" width="${w}" height="7" rx="2.5" fill="${ROOF_GEAR}"/>` +
+    `<rect x="${x + 3}" y="51" width="${w - 6}" height="2" rx="1" ` +
+    `fill="${lighten(ROOF_GEAR, 0.4)}"/>`
+  ).join("");
+  // 노즈-은백 경계 블렌드 — 지붕 스트립(y58~66)을 따라 색이 뒤로 흘러 빠진다.
+  const noseBlend = `<path d="M332 58 L332 66 C362 65 380 62 398 58z" ` +
+    `fill="url(#${gid("blend")})"/>`;
   const noseHull = isSrt
     ? "M8 128 C8 114 10 102 26 96 C110 74 220 62 332 58 L332 128z"
     : "M4 128 L14 100 C90 78 210 63 332 58 L332 128z";
@@ -453,30 +468,39 @@ export function sideTrainSvg(train, windows = 8) {
     `<polygon class="ktx-beam" points="12,98 -80,80 -80,146 12,128" fill="${HEADLAMP}" opacity="0"/>`,
     // 지면 그림자 — 차체 아래 부드러운 접지감
     `<ellipse cx="600" cy="152" rx="560" ry="9" fill="url(#${gid("shadow")})"/>`,
+    bogieFrames,
     wheels,
-    // 선두 장노즈 — id별 실루엣
-    `<path d="${noseHull}" fill="url(#${gid("body")})"/>`,
+    // 선두 장노즈 — id별 실루엣, 노즈만 train.color(실차도 노즈는 색이 진하다)
+    `<path d="${noseHull}" fill="url(#${gid("nose")})"/>`,
     `<path d="${noseBand}" fill="url(#${gid("skirt")})"/>`,
     `<path d="${noseSheen}" fill="${PAPER}" opacity=".28"/>`,
-    // 연속 차체 + 스커트
+    // 연속 차체(은백 투톤 상부) + 금속 스커트
     `<rect x="330" y="58" width="800" height="54" fill="url(#${gid("body")})"/>`,
     `<rect x="330" y="112" width="800" height="16" fill="url(#${gid("skirt")})"/>`,
     // 후미 미러 노즈
-    `<path d="${tailHull}" fill="url(#${gid("body")})"/>`,
+    `<path d="${tailHull}" fill="url(#${gid("nose")})"/>`,
     `<path d="${tailBand}" fill="url(#${gid("skirt")})"/>`,
-    // 연속 창띠(거의 검정) + 지붕 하이라이트 립 + 하부 음영 라인
-    `<rect x="334" y="66" width="792" height="40" rx="12" fill="url(#${gid("band")})"/>`,
+    // 노즈 블렌드(선두) + 미러 블렌드(후미) — 은백 경계의 곡선 이음.
+    // 창띠·슬롯보다 먼저 그려 유리에 색이 비치지 않게 한다.
+    noseBlend,
+    `<g transform="translate(1462 0) scale(-1 1)">${noseBlend}</g>`,
+    // 지붕 라인 + 하이라이트 립 + 에어컨 유닛
+    `<rect x="330" y="58" width="800" height="1.6" fill="${darken(BODY_SILVER_DEEP, 0.28)}"/>`,
     `<rect x="340" y="59" width="780" height="6" rx="3" fill="url(#${gid("roof")})"/>`,
-    `<rect x="334" y="107" width="792" height="3" rx="1.5" fill="${INK}" opacity=".2"/>`,
+    roofGear,
+    // 연속 창띠(거의 검정)
+    `<rect x="334" y="66" width="792" height="40" rx="12" fill="url(#${gid("band")})"/>`,
     joints,
     slots,
     doors,
+    // 허리 밴드 — 창띠 아래를 노즈까지 흐르는 리버리 라인(SRT 자주/KTX 파랑)
+    `<rect x="330" y="106" width="800" height="10" fill="url(#${gid("waist")})"/>`,
     `<path d="${cabGlass}" fill="url(#${gid("glass")})"/>`,
     `<path d="${cabStreak}" fill="${PAPER}" opacity=".3"/>`,
     idMark,
     // 팬터그래프 — 낮아진 지붕(y58)에 맞춤
     `<g class="ktx-panto">` +
-    `<rect x="386" y="52" width="64" height="6" rx="3" fill="${train.nose}"/>` +
+    `<rect x="386" y="52" width="64" height="6" rx="3" fill="${ROOF_GEAR}"/>` +
     `<path d="M398 52 L418 32 L438 52" fill="none" stroke="${INK}" stroke-width="4"/>` +
     `<rect x="406" y="28" width="44" height="4" rx="2" fill="${INK}"/></g>`,
     `<rect x="0" y="156" width="1200" height="6" rx="3" fill="${RAIL}"/>`,
@@ -921,8 +945,9 @@ export function eventSpriteSvg(type) {
 }
 
 // 시작 화면 열차 고르기 카드 얼굴.
-// 실차 비율 실루엣 미니어처 — 본편 sideTrainSvg v4와 같은 음영 문법
-// (SRT 원호 / KTX 쐐기+핀 + 차체 그라데이션·검정 창띠·유리 반사·지면 그림자).
+// 실차 비율 실루엣 미니어처 — 본편 sideTrainSvg v5와 같은 리버리 문법
+// (SRT 원호 / KTX 쐐기+핀 + 은백 투톤 차체·색 노즈·허리 밴드·금속 스커트·
+// 검정 창띠·유리 반사·지붕 장비·지면 그림자).
 export function trainCardSvg(train) {
   const isSrt = train.id === "srt";
   const gid = suffix => `ktx-g-card${suffix}-${train.id}`;
@@ -931,9 +956,21 @@ export function trainCardSvg(train) {
       ["0%", lighten(train.color, 0.34)], ["30%", lighten(train.color, 0.12)],
       ["62%", train.color], ["100%", darken(train.color, 0.24)]
     ]) +
+    linGrad(gid("silver"), [
+      ["0%", lighten(BODY_SILVER, 0.5)], ["45%", BODY_SILVER],
+      ["100%", BODY_SILVER_DEEP]
+    ]) +
+    linGrad(gid("waist"), [
+      ["0%", lighten(train.color, 0.16)], ["60%", train.color],
+      ["100%", darken(train.color, 0.28)]
+    ]) +
+    linGrad(gid("blend"), [
+      ["0%", train.color, 0.9], ["55%", train.color, 0.35],
+      ["100%", train.color, 0]
+    ], "h") +
     linGrad(gid("skirt"), [
-      ["0%", lighten(train.nose, 0.24)], ["55%", train.nose],
-      ["100%", darken(train.nose, 0.3)]
+      ["0%", lighten(SKIRT_STEEL, 0.3)], ["55%", SKIRT_STEEL],
+      ["100%", darken(SKIRT_STEEL, 0.32)]
     ]) +
     linGrad(gid("glass"), [["0%", "#3c4a63"], ["100%", "#1d2634"]]) +
     radGrad(gid("shadow"), [
@@ -953,18 +990,29 @@ export function trainCardSvg(train) {
     defs,
     `<ellipse cx="150" cy="111" rx="142" ry="6" fill="url(#${gid("shadow")})"/>`,
     hull,
-    band,
+    // 은백 투톤 상부 — 노즈 뒤 객차부를 덮고 경계는 곡선 블렌드로 잇는다
+    `<rect x="146" y="54" width="142" height="42" fill="url(#${gid("silver")})"/>`,
+    `<path d="M146 54 L146 60 C162 59 172 57 182 54z" fill="url(#${gid("blend")})"/>`,
     // 연속 창띠(거의 검정) + 창 2개 + 유리 대각 반사
     `<rect x="130" y="60" width="158" height="20" rx="7" fill="#1d2634"/>`,
     `<rect x="142" y="62" width="42" height="16" rx="5" fill="url(#${gid("glass")})"/>`,
     `<polygon points="150,78 158,62 164,62 156,78" fill="${PAPER}" opacity=".25"/>`,
     `<rect x="200" y="62" width="42" height="16" rx="5" fill="url(#${gid("glass")})"/>`,
     `<polygon points="208,78 216,62 222,62 214,78" fill="${PAPER}" opacity=".25"/>`,
-    // 지붕 하이라이트 — 본편과 같은 최소 질감
+    // 허리 밴드 — 창띠 아래를 노즈까지 흐르는 리버리 라인
+    `<rect x="140" y="78" width="148" height="8" fill="url(#${gid("waist")})"/>`,
+    // 지붕 라인 + 하이라이트 + 에어컨 유닛(미니어처)
+    `<rect x="146" y="54" width="142" height="1.2" fill="${darken(BODY_SILVER_DEEP, 0.28)}"/>`,
     `<rect x="60" y="56" width="200" height="4" rx="2" fill="${PAPER}" opacity=".35"/>`,
+    `<rect x="190" y="49.5" width="36" height="5" rx="2" fill="${ROOF_GEAR}"/>`,
+    `<rect x="193" y="49.5" width="30" height="1.6" rx="0.8" fill="${lighten(ROOF_GEAR, 0.4)}"/>`,
     fin,
-    // 스커트에 반쯤 가린 바퀴
+    // 금속 스커트 밴드 + 대차 힌트 + 스커트에 반쯤 가린 바퀴
+    band,
     `<rect x="10" y="96" width="278" height="8" fill="url(#${gid("skirt")})"/>`,
+    `<rect x="60" y="98" width="20" height="9" rx="2" fill="${darken(SKIRT_STEEL, 0.22)}"/>`,
+    `<rect x="140" y="98" width="20" height="9" rx="2" fill="${darken(SKIRT_STEEL, 0.22)}"/>`,
+    `<rect x="220" y="98" width="20" height="9" rx="2" fill="${darken(SKIRT_STEEL, 0.22)}"/>`,
     `<circle cx="70" cy="102" r="8" fill="${INK}"/>`,
     `<circle cx="150" cy="102" r="8" fill="${INK}"/>`,
     `<circle cx="230" cy="102" r="8" fill="${INK}"/>`,
