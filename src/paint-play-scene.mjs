@@ -268,22 +268,15 @@ function buildShelf(document, state) {
     shelf.append(button);
   });
 
+  // 확인 버튼 없음 — 튜브를 다 고르면 저절로 섞이고 저절로 칠해진다.
+  // 남는 버튼은 첫 선택을 무르는 헹구기 하나뿐이다.
   const actions = el(document, "div", "pp-actions");
   const rinse = document.createElement("button");
   rinse.type = "button";
   rinse.className = "pp-action pp-rinse";
-  rinse.dataset.focus = String(state.focusIndex === 5);
-  rinse.textContent = "💧 헹구기";
-  const paint = document.createElement("button");
-  paint.type = "button";
-  paint.className = "pp-action pp-paint";
-  paint.dataset.focus = String(state.focusIndex === 6);
-  paint.dataset.ready = String(state.stirred);
-  paint.textContent = state.stirred || !currentRound(state)
-    ? "🖌️ 칠하기!"
-    : state.jar.length >= (currentRound(state) &&
-        recipeFor(currentRound(state).colorId).length) ? "🥄 젓기!" : "🖌️ 칠하기!";
-  actions.append(rinse, paint);
+  rinse.dataset.focus = String(state.focusIndex === PAINT_TUBES.length);
+  rinse.textContent = "💧 다시 담기";
+  actions.append(rinse);
   shelf.append(actions);
   return shelf;
 }

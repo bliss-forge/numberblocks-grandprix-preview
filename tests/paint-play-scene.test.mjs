@@ -7,8 +7,7 @@ import {
   currentRound,
   paintCanvas,
   recipeFor,
-  squeezeTube,
-  stirJar
+  squeezeTube
 } from "../src/paint-play.mjs";
 import {
   paintSubjectSvg,
@@ -91,27 +90,36 @@ test("물방울 힌트 — 레시피 재료 튜브에만 data-hint=drop", () => 
   }
 });
 
-test("짜기·젓기가 병 레이어와 수식 칩에 반영된다", () => {
+test("고르기가 병 레이어와 수식 칩에 반영되고 두 개째에 섞인다", () => {
   const state = createPaintPlay("steady", 2);
   const round = currentRound(state);
   const [a, b] = recipeFor(round.colorId);
   squeezeTube(state, a);
-  squeezeTube(state, b);
   let root = renderPaintPlay(document, state);
-  assert.equal(byClass(root, "pp-jar-layer").length, 2);
-  assert.equal(byClass(root, "pp-jar-mixed").length, 0, "젓기 전엔 혼합 없음");
+  assert.equal(byClass(root, "pp-jar-layer").length, 1);
+  assert.equal(byClass(root, "pp-jar-mixed").length, 0, "한 개면 혼합 없음");
   assert.equal(byClass(root, "pp-eq-result")[0].textContent, "?");
-  stirJar(state);
+  squeezeTube(state, b);
   root = updatePaintPlay(root, state, document);
-  assert.equal(byClass(root, "pp-jar-mixed").length, 1);
+  assert.equal(byClass(root, "pp-jar-layer").length, 2);
+  assert.equal(byClass(root, "pp-jar-mixed").length, 1, "두 개째에 자동 혼합");
   assert.notEqual(byClass(root, "pp-eq-result")[0].textContent, "?");
+});
+
+// 사용자 결정(2026-08-05): 확인 버튼 없이 자동 완료 — 선반에는 헹구기만.
+test("선반에 젓기·칠하기 버튼이 없다(헹구기 하나만)", () => {
+  const state = createPaintPlay("steady", 2);
+  const root = renderPaintPlay(document, state);
+  const actions = byClass(root, "pp-action");
+  assert.equal(actions.length, 1);
+  assert.ok(actions[0].className.includes("pp-rinse"));
+  assert.equal(byClass(root, "pp-paint").length, 0);
 });
 
 test("성공 라운드 뒤 갤러리 액자가 채워진다", () => {
   const state = createPaintPlay("easy", 3);
   const round = currentRound(state);
   for (const part of recipeFor(round.colorId)) squeezeTube(state, part);
-  if (!state.stirred) stirJar(state);
   paintCanvas(state);
   const root = renderPaintPlay(document, state);
   const frames = byClass(root, "pp-frame");
@@ -124,7 +132,6 @@ test("피날레 — data-finale와 완성 칩·별 문구", () => {
   while (!state.finale) {
     const round = currentRound(state);
     for (const part of recipeFor(round.colorId)) squeezeTube(state, part);
-    if (!state.stirred) stirJar(state);
     paintCanvas(state);
   }
   const root = renderPaintPlay(document, state);
