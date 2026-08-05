@@ -17,7 +17,12 @@ export const PAINT_COLORS = Object.freeze({
   pink: Object.freeze({ ko: "분홍", hex: "#ff9ec4" }),
   sky: Object.freeze({ ko: "하늘색", hex: "#8fd0f8" }),
   brown: Object.freeze({ ko: "밤색", hex: "#9a6a3f" }),
-  navy: Object.freeze({ ko: "남색", hex: "#2d4a8a" })
+  navy: Object.freeze({ ko: "남색", hex: "#2d4a8a" }),
+  // 발견 색 — 주문 목표로는 안 나오지만 자유 혼합에서 만들어지는 진짜 색.
+  // 어떤 조합을 저어도 "새 색의 이름을 배우는" 결과가 되게 한다(벌점 없음 철학).
+  lightyellow: Object.freeze({ ko: "연노랑", hex: "#ffe9a8" }),
+  olive: Object.freeze({ ko: "올리브", hex: "#8a8f3d" }),
+  gray: Object.freeze({ ko: "회색", hex: "#9aa2ad" })
 });
 
 // ── 물감 튜브 선반 — 마스코트 몸색 = 물감색 (숫자키 ↔ 색 자연 학습) ──────
@@ -48,17 +53,28 @@ export function mixKey(a, b) {
   return [a, b].sort().join("+");
 }
 
-// 혼합 룩업 — PAINT_RECIPES의 2재료 항목에서 유도(단일 진실 유지).
-export const MIX_TABLE = Object.freeze(
-  Object.fromEntries(
+// 레시피 밖 발견 조합 — 튜브 5종의 나머지 2색 조합도 전부 정의한다.
+// (아이가 아무 조합이나 섞어도 항상 "진짜 색"이 나와야 한다 — null 금지)
+const EXTRA_MIXES = Object.freeze({
+  [mixKey("yellow", "white")]: "lightyellow",
+  [mixKey("yellow", "black")]: "olive",
+  [mixKey("black", "white")]: "gray"
+});
+
+// 혼합 룩업 — PAINT_RECIPES의 2재료 항목 + 발견 조합(단일 진실 유지).
+export const MIX_TABLE = Object.freeze({
+  ...Object.fromEntries(
     Object.entries(PAINT_RECIPES)
       .filter(([, parts]) => parts.length === 2)
       .map(([result, parts]) => [mixKey(parts[0], parts[1]), result])
-  )
-);
+  ),
+  ...EXTRA_MIXES
+});
 
-// 두 재료를 섞은 결과 색 id — 테이블 밖 조합은 null(튜브 잠금이 원천 차단).
+// 두 재료를 섞은 결과 색 id. 같은 색끼리는 그 색 그대로 —
+// 튜브 5종의 어떤 2색 조합(중복 포함)도 null이 아니다.
 export function mixResult(a, b) {
+  if (a === b) return a;
   return MIX_TABLE[mixKey(a, b)] ?? null;
 }
 

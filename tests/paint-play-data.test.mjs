@@ -37,9 +37,17 @@ test("2재료 레시피는 전부 MIX_TABLE에 존재한다 (미정의 조합 �
   }
 });
 
-test("테이블 밖 조합은 null — 병 2색 제한이 노출 전 차단하는 안전망", () => {
-  assert.equal(mixResult("yellow", "black"), null);
-  assert.equal(mixResult("white", "black"), null);
+test("튜브 5종의 모든 2색 조합(중복 포함)이 진짜 색을 낸다 — null 금지", () => {
+  for (const a of PAINT_TUBES) {
+    for (const b of PAINT_TUBES) {
+      const result = mixResult(a.id, b.id);
+      assert.ok(result, `${a.id}+${b.id}`);
+      assert.ok(PAINT_COLORS[result], `${a.id}+${b.id} → ${result} 팔레트 등재`);
+    }
+  }
+  assert.equal(mixResult("red", "red"), "red", "같은 색은 그대로");
+  assert.equal(mixResult("black", "white"), "gray");
+  assert.equal(mixResult("yellow", "white"), "lightyellow");
 });
 
 test("그림 주제는 목표색·스테이지가 팔레트·레시피와 정합한다", () => {

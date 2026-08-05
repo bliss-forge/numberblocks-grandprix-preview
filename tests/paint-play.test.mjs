@@ -16,7 +16,7 @@ import {
   squeezeTube,
   stirJar
 } from "../src/paint-play.mjs";
-import { PAINT_RECIPES, STAGE_PLANS } from "../src/paint-play-data.mjs";
+import { PAINT_RECIPES, PAINT_TUBES, STAGE_PLANS } from "../src/paint-play-data.mjs";
 
 // 현재 라운드를 정답으로 완성한다 — 테스트 헬퍼.
 function solveRound(state) {
@@ -208,4 +208,27 @@ test("포커스 순환 — 7칸을 양방향으로 감싼다", () => {
   assert.equal(movePaintFocus(state, -1), PAINT_FOCUS_COUNT - 1);
   assert.equal(movePaintFocus(state, 1), 0);
   assert.equal(currentSubject(state).color, currentRound(state).colorId);
+});
+
+// 반증 패스(2026-08-05)에서 잡힌 크래시 회귀 가드: 아이가 아무 튜브나
+// 눌러 만드는 전 조합(같은 튜브 2연타 포함)이 젓기→칠하기까지 항상
+// 실명 있는 색으로 끝나야 한다 — null 색이 새어 나오면 앱단이 죽는다.
+test("전 조합 회귀 — 어떤 2튜브 조합도 칠하기에서 색 이름 없이 끝나지 않는다", () => {
+  for (const first of PAINT_TUBES) {
+    for (const second of PAINT_TUBES) {
+      const state = createPaintPlay("steady", 1);
+      const round = state.rounds[0];
+      round.colorId = "orange"; // 2재료 라운드로 고정
+      squeezeTube(state, first.id);
+      squeezeTube(state, second.id);
+      stirJar(state);
+      assert.ok(jarColor(state), `${first.id}+${second.id} 혼합색`);
+      const events = paintCanvas(state);
+      const outcome = events.find(
+        event => event.type === "success" || event.type === "mismatch"
+      );
+      assert.ok(outcome, `${first.id}+${second.id} 판정 이벤트`);
+      assert.ok(outcome.color, `${first.id}+${second.id} 색 이름 존재`);
+    }
+  }
 });
