@@ -1646,6 +1646,13 @@ const PAINT_MIX_VOICES = new Set([
 // 혼합 낭독(한국어 약 3.2초)이 시작된 뒤라 그림은 문장 끝에 맞춰 차오른다.
 const PAINT_AUTO_MS = 1600;
 
+// 완성한 그림을 보여주는 시간 — 사용자 요청(2026-08-05)으로 1.5초에서 2초 늘렸다.
+// "색이 완성될 때 너무 빨리 지나간다" — 이 게임의 보상 장면이라 넉넉히 둔다.
+const PAINT_HOLD_MS = 3500;
+
+// 색이 어긋났을 때 병에 든 그 색을 이름과 함께 잠깐 더 보여준다(즉시 헹굼 금지).
+const PAINT_MISS_HOLD_MS = 1600;
+
 // 물감 놀이 낭독 줄 세우기 — 혼합 문장("빨강과 노랑을 섞으면 주황!")이
 // 이 게임 학습의 본체라 끝까지 들려주고, 그 다음 문장을 이어 붙인다.
 let paintVoice = Promise.resolve(true);
@@ -1714,6 +1721,8 @@ function startPaintPlay() {
 function handlePaintEvents(events) {
   if (!state.paint) return;
   const round = state.round;
+  // 마지막 라운드는 성공 배너를 지우지 않는다 — 곧바로 피날레 문구가 들어온다
+  const hasFinale = events.some(event => event.type === "finale");
   for (const event of events) {
     if (event.type === "squeeze") {
       audio.playSfx("pop");
@@ -1750,9 +1759,11 @@ function handlePaintEvents(events) {
         ? `${parts.a} + ${parts.b} = ${parts.result}!`
         : `${parts.result} 완성!`;
       dom.cheer.classList.add("show");
-      schedule(() => {
-        if (state.round === round) dom.cheer.classList.remove("show");
-      }, 1900);
+      if (!hasFinale) {
+        schedule(() => {
+          if (state.round === round) dom.cheer.classList.remove("show");
+        }, PAINT_HOLD_MS - 500);
+      }
     } else if (event.type === "finale") {
       setPhase("celebrating");
       audio.playSfx("win");
@@ -1762,12 +1773,14 @@ function handlePaintEvents(events) {
         ? "🌈 무지개 화가 탄생!"
         : "오늘의 그림을 다 그렸어요!";
       dom.cheer.classList.add("show");
+      // 피날레 오버레이는 완성 그림을 다 보여준 뒤(PAINT_HOLD_MS) 떠서
+      // 마지막 그림도 다른 라운드와 같은 시간만큼 남는다.
       schedule(() => {
         if (state.round === round) goHome();
-      }, 5200);
+      }, PAINT_HOLD_MS + 3700);
     }
   }
-  // 성공 순간엔 칠해진 그림을 1.5초 보여준 뒤 다음 라운드로 넘어간다 —
+  // 성공 순간엔 칠해진 그림을 PAINT_HOLD_MS 동안 붙잡은 뒤 다음 라운드로 —
   // "내가 만든 색으로 칠했다"가 이 게임의 핵심 보상이다.
   const success = events.find(event => event.type === "success");
   if (success) {
@@ -1781,9 +1794,23 @@ function handlePaintEvents(events) {
       refreshPaintScene();
       // 다음 주문은 혼합 문장이 끝난 뒤에 — 두 낭독이 겹치지 않게 한다.
       if (!state.paint.finale) afterPaintVoice(round, playPaintOrder);
-    }, 1500);
+    }, PAINT_HOLD_MS);
     return;
   }
+
+  // 어긋난 색도 이름을 부르는 동안 병에 그대로 남긴다 — 모델은 이미 헹궜지만
+  // 다시 그리지 않으면 화면에는 방금 만든 색이 남는다.
+  if (events.some(event => event.type === "mismatch")) {
+    state.paintBusy = true;
+    schedule(() => {
+      state.paintBusy = false;
+      if (state.round !== round || !state.paint) return;
+      dom.problem.textContent = paintOrderCaption();
+      refreshPaintScene();
+    }, PAINT_MISS_HOLD_MS);
+    return;
+  }
+
   if (state.paint) dom.problem.textContent = paintOrderCaption();
   refreshPaintScene();
 
