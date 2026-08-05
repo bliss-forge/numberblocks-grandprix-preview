@@ -122,6 +122,7 @@ import {
 import {
   createPaintPlay,
   currentRound as currentPaintRound,
+  currentSubject as currentPaintSubject,
   equationFor as paintEquationFor,
   movePaintFocus,
   paintCanvas as paintPlayCanvas,
@@ -1637,6 +1638,17 @@ function deleteDigit() {
 
 // ── 알록달록 물감 놀이 ────────────────────────────────────────────────────
 
+const PAINT_MIX_VOICES = new Set([
+  "orange", "green", "purple", "pink", "sky", "brown", "navy",
+  "lightyellow", "olive", "gray"
+]);
+
+// 현재 라운드 주문을 낭독한다 — 색 이름 호명이 이 게임 학습의 절반.
+function playPaintOrder() {
+  const subject = currentPaintSubject(state.paint ?? {});
+  if (subject) void audio.playPrompt(`paint-order-${subject.id}`);
+}
+
 function paintOrderCaption() {
   const round = currentPaintRound(state.paint);
   if (!round) return "🎨 알록달록 물감 놀이";
@@ -1668,6 +1680,13 @@ function startPaintPlay() {
   setPhase("playing");
   audio.playSfx("win");
   showHint("물감 두 개를 골라 섞어 봐요! ← → 로 고르고 ⎵");
+  audio.cancel();
+  const introRound = state.round;
+  void audio.playPrompt("paint-intro").then(status => {
+    if (status !== "cancelled" && state.round === introRound && state.paint) {
+      playPaintOrder();
+    }
+  });
 }
 
 // 성공·불일치·혼합 이벤트를 소리·자막·연출로 옮긴다.
@@ -1685,17 +1704,31 @@ function handlePaintEvents(events) {
       audio.playSfx("win");
       const equation = state.paint ? paintEquationText() : "";
       if (equation) showHint(equation);
+      if (PAINT_MIX_VOICES.has(event.color)) {
+        audio.cancel();
+        void audio.playPrompt(`paint-mix-${event.color}`);
+      }
     } else if (event.type === "rinsed") {
       audio.playSfx("key");
     } else if (event.type === "mismatch") {
       const made = PAINT_COLORS[event.color].ko;
       const wanted = PAINT_COLORS[event.wantedColor].ko;
-      playRetryCue(audio, `retry-${Math.min(state.paint.tries, 3)}`);
+      const retryKey = `retry-${Math.min(state.paint.tries, 3)}`;
+      audio.cancel();
+      void audio.playPrompt(`paint-made-${event.color}`).then(status => {
+        if (status !== "cancelled") playRetryCue(audio, retryKey);
+      });
       showHint(`우와, ${made}${josa(made, "이", "가")} 됐네! 이번엔 ${wanted}${josa(wanted, "을", "를")} 만들어 보자`);
     } else if (event.type === "success") {
       state.stars += 1;
       dom.stars.textContent = String(state.stars);
       audio.playSfx("win");
+      audio.cancel();
+      if (PAINT_MIX_VOICES.has(event.color)) {
+        void audio.playPrompt(`paint-mix-${event.color}`);
+      } else {
+        void audio.playPrompt(`cheer-${1 + (state.stars % 4)}`);
+      }
       const parts = event.equation;
       dom.cheer.textContent = parts.b
         ? `${parts.a} + ${parts.b} = ${parts.result}!`
@@ -1707,6 +1740,8 @@ function handlePaintEvents(events) {
     } else if (event.type === "finale") {
       setPhase("celebrating");
       audio.playSfx("win");
+      audio.cancel();
+      void audio.playPrompt(event.rainbow ? "paint-rainbow" : "paint-finale");
       dom.cheer.textContent = event.rainbow
         ? "🌈 무지개 화가 탄생!"
         : "오늘의 그림을 다 그렸어요!";
@@ -1726,6 +1761,7 @@ function handlePaintEvents(events) {
       if (state.round !== round || !state.paint) return;
       dom.problem.textContent = paintOrderCaption();
       refreshPaintScene();
+      if (!state.paint.finale) playPaintOrder();
     }, 1500);
     return;
   }

@@ -17,6 +17,21 @@ const subwayKeys = [
   "subway-place-skypark", "subway-place-childpark", "subway-place-lake",
   "subway-place-assembly"
 ];
+const paintKeys = [
+  "paint-intro", "paint-finale", "paint-rainbow",
+  ...[
+    "firetruck", "chick", "bus", "carrot", "car", "frog", "tractor",
+    "grape", "heli", "blossom", "boat", "bear", "rocket"
+  ].map(subject => `paint-order-${subject}`),
+  ...[
+    "orange", "green", "purple", "pink", "sky", "brown", "navy",
+    "lightyellow", "olive", "gray"
+  ].map(color => `paint-mix-${color}`),
+  ...[
+    "red", "yellow", "blue", "black", "white", "orange", "green",
+    "purple", "pink", "sky", "brown", "navy", "lightyellow", "olive", "gray"
+  ].map(color => `paint-made-${color}`)
+];
 const ko = [
   "prompt-count", "prompt-add", "prompt-sub", "prompt-mul",
   ...Array.from({ length: 150 }, (_, i) => `number-${i + 1}`),
@@ -28,7 +43,8 @@ const ko = [
   "safety-wrong-order", "safety-finish",
   "safety-look-both", "safety-tour",
   ...srtKeys,
-  ...subwayKeys
+  ...subwayKeys,
+  ...paintKeys
 ];
 const en = [
   "prompt-sub",
@@ -39,6 +55,7 @@ const en = [
   "safety-look-both", "safety-tour",
   ...srtKeys,
   ...subwayKeys,
+  ...paintKeys,
   ...Array.from({ length: 150 }, (_, i) => `number-${i + 1}`)
 ];
 
