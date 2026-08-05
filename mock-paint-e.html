@@ -1,0 +1,115 @@
+<!doctype html><meta charset="utf-8">
+<title>시안 E — 물감 놀이 (실험실 캔버스)</title>
+<style>
+  * { box-sizing: border-box; margin: 0; }
+  body { width: 1280px; height: 720px; overflow: hidden; font-family: "Apple SD Gothic Neo", sans-serif; }
+  .stage { position: relative; width: 1280px; height: 720px;
+    background: linear-gradient(#fdf3e3 0%, #faeCD3 60%, #f3ddb6 100%); }
+  /* 벽 장식 — 갤러리 액자들 */
+  .gallery { position: absolute; left: 26px; top: 22px; display: flex; gap: 12px; align-items: center;
+    background: #fff; border: 3px solid #eadfc8; border-radius: 16px; padding: 10px 16px; }
+  .gallery b { font-size: 14px; color: #31445b; margin-right: 4px; }
+  .frame { width: 56px; height: 44px; border: 5px solid #d8b06a; border-radius: 6px; position: relative; background: #fff; }
+  .frame i { position: absolute; inset: 4px; border-radius: 3px; }
+  .frame.empty { border-color: #e5d9bf; background: #f7f0e0; }
+  /* 일곱이 주인장 + 주문 */
+  .host { position: absolute; left: 40px; top: 200px; text-align: center; }
+  .host img { width: 128px; display: block; }
+  .bubble { position: absolute; left: 130px; top: 118px; width: 300px; background: #fff; border: 4px solid #31445b;
+    border-radius: 20px 20px 20px 4px; padding: 14px 18px; display: flex; align-items: center; gap: 12px; }
+  .bubble strong { font-size: 20px; color: #31445b; line-height: 1.35; }
+  .swatch { width: 50px; height: 50px; flex: none; border-radius: 50%; background: #ff8a3d; border: 4px solid #fff; outline: 3px solid #ff8a3d; }
+  /* 이젤 + 캔버스(회색 윤곽 그림) */
+  .easel { position: absolute; left: 480px; top: 96px; width: 360px; }
+  .easel .board { width: 340px; height: 300px; margin: 0 auto; background: #fff; border: 6px solid #e8d9be;
+    border-radius: 10px; box-shadow: 0 8px 0 rgba(49,68,91,.08); position: relative; }
+  .easel .legs { position: relative; height: 66px; }
+  .easel .legs::before, .easel .legs::after { content: ""; position: absolute; top: -6px; width: 12px; height: 72px;
+    background: #d8b06a; border-radius: 6px; }
+  .easel .legs::before { left: 60px; transform: rotate(14deg); }
+  .easel .legs::after { right: 60px; transform: rotate(-14deg); }
+  .carrot { position: absolute; inset: 30px; }
+  .carrot svg { width: 100%; height: 100%; }
+  .canvaslabel { position: absolute; left: 50%; transform: translateX(-50%); bottom: 8px; font-size: 14px;
+    font-weight: 900; color: #b9a888; }
+  /* 유리병 믹싱 */
+  .jarzone { position: absolute; left: 880px; top: 120px; width: 240px; text-align: center; }
+  .jar { width: 170px; height: 230px; margin: 0 auto; position: relative; }
+  .jar .glass { position: absolute; inset: 16px 10px 0; border: 6px solid #9ab1c8; border-radius: 18px 18px 40px 40px;
+    background: linear-gradient(rgba(255,255,255,.55), rgba(255,255,255,.2)); overflow: hidden; }
+  .jar .cap { position: absolute; top: 0; left: 50%; transform: translateX(-50%); width: 84px; height: 22px;
+    background: #9ab1c8; border-radius: 10px; }
+  .jar .red { position: absolute; left: 0; right: 0; bottom: 0; height: 34%; background: #ef4147; }
+  .jar .yellow { position: absolute; left: 0; right: 0; bottom: 34%; height: 30%; background: #ffd23f; }
+  .jar .mixline { position: absolute; left: 0; right: 0; bottom: 30%; height: 16%;
+    background: linear-gradient(rgba(255,138,61,0), rgba(255,138,61,.85), rgba(255,138,61,0)); }
+  .jar .spoon { position: absolute; right: -22px; top: -24px; width: 14px; height: 150px; background: #d8b06a;
+    border-radius: 7px; transform: rotate(18deg); }
+  .jarzone .hint { margin-top: 10px; display: inline-block; background: #fff; border: 3px solid #31445b;
+    border-radius: 14px; font-size: 17px; font-weight: 900; color: #31445b; padding: 7px 16px; }
+  /* 하단 물감 선반 */
+  .shelf { position: absolute; left: 24px; right: 24px; bottom: 22px; height: 190px; background: #fff;
+    border: 3px solid #eadfc8; border-radius: 24px; display: flex; align-items: center; gap: 20px; padding: 0 26px; }
+  .tube { width: 118px; text-align: center; position: relative; }
+  .tube .bodyy { width: 66px; height: 96px; margin: 0 auto; border-radius: 10px 10px 20px 20px; position: relative;
+    box-shadow: inset -8px 0 0 rgba(0,0,0,.1), inset 0 8px 0 rgba(255,255,255,.4); }
+  .tube .bodyy::before { content: ""; position: absolute; top: -14px; left: 50%; transform: translateX(-50%);
+    width: 28px; height: 16px; background: #c8ccd4; border-radius: 6px 6px 0 0; }
+  .tube .num { position: absolute; top: -20px; left: 50%; transform: translateX(-50%); width: 30px; height: 30px;
+    background: #fff; border: 3px solid #31445b; border-radius: 50%; font-weight: 900; font-size: 16px; color: #31445b;
+    display: grid; place-items: center; z-index: 2; }
+  .tube img { position: absolute; right: 2px; bottom: -4px; width: 44px; z-index: 2; }
+  .tube.focus .bodyy { outline: 5px solid #f4c542; outline-offset: 3px; }
+  .tube small { display: block; margin-top: 8px; font-size: 14px; font-weight: 900; color: #31445b; }
+  .btncol { display: flex; flex-direction: column; gap: 12px; margin-left: auto; }
+  .btn { padding: 15px 30px; border-radius: 18px; font-size: 20px; font-weight: 900; border: 0; color: #fff; }
+  .btn.paint { background: #2fa25c; box-shadow: 0 6px 0 #1f7a45; }
+  .btn.drain { background: #7d8ea1; box-shadow: 0 6px 0 #5d6f86; font-size: 15px; padding: 10px 20px; }
+  .keys { position: absolute; left: 50%; transform: translateX(-50%); bottom: 228px; background: #4a90d0; color: #fff;
+    font-weight: 900; font-size: 17px; padding: 10px 22px; border-radius: 16px; }
+</style>
+<div class="stage">
+  <div class="gallery">
+    <b>완성한 그림</b>
+    <span class="frame"><i style="background:linear-gradient(#bfe8ff 55%, #a9df7d 55%)"><i style="position:absolute;left:20%;top:28%;width:22px;height:14px;background:#a55bd6;border-radius:4px"></i></i></span>
+    <span class="frame"><i style="background:linear-gradient(#bfe8ff 55%, #a9df7d 55%)"><i style="position:absolute;left:26%;top:30%;width:18px;height:12px;background:#58c96b;border-radius:50%"></i></i></span>
+    <span class="frame empty"></span><span class="frame empty"></span><span class="frame empty"></span>
+  </div>
+
+  <div class="host"><img src="assets/characters/seven.png" alt="일곱이"></div>
+  <div class="bubble"><strong>당근을 주황색으로<br>칠해 볼까?</strong><span class="swatch"></span></div>
+
+  <div class="easel">
+    <div class="board">
+      <div class="carrot">
+        <svg viewBox="0 0 280 240" xmlns="http://www.w3.org/2000/svg">
+          <path d="M96 92 C120 66 176 66 200 92 C224 116 216 158 178 196 C160 214 136 214 120 196 C84 158 74 116 96 92z"
+            fill="#eef2f7" stroke="#b9c4d2" stroke-width="5" stroke-dasharray="12 8" transform="rotate(38 148 150)"/>
+          <path d="M186 58 C196 38 216 32 232 36 C226 52 210 64 194 66z" fill="#dfe8df" stroke="#9fb89f" stroke-width="4"/>
+          <path d="M206 70 C222 58 244 58 258 66 C248 80 228 86 212 82z" fill="#dfe8df" stroke="#9fb89f" stroke-width="4"/>
+        </svg>
+      </div>
+      <span class="canvaslabel">회색 그림에 색을 부어 줘요</span>
+    </div>
+    <div class="legs"></div>
+  </div>
+
+  <div class="jarzone">
+    <div class="jar">
+      <span class="cap"></span><span class="spoon"></span>
+      <div class="glass"><span class="red"></span><span class="yellow"></span><span class="mixline"></span></div>
+    </div>
+    <span class="hint">빨강 + 노랑 = ?</span>
+  </div>
+
+  <div class="keys">← → 로 고르고 ⎵ 로 붓기 · ⎵ 연타로 섞어요!</div>
+
+  <div class="shelf">
+    <div class="tube"><span class="num">1</span><div class="bodyy" style="background:#ef4147"></div><img src="assets/characters/one.png"><small>빨강</small></div>
+    <div class="tube focus"><span class="num">3</span><div class="bodyy" style="background:#ffd23f"></div><img src="assets/characters/three.png"><small>노랑</small></div>
+    <div class="tube"><span class="num">5</span><div class="bodyy" style="background:#4a9df8"></div><img src="assets/characters/five.png"><small>파랑</small></div>
+    <div class="tube"><span class="num">9</span><div class="bodyy" style="background:#4b5563"></div><img src="assets/characters/nine.png"><small>검정</small></div>
+    <div class="tube"><span class="num">10</span><div class="bodyy" style="background:#f6f8fc;border:3px solid #dde4ee"></div><img src="assets/characters/ten.png"><small>하양</small></div>
+    <div class="btncol"><button class="btn paint">🖌️ 칠하기!</button><button class="btn drain">💧 헹구기</button></div>
+  </div>
+</div>

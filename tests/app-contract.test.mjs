@@ -50,11 +50,12 @@ test("게임 화면은 화면 전환 뒤 프로그램 방식으로 포커스를 
   );
 });
 
-test("홈은 번호 배지가 있는 일곱 가지 놀이를 제공한다", () => {
-  assert.equal((html.match(/class="mode-card(?: [^"]*)?"/g) ?? []).length, 7);
+test("홈은 번호 배지가 있는 여덟 가지 놀이를 제공한다", () => {
+  assert.equal((html.match(/class="mode-card(?: [^"]*)?"/g) ?? []).length, 8);
   assert.match(html, /안전한 길찾기/);
   assert.match(html, /지하철 여행/);
   assert.match(html, /칙칙폭폭 기관사/);
+  assert.match(html, /알록달록 물감 놀이/);
 });
 
 test("홈 카드 번호는 같은 번호의 블럭 친구를 사용한다", () => {
@@ -65,7 +66,8 @@ test("홈 카드 번호는 같은 번호의 블럭 친구를 사용한다", () =
     ["mul", "4", "four"],
     ["safety", "5", "five"],
     ["subway", "6", "six"],
-    ["ktx", "7", "seven"]
+    ["ktx", "7", "seven"],
+    ["paint", "8", "eight"]
   ]) {
     const card = html.match(
       new RegExp(
