@@ -8223,13 +8223,6 @@ body[data-mode="paint"] .stage-lights {
 .pp-action:focus-visible { outline: 4px solid #4a90d0; outline-offset: 2px; }
 
 .pp-rinse { background: #7d8ea1; box-shadow: 0 5px 0 #5d6f86; }
-.pp-paint { background: #2fa25c; box-shadow: 0 5px 0 #1f7a45; }
-.pp-paint[data-ready="true"] { animation: pp-ready-pulse 1.2s ease-in-out infinite; }
-
-@keyframes pp-ready-pulse {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-3px); }
-}
 
 .pp-action[data-focus="true"] { outline: 5px solid #f4c542; outline-offset: 3px; }
 
@@ -8338,7 +8331,6 @@ body[data-mode="paint"] .stage-lights {
   .pp-tube[data-hint="drop"]::after,
   .pp-tube[data-hint="sparkle"]::after,
   .pp-tube[data-hint="sparkle"] .pp-tube-body,
-  .pp-paint[data-ready="true"],
   .pp-finale-chip { animation: none; }
 
   .pp-fillable { transition: none; }

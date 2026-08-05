@@ -1,4 +1,4 @@
-// 물감 놀이 상태 머신 계약 — 시드 재현성·2색 잠금·젓기 관용·힌트·벌점 없음.
+// 물감 놀이 상태 머신 계약 — 시드 재현성·2색 잠금·자동 혼합·힌트·벌점 없음.
 
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -13,16 +13,19 @@ import {
   paintCanvas,
   recipeFor,
   rinseJar,
-  squeezeTube,
-  stirJar
+  squeezeTube
 } from "../src/paint-play.mjs";
-import { PAINT_RECIPES, PAINT_TUBES, STAGE_PLANS } from "../src/paint-play-data.mjs";
+import {
+  PAINT_COLORS,
+  PAINT_RECIPES,
+  PAINT_TUBES,
+  STAGE_PLANS
+} from "../src/paint-play-data.mjs";
 
 // 현재 라운드를 정답으로 완성한다 — 테스트 헬퍼.
 function solveRound(state) {
   const round = currentRound(state);
   for (const part of recipeFor(round.colorId)) squeezeTube(state, part);
-  if (!state.stirred) stirJar(state);
   return paintCanvas(state);
 }
 
@@ -60,7 +63,7 @@ test("라운드는 목표색과 주제가 정합하고 같은 색이 연속되�
   }
 });
 
-test("원색 라운드는 한 번 짜면 바로 완성된다 (젓기 생략)", () => {
+test("원색 라운드는 한 번 고르면 바로 섞인다", () => {
   const state = createPaintPlay("easy", 1);
   const round = currentRound(state);
   assert.equal(round.stage, 1);
@@ -80,30 +83,35 @@ test("혼합 라운드 — 2색 제한: 가득 찬 병에는 잠금 이벤트만
   assert.equal(state.jar.length, 2);
 });
 
-test("젓기 관용 — 1회만 저어도 완성된다", () => {
+// 사용자 결정(2026-08-05): "두 개를 선택하면 자동으로 색이 합쳐지고 완료".
+// 젓기·칠하기 버튼은 없다 — 두 번째 튜브가 곧 혼합 신호다.
+test("혼합 라운드 — 두 번째 튜브에서 자동으로 섞인다(젓기 단계 없음)", () => {
   const state = createPaintPlay("steady", 1);
   const round = currentRound(state);
   const [a, b] = recipeFor(round.colorId);
-  squeezeTube(state, a);
-  assert.equal(stirJar(state).length, 0, "재료 부족이면 무시");
-  squeezeTube(state, b);
-  const events = stirJar(state);
-  assert.ok(events.some(event => event.type === "mixed"));
+  const first = squeezeTube(state, a);
+  assert.ok(!first.some(event => event.type === "mixed"), "한 개로는 안 섞인다");
+  assert.equal(jarColor(state), null);
+  const events = squeezeTube(state, b);
+  assert.ok(events.some(event => event.type === "mixed"), "두 번째에서 혼합");
+  assert.equal(state.mixed, true);
   assert.equal(jarColor(state), round.colorId);
+  // 확인 동작 없이 곧바로 칠할 수 있다(앱이 자동으로 부른다)
+  assert.ok(paintCanvas(state).some(event => event.type === "success"));
 });
 
-test("수식 칩 — 젓기 전 '빨강+노랑=?', 젓은 후 결과가 채워진다", () => {
+test("수식 칩 — 한 개 고른 뒤엔 결과가 비고, 두 개째에 채워진다", () => {
   const state = createPaintPlay("steady", 1);
   const round = currentRound(state);
   const [a, b] = recipeFor(round.colorId);
   squeezeTube(state, a);
-  squeezeTube(state, b);
   const before = equationFor(state);
-  assert.ok(before.a && before.b);
+  assert.equal(before.a, PAINT_COLORS[a].ko);
+  assert.equal(before.b, null, "두 번째는 아직 비었다");
   assert.equal(before.result, null);
-  stirJar(state);
+  squeezeTube(state, b);
   const after = equationFor(state);
-  assert.ok(after.result, "젓기 후 결과 이름");
+  assert.ok(after.b && after.result, "혼합 후 재료 둘과 결과 이름");
 });
 
 test("헹구기 — 병이 비고 판정·별 변화가 없다", () => {
@@ -124,7 +132,6 @@ test("불일치 — 벌점 없이(별 불변) 결과 색을 호명하고 병을 
   round.subjectId = "carrot";
   squeezeTube(state, "red");
   squeezeTube(state, "blue"); // 보라 — 주문(주황)과 다르다
-  stirJar(state);
   const events = paintCanvas(state);
   const mismatch = events.find(event => event.type === "mismatch");
   assert.ok(mismatch);
@@ -143,7 +150,6 @@ test("힌트 에스컬레이션 — 물방울 라운드는 2회 실패에 반짝
   for (const _ of [1, 2]) {
     squeezeTube(state, "red");
     squeezeTube(state, "blue");
-    stirJar(state);
     paintCanvas(state);
   }
   assert.equal(round.hintLevel, 2);
@@ -160,7 +166,6 @@ test("역추론 라운드(스테이지 4) — 힌트 0에서 2회 실패 시 물
   for (const _ of [1, 2]) {
     squeezeTube(state, "red");
     squeezeTube(state, "blue");
-    stirJar(state);
     paintCanvas(state);
   }
   assert.equal(round.hintLevel, 1);
@@ -203,7 +208,7 @@ test("도전 완주 시 서로 다른 색 7개면 무지개가 뜰 수 있다", 
   assert.ok(found, "7색 라운드 구성이 존재");
 });
 
-test("포커스 순환 — 7칸을 양방향으로 감싼다", () => {
+test("포커스 순환 — 튜브 5 + 헹구기 6칸을 양방향으로 감싼다", () => {
   const state = createPaintPlay("easy", 1);
   assert.equal(movePaintFocus(state, -1), PAINT_FOCUS_COUNT - 1);
   assert.equal(movePaintFocus(state, 1), 0);
@@ -211,7 +216,7 @@ test("포커스 순환 — 7칸을 양방향으로 감싼다", () => {
 });
 
 // 반증 패스(2026-08-05)에서 잡힌 크래시 회귀 가드: 아이가 아무 튜브나
-// 눌러 만드는 전 조합(같은 튜브 2연타 포함)이 젓기→칠하기까지 항상
+// 눌러 만드는 전 조합(같은 튜브 2연타 포함)이 자동 혼합→칠하기까지 항상
 // 실명 있는 색으로 끝나야 한다 — null 색이 새어 나오면 앱단이 죽는다.
 test("전 조합 회귀 — 어떤 2튜브 조합도 칠하기에서 색 이름 없이 끝나지 않는다", () => {
   for (const first of PAINT_TUBES) {
@@ -221,7 +226,6 @@ test("전 조합 회귀 — 어떤 2튜브 조합도 칠하기에서 색 이름 
       round.colorId = "orange"; // 2재료 라운드로 고정
       squeezeTube(state, first.id);
       squeezeTube(state, second.id);
-      stirJar(state);
       assert.ok(jarColor(state), `${first.id}+${second.id} 혼합색`);
       const events = paintCanvas(state);
       const outcome = events.find(

@@ -1,8 +1,9 @@
 // 알록달록 물감 놀이 — 순수 상태 머신(씬·DOM 무관, node 테스트 대상).
-// 라운드 흐름: order(그림·목표색 제시) → 튜브 짜기(병에 최대 레시피 길이만큼)
-// → 젓기(2색일 때만; 1색 라운드는 짜는 즉시 완성) → 칠하기 → 일치/불일치.
-// 벌점 없음: 불일치는 결과 색 실명 호명 + 병 헹굼 + 재도전. 힌트 에스컬레이션:
-// 물방울(재료 표시) → 정답 튜브 반짝. 별은 성공마다 +1(시도 횟수 무관).
+// 라운드 흐름: order(그림·목표색 제시) → 튜브 고르기(1색 라운드 1개, 혼합
+// 라운드 2개) → 마지막 튜브에서 자동 혼합 → 앱이 곧바로 칠하기 → 일치/불일치.
+// 젓기·칠하기 버튼은 없다(사용자 결정 2026-08-05: "두 개 고르면 자동으로
+// 합쳐지고 완료"). 벌점 없음: 불일치는 결과 색 실명 호명 + 병 헹굼 + 재도전.
+// 힌트 에스컬레이션: 물방울(재료 표시) → 정답 튜브 반짝. 별은 성공마다 +1.
 
 import {
   PAINT_COLORS,
@@ -70,15 +71,14 @@ export function createPaintPlay(difficulty = "easy", seed = 0) {
     difficulty,
     rounds: buildRounds(plan, random),
     roundIndex: 0,
-    jar: [],            // 병에 든 재료 색 id (짠 순서)
-    stirred: false,     // 젓기 완료(1색 라운드는 짜는 즉시 true)
-    stirCount: 0,       // ⎵ 연타 진행(연출용 — 1회만 눌러도 3틱 뒤 완성 관용)
+    jar: [],            // 병에 든 재료 색 id (고른 순서)
+    mixed: false,       // 필요한 튜브를 다 골라 색이 섞였다(자동)
     tries: 0,           // 현재 라운드 실패 횟수
     stars: 0,
     gallery: [],        // 완성한 색 id 순서대로 (액자)
     finale: false,
     rainbow: false,
-    focusIndex: 0       // 0..4 튜브, 5 헹구기, 6 칠하기 (씬·앱 공용 인덱스)
+    focusIndex: 0       // 0..4 튜브, 5 헹구기 (씬·앱 공용 인덱스)
   };
 }
 
@@ -97,15 +97,15 @@ export function recipeFor(colorId) {
   return PAINT_RECIPES[colorId] ?? [];
 }
 
-// 병이 최종적으로 담고 있는 색 — 젓기 전엔 null.
+// 병이 최종적으로 담고 있는 색 — 섞이기 전엔 null.
 export function jarColor(state) {
-  if (!state.stirred) return null;
+  if (!state.mixed) return null;
   if (state.jar.length === 1) return state.jar[0];
   if (state.jar.length === 2) return mixResult(state.jar[0], state.jar[1]);
   return null;
 }
 
-// 수식 칩 문자열 조각 — 씬·자막이 같은 원본을 쓴다.
+// 수식 칩 문자열 조각 — 씬·자막이 같은 원본을 쓴다. 섞이기 전 result는 null.
 // 예: { a: "빨강", b: "노랑", result: "주황" | null }
 export function equationFor(state) {
   const round = currentRound(state);
@@ -128,47 +128,32 @@ export function squeezeTube(state, tubeId) {
   const round = currentRound(state);
   if (!round || state.finale) return [];
   const need = recipeFor(round.colorId).length;
-  if (state.stirred || state.jar.length >= Math.max(need, 2) ||
-      (need === 1 && state.jar.length >= 1)) {
-    // 2색 제한(사용자 결정): 가득 찬 병에는 더 짤 수 없다 — 잠금 이벤트만
+  if (state.mixed || state.jar.length >= need) {
+    // 2색 제한(사용자 결정): 가득 찬 병에는 더 담을 수 없다 — 잠금 이벤트만
     return [{ type: "locked" }];
   }
   state.jar.push(tubeId);
   const events = [{ type: "squeeze", color: tubeId }];
-  if (need === 1 && state.jar.length === 1) {
-    // 원색 라운드 — 젓기 없이 바로 완성
-    state.stirred = true;
+  if (state.jar.length >= need) {
+    // 필요한 만큼 고르면 그 자리에서 섞인다 — 젓기 단계 없음
+    state.mixed = true;
     events.push({ type: "mixed", color: jarColor(state) });
   }
   return events;
-}
-
-export function stirJar(state) {
-  const round = currentRound(state);
-  if (!round || state.finale || state.stirred) return [];
-  const need = recipeFor(round.colorId).length;
-  if (state.jar.length < need) return [];
-  state.stirCount += 1;
-  if (state.stirCount >= 1) {
-    // 소근육 관용: 1회 젓기로도 완성(연타는 연출만 빨라진다)
-    state.stirred = true;
-    return [{ type: "mixed", color: jarColor(state) }];
-  }
-  return [{ type: "stirring", count: state.stirCount }];
 }
 
 export function rinseJar(state) {
   if (state.finale) return [];
   const hadPaint = state.jar.length > 0;
   state.jar = [];
-  state.stirred = false;
-  state.stirCount = 0;
+  state.mixed = false;
   return hadPaint ? [{ type: "rinsed" }] : [];
 }
 
+// 혼합 직후 앱이 자동으로 부른다(버튼 없음) — 일치면 성공, 아니면 재도전.
 export function paintCanvas(state) {
   const round = currentRound(state);
-  if (!round || state.finale || !state.stirred) return [];
+  if (!round || state.finale || !state.mixed) return [];
   const result = jarColor(state);
   if (result === round.colorId) {
     state.stars += 1;
@@ -181,8 +166,7 @@ export function paintCanvas(state) {
     }];
     state.roundIndex += 1;
     state.jar = [];
-    state.stirred = false;
-    state.stirCount = 0;
+    state.mixed = false;
     state.tries = 0;
     if (state.roundIndex >= state.rounds.length) {
       state.finale = true;
@@ -204,13 +188,12 @@ export function paintCanvas(state) {
     hintLevel: round.hintLevel
   }];
   state.jar = [];
-  state.stirred = false;
-  state.stirCount = 0;
+  state.mixed = false;
   return mismatch;
 }
 
-// 포커스 이동(←/→) — 0..4 튜브, 5 헹구기, 6 칠하기.
-export const PAINT_FOCUS_COUNT = 7;
+// 포커스 이동(←/→) — 0..4 튜브, 5 헹구기.
+export const PAINT_FOCUS_COUNT = 6;
 
 export function movePaintFocus(state, delta) {
   state.focusIndex =
