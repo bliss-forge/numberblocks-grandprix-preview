@@ -85,6 +85,32 @@ const srt = Object.fromEntries(
   ])
 );
 
+const paint = Object.fromEntries(
+  [
+    "paint-intro",
+    "paint-finale",
+    "paint-rainbow",
+    ...[
+      "firetruck", "chick", "bus", "carrot", "car", "frog", "tractor",
+      "grape", "heli", "blossom", "boat", "bear", "rocket"
+    ].map(subject => `paint-order-${subject}`),
+    ...[
+      "orange", "green", "purple", "pink", "sky", "brown", "navy",
+      "lightyellow", "olive", "gray"
+    ].map(color => `paint-mix-${color}`),
+    ...[
+      "red", "yellow", "blue", "black", "white", "orange", "green",
+      "purple", "pink", "sky", "brown", "navy", "lightyellow", "olive", "gray"
+    ].map(color => `paint-made-${color}`)
+  ].map(key => [
+    key,
+    {
+      ko: `assets/audio/voice/ko/${key}.mp3`,
+      en: `assets/audio/voice/en/${key}.mp3`
+    }
+  ])
+);
+
 export const VOICE = Object.freeze({
   "prompt-count": { ko: "assets/audio/voice/ko/prompt-count.mp3" },
   "prompt-add": { ko: "assets/audio/voice/ko/prompt-add.mp3" },
@@ -96,6 +122,7 @@ export const VOICE = Object.freeze({
   ...safety,
   ...srt,
   ...subway,
+  ...paint,
   ...numbers,
   ...Object.fromEntries(
     Array.from({ length: 4 }, (_, index) => [

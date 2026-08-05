@@ -119,6 +119,24 @@ import {
   movePhotoFrame,
   shootPhoto
 } from "./photo-hunt.mjs";
+import {
+  createPaintPlay,
+  currentRound as currentPaintRound,
+  currentSubject as currentPaintSubject,
+  equationFor as paintEquationFor,
+  movePaintFocus,
+  paintCanvas as paintPlayCanvas,
+  recipeFor as paintRecipeFor,
+  rinseJar as paintRinseJar,
+  squeezeTube as paintSqueezeTube,
+  stirJar as paintStirJar
+} from "./paint-play.mjs";
+import {
+  paintCanvasNode,
+  renderPaintPlay,
+  updatePaintPlay
+} from "./paint-play-scene.mjs";
+import { PAINT_COLORS, PAINT_TUBES, josa } from "./paint-play-data.mjs";
 
 const WALK_REPEAT_MS = 110;
 const audio = new AudioManager();
@@ -168,6 +186,8 @@ const state = {
   ktxPicking: false,
   ktxPickIndex: 0,
   ktxViewMs: 0,
+  paint: null,
+  paintScene: null,
   wrongCount: 0,
   round: 0,
   hintTimer: 0,
@@ -1616,6 +1636,184 @@ function deleteDigit() {
   dom.answer.textContent = state.buffer || "?";
 }
 
+// ── 알록달록 물감 놀이 ────────────────────────────────────────────────────
+
+const PAINT_MIX_VOICES = new Set([
+  "orange", "green", "purple", "pink", "sky", "brown", "navy",
+  "lightyellow", "olive", "gray"
+]);
+
+// 현재 라운드 주문을 낭독한다 — 색 이름 호명이 이 게임 학습의 절반.
+function playPaintOrder() {
+  const subject = currentPaintSubject(state.paint ?? {});
+  if (subject) void audio.playPrompt(`paint-order-${subject.id}`);
+}
+
+function paintOrderCaption() {
+  const round = currentPaintRound(state.paint);
+  if (!round) return "🎨 알록달록 물감 놀이";
+  const color = PAINT_COLORS[round.colorId].ko;
+  return `🎨 ${color}${josa(color, "을", "를")} 만들어 칠해요!`;
+}
+
+function refreshPaintScene() {
+  if (!state.paint || !state.paintScene) return;
+  updatePaintPlay(state.paintScene, state.paint, document);
+}
+
+function startPaintPlay() {
+  stopSafetyHold();
+  clearTimers();
+  audio.cancel();
+  state.round += 1;
+  state.problem = null;
+  state.buffer = "";
+  const seed = Math.floor(Math.random() * 0x100000000);
+  state.paint = createPaintPlay(state.difficulty, seed);
+  state.paintScene = renderPaintPlay(document, state.paint);
+  dom.stage.setAttribute("aria-live", "off");
+  dom.stage.replaceChildren(state.paintScene);
+  dom.problem.textContent = paintOrderCaption();
+  dom.cheer.classList.remove("show");
+  dom.hint.className = "toast";
+  dom.hint.textContent = "";
+  setPhase("playing");
+  audio.playSfx("win");
+  showHint("물감 두 개를 골라 섞어 봐요! ← → 로 고르고 ⎵");
+  audio.cancel();
+  const introRound = state.round;
+  void audio.playPrompt("paint-intro").then(status => {
+    if (status !== "cancelled" && state.round === introRound && state.paint) {
+      playPaintOrder();
+    }
+  });
+}
+
+// 성공·불일치·혼합 이벤트를 소리·자막·연출로 옮긴다.
+// 수식 낭독("빨강과 노랑을 섞으면 주황!")이 학습의 핵심 채널이다.
+function handlePaintEvents(events) {
+  if (!state.paint) return;
+  const round = state.round;
+  for (const event of events) {
+    if (event.type === "squeeze") {
+      audio.playSfx("pop");
+    } else if (event.type === "locked") {
+      audio.playSfx("key");
+      showHint("병이 가득해요! 💧 헹구거나 저어 봐요");
+    } else if (event.type === "mixed") {
+      audio.playSfx("win");
+      const equation = state.paint ? paintEquationText() : "";
+      if (equation) showHint(equation);
+      if (PAINT_MIX_VOICES.has(event.color)) {
+        audio.cancel();
+        void audio.playPrompt(`paint-mix-${event.color}`);
+      }
+    } else if (event.type === "rinsed") {
+      audio.playSfx("key");
+    } else if (event.type === "mismatch") {
+      const made = PAINT_COLORS[event.color].ko;
+      const wanted = PAINT_COLORS[event.wantedColor].ko;
+      const retryKey = `retry-${Math.min(state.paint.tries, 3)}`;
+      audio.cancel();
+      void audio.playPrompt(`paint-made-${event.color}`).then(status => {
+        if (status !== "cancelled") playRetryCue(audio, retryKey);
+      });
+      showHint(`우와, ${made}${josa(made, "이", "가")} 됐네! 이번엔 ${wanted}${josa(wanted, "을", "를")} 만들어 보자`);
+    } else if (event.type === "success") {
+      state.stars += 1;
+      dom.stars.textContent = String(state.stars);
+      audio.playSfx("win");
+      audio.cancel();
+      if (PAINT_MIX_VOICES.has(event.color)) {
+        void audio.playPrompt(`paint-mix-${event.color}`);
+      } else {
+        void audio.playPrompt(`cheer-${1 + (state.stars % 4)}`);
+      }
+      const parts = event.equation;
+      dom.cheer.textContent = parts.b
+        ? `${parts.a} + ${parts.b} = ${parts.result}!`
+        : `${parts.result} 완성!`;
+      dom.cheer.classList.add("show");
+      schedule(() => {
+        if (state.round === round) dom.cheer.classList.remove("show");
+      }, 1900);
+    } else if (event.type === "finale") {
+      setPhase("celebrating");
+      audio.playSfx("win");
+      audio.cancel();
+      void audio.playPrompt(event.rainbow ? "paint-rainbow" : "paint-finale");
+      dom.cheer.textContent = event.rainbow
+        ? "🌈 무지개 화가 탄생!"
+        : "오늘의 그림을 다 그렸어요!";
+      dom.cheer.classList.add("show");
+      schedule(() => {
+        if (state.round === round) goHome();
+      }, 5200);
+    }
+  }
+  // 성공 순간엔 칠해진 그림을 1.5초 보여준 뒤 다음 라운드로 넘어간다 —
+  // "내가 만든 색으로 칠했다"가 이 게임의 핵심 보상이다.
+  const success = events.find(event => event.type === "success");
+  if (success) {
+    const canvas = state.paintScene?.querySelector?.(".pp-canvas");
+    if (canvas) paintCanvasNode(canvas, PAINT_COLORS[success.color].hex);
+    schedule(() => {
+      if (state.round !== round || !state.paint) return;
+      dom.problem.textContent = paintOrderCaption();
+      refreshPaintScene();
+      if (!state.paint.finale) playPaintOrder();
+    }, 1500);
+    return;
+  }
+  if (state.paint) dom.problem.textContent = paintOrderCaption();
+  refreshPaintScene();
+}
+
+// 혼합 완료 자막 — "빨강과 노랑을 섞으면 주황!" (수식 학습의 문장형)
+function paintEquationText() {
+  const parts = paintEquationFor(state.paint);
+  if (!parts?.result) return "";
+  return parts.b
+    ? `${parts.a}${josa(parts.a, "과", "와")} ${parts.b}${josa(parts.b, "을", "를")} 섞으면 ${parts.result}!`
+    : `${parts.result} 물감이 준비됐어요!`;
+}
+
+// 포커스 실행 — 0..4 튜브 짜기, 5 헹구기, 6 젓기/칠하기.
+function activatePaintFocus() {
+  if (!state.paint) return;
+  const index = state.paint.focusIndex;
+  if (index < PAINT_TUBES.length) {
+    handlePaintEvents(paintSqueezeTube(state.paint, PAINT_TUBES[index].id));
+    return;
+  }
+  if (index === PAINT_TUBES.length) {
+    handlePaintEvents(paintRinseJar(state.paint));
+    return;
+  }
+  if (!state.paint.stirred) {
+    handlePaintEvents(paintStirJar(state.paint));
+  } else {
+    handlePaintEvents(paintPlayCanvas(state.paint));
+  }
+}
+
+// ⎵의 "지금 할 일" — 병이 준비되면 젓기, 저었으면 칠하기, 아니면 포커스 실행.
+function pressPaintSpace() {
+  if (!state.paint) return;
+  const round = currentPaintRound(state.paint);
+  if (!round) return;
+  if (state.paint.stirred) {
+    handlePaintEvents(paintPlayCanvas(state.paint));
+    return;
+  }
+  const need = paintRecipeFor(round.colorId).length;
+  if (state.paint.jar.length >= need && need === 2) {
+    handlePaintEvents(paintStirJar(state.paint));
+    return;
+  }
+  activatePaintFocus();
+}
+
 function startMode(mode) {
   if (!isModeAvailable(mode, state.difficulty)) {
     showHint("도전에서는 더하기, 빼기와 곱하기를 해요.");
@@ -1631,6 +1829,8 @@ function startMode(mode) {
   state.ktx = null;
   state.ktxScene = null;
   state.ktxPicking = false;
+  state.paint = null;
+  state.paintScene = null;
   if (mode === "safety") {
     startSafetyRoute();
   } else if (mode === "subway") {
@@ -1641,6 +1841,10 @@ function startMode(mode) {
     state.safety = null;
     state.safetyView = null;
     startKtxPicker();
+  } else if (mode === "paint") {
+    state.safety = null;
+    state.safetyView = null;
+    startPaintPlay();
   } else {
     state.safety = null;
     state.safetyView = null;
@@ -1669,6 +1873,8 @@ function goHome() {
   state.ktxScene = null;
   state.ktxPicking = false;
   state.ktxHeld = { up: false, down: false };
+  state.paint = null;
+  state.paintScene = null;
   dom.stage.setAttribute("aria-live", "polite");
   state.buffer = "";
   setMode(null);
@@ -1733,6 +1939,33 @@ document.addEventListener("keyup", event => {
 });
 
 dom.stage.addEventListener("click", event => {
+  if (state.mode === "paint" && state.paint && state.phase === "playing") {
+    const tubeButton = event.target.closest(".pp-tube");
+    if (tubeButton) {
+      const index = PAINT_TUBES.findIndex(
+        entry => entry.id === tubeButton.dataset.tube
+      );
+      if (index >= 0) {
+        state.paint.focusIndex = index;
+        handlePaintEvents(paintSqueezeTube(state.paint, tubeButton.dataset.tube));
+      }
+      return;
+    }
+    if (event.target.closest(".pp-rinse")) {
+      state.paint.focusIndex = PAINT_TUBES.length;
+      handlePaintEvents(paintRinseJar(state.paint));
+      return;
+    }
+    if (event.target.closest(".pp-paint")) {
+      state.paint.focusIndex = PAINT_TUBES.length + 1;
+      pressPaintSpace();
+      return;
+    }
+    if (event.target.closest(".pp-jar")) {
+      pressPaintSpace();
+      return;
+    }
+  }
   const branchChoice = event.target.closest(".ktx-branch-choice");
   if (branchChoice && state.mode === "ktx" && state.ktx?.phase === "branch") {
     const picked = selectKtxRoute(state.ktx, branchChoice.dataset.route);
@@ -1798,6 +2031,38 @@ document.addEventListener("keydown", event => {
     if (!event.repeat) {
       audio.playSfx("key");
       startFamilyLine();
+    }
+    return;
+  }
+
+  // 물감 놀이 — ←/→ 포커스, ⎵ 실행(짜기·젓기·칠하기), 숫자키 = 튜브.
+  if (state.phase === "playing" && state.mode === "paint" && state.paint) {
+    if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
+      event.preventDefault();
+      if (!event.repeat) {
+        movePaintFocus(state.paint, event.key === "ArrowRight" ? 1 : -1);
+        audio.playSfx("key");
+        refreshPaintScene();
+      }
+      return;
+    }
+    if (event.key === " " || event.key === "Spacebar" || event.key === "Enter") {
+      event.preventDefault();
+      if (!event.repeat) pressPaintSpace();
+      return;
+    }
+    if (/^[0-9]$/.test(event.key)) {
+      event.preventDefault();
+      if (event.repeat) return;
+      const tube = PAINT_TUBES.find(entry => entry.keyDigit === event.key);
+      if (tube) {
+        const index = PAINT_TUBES.indexOf(tube);
+        state.paint.focusIndex = index;
+        handlePaintEvents(paintSqueezeTube(state.paint, tube.id));
+      } else {
+        audio.playSfx("pop");
+      }
+      return;
     }
     return;
   }

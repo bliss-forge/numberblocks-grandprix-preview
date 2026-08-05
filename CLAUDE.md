@@ -19,6 +19,7 @@
 | 5 | `safety` | 안전한 길찾기 | `assets/characters/five.png` |
 | 6 | `subway` | 지하철 여행 | `assets/characters/six.png` |
 | 7 | `ktx` | 칙칙폭폭 기관사 | `assets/characters/seven.png` |
+| 8 | `paint` | 알록달록 물감 놀이 | `assets/characters/eight.png` |
 
 - 카드 순서는 1→7이며, 앞으로 8~10까지 같은 그리드에 들어간다.
 - 홈에는 숫자키 단축키가 없다. 카드와 난이도 모두 ←/→ 포커스 이동 + Space·Enter,

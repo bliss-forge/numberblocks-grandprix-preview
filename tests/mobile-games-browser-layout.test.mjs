@@ -157,7 +157,8 @@ test("390×844 홈은 두 열과 넓은 마지막 홀수 카드로 잘림 없이
   assert.equal(metrics.columns, 2);
   assert.equal(metrics.horizontalOverflow, false);
   assert.equal(metrics.cardsInsideWidth, true);
-  assert.ok(metrics.seventhWidth >= metrics.firstWidth * 1.8);
+  // 카드 8장(짝수) — 넓은 홀수 마지막 카드 없이 모두 같은 폭의 2열이다
+  assert.ok(Math.abs(metrics.seventhWidth - metrics.firstWidth) <= 1);
   assert.ok(
     metrics.firstSixWidths.every(
       width => Math.abs(width - metrics.firstWidth) <= 1
@@ -466,8 +467,9 @@ test("최소·대형 휴대전화에서도 1~5 조작 화면이 뷰포트에 들
     assert.equal(homeMetrics.horizontalOverflow, false, `${viewport.width} home overflow`);
     assert.equal(homeMetrics.cardsInsideWidth, true, `${viewport.width} home cards`);
     assert.equal(homeMetrics.overlapsCredit, false, `${viewport.width} home credit`);
+    // 카드 8장(짝수) — 마지막 행도 2열 균등 폭
     assert.ok(
-      homeMetrics.seventhWidth >= homeMetrics.firstWidth * 1.8,
+      Math.abs(homeMetrics.seventhWidth - homeMetrics.firstWidth) <= 1,
       `${viewport.width} seventh card`
     );
     assert.ok(

@@ -14,8 +14,10 @@
     min-height: 100dvh;
     align-content: start;
     gap: 14px;
+    /* 8카드(4행)부터는 전체 스크롤 시 첫 행이 좌상단 크레딧 아래로 들어가지
+       않도록 하단 여백을 최소화한다(크레딧은 이 구간에서 상단 배치). */
     padding: max(64px, env(safe-area-inset-top)) 12px
-      max(52px, env(safe-area-inset-bottom));
+      max(8px, env(safe-area-inset-bottom));
     overflow-x: clip;
     overflow-y: auto;
   }

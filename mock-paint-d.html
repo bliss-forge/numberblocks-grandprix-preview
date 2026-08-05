@@ -1,0 +1,128 @@
+<!doctype html><meta charset="utf-8">
+<title>시안 D — 자동차 색칠 가게</title>
+<style>
+  * { box-sizing: border-box; margin: 0; }
+  body { width: 1280px; height: 720px; overflow: hidden; font-family: "Apple SD Gothic Neo", sans-serif; }
+  .stage { position: relative; width: 1280px; height: 720px;
+    background: linear-gradient(#bfe8ff 0%, #dff2ff 44%, #cdeaa8 44.1%, #a9df7d 100%); }
+  .hills { position: absolute; left: 0; right: 0; top: 200px; height: 120px;
+    background: radial-gradient(60% 100% at 20% 100%, #b9e394 0 60%, transparent 61%),
+                radial-gradient(70% 100% at 78% 100%, #c4e8a2 0 60%, transparent 61%); }
+  /* 가게 건물 */
+  .shop { position: absolute; left: 120px; top: 130px; width: 460px; height: 190px; }
+  .shop .awn { position: absolute; top: 0; width: 100%; height: 54px; border-radius: 18px 18px 0 0;
+    background: repeating-linear-gradient(90deg, #ef4147 0 46px, #fff 46px 92px); }
+  .shop .body { position: absolute; top: 50px; width: 100%; bottom: 0; background: #fdf1dc; border: 4px solid #e8d9be; border-top: 0; }
+  .shop .sign { position: absolute; left: 50%; transform: translateX(-50%); top: 66px; padding: 7px 18px;
+    background: #fff; border: 3px solid #31445b; border-radius: 14px; font-weight: 900; font-size: 19px; color: #31445b; }
+  .shop .door { position: absolute; left: 36px; bottom: 0; width: 96px; height: 74px; background: #b9c9da; border-radius: 10px 10px 0 0; }
+  /* 차고 컬렉션 */
+  .garage { position: absolute; left: 24px; top: 20px; display: flex; gap: 10px; align-items: center;
+    background: rgba(255,255,255,.88); border: 3px solid #e2e9f1; border-radius: 16px; padding: 10px 14px; }
+  .garage b { font-size: 14px; color: #31445b; margin-right: 4px; }
+  .minicar { width: 54px; height: 24px; border-radius: 12px 14px 4px 4px; position: relative; }
+  .minicar::before { content: ""; position: absolute; left: 10px; right: 10px; top: -9px; height: 12px;
+    background: inherit; border-radius: 8px 10px 0 0; filter: brightness(1.12); }
+  .minicar::after { content: ""; position: absolute; left: 6px; right: 6px; bottom: -5px; height: 8px;
+    background: radial-gradient(circle 4px at 8px 4px, #26303f 95%, transparent),
+                radial-gradient(circle 4px at calc(100% - 8px) 4px, #26303f 95%, transparent); }
+  .minicar.empty { background: #eef2f7; border: 2px dashed #c8d4e0; }
+  .minicar.empty::before { display: none; }
+  /* 주문서 */
+  .order { position: absolute; right: 26px; top: 20px; width: 300px; background: #fff; border: 4px solid #f4c542;
+    border-radius: 18px; padding: 14px 16px; display: flex; gap: 12px; align-items: center;
+    box-shadow: 0 6px 0 rgba(49,68,91,.08); }
+  .order img { width: 74px; height: auto; }
+  .order .txt { flex: 1; }
+  .order .txt small { font-size: 13px; color: #7d8ea1; font-weight: 700; }
+  .order .txt strong { display: block; font-size: 19px; color: #31445b; line-height: 1.3; }
+  .swatch { width: 46px; height: 46px; border-radius: 50%; background: #ff8a3d; border: 4px solid #fff; outline: 3px solid #ff8a3d; }
+  /* 자동차 + 스프레이 부스 */
+  .road { position: absolute; left: 0; right: 0; top: 388px; height: 46px; background: #8d95a0; }
+  .road::after { content: ""; position: absolute; left: 0; right: 0; top: 20px; height: 6px;
+    background: repeating-linear-gradient(90deg, #fff 0 46px, transparent 46px 100px); }
+  .car { position: absolute; left: 330px; top: 236px; width: 420px; filter: grayscale(.94) brightness(1.06); }
+  .car svg { width: 100%; height: auto; display: block; }
+  .booth { position: absolute; left: 700px; top: 176px; width: 240px; height: 258px;
+    background: linear-gradient(#5aa9e6, #4a90d0); border-radius: 30px 30px 0 0; opacity: .93; }
+  .booth::before { content: ""; position: absolute; inset: 20px 24px 0; background: #dff2ff; border-radius: 20px 20px 0 0; }
+  .booth .label { position: absolute; left: 50%; transform: translateX(-50%); top: -14px; background: #31445b;
+    color: #f4c542; font-size: 14px; font-weight: 900; padding: 4px 14px; border-radius: 10px; white-space: nowrap; }
+  .booth .nozzle { position: absolute; left: 50%; top: 30px; width: 14px; height: 40px; margin-left: -7px; background: #31445b; border-radius: 7px; }
+  .booth .spray { position: absolute; left: 50%; top: 68px; width: 150px; height: 100px; margin-left: -75px;
+    background: radial-gradient(50% 100% at 50% 0, rgba(255,138,61,.6), transparent 75%); }
+  .keys { position: absolute; left: 50%; transform: translateX(-50%); top: 448px; background: #4a90d0; color: #fff;
+    font-weight: 900; font-size: 17px; padding: 10px 22px; border-radius: 16px; }
+  /* 하단 작업대 (A와 동일 문법) */
+  .bench { position: absolute; left: 24px; right: 24px; bottom: 22px; height: 200px; background: rgba(255,255,255,.92);
+    border: 3px solid #e2e9f1; border-radius: 24px; display: flex; align-items: center; gap: 18px; padding: 0 22px; }
+  .tin { width: 104px; text-align: center; position: relative; }
+  .tin .can { width: 80px; height: 88px; margin: 0 auto; border-radius: 12px 12px 16px 16px; position: relative;
+    box-shadow: inset -10px 0 0 rgba(0,0,0,.12), inset 0 10px 0 rgba(255,255,255,.35); }
+  .tin .num { position: absolute; top: -12px; left: 50%; transform: translateX(-50%); width: 30px; height: 30px;
+    background: #fff; border: 3px solid #31445b; border-radius: 50%; font-weight: 900; font-size: 16px; color: #31445b;
+    display: grid; place-items: center; z-index: 2; }
+  .tin img { position: absolute; right: -6px; bottom: -4px; width: 42px; z-index: 2; }
+  .tin.focus .can { outline: 5px solid #f4c542; outline-offset: 3px; }
+  .tin small { display: block; margin-top: 8px; font-size: 14px; font-weight: 900; color: #31445b; }
+  .tank { width: 180px; height: 160px; position: relative; margin: 0 8px; }
+  .tank .glass { position: absolute; inset: 0 16px 16px; border: 6px solid #9ab1c8; border-radius: 20px 20px 28px 28px;
+    background: linear-gradient(rgba(255,255,255,.5), rgba(255,255,255,.15)); overflow: hidden; }
+  .tank .liquid { position: absolute; left: 0; right: 0; bottom: 0; height: 62%; background: linear-gradient(#ffa14e, #ff8a3d); }
+  .tank .swirl { position: absolute; left: 18%; bottom: 12%; width: 64%; height: 44%;
+    background: radial-gradient(closest-side, rgba(255,224,122,.9), transparent 70%); border-radius: 50%; }
+  .tank .base { position: absolute; left: 2px; right: 2px; bottom: 0; height: 18px; background: #9ab1c8; border-radius: 9px; }
+  .btncol { display: flex; flex-direction: column; gap: 12px; margin-left: auto; }
+  .btn { padding: 15px 28px; border-radius: 18px; font-size: 20px; font-weight: 900; border: 0; color: #fff; }
+  .btn.paint { background: #2fa25c; box-shadow: 0 6px 0 #1f7a45; }
+  .btn.drain { background: #7d8ea1; box-shadow: 0 6px 0 #5d6f86; font-size: 15px; padding: 10px 20px; }
+</style>
+<div class="stage">
+  <div class="hills"></div>
+  <div class="shop"><div class="awn"></div><div class="body"></div><span class="sign">🚗 색칠 가게</span><div class="door"></div></div>
+
+  <div class="garage">
+    <b>내가 칠한 자동차</b>
+    <span class="minicar" style="background:#a55bd6"></span>
+    <span class="minicar" style="background:#58c96b"></span>
+    <span class="minicar" style="background:#ff8a3d"></span>
+    <span class="minicar empty"></span><span class="minicar empty"></span>
+  </div>
+
+  <div class="order">
+    <img src="assets/characters/two.png" alt="둘">
+    <div class="txt"><small>둘이의 주문</small><strong>주황색 자동차로<br>칠해 주세요!</strong></div>
+    <div class="swatch"></div>
+  </div>
+
+  <div class="road"></div>
+  <div class="car">
+    <svg viewBox="0 0 420 200" xmlns="http://www.w3.org/2000/svg">
+      <ellipse cx="210" cy="182" rx="180" ry="10" fill="#0c1420" opacity=".18"/>
+      <path d="M28 140 C24 112 36 96 70 90 L108 56 C118 44 134 38 152 38 L268 38 C288 38 302 46 312 60 L342 90 C382 96 396 110 394 138 C393 152 384 158 370 158 L52 158 C38 158 30 152 28 140z" fill="#ef6a3d"/>
+      <path d="M28 132 L394 132 L394 138 C393 152 384 158 370 158 L52 158 C38 158 30 152 28 140z" fill="#c8502a"/>
+      <path d="M116 62 L146 46 L200 46 L200 88 L104 88 C104 78 108 68 116 62z" fill="#1b2434"/>
+      <path d="M212 46 L266 46 C280 46 290 52 298 62 L312 88 L212 88z" fill="#1b2434"/>
+      <path d="M124 60 L146 48 L166 48 L136 84 L112 84z" fill="#fff" opacity=".2"/>
+      <rect x="196" y="92" width="10" height="52" rx="4" fill="#c8502a"/>
+      <rect x="216" y="104" width="34" height="8" rx="4" fill="#c8502a"/>
+      <rect x="30" y="104" width="26" height="16" rx="8" fill="#f7e7b0" stroke="#c8502a" stroke-width="3"/>
+      <rect x="366" y="104" width="26" height="16" rx="8" fill="#e8564a" stroke="#c8502a" stroke-width="3"/>
+      <g><circle cx="110" cy="158" r="30" fill="#26303f"/><circle cx="110" cy="158" r="17" fill="#c8ccd4"/><circle cx="110" cy="158" r="6" fill="#26303f"/></g>
+      <g><circle cx="310" cy="158" r="30" fill="#26303f"/><circle cx="310" cy="158" r="17" fill="#c8ccd4"/><circle cx="310" cy="158" r="6" fill="#26303f"/></g>
+    </svg>
+  </div>
+  <div class="booth"><span class="label">스프레이 부스</span><span class="nozzle"></span><span class="spray"></span></div>
+
+  <div class="keys">← → 로 고르고 ⎵ 로 붓기 · 숫자키도 돼요!</div>
+
+  <div class="bench">
+    <div class="tin"><span class="num">1</span><div class="can" style="background:#ef4147"></div><img src="assets/characters/one.png"><small>빨강</small></div>
+    <div class="tin focus"><span class="num">3</span><div class="can" style="background:#ffd23f"></div><img src="assets/characters/three.png"><small>노랑</small></div>
+    <div class="tin"><span class="num">5</span><div class="can" style="background:#4a9df8"></div><img src="assets/characters/five.png"><small>파랑</small></div>
+    <div class="tin"><span class="num">9</span><div class="can" style="background:#4b5563"></div><img src="assets/characters/nine.png"><small>검정</small></div>
+    <div class="tin"><span class="num">10</span><div class="can" style="background:#f6f8fc;border:3px solid #dde4ee"></div><img src="assets/characters/ten.png"><small>하양</small></div>
+    <div class="tank"><div class="glass"><div class="liquid"><div class="swirl"></div></div></div><span class="base"></span></div>
+    <div class="btncol"><button class="btn paint">🎨 도색!</button><button class="btn drain">💧 비우기</button></div>
+  </div>
+</div>

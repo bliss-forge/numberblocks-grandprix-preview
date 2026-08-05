@@ -7751,3 +7751,603 @@ body[data-mode="ktx"] .stage-lights {
   .ktx-game[data-speed-tier="5"] .ktx-side-near,
   .ktx-game[data-speed-tier="5"] .ktx-side-backdrop { filter: none; }
 }
+
+/* 8번 홈 카드 — 제목이 길어(알록달록 물감 놀이) 5열 폭에서 두 줄로 꺾이면
+   둘째 행 전체가 커진다. 이 카드만 살짝 줄여 한 줄을 지킨다. */
+.paint-mode-card .card-copy strong {
+  font-size: clamp(15px, 1.35vw, 19px);
+  letter-spacing: -.02em;
+  word-break: keep-all;
+  white-space: nowrap;
+}
+
+/* ══ 알록달록 물감 놀이 — 아뜰리에 ═════════════════════════════════════════
+   레이아웃: 갤러리(상단 스트립) · 일곱이+말풍선(좌) · 이젤(중앙) · 유리병+수식(우)
+   · 튜브 선반(하단). 연출은 삽입 시 시작되는 keyframe — 재렌더 갱신과 공존한다. */
+
+/* 게임 프레임 — 수학 게임의 답 입력대·커튼을 걷고 무대를 전면으로(지하철 문법) */
+body[data-mode="paint"] #game {
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 8px;
+  padding: 74px 2vw 12px;
+}
+
+body[data-mode="paint"] .answer-dock,
+body[data-mode="paint"] .number-pad,
+body[data-mode="paint"] .game-keyboard-note {
+  display: none;
+}
+
+body[data-mode="paint"] .stage-frame {
+  width: min(97vw, 1560px);
+  background: #f9edd8;
+}
+
+body[data-mode="paint"] .stage,
+body[data-mode="paint"] .paint-play {
+  width: 100%;
+  height: 100%;
+}
+
+body[data-mode="paint"] .stage {
+  padding: 0;
+}
+
+body[data-mode="paint"] .stage-curtain,
+body[data-mode="paint"] .stage-floor,
+body[data-mode="paint"] .stage-lights {
+  display: none;
+}
+
+.paint-play {
+  position: relative;
+  align-self: stretch;
+  justify-self: stretch;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(180px, 24%) minmax(0, 1fr) minmax(200px, 26%);
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  grid-template-areas:
+    "gallery gallery gallery"
+    "host easel jar"
+    "shelf shelf shelf";
+  gap: 10px 14px;
+  padding: 10px 14px 14px;
+  background:
+    radial-gradient(120% 90% at 50% 0%, #fdf6e9 0%, #f9edd8 58%, #f3e2c2 100%);
+  border-radius: 22px;
+  overflow: hidden;
+}
+
+/* 갤러리 — 완성 그림 액자 스트립 + 무지개 진행도 */
+.pp-gallery {
+  grid-area: gallery;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 14px;
+  background: rgba(255, 255, 255, .85);
+  border: 3px solid #eadfc8;
+  border-radius: 16px;
+}
+
+.pp-gallery-title { font-size: 14px; font-weight: 900; color: #31445b; }
+
+.pp-frame {
+  width: 44px;
+  height: 34px;
+  border: 4px solid #e5d9bf;
+  border-radius: 6px;
+  background: #f7f0e0;
+  flex: none;
+}
+
+.pp-frame:not([data-filled=""]) {
+  border-color: #d8b06a;
+  background:
+    linear-gradient(#fff 0 0) padding-box,
+    #fff;
+  position: relative;
+}
+
+.pp-frame:not([data-filled=""])::after {
+  content: "";
+  position: absolute;
+  inset: 4px;
+  border-radius: 3px;
+  background: var(--frame-color, #ccc);
+  animation: pp-frame-in .5s ease;
+}
+
+@keyframes pp-frame-in {
+  from { transform: scale(.3); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+.pp-rainbow-note {
+  margin-left: auto;
+  font-size: 13px;
+  font-weight: 900;
+  color: #7d8ea1;
+}
+
+/* 일곱이 + 말풍선 */
+.pp-host {
+  grid-area: host;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: end;
+  gap: 8px;
+  min-height: 0;
+}
+
+.pp-host-img {
+  width: clamp(64px, 9vw, 116px);
+  height: auto;
+  animation: pp-host-bob 3s ease-in-out infinite alternate;
+}
+
+@keyframes pp-host-bob { to { transform: translateY(-6px); } }
+
+.pp-bubble {
+  order: -1;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  background: #fff;
+  border: 3.5px solid #31445b;
+  border-radius: 18px 18px 18px 4px;
+}
+
+.pp-order-text {
+  font-size: clamp(14px, 1.5vw, 18px);
+  font-weight: 900;
+  color: #31445b;
+  line-height: 1.35;
+  word-break: keep-all;
+}
+
+.pp-swatch {
+  width: 40px;
+  height: 40px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--swatch-color, #ccc);
+  border: 4px solid #fff;
+  outline: 3px solid var(--swatch-color, #ccc);
+}
+
+/* 이젤 + 캔버스(회색 윤곽 → 채색) */
+.pp-easel {
+  grid-area: easel;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 0;
+}
+
+.pp-canvas {
+  /* 세로 1fr 트랙 안에서 높이 기준으로 줄어든다 — 무대 밖 넘침 금지 */
+  flex: 1 1 auto;
+  min-height: 0;
+  max-width: 100%;
+  aspect-ratio: 7 / 6;
+  background: #fff;
+  border: 6px solid #e8d9be;
+  border-radius: 12px;
+  box-shadow: 0 8px 0 rgba(49, 68, 91, .08);
+  display: grid;
+  place-items: center;
+}
+
+.pp-canvas svg { width: 92%; height: 92%; }
+
+.pp-fillable { transition: fill .9s ease; }
+
+.pp-canvas[data-painted="true"] .pp-fillable {
+  stroke-dasharray: none;
+  stroke: color-mix(in srgb, var(--pp-fill, #888) 60%, #31445b);
+  animation: pp-painted-pop .6s ease;
+}
+
+@keyframes pp-painted-pop {
+  0% { transform: scale(1); }
+  40% { transform: scale(1.02); }
+  100% { transform: scale(1); }
+}
+
+.pp-easel-legs {
+  width: 62%;
+  height: clamp(14px, 4vh, 38px);
+  background:
+    linear-gradient(14deg, transparent 47%, #d8b06a 47% 53%, transparent 53%) left/50% 100% no-repeat,
+    linear-gradient(-14deg, transparent 47%, #d8b06a 47% 53%, transparent 53%) right/50% 100% no-repeat;
+}
+
+/* 유리병 + 수식 칩 */
+.pp-jarzone {
+  grid-area: jar;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 0;
+}
+
+.pp-jar {
+  position: relative;
+  width: clamp(100px, 12vw, 150px);
+  aspect-ratio: 3 / 4;
+}
+
+.pp-jar-cap {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 52%;
+  height: 9%;
+  background: #9ab1c8;
+  border-radius: 8px;
+}
+
+.pp-jar-spoon {
+  position: absolute;
+  right: -10%;
+  top: -8%;
+  width: 8%;
+  height: 62%;
+  background: #d8b06a;
+  border-radius: 6px;
+  transform: rotate(18deg);
+  transform-origin: 50% 100%;
+}
+
+.pp-jar-glass {
+  position: absolute;
+  inset: 7% 4% 0;
+  border: 5px solid #9ab1c8;
+  border-radius: 16px 16px 34px 34px;
+  background: linear-gradient(rgba(255, 255, 255, .55), rgba(255, 255, 255, .2));
+  overflow: hidden;
+  display: flex;
+  flex-direction: column-reverse;
+}
+
+.pp-jar-layer {
+  height: 30%;
+  background: var(--layer-color, #ccc);
+  animation: pp-pour .45s ease;
+}
+
+@keyframes pp-pour {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+
+.pp-jar-mixed {
+  position: absolute;
+  inset: auto 0 0;
+  height: 62%;
+  background: var(--mix-color, #ccc);
+  animation: pp-swirl-in 1.1s ease;
+}
+
+.pp-jar-mixed::after {
+  content: "";
+  position: absolute;
+  left: 16%;
+  bottom: 12%;
+  width: 68%;
+  height: 46%;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, rgba(255, 255, 255, .55), transparent 72%);
+  animation: pp-swirl-spin 1.1s ease;
+}
+
+@keyframes pp-swirl-in {
+  0% { opacity: 0; }
+  45% { opacity: .6; }
+  100% { opacity: 1; }
+}
+
+@keyframes pp-swirl-spin {
+  from { transform: rotate(0) scale(.6); }
+  to { transform: rotate(320deg) scale(1); }
+}
+
+/* 수식 칩 — 학습의 상시 원본 */
+.pp-equation {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 14px;
+  background: #fff;
+  border: 3px solid #31445b;
+  border-radius: 14px;
+  font-weight: 900;
+}
+
+.pp-eq { font-size: clamp(14px, 1.6vw, 19px); color: #31445b; }
+.pp-eq-op { font-size: clamp(14px, 1.6vw, 19px); color: #7d8ea1; }
+
+.pp-eq-result.pp-eq-solved {
+  color: #1f7a45;
+  animation: pp-eq-pop .5s ease;
+}
+
+@keyframes pp-eq-pop {
+  0% { transform: scale(.6); }
+  55% { transform: scale(1.22); }
+  100% { transform: scale(1); }
+}
+
+/* 튜브 선반 + 행동 버튼 */
+.pp-shelf {
+  grid-area: shelf;
+  display: flex;
+  align-items: stretch;
+  gap: clamp(6px, 1.2vw, 16px);
+  padding: 10px clamp(10px, 1.6vw, 20px);
+  background: rgba(255, 255, 255, .92);
+  border: 3px solid #eadfc8;
+  border-radius: 18px;
+}
+
+.pp-tube {
+  position: relative;
+  flex: 1 1 0;
+  max-width: 118px;
+  min-width: 64px;
+  min-height: 44px;
+  border: 0;
+  background: none;
+  padding: 14px 4px 6px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  border-radius: 14px;
+}
+
+.pp-tube:focus-visible { outline: 4px solid #4a90d0; outline-offset: 2px; }
+
+.pp-tube-body {
+  width: clamp(40px, 4.6vw, 60px);
+  height: clamp(44px, 7.2vh, 74px);
+  border-radius: 10px 10px 16px 16px;
+  background: var(--tube-color, #ccc);
+  box-shadow:
+    inset -7px 0 0 rgba(0, 0, 0, .1),
+    inset 0 7px 0 rgba(255, 255, 255, .38);
+  position: relative;
+}
+
+.pp-tube-body::before {
+  content: "";
+  position: absolute;
+  top: -10px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 42%;
+  height: 10px;
+  background: #c8ccd4;
+  border-radius: 5px 5px 0 0;
+}
+
+.pp-tube[data-tube="white"] .pp-tube-body { border: 2.5px solid #dde4ee; }
+
+.pp-tube-num {
+  position: absolute;
+  top: 2px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 2;
+  width: 26px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  background: #fff;
+  border: 3px solid #31445b;
+  border-radius: 50%;
+  font-size: 14px;
+  font-weight: 900;
+  color: #31445b;
+}
+
+.pp-tube-mascot {
+  position: absolute;
+  right: 2px;
+  bottom: 22px;
+  width: clamp(24px, 2.8vw, 38px);
+  z-index: 2;
+}
+
+.pp-tube-name { font-size: 13px; font-weight: 900; color: #31445b; }
+
+.pp-tube[data-focus="true"] .pp-tube-body {
+  outline: 5px solid #f4c542;
+  outline-offset: 3px;
+}
+
+/* 힌트 — 물방울(재료 표시) / 반짝(정답 강조, 점멸 주기 ≥0.8s) */
+.pp-tube[data-hint="drop"]::after,
+.pp-tube[data-hint="sparkle"]::after {
+  content: "💧";
+  position: absolute;
+  top: -12px;
+  right: 6px;
+  font-size: 18px;
+  animation: pp-drop-bob 1.4s ease-in-out infinite alternate;
+}
+
+.pp-tube[data-hint="sparkle"]::after { content: "✨"; }
+
+.pp-tube[data-hint="sparkle"] .pp-tube-body {
+  animation: pp-sparkle 1s ease-in-out infinite;
+}
+
+@keyframes pp-drop-bob { to { transform: translateY(4px); } }
+
+@keyframes pp-sparkle {
+  0%, 100% { box-shadow: inset -7px 0 0 rgba(0, 0, 0, .1), inset 0 7px 0 rgba(255, 255, 255, .38), 0 0 0 0 rgba(244, 197, 66, .8); }
+  50% { box-shadow: inset -7px 0 0 rgba(0, 0, 0, .1), inset 0 7px 0 rgba(255, 255, 255, .38), 0 0 0 10px rgba(244, 197, 66, 0); }
+}
+
+.pp-actions {
+  margin-left: auto;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 8px;
+}
+
+.pp-action {
+  min-width: 128px;
+  min-height: 44px;
+  border: 0;
+  border-radius: 14px;
+  font-size: clamp(15px, 1.6vw, 18px);
+  font-weight: 900;
+  color: #fff;
+  cursor: pointer;
+}
+
+.pp-action:focus-visible { outline: 4px solid #4a90d0; outline-offset: 2px; }
+
+.pp-rinse { background: #7d8ea1; box-shadow: 0 5px 0 #5d6f86; }
+.pp-paint { background: #2fa25c; box-shadow: 0 5px 0 #1f7a45; }
+.pp-paint[data-ready="true"] { animation: pp-ready-pulse 1.2s ease-in-out infinite; }
+
+@keyframes pp-ready-pulse {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-3px); }
+}
+
+.pp-action[data-focus="true"] { outline: 5px solid #f4c542; outline-offset: 3px; }
+
+/* 피날레 오버레이 */
+.pp-finale {
+  position: absolute;
+  inset: 0;
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  background: rgba(253, 246, 233, .96);
+  z-index: 5;
+  text-align: center;
+  padding: 20px;
+}
+
+.pp-finale[data-on="true"] { display: flex; }
+
+.pp-finale-title { font-size: clamp(24px, 3.4vw, 40px); color: #31445b; margin: 0; }
+
+.pp-finale-row { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+
+.pp-finale-chip {
+  padding: 8px 16px;
+  border-radius: 14px;
+  font-weight: 900;
+  font-size: 15px;
+  color: #fff;
+  background: var(--frame-color, #888);
+  animation: pp-frame-in .5s ease backwards;
+}
+
+.pp-finale-chip:nth-child(2) { animation-delay: .12s; }
+.pp-finale-chip:nth-child(3) { animation-delay: .24s; }
+.pp-finale-chip:nth-child(4) { animation-delay: .36s; }
+.pp-finale-chip:nth-child(5) { animation-delay: .48s; }
+.pp-finale-chip:nth-child(6) { animation-delay: .6s; }
+.pp-finale-chip:nth-child(7) { animation-delay: .72s; }
+
+.pp-finale-note { font-size: clamp(16px, 2vw, 22px); font-weight: 900; color: #7d8ea1; margin: 0; }
+
+/* 모바일 — 세로 스택 + 세로 스크롤 허용(가로 스크롤 금지) */
+@media (max-width: 760px) {
+  body[data-mode="paint"] #game {
+    /* 무대 1fr 고정을 풀어 콘텐츠 높이대로 자라게 하고 #game이 스크롤한다 */
+    grid-template-rows: auto auto;
+    overflow-y: auto;
+  }
+
+  body[data-mode="paint"] .stage,
+  body[data-mode="paint"] .paint-play {
+    height: auto;
+    min-height: 0;
+  }
+
+  /* 그리드 auto 행은 min-height:0 항목과 만나면 constrained 패스에서 0으로
+     붕괴한다(크로미움) — 모바일은 플렉스 세로 흐름으로 단순화한다.
+     DOM 순서(갤러리→일곱이→이젤→병→선반)가 곧 화면 순서다. */
+  .paint-play {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 8px;
+  }
+
+  .paint-play > * { flex: none; }
+
+  .pp-gallery { flex-wrap: wrap; }
+  .pp-gallery-title { flex: none; white-space: nowrap; }
+  .pp-frame { width: 34px; height: 26px; border-width: 3px; }
+  .pp-host { flex-direction: row; justify-content: center; align-items: center; gap: 6px; }
+  .pp-host-img { width: 56px; }
+  .pp-bubble { order: 0; }
+  /* aspect-ratio·중첩 플렉스는 그리드 auto 행 산정에서 축소되는 함정이 있어
+     캔버스 치수와 이젤 행 최소 높이를 전부 명시한다 */
+  .pp-canvas {
+    flex: none;
+    width: min(86vw, 340px);
+    height: min(73.7vw, 291px);
+    aspect-ratio: auto;
+  }
+
+  .pp-jarzone { flex-direction: row; }
+  .pp-jar { width: 92px; flex: none; }
+  .pp-jar-spoon { display: none; }
+  .pp-shelf { flex-wrap: wrap; justify-content: center; }
+  .pp-actions { flex-direction: row; margin-left: 0; width: 100%; }
+  .pp-action { flex: 1; }
+
+  body[data-mode="paint"] .toast {
+    bottom: 10px;
+    z-index: 20;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pp-host-img,
+  .pp-jar-layer,
+  .pp-jar-mixed,
+  .pp-jar-mixed::after,
+  .pp-frame:not([data-filled=""])::after,
+  .pp-canvas[data-painted="true"] .pp-fillable,
+  .pp-eq-result.pp-eq-solved,
+  .pp-tube[data-hint="drop"]::after,
+  .pp-tube[data-hint="sparkle"]::after,
+  .pp-tube[data-hint="sparkle"] .pp-tube-body,
+  .pp-paint[data-ready="true"],
+  .pp-finale-chip { animation: none; }
+
+  .pp-fillable { transition: none; }
+}
+
+/* 물감 놀이 토스트 — 튜브 선반을 가리지 않게 무대 위쪽으로(PC 전용 —
+   모바일 배치는 위 760px 블록이 담당하므로 여기서 덮지 않는다) */
+@media (min-width: 761px) {
+  body[data-mode="paint"] .toast {
+    bottom: min(240px, 30vh);
+  }
+}
