@@ -158,15 +158,26 @@ export function attemptSafetyMove(state, direction) {
     );
   }
 
-  const rider = state.movers.find(mover =>
-    (mover.type === "scooter" || mover.type === "bicycle") &&
-    samePoint(moverPoint(state.map, mover), candidate)
-  );
-  if (rider) {
+  // 차·킥보드·자전거가 서 있는 칸으로는 못 들어간다. 자동차는 횡단보도 칸에서만
+  // 후보가 될 수 있다(차도는 walkable이 아니다) — 즉 건너는 중에 차가 앞을 막는
+  // 상황이고, 이때가 "차가 지나갈 때까지 기다린다"를 가르칠 자리다.
+  // 버스는 제외한다: 정차한 버스로 걸어 들어가는 것이 탑승 조작이다(아래 busMode).
+  const blocker = state.movers.find(mover => {
+    if (mover.type !== "scooter" && mover.type !== "bicycle" &&
+        mover.type !== "car") {
+      return false;
+    }
+    // 경로 정의가 없는 mover는 위치가 없다(테스트용 합성 상태 포함) — 건너뛴다
+    const point = moverPoint(state.map, mover);
+    return Boolean(point) && samePoint(point, candidate);
+  });
+  if (blocker) {
     return transition(
       state,
       { ...state.position },
-      { type: "blocked", reason: "moving-rider", moverType: rider.type }
+      blocker.type === "car"
+        ? { type: "blocked", reason: "car" }
+        : { type: "blocked", reason: "moving-rider", moverType: blocker.type }
     );
   }
 

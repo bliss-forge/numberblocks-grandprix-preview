@@ -93,6 +93,54 @@ test("5 친구를 만나면 위와 아래 횡단보도를 모두 사용할 수 �
   }
 });
 
+// 감사(2026-08-06)에서 잡힌 결함: 킥보드·자전거만 칸 점유 검사를 받아
+// 횡단보도 안에서 자동차가 서 있는 칸으로 그냥 걸어 들어갈 수 있었다.
+// 컨트롤러에는 car 경고 문구·safety-car 음성이 이미 준비돼 있었는데
+// 그 reason을 만드는 코드가 없어 사문이었다.
+function carPointOnCrossing(state, crossing) {
+  const cells = new Set(crossing.cells.map(pointKey));
+  for (const mover of state.movers) {
+    if (mover.type !== "car") continue;
+    const path = state.map.trafficPaths.find(item => item.id === mover.id);
+    const index = path.points.findIndex(point => cells.has(pointKey(point)));
+    if (index >= 0) {
+      return { mover: { ...mover, pathIndex: index }, point: path.points[index] };
+    }
+  }
+  return null;
+}
+
+test("횡단보도 안에서 자동차가 있는 칸으로는 들어가지 못하고 자동차 경고가 나온다", () => {
+  const base = createSafetyRouteState("easy", { seed: 42 });
+  const crossing = base.map.crossings[0];
+  const car = carPointOnCrossing(base, crossing);
+  assert.ok(car, "횡단보도를 지나는 자동차 경로가 있다");
+
+  const walkable = new Set(base.map.walkable.map(pointKey));
+  const approach = [
+    { from: { x: car.point.x - 1, y: car.point.y }, direction: "right" },
+    { from: { x: car.point.x + 1, y: car.point.y }, direction: "left" },
+    { from: { x: car.point.x, y: car.point.y - 1 }, direction: "down" },
+    { from: { x: car.point.x, y: car.point.y + 1 }, direction: "up" }
+  ].find(entry => walkable.has(pointKey(entry.from)));
+  assert.ok(approach, "차 옆에 통행 가능한 칸이 있다");
+
+  const state = {
+    ...base,
+    collected: [1, 2, 3, 4, 5],
+    nextFriend: 6,
+    position: approach.from,
+    crossingId: crossing.id, // 이미 건너는 중 — 게이트를 지난 뒤가 문제였다
+    movers: base.movers.map(mover =>
+      mover.id === car.mover.id ? car.mover : mover
+    )
+  };
+
+  const result = attemptSafetyMove(state, approach.direction);
+  assert.deepEqual(result.event, { type: "blocked", reason: "car" });
+  assert.deepEqual(result.state.position, approach.from, "제자리에 남는다");
+});
+
 test("32×16 지도는 자동차 차도와 보행 순찰 경로를 구분한다", () => {
   for (const map of Object.values(SAFETY_ROUTE_MAPS)) {
     const pedestrian = new Set(map.pedestrianCells.map(pointKey));
