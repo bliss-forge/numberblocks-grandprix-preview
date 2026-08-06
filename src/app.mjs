@@ -36,6 +36,7 @@ import {
 } from "./character-layout.mjs";
 import {
   countCharacterValues,
+  multiplicationBoard,
   operandScene,
   operatorFor
 } from "./problem-scene.mjs";
@@ -187,6 +188,7 @@ const state = {
   paint: null,
   paintScene: null,
   paintBusy: false,   // 자동 혼합→채색 연출 동안 입력 잠금
+  paintFinaleAt: 0,   // 피날레 화면이 뜬 시각(최소 체류 계산용)
   wrongCount: 0,
   round: 0,
   hintTimer: 0,
@@ -457,6 +459,14 @@ function renderProblem(problem) {
   }
 
   dom.problem.textContent = formatProblemText(problem);
+
+  if (problem.mode === "mul") {
+    // 곱하기는 "블록판에는 모두 몇 개가 있을까요?"를 묻는다 — 캐릭터 두 장이
+    // 아니라 줄×칸 블록판을 그려야 아이가 세어 답을 구할 수 있다.
+    dom.stage.append(multiplicationBoard(document, problem));
+    return;
+  }
+
   const scene = operandScene(
     document,
     problem,
@@ -1362,6 +1372,13 @@ function moveSubway(direction) {
   ) {
     return;
   }
+  // 도착지 사진 단계에서는 같은 조작이 사진 프레임을 움직인다. 키보드 분기는
+  // 위에서 먼저 걸러지지만 화면 패드(pointerdown·클릭)는 여기로만 들어오므로,
+  // 마우스·터치만 쓰는 아이가 사진을 못 찍고 여정이 끝나지 않는 문제를 막는다.
+  if (state.subway.photo && !state.subway.photo.taken) {
+    movePhoto(direction);
+    return;
+  }
   if (state.subway.phase === "arriving" && state.subwayTickMs) {
     // Sync the marker to the wall clock before judging the jump, so the
     // judgement matches what the CSS-animated marker is showing.
@@ -1653,6 +1670,22 @@ const PAINT_HOLD_MS = 3500;
 // 색이 어긋났을 때 병에 든 그 색을 이름과 함께 잠깐 더 보여준다(즉시 헹굼 금지).
 const PAINT_MISS_HOLD_MS = 1600;
 
+// 피날레 화면 최소 체류(완성 그림 3.5초 + 축하 3.7초)와 안전망 상한.
+// 낭독이 먼저 끝나면 최소 체류 시각에, 소리가 없으면 상한에서 홈으로 간다.
+const PAINT_FINALE_FLOOR_MS = PAINT_HOLD_MS + 3700;
+const PAINT_FINALE_LIMIT_MS = 15000;
+
+function leavePaintFinale(round) {
+  if (state.round !== round || state.phase !== "celebrating") return;
+  const remain = PAINT_FINALE_FLOOR_MS -
+    (performance.now() - (state.paintFinaleAt || 0));
+  if (remain > 0) {
+    schedule(() => leavePaintFinale(round), remain);
+    return;
+  }
+  goHome();
+}
+
 // 물감 놀이 낭독 줄 세우기 — 혼합 문장("빨강과 노랑을 섞으면 주황!")이
 // 이 게임 학습의 본체라 끝까지 들려주고, 그 다음 문장을 이어 붙인다.
 let paintVoice = Promise.resolve(true);
@@ -1728,7 +1761,12 @@ function handlePaintEvents(events) {
       audio.playSfx("pop");
     } else if (event.type === "locked") {
       audio.playSfx("key");
-      showHint("잠깐만요, 색을 섞는 중이에요!");
+      if (event.reason === "same-color") {
+        const already = PAINT_COLORS[event.color].ko;
+        showHint(`${already}${josa(already, "은", "는")} 이미 담았어요! 다른 색을 골라 봐요`);
+      } else {
+        showHint("잠깐만요, 색을 섞는 중이에요!");
+      }
     } else if (event.type === "mixed") {
       // 혼합 순간이 학습의 본체 — 수식 자막 + 색 이름 낭독을 먼저 깔고,
       // 칠하기는 PAINT_AUTO_MS 뒤 저절로 이어진다(확인 버튼 없음).
@@ -1767,17 +1805,21 @@ function handlePaintEvents(events) {
     } else if (event.type === "finale") {
       setPhase("celebrating");
       audio.playSfx("win");
-      audio.cancel();
-      speakPaint(event.rainbow ? "paint-rainbow" : "paint-finale");
       dom.cheer.textContent = event.rainbow
         ? "🌈 무지개 화가 탄생!"
         : "오늘의 그림을 다 그렸어요!";
       dom.cheer.classList.add("show");
-      // 피날레 오버레이는 완성 그림을 다 보여준 뒤(PAINT_HOLD_MS) 떠서
-      // 마지막 그림도 다른 라운드와 같은 시간만큼 남는다.
-      schedule(() => {
-        if (state.round === round) goHome();
-      }, PAINT_HOLD_MS + 3700);
+      // 마지막 라운드의 혼합 문장을 끊지 않는다 — 그게 이 게임의 학습 문장이다.
+      // 문장이 끝나면 피날레를 이어 붙이고, 홈 복귀는 피날레 낭독이 끝난 뒤
+      // (최소 체류 시간은 지키고, 소리가 없으면 안전망 타이머가 데려간다).
+      state.paintFinaleAt = performance.now();
+      afterPaintVoice(round, () => {
+        void speakPaint(event.rainbow ? "paint-rainbow" : "paint-finale")
+          .then(fresh => {
+            if (fresh) leavePaintFinale(round);
+          });
+      });
+      schedule(() => leavePaintFinale(round), PAINT_FINALE_LIMIT_MS);
     }
   }
   // 성공 순간엔 칠해진 그림을 PAINT_HOLD_MS 동안 붙잡은 뒤 다음 라운드로 —

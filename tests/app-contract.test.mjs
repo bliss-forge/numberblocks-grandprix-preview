@@ -306,3 +306,32 @@ test("오른쪽 아래에 bliss 제작자 서명을 표시한다", () => {
     /\.creator-credit\s*\{[^}]*position:\s*fixed;[^}]*right:/s
   );
 });
+
+// 감사(2026-08-06) 회귀 가드 — 둘 다 app.mjs 결선이라 소스 계약으로 지킨다
+// (실동작은 브라우저 검증으로 확인했고, 여정 41스텝 자동 플레이는 스위트에 넣기엔 무겁다).
+test("곱하기 문제는 피연산자 캐릭터 대신 줄·칸 블록판을 그린다", () => {
+  assert.match(app, /multiplicationBoard/);
+  const render = app.slice(
+    app.indexOf("function renderProblem("),
+    app.indexOf("function newProblem(")
+  );
+  const mulBranch = render.indexOf('problem.mode === "mul"');
+  assert.ok(mulBranch >= 0, "renderProblem에 mul 분기가 있다");
+  assert.ok(
+    mulBranch < render.indexOf("operandScene("),
+    "mul 분기가 피연산자 장면보다 먼저 온다"
+  );
+  assert.ok(render.includes("multiplicationBoard(document, problem)"));
+});
+
+test("지하철 도착지 사진은 화면 패드 입력으로도 움직인다", () => {
+  // 패드 pointerdown·클릭은 moveSubway 한 곳으로만 들어온다 — 사진 분기가 그 안에
+  // 있어야 마우스·터치만 쓰는 아이도 사진을 찍고 여정을 끝낼 수 있다.
+  const body = app.slice(app.indexOf("function moveSubway("));
+  const photoBranch = body.indexOf("movePhoto(direction)");
+  assert.ok(photoBranch >= 0, "moveSubway가 사진 입력을 movePhoto로 보낸다");
+  assert.ok(
+    photoBranch < body.indexOf("attemptSubwayMove("),
+    "사진 단계 분기가 이동 판정보다 앞에 온다"
+  );
+});

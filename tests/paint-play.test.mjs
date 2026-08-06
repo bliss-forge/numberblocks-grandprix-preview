@@ -72,6 +72,21 @@ test("원색 라운드는 한 번 고르면 바로 섞인다", () => {
   assert.equal(jarColor(state), round.colorId);
 });
 
+// 감사(2026-08-06): 아이 더블탭이 곧바로 오답이 되던 결함. 같은 색을 두 번째로
+// 고르면 무른다 — 2재료 레시피는 모두 서로 다른 두 색이라 잃는 조작이 없다.
+test("같은 튜브를 두 번 고르면 두 번째는 잠금 — 더블탭이 오답이 되지 않는다", () => {
+  const state = createPaintPlay("steady", 1);
+  const round = currentRound(state);
+  const [a] = recipeFor(round.colorId);
+  assert.equal(recipeFor(round.colorId).length, 2, "2재료 라운드");
+  squeezeTube(state, a);
+  const second = squeezeTube(state, a);
+  assert.deepEqual(second, [{ type: "locked", reason: "same-color", color: a }]);
+  assert.equal(state.jar.length, 1, "병에는 한 색만 남는다");
+  assert.equal(state.mixed, false, "혼합이 확정되지 않는다");
+  assert.equal(jarColor(state), null);
+});
+
 test("혼합 라운드 — 2색 제한: 가득 찬 병에는 잠금 이벤트만 나온다", () => {
   const state = createPaintPlay("steady", 1);
   const round = currentRound(state);
@@ -79,7 +94,7 @@ test("혼합 라운드 — 2색 제한: 가득 찬 병에는 잠금 이벤트만
   squeezeTube(state, a);
   squeezeTube(state, b);
   const locked = squeezeTube(state, "red");
-  assert.deepEqual(locked, [{ type: "locked" }]);
+  assert.equal(locked[0].type, "locked");
   assert.equal(state.jar.length, 2);
 });
 
@@ -216,19 +231,25 @@ test("포커스 순환 — 튜브 5 + 헹구기 6칸을 양방향으로 감싼�
 });
 
 // 반증 패스(2026-08-05)에서 잡힌 크래시 회귀 가드: 아이가 아무 튜브나
-// 눌러 만드는 전 조합(같은 튜브 2연타 포함)이 자동 혼합→칠하기까지 항상
-// 실명 있는 색으로 끝나야 한다 — null 색이 새어 나오면 앱단이 죽는다.
-test("전 조합 회귀 — 어떤 2튜브 조합도 칠하기에서 색 이름 없이 끝나지 않는다", () => {
+// 눌러 만드는 전 조합이 자동 혼합→칠하기까지 항상 실명 있는 색으로 끝나야
+// 한다 — null 색이 새어 나오면 앱단이 죽는다. 같은 튜브 2연타는 2026-08-06
+// 부터 잠금이라 혼합까지 가지 않는다(mixResult(a,a)=a 가드는 데이터 테스트가 지킴).
+test("전 조합 회귀 — 서로 다른 두 튜브는 반드시 이름 있는 색으로 판정된다", () => {
   for (const first of PAINT_TUBES) {
     for (const second of PAINT_TUBES) {
       const state = createPaintPlay("steady", 1);
       const round = state.rounds[0];
       round.colorId = "orange"; // 2재료 라운드로 고정
       squeezeTube(state, first.id);
-      squeezeTube(state, second.id);
+      const events = squeezeTube(state, second.id);
+      if (first.id === second.id) {
+        assert.equal(events[0].type, "locked", `${first.id} 2연타 잠금`);
+        assert.equal(events[0].reason, "same-color");
+        assert.equal(jarColor(state), null);
+        continue;
+      }
       assert.ok(jarColor(state), `${first.id}+${second.id} 혼합색`);
-      const events = paintCanvas(state);
-      const outcome = events.find(
+      const outcome = paintCanvas(state).find(
         event => event.type === "success" || event.type === "mismatch"
       );
       assert.ok(outcome, `${first.id}+${second.id} 판정 이벤트`);

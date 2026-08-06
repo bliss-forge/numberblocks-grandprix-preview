@@ -130,7 +130,12 @@ export function squeezeTube(state, tubeId) {
   const need = recipeFor(round.colorId).length;
   if (state.mixed || state.jar.length >= need) {
     // 2색 제한(사용자 결정): 가득 찬 병에는 더 담을 수 없다 — 잠금 이벤트만
-    return [{ type: "locked" }];
+    return [{ type: "locked", reason: "full" }];
+  }
+  if (state.jar.includes(tubeId)) {
+    // 더블탭 방어: 같은 색 두 번째는 무른다. 2재료 레시피는 모두 서로 다른
+    // 두 색이라 이걸로 잃는 조작이 없다(같은 색 혼합은 학습 내용이 아니다).
+    return [{ type: "locked", reason: "same-color", color: tubeId }];
   }
   state.jar.push(tubeId);
   const events = [{ type: "squeeze", color: tubeId }];

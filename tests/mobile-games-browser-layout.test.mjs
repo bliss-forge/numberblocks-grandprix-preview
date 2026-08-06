@@ -572,3 +572,67 @@ test("844×390 가로형은 기존의 큰 조작 버튼을 유지한다", async 
   assert.ok(Math.min(...sizes.map(size => size.width)) >= 48);
   assert.ok(Math.min(...sizes.map(size => size.height)) >= 48);
 });
+
+// 감사(2026-08-06): 화면 숫자판이 폭 640px 이하에서만 켜져 있어서 768×1024
+// 태블릿에서는 키보드 없이 1~4번 게임을 한 문제도 풀 수 없었다.
+// 폭 구간(641~1024)과 터치 포인터를 함께 보게 고쳤고, 여기서 실제로 눌러 확인한다.
+test("768×1024 터치 태블릿에서 수학 게임 숫자판을 눌러 답을 넣을 수 있다", async t => {
+  const chromium = loadChromium();
+  if (!chromium) {
+    t.skip("Playwright is not installed globally");
+    return;
+  }
+
+  const { server, url } = await startStaticServer();
+  const browser = await chromium.launch({ headless: true });
+  t.after(async () => {
+    await browser.close();
+    await new Promise(resolveServer => server.close(resolveServer));
+  });
+
+  const page = await browser.newPage({
+    viewport: { width: 768, height: 1024 },
+    hasTouch: true
+  });
+  const errors = observeErrors(page);
+  await page.goto(url, { waitUntil: "networkidle" });
+
+  for (const mode of ["count", "add", "sub", "mul"]) {
+    await page.locator(`[data-mode="${mode}"]`).click();
+    await page.locator("#number-pad").waitFor({ state: "visible" });
+    const pad = await page.evaluate(() => {
+      const buttons = [...document.querySelectorAll("#number-pad button")];
+      return {
+        display: getComputedStyle(document.querySelector("#number-pad")).display,
+        visible: buttons.filter(button => {
+          const rect = button.getBoundingClientRect();
+          return rect.width >= 44 && rect.height >= 44 &&
+            rect.right <= innerWidth + 0.5;
+        }).length,
+        total: buttons.length
+      };
+    });
+    assert.equal(pad.display, "grid", mode);
+    assert.equal(pad.visible, pad.total, `${mode} 버튼이 모두 44px 이상`);
+
+    // 한 자리 답이면 누르는 즉시 채점되므로 "1"이 남아 있다고 단정할 수 없다 —
+    // 탭이 앱에 도달했다는 사실(답 칸 변화·오답 표시·축하 전환)만 확인한다.
+    await page.locator('#number-pad [data-digit="1"]').click();
+    const registered = await page.evaluate(() => {
+      const box = document.querySelector("#answer-box");
+      return {
+        text: box.textContent,
+        wrong: box.className.includes("wrong"),
+        state: document.body.dataset.state
+      };
+    });
+    assert.ok(
+      registered.text !== "?" || registered.wrong ||
+        registered.state === "celebrating",
+      `${mode} 숫자판 탭이 앱에 도달한다`
+    );
+    await page.keyboard.press("Escape");
+  }
+
+  assert.deepEqual(errors, { consoleErrors: [], pageErrors: [] });
+});
