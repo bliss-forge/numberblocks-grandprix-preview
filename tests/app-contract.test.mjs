@@ -335,3 +335,38 @@ test("지하철 도착지 사진은 화면 패드 입력으로도 움직인다",
     "사진 단계 분기가 이동 판정보다 앞에 온다"
   );
 });
+
+// 감사(2026-08-06) B2-1 회귀 가드 — 결선이 app.mjs에 있어 소스 계약으로 지킨다.
+test("안전 안내 음성은 게이트를 지나서만 재생된다", () => {
+  assert.match(app, /nextSafetyVoice\(state\.safetyVoiceKey, voiceKey\)/);
+  const move = app.slice(
+    app.indexOf("function moveSafetyRoute("),
+    app.indexOf("function playSafetyCueVoice(")
+  );
+  // cue 재생 경로에 audio.cancel()+playPrompt 직접 호출이 남아 있으면 안 된다
+  assert.ok(
+    !/cue\.voiceKey\)/.test(move),
+    "cue 음성은 playSafetyCueVoice 한 곳만 지난다"
+  );
+  assert.match(move, /playSafetyCueVoice\(cue\?\.voiceKey \?\? null\)/);
+});
+
+test("물감 혼합 수식 자막은 채색·낭독이 끝날 때까지 유지된다", () => {
+  const hold = app.match(/const PAINT_EQUATION_HOLD_MS = (\d+);/);
+  assert.ok(hold, "혼합 자막 유지 시간 상수");
+  const auto = app.match(/const PAINT_AUTO_MS = (\d+);/);
+  assert.ok(Number(hold[1]) > Number(auto[1]), "채색 시작보다 오래 남는다");
+  assert.match(app, /showHint\(equation, PAINT_EQUATION_HOLD_MS\)/);
+  // 기본 토스트는 그대로 1.3초
+  assert.match(app, /const HINT_HOLD_MS = 1300;/);
+  assert.match(app, /function showHint\(message, holdMs = HINT_HOLD_MS\)/);
+});
+
+test("실음원이 없는 역은 이름 낭독 폴백을 거친다", () => {
+  const play = app.slice(
+    app.indexOf("function playStationSound("),
+    app.indexOf("function startSubwayRide(")
+  );
+  assert.match(play, /stationVoiceKey\(station\)/);
+  assert.match(play, /playPrompt\(nameKey\)/);
+});

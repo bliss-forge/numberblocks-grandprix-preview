@@ -18,6 +18,7 @@ import {
   formatCountHint,
   formatProblemText,
   focusPhase,
+  nextSafetyVoice,
   playPromptCue,
   playRetryCue,
   quantityParts,
@@ -396,4 +397,35 @@ test("19의 문제와 정답 몸체 면적이 각 목표에 도달한다", () =>
 
     assert.ok(displayedArea >= targetArea - 1e-12, scene);
   }
+});
+
+// 감사(2026-08-06): 안전 안내가 0.15초만 19번 반복되던 결함의 회귀 가드.
+test("안전 안내 음성 게이트 — 같은 문장은 재생 중 다시 시작하지 않는다", () => {
+  const first = nextSafetyVoice(null, "safety-next-4");
+  assert.deepEqual(first, { play: true, playingKey: "safety-next-4" });
+
+  // 방향키를 누르고 있어 같은 cue가 계속 들어와도 다시 틀지 않는다
+  for (let repeat = 0; repeat < 20; repeat += 1) {
+    assert.deepEqual(
+      nextSafetyVoice("safety-next-4", "safety-next-4"),
+      { play: false, playingKey: "safety-next-4" },
+      `반복 ${repeat}`
+    );
+  }
+
+  // 다른 안내는 곧바로 이어 튼다(맨홀 → 자동차처럼 상황이 바뀐 경우)
+  assert.deepEqual(
+    nextSafetyVoice("safety-manhole", "safety-car"),
+    { play: true, playingKey: "safety-car" }
+  );
+
+  // 안내 없는 이동은 잠금을 푼다 — 잠시 뒤 다시 막히면 처음부터 듣는다
+  assert.deepEqual(
+    nextSafetyVoice("safety-next-4", null),
+    { play: false, playingKey: null }
+  );
+  assert.deepEqual(
+    nextSafetyVoice(null, "safety-next-4"),
+    { play: true, playingKey: "safety-next-4" }
+  );
 });

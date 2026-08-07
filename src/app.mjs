@@ -20,6 +20,7 @@ import {
   formatCountHint,
   formatProblemText,
   focusPhase,
+  nextSafetyVoice,
   playPromptCue,
   playRetryCue,
   quantityParts,
@@ -96,6 +97,7 @@ import {
 } from "./subway-scene.mjs";
 import {
   stationSoundSrc,
+  stationVoiceKey,
   subwaySoundSrc
 } from "./subway-sound-manifest.mjs";
 import { lineForKey, stationLabel } from "./subway-map-data.mjs";
@@ -170,6 +172,7 @@ const state = {
   problem: null,
   safety: null,
   safetyView: null,
+  safetyVoiceKey: null,  // 재생 중인 안전 안내 — 같은 문장 재발화를 막는다
   buffer: "",
   stars: 0,
   streak: { count: 0, add: 0, sub: 0, mul: 0, safety: 0, subway: 0 },
@@ -601,6 +604,7 @@ function startSafetyRoute() {
   state.round += 1;
   state.problem = null;
   state.buffer = "";
+  state.safetyVoiceKey = null;
   const seed = Math.floor(Math.random() * 0x100000000);
   state.safety = createSafetyRouteState(state.difficulty, {
     seed,
@@ -681,7 +685,12 @@ function endSafetyTour() {
   scheduleSafetyWorldTick(performance.now());
 }
 
-function showHint(message) {
+// 토스트 기본 유지 시간. 물감 혼합 수식처럼 그림·소리와 함께 읽어야 하는 문장은
+// holdMs로 늘린다 — 감사(2026-08-06): 자막이 1.25초에 사라지는데 채색은 1.5초,
+// 낭독은 3.2초까지 이어져 아이가 세 채널 중 어느 둘도 같이 못 받았다.
+const HINT_HOLD_MS = 1300;
+
+function showHint(message, holdMs = HINT_HOLD_MS) {
   if (state.hintTimer) {
     clearTimeout(state.hintTimer);
     state.timers.delete(state.hintTimer);
@@ -693,7 +702,7 @@ function showHint(message) {
   state.hintTimer = schedule(() => {
     state.hintTimer = 0;
     dom.hint.classList.remove("show");
-  }, 1300);
+  }, holdMs);
 }
 
 async function completeSafetyRoute() {
@@ -808,13 +817,25 @@ function moveSafetyRoute(direction) {
   }
 
   const cue = safetyCueForEvent(result.event, state.safety.nextFriend);
+  playSafetyCueVoice(cue?.voiceKey ?? null);
   if (!cue) return result.event;
   showHint(cue.message);
-  if (cue.voiceKey) {
-    audio.cancel();
-    void audio.playPrompt(cue.voiceKey);
-  }
   return result.event;
+}
+
+// 같은 안내를 연달아 취소·재생하지 않는다. 감사(2026-08-06): 방향키를 누르고
+// 있거나 연타하면 막힐 때마다 audio.cancel() 후 같은 mp3를 새로 틀어서
+// "먼저 4 친구를 만나고 횡단보도로 가요" 같은 문장이 0.15초만 19번 반복됐다.
+// 잠금은 (1) 재생이 끝나거나 (2) 안내 없는 이동(상황 변화)에서 풀린다 —
+// 그래서 잠시 뒤 다시 막히면 아이는 문장을 처음부터 끝까지 듣는다.
+function playSafetyCueVoice(voiceKey) {
+  const gate = nextSafetyVoice(state.safetyVoiceKey, voiceKey);
+  state.safetyVoiceKey = gate.playingKey;
+  if (!gate.play) return;
+  audio.cancel();
+  void audio.playPrompt(voiceKey).then(() => {
+    if (state.safetyVoiceKey === voiceKey) state.safetyVoiceKey = null;
+  });
 }
 
 const SRT_SPLASH_VOICES = ["srt-arrive", "srt-board", "srt-seat"];
@@ -995,7 +1016,16 @@ function playSubwayReal(key, fallback, nextKey = null) {
 function playStationSound(station, followUpKey = null) {
   const src = stationSoundSrc(station);
   if (!src) {
-    if (followUpKey) void audio.playPrompt(followUpKey);
+    // 실음원이 없는 역은 이름만 TTS로 부른다 — 통과역이 통째로 무음이 되지
+    // 않게(감사 2026-08-06). 가족역은 폴백 키가 없어 예전처럼 조용히 지나간다.
+    const nameKey = stationVoiceKey(station);
+    if (nameKey && followUpKey) {
+      void audio.playPrompt(nameKey).then(() => void audio.playPrompt(followUpKey));
+    } else if (nameKey) {
+      void audio.playPrompt(nameKey);
+    } else if (followUpKey) {
+      void audio.playPrompt(followUpKey);
+    }
     return;
   }
   const playback = audio.playFile(src);
@@ -1670,6 +1700,9 @@ const PAINT_HOLD_MS = 3500;
 // 색이 어긋났을 때 병에 든 그 색을 이름과 함께 잠깐 더 보여준다(즉시 헹굼 금지).
 const PAINT_MISS_HOLD_MS = 1600;
 
+// 혼합 수식 자막 유지 — 한국어 낭독(약 3.2초)이 끝나고 채색까지 본 뒤 사라진다.
+const PAINT_EQUATION_HOLD_MS = 3400;
+
 // 피날레 화면 최소 체류(완성 그림 3.5초 + 축하 3.7초)와 안전망 상한.
 // 낭독이 먼저 끝나면 최소 체류 시각에, 소리가 없으면 상한에서 홈으로 간다.
 const PAINT_FINALE_FLOOR_MS = PAINT_HOLD_MS + 3700;
@@ -1772,7 +1805,9 @@ function handlePaintEvents(events) {
       // 칠하기는 PAINT_AUTO_MS 뒤 저절로 이어진다(확인 버튼 없음).
       audio.playSfx("win");
       const equation = state.paint ? paintEquationText() : "";
-      if (equation) showHint(equation);
+      // 자막을 채색(1.6초 뒤)과 낭독(약 3.2초)이 끝날 때까지 붙잡는다 —
+      // 글자·소리·그림 세 채널이 같은 문장을 동시에 전한다.
+      if (equation) showHint(equation, PAINT_EQUATION_HOLD_MS);
       audio.cancel();
       speakPaint(
         PAINT_MIX_VOICES.has(event.color)
@@ -1939,6 +1974,7 @@ function goHome() {
   state.problem = null;
   state.safety = null;
   state.safetyView = null;
+  state.safetyVoiceKey = null;
   state.srt = null;
   state.srtScene = null;
   state.subway = null;
