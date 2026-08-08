@@ -111,14 +111,16 @@ function realisticImage(document, className, src, alt, onStateChange) {
 function buildRealisticScene(document, state, onStateChange) {
   const scene = el(document, "div", "ktx-real-scene");
   const band = currentBand(state);
-  scene.append(
-    realisticImage(document, "ktx-real-cab-image",
-      realisticCabAsset(band.sky, band.land),
-      realisticAssetAlt("운전실", `${band.sky} ${band.land}`), onStateChange),
-    realisticImage(document, "ktx-real-exterior-image",
-      realisticExteriorAsset(state.train.id, band.land),
-      realisticAssetAlt("외부", band.land), onStateChange)
-  );
+  if (state.train.id === "srt") {
+    scene.append(
+      realisticImage(document, "ktx-real-cab-image",
+        realisticCabAsset(band.sky, band.land),
+        realisticAssetAlt("운전실", `${band.sky} ${band.land}`), onStateChange),
+      realisticImage(document, "ktx-real-exterior-image",
+        realisticExteriorAsset(state.train.id, band.land),
+        realisticAssetAlt("외부", band.land), onStateChange)
+    );
+  }
   const veil = el(document, "div", "ktx-loading-veil");
   veil.setAttribute("aria-hidden", "true");
   scene.append(veil);
@@ -143,6 +145,10 @@ function updateRealisticImage(image, src, alt, onStateChange) {
   if (!image) return;
   image.alt = alt;
   if (image.dataset.assetSrc === src) {
+    if (image.dataset.failedSrc && image.dataset.failedSrc !== src) {
+      delete image.dataset.failed;
+      delete image.dataset.failedSrc;
+    }
     delete image.dataset.pendingSrc;
     delete image.dataset.preloadFailedSrc;
     onStateChange?.();
@@ -167,6 +173,8 @@ function updateRealisticImage(image, src, alt, onStateChange) {
   preloader.addEventListener?.("error", () => {
     if (image.dataset.pendingSrc !== src) return;
     delete image.dataset.pendingSrc;
+    image.dataset.failed = "true";
+    image.dataset.failedSrc = src;
     image.dataset.preloadFailedSrc = src;
     onStateChange?.();
   });
@@ -175,6 +183,11 @@ function updateRealisticImage(image, src, alt, onStateChange) {
 }
 
 function updateRealisticScene(root, state, band) {
+  if (state.train.id !== "srt") {
+    root.dataset.realistic = "fallback";
+    root.dataset.loading = "false";
+    return;
+  }
   updateRealisticImage(
     root.querySelector(".ktx-real-cab-image"),
     realisticCabAsset(band.sky, band.land),

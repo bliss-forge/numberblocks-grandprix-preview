@@ -137,6 +137,16 @@ test("운전실과 바깥 뷰는 실사 이미지와 기존 SVG 폴백을 함께
   assert.ok(root.querySelector(".ktx-side-train"), "기존 폴백 유지");
 });
 
+test("KTX 선택은 SRT 사진을 마운트하지 않고 전용 SVG 장면을 유지한다", () => {
+  const root = renderKtxScene(fakeDocument(), createKtxJourney(3, "ktx"), "side");
+
+  assert.equal(root.querySelector(".ktx-real-cab-image"), null);
+  assert.equal(root.querySelector(".ktx-real-exterior-image"), null);
+  assert.equal(root.dataset.realistic, "fallback");
+  assert.equal(root.dataset.loading, "false");
+  assert.ok(root.querySelector(".ktx-side-train"), "KTX 전용 SVG 열차 유지");
+});
+
 test("현재 실사 이미지가 모두 로드된 뒤에만 준비 상태가 된다", () => {
   const root = renderKtxScene(fakeDocument(), createKtxJourney(3, "srt"), "cab");
   const cab = root.querySelector(".ktx-real-cab-image");
@@ -196,7 +206,7 @@ test("다음 환경 이미지는 미리 읽고 로드된 뒤에만 현재 장면
   assert.equal(root.dataset.loading, "false");
 });
 
-test("다음 환경 이미지 미리 읽기가 실패해도 현재 실사 장면을 유지한다", () => {
+test("다음 환경 이미지 미리 읽기가 실패하면 즉시 SVG 폴백을 보여 준다", () => {
   const document = fakeDocument();
   const initial = createKtxJourney(3, "srt");
   const root = renderKtxScene(document, initial, "cab");
@@ -226,9 +236,12 @@ test("다음 환경 이미지 미리 읽기가 실패해도 현재 실사 장면
     "https://game.test/assets/train-realistic/srt-exterior-city.webp",
     "실패한 자산은 현재 이미지에 쓰지 않음");
   assert.equal(exterior.dataset.loaded, "true", "이미 로드된 현재 자산은 유효함");
-  assert.equal(exterior.dataset.failed, undefined);
-  assert.equal(root.dataset.realistic, "ready");
+  assert.equal(exterior.dataset.failed, "true");
+  assert.equal(exterior.dataset.failedSrc,
+    "assets/train-realistic/srt-exterior-field.webp");
+  assert.equal(root.dataset.realistic, "fallback");
   assert.equal(root.dataset.loading, "false");
+  assert.ok(root.querySelector(".ktx-side-train"), "외부 SVG 폴백 유지");
 });
 
 test("로드된 A에서 B 미리 읽기 실패 후 A로 돌아오면 ready를 유지한다", () => {
@@ -259,6 +272,19 @@ test("로드된 A에서 B 미리 읽기 실패 후 A로 돌아오면 ready를 �
   assert.equal(exterior.dataset.failed, undefined);
   assert.equal(root.dataset.realistic, "ready");
   assert.equal(root.dataset.loading, "false");
+
+  updateKtxScene(root, field, "side");
+  const retries = document.createdElements.filter(element =>
+    element.tagName === "IMG" &&
+    element !== cab &&
+    element !== exterior &&
+    element.src.endsWith("/assets/train-realistic/srt-exterior-field.webp")
+  );
+  assert.equal(retries.length, 2, "정상 장면으로 복귀한 뒤 실패 자산을 다시 시도");
+  retries.at(-1).dispatch("load");
+  assert.equal(exterior.src,
+    "https://game.test/assets/train-realistic/srt-exterior-field.webp");
+  assert.equal(root.dataset.realistic, "ready");
 });
 
 test("같은 이미지 경로를 써도 현재 장면 대체 텍스트를 갱신한다", () => {

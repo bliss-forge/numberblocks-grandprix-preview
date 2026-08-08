@@ -47,16 +47,16 @@ test("실사 SRT는 여섯 환경과 세 운전실 상태를 제공한다", () =
     "assets/train-realistic/cab-tunnel.webp");
 });
 
-test("알 수 없는 열차와 환경은 안전한 기본 장면을 고른다", () => {
-  assert.equal(realisticExteriorAsset("unknown", "unknown"),
+test("SRT의 알 수 없는 환경은 기본 장면을 고르고 다른 열차는 실사를 쓰지 않는다", () => {
+  assert.equal(realisticExteriorAsset("srt", "unknown"),
     "assets/train-realistic/srt-exterior-city.webp");
+  assert.equal(realisticExteriorAsset("ktx", "city"), null);
+  assert.equal(realisticExteriorAsset("unknown", "unknown"), null);
 });
 
-test("프로토타입 열차 ID도 안전한 기본 장면을 고른다", () => {
-  assert.equal(realisticExteriorAsset("constructor", "city"),
-    "assets/train-realistic/srt-exterior-city.webp");
-  assert.equal(realisticExteriorAsset("toString", "city"),
-    "assets/train-realistic/srt-exterior-city.webp");
+test("프로토타입 열차 ID도 실사 장면을 고르지 않는다", () => {
+  assert.equal(realisticExteriorAsset("constructor", "city"), null);
+  assert.equal(realisticExteriorAsset("toString", "city"), null);
 });
 
 test("매니페스트의 실사 자산이 모두 존재하고 비어 있지 않다", async () => {
