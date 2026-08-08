@@ -3,349 +3,280 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>목업 3 — 엘리베이터</title>
+<title>목업 STEP 2 — 엘리베이터</title>
 <link rel="stylesheet" href="../styles.css">
-<link rel="stylesheet" href="../mobile-games.css">
 <link rel="stylesheet" href="delivery-shared.css">
 <style>
-  body { overflow: auto; }
-  #game.screen {
-    position: relative; inset: auto;
-    display: flex; flex-direction: column; gap: 8px;
-    padding: 10px 14px 8px;
+  /* 좌: 샤프트 단면 · 중: 승강기 안 · 우: 조작 패널 */
+  .dv-body.dv-elev {
+    grid-template-columns: clamp(112px, 12.5vw, 176px) minmax(0, 1fr) clamp(136px, 16vw, 224px);
   }
-  #game .stage-frame { flex: 1; min-height: 0; display: flex; }
-  #game #stage { flex: 1; min-height: 0; position: relative; }
-  .mock-note {
-    font-family: var(--body-font);
-    background: #1f2b39; color: #e7eef6;
-    padding: 10px 16px; font-size: 14px; line-height: 1.5;
-  }
-  .mock-note b { color: #ffd23f; }
 
-  /* 무대 = 샤프트 + 승강기 안 */
-  .dv-elev-stage {
-    position: absolute;
-    inset: 0;
-    display: grid;
-    grid-template-columns: clamp(96px, 12vw, 168px) minmax(0, 1fr);
-    gap: 8px;
-    padding: 8px;
-    background: linear-gradient(#cfdae6, #b3c3d3);
-  }
-  .dv-elev-stage > div { position: relative; min-width: 0; min-height: 0; }
-  .dv-elev-stage svg { display: block; width: 100%; height: 100%; }
+  .dv-shaft { background: #c3ccd4; }
 
-  /* 층 버튼 3×3 (789 / 456 / 123) */
-  .dv-pad3 {
+  /* 엘리베이터 층 버튼 — 실제 조작반처럼 깊이·하이라이트·발광 */
+  .dv-pad {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: clamp(5px, 0.9vh, 9px);
-    place-items: center;
-    width: 100%;
-  }
-  .dv-fbtn {
-    position: relative;
-    display: grid;
-    place-items: center;
-    width: clamp(44px, min(5vw, 7vh), 62px);
-    aspect-ratio: 1;
+    grid-template-columns: repeat(3, auto);
+    gap: 7px;
+    justify-content: center;
+    padding: 9px;
     border-radius: 14px;
-    border: 3px solid #f0f4f8;
-    background: linear-gradient(#6b7688, #47505f);
-    box-shadow: 0 4px 0 #333a46, inset 0 2px 0 rgba(255, 255, 255, .28);
-    font-family: var(--display-font);
-    font-size: clamp(17px, 2.4vh, 26px);
-    font-weight: 900;
+    background: linear-gradient(180deg, #e8edf2, #ccd6de);
+    border: 3px solid #fff;
+    box-shadow: inset 0 2px 5px rgba(40, 60, 85, .22);
+  }
+
+  .dv-floorkey {
+    display: grid;
+    place-items: center;
+    width: clamp(32px, 3.6vw, 46px);
+    aspect-ratio: 1;
+    border: none;
+    border-radius: 12px;
+    background: linear-gradient(180deg, #6f7b87, #454f5a 62%, #363f48);
+    box-shadow: 0 3px 0 #262d34, inset 0 2px 0 rgba(255, 255, 255, .32);
     color: #fff;
+    font-family: var(--display-font);
+    font-size: clamp(15px, 1.8vw, 22px);
+    font-weight: 900;
     cursor: pointer;
   }
-  /* 누른 버튼 = 초록 점등(지속 발광, 플래시 아님) */
-  .dv-fbtn[data-lit="true"] {
-    background: linear-gradient(#8ddb78, #46a83f);
-    border-color: #d6f5cd;
-    color: #14400f;
-    box-shadow: 0 4px 0 #2c7332, 0 0 0 5px rgba(124, 232, 112, .4);
+  .dv-floorkey[data-on="true"] {
+    background: radial-gradient(circle at 38% 28%, #b6f7a0, #4fc45a 58%, #2f9c3d);
+    box-shadow: 0 3px 0 #217a2c, inset 0 2px 0 rgba(255, 255, 255, .45), 0 0 0 4px rgba(90, 220, 110, .45);
+    color: #10360f;
   }
-  .dv-fbtn[data-hint="true"]::after {
-    content: "";
-    position: absolute;
-    inset: -8px;
-    border-radius: 16px;
-    border: 4px solid var(--orange);
-    opacity: .55;
-    animation: dv-pulse 1.6s ease-in-out infinite;
-  }
-  @keyframes dv-pulse {
-    0%, 100% { transform: scale(1); opacity: .5; }
-    50% { transform: scale(1.06); opacity: .85; }
-  }
-  @media (prefers-reduced-motion: reduce) {
-    .dv-fbtn[data-hint="true"]::after { animation: none; opacity: .85; }
-  }
+  .dv-floorkey:focus-visible { outline: 4px solid var(--gold); outline-offset: 3px; }
 
   .dv-bell {
-    width: clamp(44px, min(5vw, 7vh), 62px);
+    justify-self: center;
+    margin-top: 8px;
+    width: clamp(36px, 4vw, 48px);
     aspect-ratio: 1;
-    border-radius: 14px;
     border: 3px solid #fff;
-    font-size: clamp(19px, 2.6vh, 28px);
-    margin-top: 2px;
-  }
-
-  @media (max-width: 760px) {
-    .dv-elev-stage { grid-template-columns: 84px minmax(0, 1fr); }
-    .dv-panel { flex-direction: row; align-items: stretch; }
-    .dv-panel .dv-card { flex: 1; }
-    .dv-fbtn { width: 48px; font-size: 20px; }
+    border-radius: 50%;
+    font-size: clamp(17px, 2vw, 24px);
+    display: grid;
+    place-items: center;
+    background: radial-gradient(circle at 36% 28%, #ffeaa2, #ffc61e 58%, #e8a00c);
+    box-shadow: 0 4px 0 #c9860c;
+    cursor: pointer;
   }
 </style>
 </head>
-<body data-state="playing" data-mode="delivery">
-<p class="mock-note">
-  <b>목업 3 — 엘리베이터 (레퍼런스 디자인 기반).</b> 무대는 <b>좌 샤프트 단면 + 우 승강기 안</b>이고,
-  오른쪽 패널에 <b>목표 층 7층</b> 카드와 <b>3×3 층 버튼(7·8·9 / 4·5·6 / 1·2·3)</b> + 🔔 벨이 선다.
-  누른 버튼은 초록으로 지속 점등된다(플래시 아님). 목표 호수 <b>702호</b>의 앞자리 7이 곧 7층 —
-  숫자키 7을 누르면 같은 버튼이 켜진다. 샤프트 오른쪽 점열은 칸의 현재 위치 표시기다.
-</p>
+<body class="dv-mock">
 
-<main>
-<section id="game" class="screen active" style="height:calc(100vh - 108px)">
-  <div class="stage-curtain curtain-left" aria-hidden="true"></div>
-  <div class="stage-curtain curtain-right" aria-hidden="true"></div>
+<p class="mock-note"><b>목업 STEP 2 — 엘리베이터.</b> 무대는 <b>좌 샤프트 단면 + 우 승강기 안</b>이고, 오른쪽 패널에 <b>목표 층 7층</b> 카드와 3×3 층 버튼(7·8·9 / 4·5·6 / 1·2·3) + 🔔 벨이 선다.
+목표 호수 <b>702호</b>의 앞자리 7이 곧 7층 — 숫자키 7을 누르면 같은 버튼이 초록으로 켜진다. 샤프트 오른쪽 점열은 칸의 현재 위치 표시기다.</p>
 
-  <div class="stage-frame">
-    <div id="stage" class="stage">
-      <div class="dv-screen">
+<div class="dv-frame">
 
-        <div class="dv-head">
-          <span class="dv-step">2</span>
-          <span class="dv-stepname">엘리베이터</span>
-          <span class="dv-headline">
-            엘리베이터 버튼을 눌러 목표 층으로!
-            <span class="dv-parcel-emoji">📦</span>
-          </span>
-          <span class="dv-chip">⭐ 0</span>
-          <span class="dv-chip dv-chip-sound">♪ 소리</span>
-        </div>
+  <header class="dv-head">
+    <span class="dv-step">2</span>
+    <span class="dv-stepname">엘리베이터</span>
+    <p class="dv-headline">엘리베이터 버튼을 눌러 목표 층으로! <span class="dv-emoji">📦</span></p>
+    <span class="dv-chip dv-chip-star">⭐ <b>0</b></span>
+    <span class="dv-chip dv-chip-sound">♪ 소리</span>
+  </header>
 
-        <div class="dv-body" data-cols="2">
+  <div class="dv-body dv-elev">
 
-          <!-- 무대: 샤프트 + 승강기 안 -->
-          <div class="dv-stage">
-            <div class="dv-elev-stage">
+    <!-- ── 샤프트 단면 ─────────────────────────────────────── -->
+    <div class="dv-stage dv-shaft">
+      <svg viewBox="0 0 200 520" preserveAspectRatio="xMidYMid meet" role="img"
+           aria-label="엘리베이터 통로 단면. 1층부터 7층까지 있고 칸은 지금 3층, 목표는 7층이에요.">
+        <defs>
+          <linearGradient id="shaftG" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0" stop-color="#4a545e"/><stop offset=".45" stop-color="#6d7a86"/>
+            <stop offset="1" stop-color="#414b55"/>
+          </linearGradient>
+          <linearGradient id="cabG" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#e6edf3"/><stop offset="1" stop-color="#b8c5d0"/>
+          </linearGradient>
+        </defs>
 
-              <!-- 샤프트 -->
-              <div>
-                <svg viewBox="0 0 170 460" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
-                  <defs>
-                    <linearGradient id="evShaft" x1="0" y1="0" x2="1" y2="0">
-                      <stop offset="0" stop-color="#7d8899"/>
-                      <stop offset="0.4" stop-color="#aab6c4"/>
-                      <stop offset="1" stop-color="#7d8899"/>
-                    </linearGradient>
-                    <linearGradient id="evPlate" x1="0" y1="0" x2="1" y2="0">
-                      <stop offset="0" stop-color="#cfd8e2"/>
-                      <stop offset="0.5" stop-color="#eef3f8"/>
-                      <stop offset="1" stop-color="#c2ccd8"/>
-                    </linearGradient>
-                    <linearGradient id="evCab" x1="0" y1="0" x2="1" y2="0">
-                      <stop offset="0" stop-color="#e8a52a"/>
-                      <stop offset="0.4" stop-color="#ffdd97"/>
-                      <stop offset="1" stop-color="#d9901a"/>
-                    </linearGradient>
-                  </defs>
+        <rect width="200" height="520" fill="#ccd5dd"/>
 
-                  <!-- 층 번호 기둥 -->
-                  <rect x="4" y="8" width="46" height="444" rx="10" fill="url(#evPlate)"
-                        stroke="#a9b6c4" stroke-width="3"/>
-                  <g font-family="'Cafe24 Ssurround', sans-serif" font-weight="900"
-                     font-size="27" text-anchor="middle" fill="#5d6b7c">
-                    <text x="27" y="44">7</text>
-                    <text x="27" y="102">6</text>
-                    <text x="27" y="160">5</text>
-                    <text x="27" y="218">4</text>
-                    <text x="27" y="276">3</text>
-                    <text x="27" y="334">2</text>
-                    <text x="27" y="392">1</text>
-                  </g>
-                  <!-- 목표 층 7 강조 -->
-                  <rect x="8" y="16" width="38" height="36" rx="9" fill="none"
-                        stroke="#ffc61e" stroke-width="4"/>
+        <!-- 층 번호 기둥 -->
+        <rect x="6" y="8" width="48" height="504" rx="14" fill="#eef3f7" stroke="#c3ced8" stroke-width="3"/>
+        <g text-anchor="middle" font-size="25" font-weight="900" fill="#5a6878">
+          <text x="30" y="53">7</text><text x="30" y="121">6</text><text x="30" y="189">5</text>
+          <text x="30" y="257">4</text><text x="30" y="325">3</text><text x="30" y="393">2</text>
+          <text x="30" y="461">1</text>
+        </g>
+        <rect x="9" y="22" width="42" height="44" rx="11" fill="none" stroke="#f0b323" stroke-width="4"/>
 
-                  <!-- 샤프트 통로 -->
-                  <rect x="58" y="8" width="66" height="444" rx="8" fill="url(#evShaft)"
-                        stroke="#6b7686" stroke-width="3"/>
-                  <line x1="70" y1="8" x2="70" y2="452" stroke="#8f9dad" stroke-width="4"/>
-                  <line x1="112" y1="8" x2="112" y2="452" stroke="#8f9dad" stroke-width="4"/>
+        <!-- 통로 -->
+        <rect x="62" y="8" width="80" height="504" rx="10" fill="url(#shaftG)"/>
+        <g stroke="#8c98a4" stroke-width="3" opacity=".55">
+          <line x1="76" y1="14" x2="76" y2="506"/><line x1="128" y1="14" x2="128" y2="506"/>
+        </g>
+        <g stroke="#39424b" stroke-width="2" opacity=".45">
+          <line x1="62" y1="78" x2="142" y2="78"/><line x1="62" y1="146" x2="142" y2="146"/>
+          <line x1="62" y1="214" x2="142" y2="214"/><line x1="62" y1="282" x2="142" y2="282"/>
+          <line x1="62" y1="350" x2="142" y2="350"/><line x1="62" y1="418" x2="142" y2="418"/>
+        </g>
+        <!-- 도르래 · 케이블 -->
+        <circle cx="102" cy="24" r="9" fill="#aab6c1" stroke="#79848f" stroke-width="3"/>
+        <line x1="102" y1="33" x2="102" y2="292" stroke="#8f9aa5" stroke-width="3"/>
 
-                  <!-- 칸 (3층) -->
-                  <g>
-                    <rect x="64" y="240" width="54" height="60" rx="6" fill="url(#evCab)"
-                          stroke="#bd7f12" stroke-width="3"/>
-                    <rect x="70" y="246" width="42" height="5" rx="2.5" fill="#fff6cf"/>
-                    <!-- 안의 친구(실루엣) -->
-                    <rect x="80" y="256" width="22" height="34" rx="5" fill="#7a4fc0"/>
-                    <circle cx="86" cy="266" r="3.4" fill="#fff"/>
-                    <circle cx="96" cy="266" r="3.4" fill="#fff"/>
-                    <rect x="84" y="276" width="16" height="12" rx="3" fill="#eec089"/>
-                    <!-- 목표 층 강조 링 -->
-                    <rect x="60" y="236" width="62" height="68" rx="9" fill="none"
-                          stroke="#ffc61e" stroke-width="4"/>
-                  </g>
+        <!-- 칸 (3층) -->
+        <g>
+          <rect x="66" y="288" width="72" height="74" rx="9" fill="url(#cabG)" stroke="#7d8b98" stroke-width="3"/>
+          <image href="../assets/characters/nine.png" x="78" y="296" width="48" height="58" preserveAspectRatio="xMidYMid meet"/>
+          <rect x="62" y="284" width="80" height="82" rx="13" fill="none" stroke="#f0b323" stroke-width="5"/>
+        </g>
 
-                  <!-- 위치 표시기(점열) -->
-                  <g>
-                    <rect x="132" y="8" width="32" height="444" rx="9" fill="#e7edf3"
-                          stroke="#c2ccd8" stroke-width="3"/>
-                    <circle cx="148" cy="26" r="7" fill="#7ce870"/>
-                    <g fill="#c2ccd8">
-                      <circle cx="148" cy="56" r="5"/><circle cx="148" cy="86" r="5"/>
-                      <circle cx="148" cy="116" r="5"/><circle cx="148" cy="146" r="5"/>
-                      <circle cx="148" cy="176" r="5"/><circle cx="148" cy="206" r="5"/>
-                      <circle cx="148" cy="236" r="5"/>
-                    </g>
-                    <circle cx="148" cy="266" r="7" fill="#ff8a3d"/>
-                    <g fill="#c2ccd8">
-                      <circle cx="148" cy="296" r="5"/><circle cx="148" cy="326" r="5"/>
-                      <circle cx="148" cy="356" r="5"/><circle cx="148" cy="386" r="5"/>
-                      <circle cx="148" cy="416" r="5"/><circle cx="148" cy="440" r="5"/>
-                    </g>
-                  </g>
-                </svg>
-              </div>
-
-              <!-- 승강기 안 -->
-              <div>
-                <svg viewBox="0 0 520 460" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
-                  <defs>
-                    <linearGradient id="cbBack" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0" stop-color="#e2ebf4"/><stop offset="1" stop-color="#bccbd9"/>
-                    </linearGradient>
-                    <linearGradient id="cbSide" x1="0" y1="0" x2="1" y2="0">
-                      <stop offset="0" stop-color="#93a3b5"/><stop offset="1" stop-color="#d3dfea"/>
-                    </linearGradient>
-                    <linearGradient id="cbFloor" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0" stop-color="#8b9aac"/><stop offset="1" stop-color="#b9c6d4"/>
-                    </linearGradient>
-                    <linearGradient id="cbDoor" x1="0" y1="0" x2="1" y2="0">
-                      <stop offset="0" stop-color="#b6c5d4"/>
-                      <stop offset="0.5" stop-color="#eef4fa"/>
-                      <stop offset="1" stop-color="#a9b9c9"/>
-                    </linearGradient>
-                    <radialGradient id="cbLamp" cx="0.5" cy="0.5" r="0.5">
-                      <stop offset="0" stop-color="#fffdf0"/><stop offset="1" stop-color="#fff3c8" stop-opacity="0"/>
-                    </radialGradient>
-                  </defs>
-
-                  <!-- 천장 -->
-                  <path d="M0 0 L520 0 L444 56 L76 56 Z" fill="#cdd9e5"/>
-                  <rect x="150" y="14" width="90" height="22" rx="11" fill="#fffbe8" stroke="#dfe7ef" stroke-width="3"/>
-                  <rect x="290" y="14" width="90" height="22" rx="11" fill="#fffbe8" stroke="#dfe7ef" stroke-width="3"/>
-                  <ellipse cx="260" cy="78" rx="230" ry="64" fill="url(#cbLamp)" opacity=".8"/>
-
-                  <!-- 측벽 -->
-                  <path d="M0 0 L76 56 L76 372 L0 460 Z" fill="url(#cbSide)"/>
-                  <path d="M520 0 L444 56 L444 372 L520 460 Z" fill="url(#cbSide)"/>
-                  <!-- 좌측 거울 -->
-                  <path d="M12 42 L68 86 L68 236 L12 262 Z" fill="#dfeaf5" stroke="#a9b9c9" stroke-width="3"/>
-                  <path d="M22 62 L40 78 L28 236 L18 240 Z" fill="#ffffff" opacity=".4"/>
-                  <!-- 핸드레일 -->
-                  <path d="M8 288 L70 272 L70 284 L8 300 Z" fill="#cdd8e4" stroke="#9fb0c1" stroke-width="2.5"/>
-                  <path d="M512 288 L450 272 L450 284 L512 300 Z" fill="#cdd8e4" stroke="#9fb0c1" stroke-width="2.5"/>
-
-                  <!-- 뒷벽 -->
-                  <rect x="76" y="56" width="368" height="316" fill="url(#cbBack)"/>
-                  <!-- 문 위 층 표시기 -->
-                  <rect x="206" y="66" width="108" height="30" rx="8" fill="#171d2a"/>
-                  <text x="260" y="90" text-anchor="middle" font-family="ui-monospace, Menlo, monospace"
-                        font-size="22" fill="#ff8a3d">▲ 3</text>
-
-                  <!-- 문(닫혀 이동 중) -->
-                  <rect x="96" y="104" width="164" height="268" fill="url(#cbDoor)" stroke="#9fb0c1" stroke-width="3"/>
-                  <rect x="260" y="104" width="164" height="268" fill="url(#cbDoor)" stroke="#9fb0c1" stroke-width="3"/>
-                  <line x1="260" y1="104" x2="260" y2="372" stroke="#8fa1b3" stroke-width="4"/>
-                  <!-- 문 유리창 -->
-                  <rect x="140" y="140" width="72" height="96" rx="8" fill="#bcd9ee" stroke="#93aec4" stroke-width="3"/>
-                  <rect x="308" y="140" width="72" height="96" rx="8" fill="#bcd9ee" stroke="#93aec4" stroke-width="3"/>
-
-                  <!-- 바닥 -->
-                  <path d="M76 372 L444 372 L520 460 L0 460 Z" fill="url(#cbFloor)"/>
-                  <path d="M170 372 L350 372 L392 460 L128 460 Z" fill="#ffffff" opacity=".12"/>
-
-                  <!-- 택배 든 친구(보라 넘버블록) -->
-                  <g>
-                    <ellipse cx="262" cy="418" rx="66" ry="12" fill="rgba(37,52,93,.28)"/>
-                    <!-- 몸 -->
-                    <rect x="212" y="150" width="100" height="90" rx="12" fill="#7a4fc0" stroke="#5c3799" stroke-width="4"/>
-                    <rect x="212" y="240" width="100" height="90" rx="12" fill="#7a4fc0" stroke="#5c3799" stroke-width="4"/>
-                    <!-- 눈 -->
-                    <ellipse cx="242" cy="188" rx="19" ry="21" fill="#fff"/>
-                    <ellipse cx="284" cy="188" rx="19" ry="21" fill="#fff"/>
-                    <circle cx="246" cy="190" r="9" fill="#1d2942"/>
-                    <circle cx="288" cy="190" r="9" fill="#1d2942"/>
-                    <circle cx="249" cy="186" r="3" fill="#fff"/>
-                    <circle cx="291" cy="186" r="3" fill="#fff"/>
-                    <!-- 입 -->
-                    <path d="M240 214 q22 18 44 0" stroke="#3c1f6b" stroke-width="5" fill="none" stroke-linecap="round"/>
-                    <!-- 다리 -->
-                    <rect x="230" y="330" width="18" height="60" rx="8" fill="#5c3799"/>
-                    <rect x="278" y="330" width="18" height="60" rx="8" fill="#5c3799"/>
-                    <!-- 팔 + 상자 -->
-                    
-                    <rect x="196" y="252" width="132" height="86" rx="9" fill="#e5b782" stroke="#b07c34" stroke-width="4"/>
-                    <line x1="262" y1="252" x2="262" y2="338" stroke="#b07c34" stroke-width="4"/>
-                    <rect x="196" y="284" width="132" height="16" fill="#f3ddbb" opacity=".85"/>
-                    <path d="M212 250 q-28 6 -30 26" stroke="#7a4fc0" stroke-width="14" fill="none" stroke-linecap="round"/>
-                    <path d="M312 250 q28 6 30 26" stroke="#7a4fc0" stroke-width="14" fill="none" stroke-linecap="round"/>
-                  </g>
-                </svg>
-              </div>
-            </div>
-          </div>
-
-          <!-- 우: 목표 층 + 층 버튼 -->
-          <div class="dv-panel">
-            <div class="dv-card">
-              <b>목표 층</b>
-              <span class="dv-goal-num">7층</span>
-            </div>
-
-            <div class="dv-card" style="flex:1; justify-content:center;">
-              <b>누른 버튼</b>
-              <div class="dv-pad3" role="group" aria-label="층 버튼">
-                <button class="dv-fbtn" type="button" data-lit="true" data-hint="true" aria-label="7층">7</button>
-                <button class="dv-fbtn" type="button" aria-label="8층">8</button>
-                <button class="dv-fbtn" type="button" aria-label="9층">9</button>
-                <button class="dv-fbtn" type="button" aria-label="4층">4</button>
-                <button class="dv-fbtn" type="button" aria-label="5층">5</button>
-                <button class="dv-fbtn" type="button" aria-label="6층">6</button>
-                <button class="dv-fbtn" type="button" aria-label="1층">1</button>
-                <button class="dv-fbtn" type="button" aria-label="2층">2</button>
-                <button class="dv-fbtn" type="button" aria-label="3층">3</button>
-              </div>
-              <button class="dv-key dv-key-bell dv-bell" type="button" aria-label="벨">🔔</button>
-            </div>
-          </div>
-        </div>
-
-        <div class="dv-tip">
-          <img class="dv-tip-face" src="../assets/characters/nine.png" alt="">
-          <div class="dv-tip-bubble">
-            <span class="dv-tip-q">?</span>
-            <span class="dv-tip-text">
-              <b>게임 방법</b> — 엘리베이터에서 <strong>목표 층 버튼</strong>을 누르세요!
-              표시기가 목표 층에 도착하면 문이 열려요.
-            </span>
-          </div>
-        </div>
-
-      </div>
+        <!-- 위치 표시기 -->
+        <rect x="152" y="8" width="42" height="504" rx="14" fill="#eef3f7" stroke="#c3ced8" stroke-width="3"/>
+        <g fill="#c3ced8">
+          <circle cx="173" cy="76" r="5"/><circle cx="173" cy="102" r="5"/><circle cx="173" cy="128" r="5"/>
+          <circle cx="173" cy="154" r="5"/><circle cx="173" cy="180" r="5"/><circle cx="173" cy="206" r="5"/>
+          <circle cx="173" cy="232" r="5"/><circle cx="173" cy="258" r="5"/><circle cx="173" cy="284" r="5"/>
+          <circle cx="173" cy="336" r="5"/><circle cx="173" cy="362" r="5"/><circle cx="173" cy="388" r="5"/>
+          <circle cx="173" cy="414" r="5"/><circle cx="173" cy="440" r="5"/><circle cx="173" cy="466" r="5"/>
+        </g>
+        <circle cx="173" cy="42" r="9" fill="#4fc45a" stroke="#2f9c3d" stroke-width="3"/>
+        <circle cx="173" cy="310" r="9" fill="#ff9130" stroke="#dd7212" stroke-width="3"/>
+      </svg>
     </div>
+
+    <!-- ── 승강기 안 ───────────────────────────────────────── -->
+    <div class="dv-stage">
+      <svg viewBox="0 0 1040 510" preserveAspectRatio="xMidYMid slice" role="img"
+           aria-label="엘리베이터 안. 숫자블록 친구가 택배 상자를 들고 서 있어요.">
+        <defs>
+          <linearGradient id="wallG" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#dde5ec"/><stop offset=".5" stop-color="#c2ccd6"/>
+            <stop offset="1" stop-color="#a7b3bf"/>
+          </linearGradient>
+          <linearGradient id="sideL" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0" stop-color="#8b97a4"/><stop offset="1" stop-color="#c6d0d9"/>
+          </linearGradient>
+          <linearGradient id="sideR" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0" stop-color="#c6d0d9"/><stop offset="1" stop-color="#8b97a4"/>
+          </linearGradient>
+          <linearGradient id="mirrorG" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0" stop-color="#d3e8f4"/><stop offset=".5" stop-color="#a6cde3"/>
+            <stop offset="1" stop-color="#dcedf7"/>
+          </linearGradient>
+          <linearGradient id="floorG" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#9ba7b3"/><stop offset="1" stop-color="#74808c"/>
+          </linearGradient>
+          <radialGradient id="lampG" cx="50%" cy="50%" r="50%">
+            <stop offset="0" stop-color="#fffdf0"/><stop offset="1" stop-color="#ffeeb8"/>
+          </radialGradient>
+          <linearGradient id="boxG" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#e6b57e"/><stop offset="1" stop-color="#c68b4f"/>
+          </linearGradient>
+        </defs>
+
+        <rect width="1040" height="510" fill="#8f9ba7"/>
+
+        <!-- 천장 + 조명 -->
+        <polygon points="0,0 1040,0 880,84 160,84" fill="#ccd6df"/>
+        <polygon points="0,0 1040,0 880,84 160,84" fill="none" stroke="#aeb9c4" stroke-width="3"/>
+        <rect x="300" y="26" width="150" height="28" rx="10" fill="url(#lampG)" stroke="#e6d9a8" stroke-width="3"/>
+        <rect x="590" y="26" width="150" height="28" rx="10" fill="url(#lampG)" stroke="#e6d9a8" stroke-width="3"/>
+        <polygon points="300,54 450,54 484,124 266,124" fill="#fff6d8" opacity=".42"/>
+        <polygon points="590,54 740,54 774,124 556,124" fill="#fff6d8" opacity=".42"/>
+
+        <!-- 좌우 벽 -->
+        <polygon points="0,0 160,84 160,400 0,510" fill="url(#sideL)"/>
+        <polygon points="1040,0 880,84 880,400 1040,510" fill="url(#sideR)"/>
+        <g stroke="#96a2ae" stroke-width="2.5" opacity=".65">
+          <line x1="54" y1="28" x2="54" y2="482"/><line x1="106" y1="56" x2="106" y2="454"/>
+          <line x1="986" y1="28" x2="986" y2="482"/><line x1="934" y1="56" x2="934" y2="454"/>
+        </g>
+
+        <!-- 뒷벽 · 거울 · 손잡이 -->
+        <rect x="160" y="84" width="720" height="316" fill="url(#wallG)"/>
+        <rect x="160" y="84" width="720" height="316" fill="none" stroke="#9dabb8" stroke-width="3"/>
+        <rect x="215" y="120" width="240" height="132" rx="8" fill="url(#mirrorG)" stroke="#8fa8b8" stroke-width="4"/>
+        <polygon points="228,244 336,132 372,132 264,244" fill="#fff" opacity=".33"/>
+        <rect x="585" y="120" width="240" height="132" rx="8" fill="url(#mirrorG)" stroke="#8fa8b8" stroke-width="4"/>
+        <polygon points="598,244 706,132 742,132 634,244" fill="#fff" opacity=".28"/>
+        <rect x="185" y="276" width="670" height="13" rx="6.5" fill="#ccd6df" stroke="#8b98a5" stroke-width="3"/>
+        <rect x="187" y="285" width="666" height="5" rx="2.5" fill="#7d8b98" opacity=".45"/>
+
+        <!-- 좌우 벽 손잡이 -->
+        <path d="M34,300 L158,280" stroke="#ccd6df" stroke-width="12" stroke-linecap="round"/>
+        <path d="M34,300 L158,280" stroke="#8b98a5" stroke-width="4" stroke-linecap="round" opacity=".45"/>
+        <path d="M1006,300 L882,280" stroke="#ccd6df" stroke-width="12" stroke-linecap="round"/>
+        <path d="M1006,300 L882,280" stroke="#8b98a5" stroke-width="4" stroke-linecap="round" opacity=".45"/>
+
+        <!-- 오른쪽 벽 조작반 -->
+        <g>
+          <rect x="898" y="148" width="76" height="188" rx="13" fill="#e8eef4" stroke="#98a5b2" stroke-width="3"/>
+          <rect x="910" y="160" width="52" height="30" rx="7" fill="#2b3540"/>
+          <text x="936" y="182" text-anchor="middle" font-size="18" font-weight="900" fill="#ffcf4a">▲3</text>
+          <g fill="#8e9aa6">
+            <circle cx="922" cy="214" r="9"/><circle cx="950" cy="214" r="9"/>
+            <circle cx="922" cy="242" r="9"/><circle cx="950" cy="242" r="9"/>
+            <circle cx="922" cy="270" r="9"/><circle cx="950" cy="270" r="9"/>
+            <circle cx="922" cy="298" r="9"/><circle cx="950" cy="298" r="9"/>
+          </g>
+          <circle cx="922" cy="214" r="9" fill="#4fc45a"/>
+        </g>
+
+        <!-- 바닥 -->
+        <polygon points="0,510 160,400 880,400 1040,510" fill="url(#floorG)"/>
+        <g stroke="#67737f" stroke-width="2.5" opacity=".5">
+          <line x1="160" y1="400" x2="0" y2="510"/><line x1="340" y1="400" x2="260" y2="510"/>
+          <line x1="520" y1="400" x2="520" y2="510"/><line x1="700" y1="400" x2="780" y2="510"/>
+          <line x1="880" y1="400" x2="1040" y2="510"/>
+          <line x1="176" y1="440" x2="864" y2="440"/><line x1="140" y1="480" x2="900" y2="480"/>
+        </g>
+        <ellipse cx="520" cy="440" rx="126" ry="24" fill="#5f6b77" opacity=".35"/>
+
+        <!-- 숫자블록 택배원 + 상자 -->
+        <image href="../assets/characters/nine.png" x="392" y="66" width="256" height="334" preserveAspectRatio="xMidYMax meet"/>
+        <g transform="translate(520,378)">
+          <ellipse cx="0" cy="60" rx="94" ry="16" fill="#5f6b77" opacity=".32"/>
+          <rect x="-92" y="-52" width="184" height="108" rx="10" fill="url(#boxG)" stroke="#a56f3c" stroke-width="4"/>
+          <rect x="-92" y="-12" width="184" height="18" fill="#dba76a" opacity=".85"/>
+          <rect x="-14" y="-52" width="28" height="108" fill="#dba76a" opacity=".85"/>
+          <path d="M-68,-32 h42 M-68,-21 h28" stroke="#a56f3c" stroke-width="4" stroke-linecap="round" opacity=".55"/>
+        </g>
+      </svg>
+    </div>
+
+    <aside class="dv-panel">
+      <div class="dv-card">
+        <b>목표 층</b>
+        <span class="dv-goal-num">7층</span>
+      </div>
+      <div class="dv-card">
+        <b>누른 버튼</b>
+        <div class="dv-pad">
+          <button class="dv-floorkey" type="button" data-on="true">7</button>
+          <button class="dv-floorkey" type="button">8</button>
+          <button class="dv-floorkey" type="button">9</button>
+          <button class="dv-floorkey" type="button">4</button>
+          <button class="dv-floorkey" type="button">5</button>
+          <button class="dv-floorkey" type="button">6</button>
+          <button class="dv-floorkey" type="button">1</button>
+          <button class="dv-floorkey" type="button">2</button>
+          <button class="dv-floorkey" type="button">3</button>
+        </div>
+        <button class="dv-bell" type="button" aria-label="벨">🔔</button>
+      </div>
+    </aside>
+
   </div>
 
-  <p class="game-keyboard-note">숫자키 1~9 = 층 버튼 · <kbd>Esc</kbd> 처음으로</p>
-</section>
-</main>
+  <footer class="dv-foot">
+    <img class="dv-mascot" src="../assets/characters/nine.png" alt="">
+    <div class="dv-tip">
+      <span class="dv-tip-q">?</span>
+      <p class="dv-tip-text"><b>게임 방법</b><br>
+        엘리베이터에서 <strong>목표 층 버튼</strong>을 누르세요!<br>
+        표시기가 목표 층에 도착하면 문이 열려요.</p>
+    </div>
+  </footer>
+
+</div>
+
 </body>
 </html>
