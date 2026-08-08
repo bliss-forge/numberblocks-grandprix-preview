@@ -248,3 +248,24 @@ export function truckViewForDirection(direction) {
 export function truckSvgForDirection(direction) {
   return truckSvg(truckViewForDirection(direction));
 }
+
+// 다른 SVG 안에 트럭을 얹는다. 중첩 <svg> 라 viewBox 가 알아서 비율을 지킨다 —
+// 뷰마다 폭이 달라도 같은 차로 보이도록 높이는 계산해 넣는다.
+export function truckSprite(direction, { x, y, width }) {
+  const view = truckViewForDirection(direction);
+  const markup = truckSvg(view);
+  const viewBox = markup.match(/viewBox="([^"]+)"/)[1];
+  const [, , boxWidth, boxHeight] = viewBox.split(" ").map(Number);
+  const height = (width * boxHeight) / boxWidth;
+  const inner = markup.replace(/^<svg [^>]*>/, "").replace(/<\/svg>$/, "");
+  // 뷰 이름을 클래스로 남긴다 — 그림만 봐도 어느 방향인지 알 수 있다.
+  return `<svg class="dv-truck-sprite dv-truck-${view}" x="${x}" y="${y}" width="${width}" ` +
+    `height="${height.toFixed(1)}" viewBox="${viewBox}">${inner}</svg>`;
+}
+
+// 스프라이트가 차지할 높이 — 씬이 배치를 계산할 때 쓴다.
+export function truckSpriteHeight(direction, width) {
+  const viewBox = truckSvgForDirection(direction).match(/viewBox="([^"]+)"/)[1];
+  const [, , boxWidth, boxHeight] = viewBox.split(" ").map(Number);
+  return (width * boxHeight) / boxWidth;
+}
