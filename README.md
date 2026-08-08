@@ -5,7 +5,7 @@
 **숫자블록 친구들과 세고, 더하고, 길을 찾고, 지하철을 갈아타는 네다섯 살의 첫 웹 게임**
 
 [![놀이](https://img.shields.io/badge/놀이-7종-4DB6E2?style=flat-square)](#일곱-가지-놀이)
-[![테스트](https://img.shields.io/badge/테스트-375개-7BC67B?style=flat-square)](#테스트)
+[![테스트](https://img.shields.io/badge/테스트-410개-7BC67B?style=flat-square)](#테스트)
 [![의존성](https://img.shields.io/badge/의존성-0-F2A65A?style=flat-square)](#어떻게-만들어졌나)
 [![음성](https://img.shields.io/badge/한국어·영어_음성-410개-C79BE0?style=flat-square)](#소리와-음성)
 [![안내방송](https://img.shields.io/badge/실제_지하철_안내방송-62개_역-9BB7E0?style=flat-square)](#지하철-안내방송-정리)
@@ -33,7 +33,7 @@ cd numberblocks-minigame
 python3 -m http.server 8000     # 아무 정적 서버나 괜찮습니다
 open http://localhost:8000
 
-npm test                        # 테스트 375개
+npm test                        # 테스트 410개
 ```
 
 `file://` 로 직접 열면 ES 모듈이 막히니 꼭 서버로 띄워 주세요.
@@ -192,8 +192,10 @@ node scripts/import_station_sounds.mjs subway_sound/original_subway_sound --appl
 
 ## 어떻게 만들어졌나
 
-의존성이 없습니다. 브라우저가 바로 읽는 ES 모듈과 CSS, 그리고 인라인 SVG로 그린 그림뿐입니다.
-캐릭터만 미리 렌더한 PNG를 쓰고, 나머지 그림 — 지하철 승강장, 동네 골목, 도착지 열 곳 — 은 전부 코드가 그립니다.
+런타임 의존성이 없습니다. 브라우저가 바로 읽는 ES 모듈과 CSS, 인라인 SVG가 기본이고,
+7번 **칙칙폭폭 기관사**만 저장소에서 직접 만든 WebP 장면 레이어를 사용합니다. WebP를 불러오지
+못하면 기존 SVG 열차·풍경으로 자동 복귀하며, 빌드 단계 없는 정적 배포 방식은 그대로입니다.
+캐릭터는 미리 렌더한 PNG를 쓰고, 지하철 승강장·동네 골목·도착지 열 곳은 코드가 그립니다.
 
 <details>
 <summary><b>파일 구성</b></summary>
@@ -215,10 +217,11 @@ src/
   station-sound-import.mjs  안내방송 파일명 해석
 assets/
   characters/               숫자블록 캐릭터 161장
+  train-realistic/           7번 게임 실사형 SRT 외부·운전실 WebP 장면
   audio/voice/{ko,en}/      안내 음성
 subway_sound/               실제 지하철 안내방송
 scripts/                    캐릭터 렌더·음성 생성·안내방송 정리
-tests/                      테스트 34개 파일
+tests/                      테스트 40개 파일
 docs/                       설계 문서와 작업 계획
 ```
 
@@ -242,7 +245,7 @@ npm test        # node --test tests/*.test.mjs
 
 브라우저 없이 도는 순수 노드 테스트입니다. DOM이 필요한 곳은 가짜 엘리먼트로 대신합니다.
 문제 생성과 채점, 안전길 이동과 신호등, 지하철 경로와 환승, 장면 렌더 계약, 홈 카드 계약,
-반응형 스타일, 음성 자산 존재 여부까지 **375개**가 확인합니다.
+반응형 스타일, 음성 자산 존재 여부까지 **410개**가 확인합니다.
 
 ---
 

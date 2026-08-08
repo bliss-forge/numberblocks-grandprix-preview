@@ -9,6 +9,7 @@ import { fileURLToPath } from "node:url";
 
 const require = createRequire(import.meta.url);
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+const mobileCss = await readFile(resolve(root, "mobile-games.css"), "utf8");
 const contentTypes = {
   ".css": "text/css",
   ".html": "text/html",
@@ -573,6 +574,12 @@ test("844×390 가로형은 기존의 큰 조작 버튼을 유지한다", async 
   assert.ok(Math.min(...sizes.map(size => size.height)) >= 48);
 });
 
+test("가로 모바일에서 실사 기관사 화면은 조작부를 48px 이상 유지한다", () => {
+  assert.match(mobileCss, /\.ktx-game \.ktx-lever[\s\S]*min-width:\s*48px/);
+  assert.match(mobileCss, /\.ktx-game \.ktx-speedo[\s\S]*min-height:\s*48px/);
+  assert.match(mobileCss, /\.ktx-game \.ktx-next-key[\s\S]*min-height:\s*48px/);
+});
+
 // 감사(2026-08-06): 화면 숫자판이 폭 640px 이하에서만 켜져 있어서 768×1024
 // 태블릿에서는 키보드 없이 1~4번 게임을 한 문제도 풀 수 없었다.
 // 폭 구간(641~1024)과 터치 포인터를 함께 보게 고쳤고, 여기서 실제로 눌러 확인한다.
@@ -634,5 +641,69 @@ test("768×1024 터치 태블릿에서 수학 게임 숫자판을 눌러 답을 
     await page.keyboard.press("Escape");
   }
 
+  assert.deepEqual(errors, { consoleErrors: [], pageErrors: [] });
+});
+
+test("844×390 실사 기관사 화면은 창과 조작부를 클리핑 없이 유지한다", async t => {
+  const chromium = loadChromium();
+  if (!chromium) {
+    t.skip("Playwright is not installed globally");
+    return;
+  }
+
+  const { server, url } = await startStaticServer();
+  const browser = await chromium.launch({ headless: true });
+  t.after(async () => {
+    await browser.close();
+    await new Promise(resolveServer => server.close(resolveServer));
+  });
+
+  const page = await browser.newPage({ viewport: { width: 844, height: 390 } });
+  const errors = observeErrors(page);
+  await page.goto(url, { waitUntil: "networkidle" });
+  await page.locator('[data-mode="ktx"]').click();
+  await page.locator('.ktx-train-card[data-train-id="srt"]').click();
+  await page.locator('.ktx-game[data-realistic="ready"]').waitFor();
+
+  const metrics = await page.evaluate(() => {
+    const rectangle = selector => {
+      const rect = document.querySelector(selector).getBoundingClientRect();
+      return {
+        left: rect.left,
+        right: rect.right,
+        top: rect.top,
+        bottom: rect.bottom,
+        width: rect.width,
+        height: rect.height
+      };
+    };
+    const stage = rectangle(".ktx-stage");
+    const controls = [".ktx-lever", ".ktx-speedo", ".ktx-next-key"]
+      .map(rectangle);
+    return {
+      viewport: { width: innerWidth, height: innerHeight },
+      game: rectangle(".ktx-game"),
+      stage,
+      window: rectangle(".ktx-real-cab-image"),
+      controls,
+      horizontalOverflow: document.documentElement.scrollWidth > innerWidth,
+      allControlsInsideStage: controls.every(rect =>
+        rect.left >= stage.left - 0.5 &&
+        rect.right <= stage.right + 0.5 &&
+        rect.top >= stage.top - 0.5 &&
+        rect.bottom <= stage.bottom + 0.5
+      )
+    };
+  });
+
+  assert.equal(metrics.horizontalOverflow, false);
+  assert.ok(metrics.game.bottom <= metrics.viewport.height + 0.5);
+  assert.ok(metrics.stage.bottom <= metrics.viewport.height + 0.5);
+  assert.ok(metrics.window.top >= metrics.stage.top - 0.5);
+  assert.ok(metrics.window.bottom <= metrics.stage.bottom + 0.5);
+  assert.equal(metrics.allControlsInsideStage, true);
+  assert.ok(metrics.controls[0].width >= 48, "lever width");
+  assert.ok(metrics.controls[1].height >= 48, "speedometer height");
+  assert.ok(metrics.controls[2].height >= 48, "stop prompt height");
   assert.deepEqual(errors, { consoleErrors: [], pageErrors: [] });
 });
