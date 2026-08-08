@@ -7752,7 +7752,7 @@ body[data-mode="ktx"] .stage-lights {
   .ktx-game[data-speed-tier="5"] .ktx-side-backdrop { filter: none; }
 }
 
-/* ── SRT 실사 구도 — 승인안의 65/35 월드·콘솔 비율을 현재 UI에 합성 ────── */
+/* ── SRT 실사 구도 — 승인안의 71/29 월드·콘솔 비율을 현재 UI에 합성 ────── */
 
 /* 두 실사 이미지는 폴백 뒤에서 함께 대기한다. 둘 다 로드된 ready 상태에서만
    현재 뷰 이미지를 드러내므로 느린 연결과 오류 상태에서도 SVG 장면이 유지된다. */
@@ -7773,7 +7773,8 @@ body[data-mode="ktx"] .stage-lights {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  object-position: center 54%;
+  /* 상단 크롭을 없애 선로 소실점을 화면 높이의 38~42%에 유지한다. */
+  object-position: center top;
   opacity: 0;
   transform: scale(1.01);
   filter: none;
