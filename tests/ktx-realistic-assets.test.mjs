@@ -1,6 +1,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
 import fs from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import zlib from "node:zlib";
 import {
   REALISTIC_MOTION_ASSETS,
@@ -44,10 +48,9 @@ function pngDetails(buffer) {
   const bitDepth = ihdr[8];
   const colorType = ihdr[9];
   assert.equal(bitDepth, 8, "motion PNG validation expects 8-bit channels");
-  assert.ok([3, 4, 6].includes(colorType), "PNG must carry palette or channel alpha");
-  assert.ok(colorType !== 3 || chunks.has("tRNS"), "indexed PNG must retain tRNS alpha");
+  assert.ok([2, 3, 4, 6].includes(colorType), "PNG must carry RGB, palette, or channel data");
 
-  const bytesPerPixel = colorType === 6 ? 4 : colorType === 4 ? 2 : 1;
+  const bytesPerPixel = colorType === 6 ? 4 : colorType === 4 ? 2 : colorType === 2 ? 3 : 1;
   const stride = width * bytesPerPixel;
   const inflated = zlib.inflateSync(Buffer.concat(chunks.get("IDAT")));
   const pixels = Buffer.alloc(stride * height);
@@ -80,13 +83,56 @@ function pngDetails(buffer) {
     }
   }
   const transparency = chunks.get("tRNS")?.[0] ?? Buffer.alloc(0);
+  const palette = chunks.get("PLTE")?.[0] ?? Buffer.alloc(0);
   const alphaAt = (x, y) => {
     const pixel = y * stride + x * bytesPerPixel;
     if (colorType === 6) return pixels[pixel + 3];
     if (colorType === 4) return pixels[pixel + 1];
+    if (colorType === 2) return 255;
     return transparency[pixels[pixel]] ?? 255;
   };
-  return { width, height, alphaAt };
+  const rgbAt = (x, y) => {
+    const pixel = y * stride + x * bytesPerPixel;
+    if (colorType === 2 || colorType === 6) {
+      return [pixels[pixel], pixels[pixel + 1], pixels[pixel + 2]];
+    }
+    if (colorType === 4) return [pixels[pixel], pixels[pixel], pixels[pixel]];
+    const index = pixels[pixel] * 3;
+    return [palette[index], palette[index + 1], palette[index + 2]];
+  };
+  return { width, height, alphaAt, rgbAt };
+}
+
+async function decodedWebpDetails(file) {
+  const directory = await fs.mkdtemp(path.join(os.tmpdir(), "srt-motion-"));
+  const output = path.join(directory, "decoded.png");
+  try {
+    execFileSync("sips", [
+      "-s", "format", "png",
+      fileURLToPath(new URL(`../${file}`, import.meta.url)),
+      "--out", output
+    ], { stdio: "ignore" });
+    return pngDetails(await fs.readFile(output));
+  } finally {
+    await fs.rm(directory, { recursive: true, force: true });
+  }
+}
+
+function meanRgbDelta(image, firstX, secondX, span, mirrored = false) {
+  let difference = 0;
+  let samples = 0;
+  for (let y = 6; y < image.height; y += 12) {
+    for (let offset = 6; offset < span; offset += 12) {
+      const otherOffset = mirrored ? span - 1 - offset : offset;
+      const first = image.rgbAt(firstX + offset, y);
+      const second = image.rgbAt(secondX + otherOffset, y);
+      difference += Math.abs(first[0] - second[0]);
+      difference += Math.abs(first[1] - second[1]);
+      difference += Math.abs(first[2] - second[2]);
+      samples += 3;
+    }
+  }
+  return difference / samples;
 }
 
 function webpDimensions(buffer) {
@@ -182,31 +228,63 @@ test("SRT 모션 풍경과 역은 목표 해상도를 유지한다", async () =>
   }
 });
 
-test("SRT 열차와 운전실 마스크는 투명 모서리와 충분한 피사체 면적을 유지한다", async () => {
-  const expected = new Map([
-    [REALISTIC_MOTION_ASSETS.train, { width: 2400, height: 640 }],
-    [REALISTIC_MOTION_ASSETS.cabMask, { width: 2560, height: 1440 }]
-  ]);
-  for (const [file, size] of expected) {
-    const image = await fs.readFile(new URL(`../${file}`, import.meta.url));
-    const { width, height, alphaAt } = pngDetails(image);
-    assert.deepEqual({ width, height }, size);
-    const corners = [[0, 0], [width - 1, 0], [0, height - 1], [width - 1, height - 1]];
-    for (const [x, y] of corners) assert.equal(alphaAt(x, y), 0, `${file} corner alpha`);
-    let transparent = 0;
-    let subject = 0;
-    for (let y = 0; y < height; y += 1) {
-      for (let x = 0; x < width; x += 1) {
-        const alpha = alphaAt(x, y);
-        if (alpha <= 12) transparent += 1;
-        if (alpha >= 220) subject += 1;
+test("SRT 모션 풍경은 반쪽·사분면 반복이나 좌우 반전 복제가 없다", async () => {
+  for (const layers of Object.values(REALISTIC_MOTION_ASSETS.landscapes)) {
+    for (const file of Object.values(layers)) {
+      const image = await decodedWebpDetails(file);
+      for (const mirrored of [false, true]) {
+        assert.ok(meanRgbDelta(image, 0, 1920, 1920, mirrored) > 6,
+          `${file} repeats a half${mirrored ? " as a mirror" : ""}`);
+      }
+      for (let first = 0; first < 4; first += 1) {
+        for (let second = first + 1; second < 4; second += 1) {
+          for (const mirrored of [false, true]) {
+            assert.ok(meanRgbDelta(image, first * 960, second * 960, 960, mirrored) > 6,
+              `${file} repeats quarter ${first + 1} in quarter ${second + 1}${mirrored ? " as a mirror" : ""}`);
+          }
+        }
       }
     }
-    const pixels = width * height;
-    assert.ok(transparent / pixels >= 0.1, `${file} needs meaningful transparency`);
-    assert.ok(subject / pixels >= 0.03, `${file} subject coverage is too small`);
-    assert.ok(subject / pixels <= 0.8, `${file} subject coverage leaves too little transparency`);
   }
+});
+
+test("SRT 역 플랫폼은 좌우 반전으로 길이를 채우지 않는다", async () => {
+  const image = await decodedWebpDetails(REALISTIC_MOTION_ASSETS.station);
+  assert.ok(meanRgbDelta(image, 0, 1280, 1280, false) > 6, "station repeats its first half");
+  assert.ok(meanRgbDelta(image, 0, 1280, 1280, true) > 6, "station mirrors its first half");
+});
+
+test("SRT 측면 열차는 투명 배경과 충분한 피사체 면적을 유지한다", async () => {
+  const file = REALISTIC_MOTION_ASSETS.train;
+  const image = await fs.readFile(new URL(`../${file}`, import.meta.url));
+  const { width, height, alphaAt } = pngDetails(image);
+  assert.deepEqual({ width, height }, { width: 2400, height: 640 });
+  const corners = [[0, 0], [width - 1, 0], [0, height - 1], [width - 1, height - 1]];
+  for (const [x, y] of corners) assert.equal(alphaAt(x, y), 0, `${file} corner alpha`);
+  let transparent = 0;
+  let subject = 0;
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      const alpha = alphaAt(x, y);
+      if (alpha <= 12) transparent += 1;
+      if (alpha >= 220) subject += 1;
+    }
+  }
+  const pixels = width * height;
+  assert.ok(transparent / pixels >= 0.1, `${file} needs meaningful transparency`);
+  assert.ok(subject / pixels >= 0.03, `${file} subject coverage is too small`);
+  assert.ok(subject / pixels <= 0.8, `${file} subject coverage leaves too little transparency`);
+});
+
+test("SRT 운전실은 화면을 채우고 전면창 안쪽만 투명하다", async () => {
+  const file = REALISTIC_MOTION_ASSETS.cabMask;
+  const image = await fs.readFile(new URL(`../${file}`, import.meta.url));
+  const { width, height, alphaAt } = pngDetails(image);
+  assert.deepEqual({ width, height }, { width: 2560, height: 1440 });
+  const opaquePoints = [[0, 0], [width - 1, 0], [0, height - 1], [width - 1, height - 1], [1280, 1100]];
+  for (const [x, y] of opaquePoints) assert.ok(alphaAt(x, y) >= 220, `${file} must be opaque at ${x},${y}`);
+  const windshieldPoints = [[1280, 220], [700, 260], [1860, 260]];
+  for (const [x, y] of windshieldPoints) assert.ok(alphaAt(x, y) <= 12, `${file} windshield must be transparent at ${x},${y}`);
 });
 
 test("매니페스트의 실사 자산이 모두 존재하고 비어 있지 않다", async () => {
