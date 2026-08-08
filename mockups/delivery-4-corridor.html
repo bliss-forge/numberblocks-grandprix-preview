@@ -1,0 +1,218 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>목업 4 — 문 앞 전달 (호수 찾기)</title>
+<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="../mobile-games.css">
+<link rel="stylesheet" href="delivery-shared.css">
+<style>
+  body { overflow: auto; }
+  #game.screen {
+    position: relative; inset: auto;
+    display: flex; flex-direction: column; gap: 8px;
+    padding: 10px 14px 8px;
+  }
+  #game .stage-frame { flex: 1; min-height: 0; display: flex; }
+  #game #stage { flex: 1; min-height: 0; position: relative; }
+  .mock-note {
+    font-family: var(--body-font);
+    background: #1f2b39; color: #e7eef6;
+    padding: 10px 16px; font-size: 14px; line-height: 1.5;
+  }
+  .mock-note b { color: #ffd23f; }
+
+  .dv-stage { background: #f6e7cd; }
+
+  .dv-hint-labels { display: flex; gap: 6px; justify-content: center; flex-wrap: wrap; }
+  .dv-hint-label {
+    padding: 5px 11px 7px;
+    border-radius: 11px;
+    background: #fffdf6;
+    border: 3px solid #e0cba4;
+    box-shadow: 0 3px 0 rgba(37, 52, 93, .14);
+    font-family: var(--display-font);
+    font-size: clamp(15px, 1.9vw, 23px);
+    color: #b8862f;
+    white-space: nowrap;
+  }
+
+  @media (max-width: 760px) {
+    .dv-panel { flex-direction: row; align-items: stretch; }
+    .dv-panel .dv-card { flex: 1; }
+    .dv-hint-label { font-size: 16px; padding: 3px 8px 5px; }
+  }
+</style>
+</head>
+<body data-state="playing" data-mode="delivery">
+<p class="mock-note">
+  <b>목업 4 — 문 앞 전달: 호수 찾기 (레퍼런스 디자인 기반).</b> 복도 문패는 <b>전체 호수</b>(701·702·703)를 달고,
+  목표 문만 <b>금빛 링 + 별</b>로 빛난다. 오른쪽에 <b>내가 찾는 호수 702호</b>와 <b>힌트 라벨</b> 두 장이 상주해
+  아이가 기억할 필요가 없다 — 라벨과 <b>똑같은 모양의 문</b>을 찾는 일치 과제다. ←/→로 걷고, 맞는 문 앞에서 ⎵로 초인종.
+</p>
+
+<main>
+<section id="game" class="screen active" style="height:calc(100vh - 108px)">
+  <div class="stage-curtain curtain-left" aria-hidden="true"></div>
+  <div class="stage-curtain curtain-right" aria-hidden="true"></div>
+
+  <div class="stage-frame">
+    <div id="stage" class="stage">
+      <div class="dv-screen">
+
+        <div class="dv-head">
+          <span class="dv-step">3</span>
+          <span class="dv-stepname">문 앞 전달</span>
+          <span class="dv-headline">정확한 호수를 찾아 택배를 전달해요!</span>
+          <span class="dv-chip">⭐ 0</span>
+          <span class="dv-chip dv-chip-sound">♪ 소리</span>
+        </div>
+
+        <div class="dv-body" data-cols="2">
+
+          <div class="dv-stage">
+            <svg viewBox="0 0 900 500" preserveAspectRatio="xMidYMax meet" aria-hidden="true">
+              <defs>
+                <linearGradient id="hwWall" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0" stop-color="#f6e7cd"/><stop offset="1" stop-color="#e0cba4"/>
+                </linearGradient>
+                <linearGradient id="hwFloor" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0" stop-color="#d9c6a6"/><stop offset="1" stop-color="#b79c74"/>
+                </linearGradient>
+                <linearGradient id="hwDoor" x1="0" y1="0" x2="1" y2="0">
+                  <stop offset="0" stop-color="#9d6a35"/>
+                  <stop offset="0.4" stop-color="#c8handled"/>
+                  <stop offset="1" stop-color="#8f5f2e"/>
+                </linearGradient>
+                <linearGradient id="hwDoorWood" x1="0" y1="0" x2="1" y2="0">
+                  <stop offset="0" stop-color="#9d6a35"/>
+                  <stop offset="0.42" stop-color="#c89052"/>
+                  <stop offset="1" stop-color="#8f5f2e"/>
+                </linearGradient>
+                <radialGradient id="hwGlow" cx="0.5" cy="0.5" r="0.5">
+                  <stop offset="0" stop-color="#ffe9a8" stop-opacity=".9"/>
+                  <stop offset="1" stop-color="#ffd23f" stop-opacity="0"/>
+                </radialGradient>
+                <radialGradient id="hwCeil" cx="0.5" cy="0" r="0.8">
+                  <stop offset="0" stop-color="#fff6dd"/><stop offset="1" stop-color="#e8d5b4" stop-opacity="0"/>
+                </radialGradient>
+              </defs>
+
+              <rect width="900" height="500" fill="url(#hwWall)"/>
+              <!-- 천장 원근 -->
+              <path d="M0 0 L900 0 L760 74 L140 74 Z" fill="#e9d8b8"/>
+              <rect x="360" y="14" width="180" height="18" rx="9" fill="#fff6dd"/>
+              <ellipse cx="450" cy="80" rx="380" ry="80" fill="url(#hwCeil)" opacity=".8"/>
+              <!-- 바닥 + 타일 -->
+              <path d="M0 396 L900 396 L900 500 L0 500 Z" fill="url(#hwFloor)"/>
+              <rect x="0" y="390" width="900" height="12" fill="#a98a63"/>
+              <g stroke="#a98a63" stroke-width="3" opacity=".55">
+                <line x1="120" y1="402" x2="40" y2="500"/>
+                <line x1="330" y1="402" x2="300" y2="500"/>
+                <line x1="570" y1="402" x2="600" y2="500"/>
+                <line x1="780" y1="402" x2="860" y2="500"/>
+              </g>
+
+              <!-- 문 701 -->
+              <g>
+                <rect x="120" y="120" width="170" height="276" rx="7" fill="#7d5327"/>
+                <rect x="128" y="128" width="154" height="268" rx="6" fill="url(#hwDoorWood)"/>
+                <rect x="148" y="152" width="114" height="94" rx="6" fill="none" stroke="#7d5327" stroke-width="4"/>
+                <rect x="148" y="268" width="114" height="94" rx="6" fill="none" stroke="#7d5327" stroke-width="4"/>
+                <circle cx="266" cy="266" r="9" fill="#f0d99b" stroke="#a8763a" stroke-width="3"/>
+                <rect x="160" y="82" width="90" height="34" rx="8" fill="#fffdf6" stroke="#c2a87c" stroke-width="4"/>
+                <text x="205" y="107" text-anchor="middle" font-family="'Cafe24 Ssurround', sans-serif"
+                      font-size="24" font-weight="900" fill="#7b6a4e">701</text>
+              </g>
+
+              <!-- 문 702 (목표, 금빛 링 + 별) -->
+              <g>
+                <ellipse cx="450" cy="250" rx="180" ry="200" fill="url(#hwGlow)" opacity=".55"/>
+                <rect x="356" y="112" width="188" height="292" rx="12" fill="none"
+                      stroke="#ffd23f" stroke-width="7"/>
+                <rect x="366" y="120" width="168" height="276" rx="7" fill="#7d5327"/>
+                <rect x="374" y="128" width="152" height="268" rx="6" fill="url(#hwDoorWood)"/>
+                <rect x="394" y="152" width="112" height="94" rx="6" fill="none" stroke="#7d5327" stroke-width="4"/>
+                <rect x="394" y="268" width="112" height="94" rx="6" fill="none" stroke="#7d5327" stroke-width="4"/>
+                <circle cx="510" cy="266" r="9" fill="#f0d99b" stroke="#a8763a" stroke-width="3"/>
+                <rect x="404" y="82" width="92" height="34" rx="8" fill="#fffdf6" stroke="#ff8f33" stroke-width="5"/>
+                <text x="450" y="107" text-anchor="middle" font-family="'Cafe24 Ssurround', sans-serif"
+                      font-size="24" font-weight="900" fill="#e07a12">702</text>
+                <path d="M450 34 l8 18 20 3 -14 14 3 20 -17 -10 -17 10 3 -20 -14 -14 20 -3z" fill="#ffd23f"
+                      stroke="#e0a800" stroke-width="2"/>
+                <!-- 초인종 -->
+                <circle cx="556" cy="248" r="12" fill="#ffd45e" stroke="#c9860c" stroke-width="4"/>
+                <circle cx="556" cy="248" r="22" fill="#ffd45e" opacity=".24"/>
+              </g>
+
+              <!-- 문 703 -->
+              <g>
+                <rect x="610" y="120" width="170" height="276" rx="7" fill="#7d5327"/>
+                <rect x="618" y="128" width="154" height="268" rx="6" fill="url(#hwDoorWood)"/>
+                <rect x="638" y="152" width="114" height="94" rx="6" fill="none" stroke="#7d5327" stroke-width="4"/>
+                <rect x="638" y="268" width="114" height="94" rx="6" fill="none" stroke="#7d5327" stroke-width="4"/>
+                <circle cx="756" cy="266" r="9" fill="#f0d99b" stroke="#a8763a" stroke-width="3"/>
+                <rect x="650" y="82" width="90" height="34" rx="8" fill="#fffdf6" stroke="#c2a87c" stroke-width="4"/>
+                <text x="695" y="107" text-anchor="middle" font-family="'Cafe24 Ssurround', sans-serif"
+                      font-size="24" font-weight="900" fill="#7b6a4e">703</text>
+              </g>
+
+              <!-- 기사님(회색 넘버블록) + 상자 -->
+              <g>
+                <ellipse cx="248" cy="428" rx="62" ry="12" fill="rgba(37,52,93,.24)"/>
+                <rect x="196" y="238" width="92" height="82" rx="12" fill="#a9b3bd" stroke="#7e8894" stroke-width="4"/>
+                <rect x="196" y="320" width="92" height="80" rx="12" fill="#a9b3bd" stroke="#7e8894" stroke-width="4"/>
+                <ellipse cx="224" cy="272" rx="17" ry="19" fill="#fff"/>
+                <ellipse cx="262" cy="272" rx="17" ry="19" fill="#fff"/>
+                <circle cx="228" cy="274" r="8" fill="#1d2942"/>
+                <circle cx="266" cy="274" r="8" fill="#1d2942"/>
+                <circle cx="231" cy="270" r="2.6" fill="#fff"/>
+                <circle cx="269" cy="270" r="2.6" fill="#fff"/>
+                <path d="M224 296 q20 16 40 0" stroke="#4b5563" stroke-width="5" fill="none" stroke-linecap="round"/>
+                <rect x="212" y="400" width="18" height="30" rx="8" fill="#7e8894"/>
+                <rect x="256" y="400" width="18" height="30" rx="8" fill="#7e8894"/>
+                <!-- 든 상자 -->
+                <rect x="282" y="316" width="86" height="70" rx="8" fill="#e5b782" stroke="#b07c34" stroke-width="4"/>
+                <line x1="325" y1="316" x2="325" y2="386" stroke="#b07c34" stroke-width="4"/>
+                <rect x="282" y="342" width="86" height="14" fill="#f3ddbb" opacity=".85"/>
+                <path d="M288 328 q-14 -8 -8 -20" stroke="#a9b3bd" stroke-width="13" fill="none" stroke-linecap="round"/>
+              </g>
+            </svg>
+          </div>
+
+          <div class="dv-panel">
+            <div class="dv-card">
+              <b>내가 찾는 호수</b>
+              <span class="dv-goal-num">702호</span>
+            </div>
+            <div class="dv-card">
+              <b>힌트 라벨</b>
+              <div class="dv-hint-labels">
+                <span class="dv-hint-label">702호</span>
+                <span class="dv-hint-label">702호</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="dv-tip">
+          <img class="dv-tip-face" src="../assets/characters/nine.png" alt="">
+          <div class="dv-tip-bubble">
+            <span class="dv-tip-q">?</span>
+            <span class="dv-tip-text">
+              <b>게임 방법</b> — 라벨과 <strong>같은 호수의 문</strong>을 찾아 택배를 전달하세요!
+              정확히 찾으면 초인종을 누를 수 있어요.
+            </span>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <p class="game-keyboard-note">← → 걷기 · ⎵ 초인종 · <kbd>Esc</kbd> 처음으로</p>
+</section>
+</main>
+</body>
+</html>

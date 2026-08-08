@@ -3,12 +3,24 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>목업 2 — 단지 운전 (안전한 길찾기 문법)</title>
+<title>목업 2 — 단지 운전</title>
 <link rel="stylesheet" href="../styles.css">
 <link rel="stylesheet" href="../mobile-games.css">
+<link rel="stylesheet" href="delivery-shared.css">
 <style>
   body { overflow: auto; }
-  #game.screen { position: relative; inset: auto; }
+  /* 목업 전용 셸: 실제 게임의 #game 그리드는 [문제알약·무대·답칸·숫자판·안내]
+     5행을 전제하는데 이 게임은 그 행들을 쓰지 않는다. 목업에서는 무대만 채운다. */
+  #game.screen {
+    position: relative;
+    inset: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 10px 14px 8px;
+  }
+  #game .stage-frame { flex: 1; min-height: 0; display: flex; }
+  #game #stage { flex: 1; min-height: 0; position: relative; }
   .mock-note {
     font-family: var(--body-font);
     background: #1f2b39; color: #e7eef6;
@@ -16,507 +28,405 @@
   }
   .mock-note b { color: #ffd23f; }
 
-  /* ── 단지 주행: 안전한 길찾기와 같은 격자 문법 ─────────────────────── */
-  .dv-yard {
-    position: absolute;
-    inset: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    min-height: 0;
-  }
+  /* ── 이동 명령 큐 ─────────────────────────────────────────────── */
+  .dv-queue { display: flex; gap: 5px; justify-content: center; }
 
-  /* 상단 미션 바 (safety-route-top 동형) */
-  .dv-top {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 8px 16px;
-    border-radius: 16px;
-    background: rgba(255, 253, 246, .95);
-    box-shadow: 0 4px 0 var(--shadow);
+  .dv-slot {
+    display: grid;
+    place-items: center;
+    width: clamp(30px, 3.6vw, 42px);
+    aspect-ratio: 1;
+    border-radius: 10px;
+    border: 3px dashed #c2cedb;
+    background: #f2f6fa;
     font-family: var(--display-font);
-    color: var(--ink);
-    font-size: clamp(15px, 1.7vw, 21px);
+    font-size: clamp(15px, 1.9vw, 22px);
+    color: #9fb0c1;
   }
-  .dv-top .dv-target-badge {
-    padding: 3px 12px;
-    border-radius: 999px;
-    background: var(--orange);
+  .dv-slot[data-filled="true"] {
+    border-style: solid;
+    border-color: #3f9a45;
+    background: linear-gradient(#8ddb78, #4faa46);
     color: #fff;
+    box-shadow: 0 3px 0 #2c7332;
+  }
+
+  .dv-slotnums {
+    display: flex;
+    gap: 5px;
+    justify-content: center;
+    font-family: var(--display-font);
+    font-size: clamp(10px, 1.1vw, 13px);
+    color: var(--ink-soft);
+  }
+  .dv-slotnums span { width: clamp(30px, 3.6vw, 42px); text-align: center; }
+
+  /* 방향 버튼 3개 */
+  .dv-dirs { display: flex; gap: 6px; justify-content: center; }
+
+  /* 지도 */
+  .dv-map { position: absolute; inset: 0; }
+  .dv-map svg { display: block; width: 100%; height: 100%; }
+
+  .dv-callout {
+    position: absolute;
+    padding: 4px 11px;
+    border-radius: 12px;
+    background: #fffdf6;
+    border: 3px solid #4faa46;
+    box-shadow: 0 3px 0 rgba(44, 115, 50, .45);
+    font-family: var(--display-font);
+    font-size: clamp(11px, 1.25vw, 15px);
+    color: #2f7a36;
     white-space: nowrap;
   }
-  .dv-top .dv-remain { margin-left: auto; display: flex; align-items: center; gap: 5px; }
-  .dv-top .dv-remain small { font-family: var(--body-font); font-size: 12px; color: var(--ink-soft); white-space: nowrap; }
-  .dv-top .dv-remain i {
-    width: 15px; height: 13px; border-radius: 3px; display: block;
-    background: linear-gradient(#e8b675, #cf9448);
-    box-shadow: inset 0 -3px rgba(120, 74, 20, .28);
-  }
-
-  /* 격자 뷰포트 */
-  .dv-gridwrap {
-    position: relative;
-    flex: 1;
-    min-height: 0;
-    border-radius: var(--radius-small);
-    overflow: hidden;
-    background: #a9dd8f;
-    box-shadow: inset 0 0 0 4px rgba(255, 255, 255, .5);
-  }
-
-  .dv-grid {
-    position: absolute;
-    inset: 0;
-    display: grid;
-    grid-template-columns: repeat(7, 1fr);
-    grid-template-rows: repeat(5, 1fr);
-  }
-
-  .dv-cell { position: relative; }
-
-  .dv-lawn {
-    background:
-      radial-gradient(circle at 30% 30%, rgba(255,255,255,.28) 2.5px, transparent 3px),
-      linear-gradient(#a9dd8f, #97d17c);
-    background-size: 34px 34px, 100% 100%;
-  }
-  .dv-road { background: linear-gradient(#8d93a3, #7b8293); }
-  .dv-lane-h::before {
+  .dv-callout::after {
     content: "";
-    position: absolute;
-    left: 6%; right: 6%;
-    top: 50%;
-    height: 6px;
-    margin-top: -3px;
-    border-radius: 3px;
-    background: repeating-linear-gradient(90deg, #ffe9b0 0 24px, transparent 24px 46px);
-  }
-  .dv-lane-v::before {
-    content: "";
-    position: absolute;
-    top: 6%; bottom: 6%;
-    left: 50%;
-    width: 6px;
-    margin-left: -3px;
-    border-radius: 3px;
-    background: repeating-linear-gradient(180deg, #ffe9b0 0 24px, transparent 24px 46px);
-  }
-  .dv-walk { background: linear-gradient(#efe2c6, #e3d3b1); }
-  .dv-walk::after {
-    content: "";
-    position: absolute;
-    inset: 5px;
-    border-radius: 6px;
-    box-shadow: inset 0 0 0 2px rgba(180, 155, 115, .35);
-  }
-
-  .dv-park { background: linear-gradient(#8d93a3, #7b8293); }
-  .dv-park::before {
-    content: "";
-    position: absolute;
-    inset: 8%;
-    border-radius: 10px;
-    background: rgba(255, 242, 184, .26);
-    box-shadow: inset 0 0 0 5px #ffd23f;
-  }
-  .dv-park[data-label]::after {
-    content: attr(data-label);
     position: absolute;
     left: 50%;
-    top: 12%;
+    bottom: -11px;
     transform: translateX(-50%);
-    padding: 2px 10px;
-    border-radius: 8px;
-    background: #fffdf6;
-    font-family: var(--display-font);
-    font-size: clamp(12px, 1.3vw, 17px);
-    color: #c8791b;
-    white-space: nowrap;
-  }
-
-  /* 건물 */
-  .dv-building {
-    position: absolute;
-    border-radius: 12px 12px 6px 6px;
-    background: linear-gradient(#fffaf0, #f0dcb8);
-    box-shadow: 0 8px 0 rgba(37, 52, 93, .18), inset 0 -8px 0 rgba(180, 150, 105, .18);
-    border: 4px solid #e8cfa4;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 5px;
-    padding: 8px 8px 0;
-    overflow: hidden;
-  }
-  .dv-building[data-target="true"] { border-color: var(--orange); }
-
-  .dv-bnum {
-    padding: 2px 13px;
-    border-radius: 10px;
-    background: #fffdf6;
-    border: 4px solid #d8c39c;
-    font-family: var(--display-font);
-    font-size: clamp(17px, 2.1vw, 28px);
-    font-weight: 900;
-    color: #8a7660;
-    line-height: 1.2;
-    white-space: nowrap;
-  }
-  .dv-building[data-target="true"] .dv-bnum { border-color: var(--orange); color: #e07a12; }
-
-  .dv-windows {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 5px;
-    width: 100%;
-  }
-  .dv-windows span {
-    aspect-ratio: 1.3;
-    border-radius: 5px;
-    background: linear-gradient(135deg, #e8f7ff, #a9d8ef);
-    box-shadow: inset 0 0 0 2px rgba(200, 175, 130, .55);
-  }
-  .dv-windows span[data-wave="true"] {
-    background: linear-gradient(135deg, #fff4d6, #ffe4a8);
-    display: grid;
-    place-items: center;
-    font-size: clamp(10px, 1.1vw, 15px);
-  }
-  .dv-entrance {
-    margin-top: auto;
-    width: 42%;
-    height: 20%;
-    min-height: 16px;
-    border-radius: 6px 6px 0 0;
-    background: linear-gradient(#b9d9ef, #9ec3dc);
-    box-shadow: inset 0 0 0 3px rgba(140, 175, 200, .8);
-  }
-
-  /* 신호등 */
-  .dv-signal {
-    position: absolute;
-    width: clamp(20px, 2.3vw, 30px);
-    display: flex;
-    flex-direction: column;
-    gap: 3px;
-    padding: 4px;
-    border-radius: 9px;
-    background: #42506a;
-    box-shadow: 0 4px 0 rgba(37, 52, 93, .3);
-  }
-  .dv-signal i { width: 100%; aspect-ratio: 1; border-radius: 50%; display: block; }
-  .dv-signal .dv-red { background: #5b3f42; }
-  .dv-signal .dv-green { background: #7ce870; box-shadow: 0 0 10px rgba(124, 232, 112, .9); }
-
-  /* 트럭 스프라이트 */
-  .dv-truck { position: absolute; pointer-events: none; }
-  .dv-truck svg { width: 100%; height: 100%; overflow: visible; }
-
-  .dv-dog { position: absolute; display: grid; place-items: center; font-size: clamp(22px, 3vw, 40px); }
-
-  /* 미니맵 */
-  .dv-minimap {
-    position: absolute;
-    left: 10px;
-    bottom: 10px;
-    width: clamp(112px, 16vw, 200px);
-    aspect-ratio: 1.6;
-    border-radius: 12px;
-    background: rgba(255, 253, 246, .94);
-    box-shadow: 0 4px 0 var(--shadow);
-    border: 3px solid #fff;
-    overflow: hidden;
-  }
-  .dv-mm-road { position: absolute; background: #c9cfda; }
-  .dv-mm-b {
-    position: absolute;
-    border-radius: 3px;
-    background: #e8cfa4;
-    display: grid;
-    place-items: center;
-    font-family: var(--display-font);
-    font-size: 10px;
-    color: #8a7660;
-  }
-  .dv-mm-b[data-target="true"] { background: #ffd7a8; box-shadow: 0 0 0 2px var(--orange); color: #c8791b; }
-  .dv-mm-truck {
-    position: absolute;
-    width: 11px; height: 11px;
-    border-radius: 4px;
-    background: var(--blue);
-    box-shadow: 0 0 0 3px rgba(40, 121, 223, .28);
-  }
-
-  /* 방향 패드 */
-  .dv-pad {
-    position: absolute;
-    right: 10px;
-    bottom: 10px;
-    display: grid;
-    grid-template-areas: ". up ." "left down right" "space space space";
-    gap: 5px;
-    padding: 8px;
-    border-radius: 16px;
-    background: rgba(255, 253, 246, .9);
-    box-shadow: 0 4px 0 var(--shadow);
-  }
-  .dv-pad button {
-    width: 46px; height: 46px;
-    border: 3px solid #fff;
-    border-radius: 12px;
-    background: linear-gradient(#eaf4fa, #cfe4f2);
-    font-family: var(--display-font);
-    font-size: 21px;
-    color: var(--blue-deep);
-    box-shadow: 0 3px 0 rgba(37, 52, 93, .2);
-  }
-  .dv-pad .dv-pad-up { grid-area: up; }
-  .dv-pad .dv-pad-left { grid-area: left; }
-  .dv-pad .dv-pad-down { grid-area: down; }
-  .dv-pad .dv-pad-right { grid-area: right; }
-  .dv-pad .dv-pad-space {
-    grid-area: space;
-    width: auto;
-    height: 44px;
-    font-size: 16px;
-    background: linear-gradient(#ffd35e, #f0a81c);
-    color: var(--ink);
+    border: 6px solid transparent;
+    border-top-color: #4faa46;
   }
 
   @media (max-width: 760px) {
-    .dv-minimap { width: 96px; left: 6px; bottom: 6px; }
-    .dv-pad { right: 6px; bottom: 6px; padding: 6px; }
-    .dv-pad button { width: 52px; height: 52px; }
-    .dv-pad .dv-pad-space { height: 46px; }
-    .dv-top { font-size: 14px; padding: 6px 10px; gap: 8px; }
-    .dv-top .dv-remain i { display: none; }
+    .dv-panel { flex-direction: row; }
+    .dv-panel .dv-card { flex: 1; }
+    .dv-slot { width: 32px; }
+    .dv-slotnums span { width: 32px; }
   }
 </style>
 </head>
 <body data-state="playing" data-mode="delivery">
 <p class="mock-note">
-  <b>목업 2 — 단지 운전(수정: 안전한 길찾기 문법).</b> 옆스크롤·가속/브레이크를 버리고
-  <b>격자 지도 + 방향키 4방향 이동</b>으로 바꿨다. 길찾기의 타일·미니맵·방향 패드·카메라를 그대로 재사용한다.
-  트럭은 참고 이미지 형태의 <b>흰색 캡오버 박스트럭</b>(앞유리 위 눈 + 크롬 그릴 미소, 파란 유리)이며 오리지널 도장이다.
-  주차 존에 들어가 <b>Space = 딱 주차</b>. 목표 동 번호는 상단 배지·건물 외벽·미니맵 세 곳에 늘 함께 보인다.
+  <b>목업 2 — 단지 운전 (레퍼런스 디자인 기반).</b> 자유 이동이 아니라
+  <b>이동 명령을 쌓아 두고 ▶ 출발로 한 번에 실행</b>하는 경로 만들기 놀이다(방향키 = 명령 추가, Space = 출발).
+  좌측에 <b>목표 호수 702호</b>와 배송 진행이 상주하고, 지도의 집들은 601·503·702·401 호수를 달고 있다.
+  목표 집만 초록 링 + "여기가 702호!" 말풍선으로 알려 준다. 하단에는 마스코트가 방법을 읽어 준다.
 </p>
 
 <main>
 <section id="game" class="screen active" style="height:calc(100vh - 108px)">
   <div class="stage-curtain curtain-left" aria-hidden="true"></div>
   <div class="stage-curtain curtain-right" aria-hidden="true"></div>
-  <p id="problem-text" class="problem-pill">🚚 101동으로 가요!</p>
 
   <div class="stage-frame">
-    <div class="stage-lights" aria-hidden="true"></div>
     <div id="stage" class="stage">
-      <div class="dv-yard">
+      <div class="dv-screen">
 
-        <div class="dv-top">
-          <span class="dv-target-badge">101동</span>
-          <span>주차할 곳으로 가요</span>
-          <span class="dv-remain">
-            <small>남은 택배</small>
-            <i></i><i></i><i></i><i></i><i></i>
-            <b>5</b>
+        <!-- 헤더 -->
+        <div class="dv-head">
+          <span class="dv-step">1</span>
+          <span class="dv-stepname">단지 운전</span>
+          <span class="dv-headline">
+            목표 호수로 택배차를 운전해요!
+            <span class="dv-parcel-emoji">📦</span>
           </span>
+          <span class="dv-chip">⭐ 0</span>
+          <span class="dv-chip dv-chip-sound">♪ 소리</span>
         </div>
 
-        <div class="dv-gridwrap">
-          <div class="dv-grid">
-            <div class="dv-cell dv-lawn"></div>
-            <div class="dv-cell dv-lawn"></div>
-            <div class="dv-cell dv-lawn"></div>
-            <div class="dv-cell dv-road dv-lane-v"></div>
-            <div class="dv-cell dv-lawn"></div>
-            <div class="dv-cell dv-lawn"></div>
-            <div class="dv-cell dv-lawn"></div>
+        <!-- 본문 -->
+        <div class="dv-body">
 
-            <div class="dv-cell dv-walk"></div>
-            <div class="dv-cell dv-walk"></div>
-            <div class="dv-cell dv-walk"></div>
-            <div class="dv-cell dv-road dv-lane-v"></div>
-            <div class="dv-cell dv-walk"></div>
-            <div class="dv-cell dv-walk"></div>
-            <div class="dv-cell dv-walk"></div>
-
-            <div class="dv-cell dv-road dv-lane-h"></div>
-            <div class="dv-cell dv-road dv-lane-h"></div>
-            <div class="dv-cell dv-road dv-lane-h"></div>
-            <div class="dv-cell dv-road"></div>
-            <div class="dv-cell dv-road dv-lane-h"></div>
-            <div class="dv-cell dv-road dv-lane-h"></div>
-            <div class="dv-cell dv-road dv-lane-h"></div>
-
-            <div class="dv-cell dv-walk"></div>
-            <div class="dv-cell dv-park" data-label="주차"></div>
-            <div class="dv-cell dv-park"></div>
-            <div class="dv-cell dv-road dv-lane-v"></div>
-            <div class="dv-cell dv-walk"></div>
-            <div class="dv-cell dv-walk"></div>
-            <div class="dv-cell dv-walk"></div>
-
-            <div class="dv-cell dv-lawn"></div>
-            <div class="dv-cell dv-lawn"></div>
-            <div class="dv-cell dv-lawn"></div>
-            <div class="dv-cell dv-road dv-lane-v"></div>
-            <div class="dv-cell dv-lawn"></div>
-            <div class="dv-cell dv-lawn"></div>
-            <div class="dv-cell dv-lawn"></div>
-          </div>
-
-          <!-- 목표 건물 101동 -->
-          <div class="dv-building" data-target="true"
-               style="left:0.6%; top:1.6%; width:41.5%; height:38%;">
-            <span class="dv-bnum">101동</span>
-            <div class="dv-windows">
-              <span></span><span data-wave="true">👋</span><span></span>
-              <span></span><span></span><span data-wave="true">👋</span>
+          <!-- 좌: 목표 -->
+          <div class="dv-side">
+            <div class="dv-card">
+              <b>목표</b>
+              <span class="dv-goal-num">702호</span>
             </div>
-            <span class="dv-entrance"></span>
-          </div>
-
-          <!-- 비목표 건물 103동 -->
-          <div class="dv-building"
-               style="right:0.6%; top:1.6%; width:41.5%; height:38%;">
-            <span class="dv-bnum">103동</span>
-            <div class="dv-windows">
-              <span></span><span></span><span></span>
-              <span></span><span></span><span></span>
+            <div class="dv-card">
+              <b>배송한 택배</b>
+              <span class="dv-progress"><span class="dv-box-emoji">📦</span> 0 / 5</span>
             </div>
-            <span class="dv-entrance"></span>
           </div>
 
-          <div class="dv-signal" style="left:58.5%; top:30%;">
-            <i class="dv-red"></i>
-            <i class="dv-green"></i>
-          </div>
+          <!-- 중앙: 단지 지도 -->
+          <div class="dv-stage">
+            <div class="dv-map">
+              <svg viewBox="0 0 720 470" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+                <defs>
+                  <linearGradient id="mpLawn" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0" stop-color="#b6e39a"/>
+                    <stop offset="1" stop-color="#8ecd72"/>
+                  </linearGradient>
+                  <linearGradient id="mpRoad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0" stop-color="#9aa2b2"/>
+                    <stop offset="1" stop-color="#7f8798"/>
+                  </linearGradient>
+                  <linearGradient id="mpRoofA" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0" stop-color="#6fd0c0"/><stop offset="1" stop-color="#3aa596"/>
+                  </linearGradient>
+                  <linearGradient id="mpRoofB" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0" stop-color="#f0a06a"/><stop offset="1" stop-color="#d1734a"/>
+                  </linearGradient>
+                  <linearGradient id="mpRoofC" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0" stop-color="#f6c95e"/><stop offset="1" stop-color="#dfa128"/>
+                  </linearGradient>
+                  <linearGradient id="mpRoofD" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0" stop-color="#7db6ea"/><stop offset="1" stop-color="#4a86c8"/>
+                  </linearGradient>
+                  <linearGradient id="mpWall" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0" stop-color="#fff7e6"/><stop offset="1" stop-color="#efdcbd"/>
+                  </linearGradient>
+                  <linearGradient id="mpTruckBody" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#d5e0ea"/>
+                  </linearGradient>
+                  <radialGradient id="mpPond" cx="0.4" cy="0.35" r="0.7">
+                    <stop offset="0" stop-color="#9fe0f5"/><stop offset="1" stop-color="#54b7dd"/>
+                  </radialGradient>
+                </defs>
 
-          <div class="dv-dog" style="left:71.4%; top:60%; width:14.3%; height:20%;">🐕</div>
-
-          <!-- 트럭 (3행 4열 도로 위) -->
-          <div class="dv-truck" style="left:42.9%; top:40%; width:14.3%; height:21%;">
-            <svg viewBox="0 0 210 180" preserveAspectRatio="xMidYMax meet" aria-label="택배 트럭 포장이">
-              <defs>
-                <linearGradient id="dvBoxG" x1="0" y1="0" x2="1" y2="0">
-                  <stop offset="0" stop-color="#c9d6e2"/>
-                  <stop offset="0.35" stop-color="#f2f7fb"/>
-                  <stop offset="1" stop-color="#d7e2ec"/>
-                </linearGradient>
-                <linearGradient id="dvCabG" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0" stop-color="#ffffff"/>
-                  <stop offset="0.55" stop-color="#eef4f9"/>
-                  <stop offset="1" stop-color="#cdd9e4"/>
-                </linearGradient>
-                <linearGradient id="dvGlassG" x1="0.1" y1="0" x2="0.9" y2="1">
-                  <stop offset="0" stop-color="#6fc3ea"/>
-                  <stop offset="0.45" stop-color="#2f92cf"/>
-                  <stop offset="1" stop-color="#1c6ea8"/>
-                </linearGradient>
-                <linearGradient id="dvChrome" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0" stop-color="#fdfefe"/>
-                  <stop offset="0.5" stop-color="#c9d2da"/>
-                  <stop offset="1" stop-color="#9fadb9"/>
-                </linearGradient>
-                <radialGradient id="dvLamp" cx="0.5" cy="0.4" r="0.6">
-                  <stop offset="0" stop-color="#fffef2"/>
-                  <stop offset="1" stop-color="#ffd97a"/>
-                </radialGradient>
-              </defs>
-
-              <ellipse cx="108" cy="166" rx="84" ry="13" fill="rgba(37,52,93,.26)"/>
-
-              <!-- 짐칸 -->
-              <g>
-                <path d="M14 48 L58 38 L58 140 L14 132 Z" fill="url(#dvBoxG)"
-                      stroke="#9fb0c0" stroke-width="3"/>
-                <path d="M14 48 L58 38 L58 54 L14 62 Z" fill="#e6edf3"/>
-                <line x1="30" y1="52" x2="30" y2="136" stroke="#c2cedb" stroke-width="2.5"/>
-                <line x1="44" y1="48" x2="44" y2="138" stroke="#c2cedb" stroke-width="2.5"/>
-              </g>
-
-              <!-- 운전실 -->
-              <path d="M58 42 C58 32 66 26 78 26 L164 26 C180 26 190 36 190 52
-                       L190 122 C190 134 182 140 170 140 L58 140 Z"
-                    fill="url(#dvCabG)" stroke="#9fb0c0" stroke-width="3"/>
-
-              <path d="M60 62 L86 58 L86 104 L60 106 Z" fill="#2f92cf" opacity=".8"/>
-
-              <!-- 앞유리 -->
-              <path d="M84 40 L176 40 C182 40 184 44 184 50 L184 82
-                       C184 88 180 92 174 92 L84 92 C78 92 76 88 76 82 L76 50
-                       C76 44 78 40 84 40 Z"
-                    fill="url(#dvGlassG)" stroke="#8fa3b4" stroke-width="3"/>
-              <path d="M92 46 L124 46 L100 88 L82 88 Z" fill="#ffffff" opacity=".18"/>
-              <path d="M136 46 L150 46 L126 88 L112 88 Z" fill="#ffffff" opacity=".1"/>
-
-              <!-- 눈 -->
-              <g>
-                <ellipse cx="110" cy="66" rx="21" ry="23" fill="#ffffff"/>
-                <ellipse cx="158" cy="66" rx="21" ry="23" fill="#ffffff"/>
-                <circle cx="116" cy="68" r="10.5" fill="#1d2942"/>
-                <circle cx="164" cy="68" r="10.5" fill="#1d2942"/>
-                <circle cx="119" cy="63" r="3.6" fill="#ffffff"/>
-                <circle cx="167" cy="63" r="3.6" fill="#ffffff"/>
-              </g>
-
-              <!-- 사이드 미러 -->
-              <rect x="66" y="44" width="7" height="22" rx="3.5" fill="#5b6b7a"/>
-              <rect x="186" y="44" width="7" height="22" rx="3.5" fill="#5b6b7a"/>
-
-              <!-- 크롬 그릴 = 웃는 입 -->
-              <g>
-                <path d="M96 106 C96 100 104 98 134 98 C164 98 172 100 172 106
-                         C172 120 158 128 134 128 C110 128 96 120 96 106 Z"
-                      fill="url(#dvChrome)" stroke="#8c99a5" stroke-width="3"/>
-                <g stroke="#8c99a5" stroke-width="2.6" stroke-linecap="round" fill="none">
-                  <path d="M104 108 C114 114 154 114 164 108"/>
-                  <path d="M104 116 C114 122 154 122 164 116"/>
+                <rect width="720" height="470" fill="url(#mpLawn)"/>
+                <!-- 잔디 결 -->
+                <g fill="#a2d888" opacity=".55">
+                  <circle cx="60" cy="60" r="4"/><circle cx="140" cy="120" r="3.5"/>
+                  <circle cx="640" cy="80" r="4"/><circle cx="600" cy="420" r="3.5"/>
+                  <circle cx="90" cy="400" r="4"/><circle cx="330" cy="440" r="3.5"/>
                 </g>
-              </g>
 
-              <ellipse cx="82" cy="112" rx="12" ry="10" fill="url(#dvLamp)"
-                       stroke="#b9c5d0" stroke-width="2.5"/>
-              <ellipse cx="186" cy="112" rx="12" ry="10" fill="url(#dvLamp)"
-                       stroke="#b9c5d0" stroke-width="2.5"/>
+                <!-- 도로: 가로 2줄 + 세로 2줄 -->
+                <g fill="url(#mpRoad)">
+                  <rect x="0" y="196" width="720" height="62"/>
+                  <rect x="0" y="366" width="720" height="52"/>
+                  <rect x="222" y="0" width="56" height="470"/>
+                  <rect x="470" y="0" width="52" height="470"/>
+                </g>
+                <!-- 차선 -->
+                <g fill="#fff6d8">
+                  <g>
+                    <rect x="16" y="224" width="34" height="6" rx="3"/>
+                    <rect x="70" y="224" width="34" height="6" rx="3"/>
+                    <rect x="124" y="224" width="34" height="6" rx="3"/>
+                    <rect x="304" y="224" width="34" height="6" rx="3"/>
+                    <rect x="358" y="224" width="34" height="6" rx="3"/>
+                    <rect x="412" y="224" width="34" height="6" rx="3"/>
+                    <rect x="548" y="224" width="34" height="6" rx="3"/>
+                    <rect x="602" y="224" width="34" height="6" rx="3"/>
+                    <rect x="656" y="224" width="34" height="6" rx="3"/>
+                  </g>
+                  <g>
+                    <rect x="247" y="20" width="6" height="30" rx="3"/>
+                    <rect x="247" y="70" width="6" height="30" rx="3"/>
+                    <rect x="247" y="120" width="6" height="30" rx="3"/>
+                    <rect x="247" y="286" width="6" height="30" rx="3"/>
+                    <rect x="247" y="336" width="6" height="24" rx="3"/>
+                    <rect x="493" y="20" width="6" height="30" rx="3"/>
+                    <rect x="493" y="70" width="6" height="30" rx="3"/>
+                    <rect x="493" y="120" width="6" height="30" rx="3"/>
+                    <rect x="493" y="286" width="6" height="30" rx="3"/>
+                    <rect x="493" y="336" width="6" height="24" rx="3"/>
+                  </g>
+                </g>
+                <!-- 횡단보도 -->
+                <g fill="#fffdf6">
+                  <rect x="150" y="202" width="12" height="50" rx="3"/>
+                  <rect x="168" y="202" width="12" height="50" rx="3"/>
+                  <rect x="186" y="202" width="12" height="50" rx="3"/>
+                  <rect x="204" y="202" width="12" height="50" rx="3"/>
+                </g>
 
-              <rect x="62" y="130" width="132" height="16" rx="8"
-                    fill="url(#dvChrome)" stroke="#8c99a5" stroke-width="3"/>
+                <!-- 연못 -->
+                <ellipse cx="118" cy="322" rx="66" ry="38" fill="url(#mpPond)"
+                         stroke="#3f9fc4" stroke-width="4"/>
+                <ellipse cx="98" cy="310" rx="20" ry="10" fill="#ffffff" opacity=".35"/>
 
-              <g>
-                <ellipse cx="30" cy="142" rx="14" ry="11" fill="#2f3646"/>
-                <ellipse cx="76" cy="150" rx="20" ry="15" fill="#2f3646"/>
-                <ellipse cx="76" cy="150" rx="9" ry="6.5" fill="#c8ccd4"/>
-                <ellipse cx="176" cy="150" rx="20" ry="15" fill="#2f3646"/>
-                <ellipse cx="176" cy="150" rx="9" ry="6.5" fill="#c8ccd4"/>
-              </g>
-            </svg>
+                <!-- 나무들 -->
+                <g>
+                  <g transform="translate(52,120)">
+                    <rect x="-4" y="14" width="9" height="16" rx="4" fill="#8b6239"/>
+                    <circle cx="0" cy="4" r="20" fill="#5fbb54"/>
+                    <circle cx="-12" cy="12" r="13" fill="#77cf66"/>
+                    <circle cx="13" cy="11" r="12" fill="#4da746"/>
+                  </g>
+                  <g transform="translate(160,88)">
+                    <rect x="-4" y="12" width="9" height="14" rx="4" fill="#8b6239"/>
+                    <circle cx="0" cy="2" r="17" fill="#5fbb54"/>
+                    <circle cx="11" cy="9" r="11" fill="#77cf66"/>
+                  </g>
+                  <g transform="translate(380,110)">
+                    <rect x="-4" y="14" width="9" height="16" rx="4" fill="#8b6239"/>
+                    <circle cx="0" cy="4" r="19" fill="#4da746"/>
+                    <circle cx="-11" cy="11" r="12" fill="#6cc95d"/>
+                  </g>
+                  <g transform="translate(660,300)">
+                    <rect x="-4" y="14" width="9" height="16" rx="4" fill="#8b6239"/>
+                    <circle cx="0" cy="4" r="20" fill="#5fbb54"/>
+                    <circle cx="12" cy="12" r="12" fill="#77cf66"/>
+                  </g>
+                  <g transform="translate(586,440)">
+                    <rect x="-4" y="12" width="9" height="14" rx="4" fill="#8b6239"/>
+                    <circle cx="0" cy="2" r="17" fill="#4da746"/>
+                  </g>
+                </g>
+
+                <!-- 집 601 (좌상) -->
+                <g>
+                  <ellipse cx="150" cy="180" rx="60" ry="10" fill="rgba(37,52,93,.16)"/>
+                  <rect x="100" y="112" width="100" height="62" rx="7" fill="url(#mpWall)"
+                        stroke="#dcc7a3" stroke-width="3"/>
+                  <path d="M92 114 L150 74 L208 114 Z" fill="url(#mpRoofA)"
+                        stroke="#2f8f82" stroke-width="3"/>
+                  <rect x="112" y="126" width="76" height="26" rx="7" fill="#fffdf6"
+                        stroke="#d8c39c" stroke-width="3"/>
+                  <text x="150" y="147" text-anchor="middle" font-family="'Cafe24 Ssurround', sans-serif"
+                        font-size="22" font-weight="900" fill="#7b6a4e">601</text>
+                  <rect x="138" y="156" width="24" height="18" rx="3" fill="#a87542"/>
+                </g>
+
+                <!-- 집 503 (중상) -->
+                <g>
+                  <ellipse cx="360" cy="180" rx="58" ry="10" fill="rgba(37,52,93,.16)"/>
+                  <rect x="312" y="112" width="96" height="62" rx="7" fill="url(#mpWall)"
+                        stroke="#dcc7a3" stroke-width="3"/>
+                  <path d="M304 114 L360 76 L416 114 Z" fill="url(#mpRoofB)"
+                        stroke="#b85f3a" stroke-width="3"/>
+                  <rect x="324" y="126" width="72" height="26" rx="7" fill="#fffdf6"
+                        stroke="#d8c39c" stroke-width="3"/>
+                  <text x="360" y="147" text-anchor="middle" font-family="'Cafe24 Ssurround', sans-serif"
+                        font-size="22" font-weight="900" fill="#7b6a4e">503</text>
+                  <rect x="348" y="156" width="24" height="18" rx="3" fill="#a87542"/>
+                </g>
+
+                <!-- 집 702 (우상) — 목표: 초록 링 + 별 -->
+                <g>
+                  <rect x="546" y="60" width="140" height="126" rx="16" fill="#7ce870" opacity=".22"/>
+                  <rect x="546" y="60" width="140" height="126" rx="16" fill="none"
+                        stroke="#4faa46" stroke-width="5"/>
+                  <ellipse cx="616" cy="180" rx="58" ry="10" fill="rgba(37,52,93,.16)"/>
+                  <rect x="568" y="112" width="96" height="62" rx="7" fill="url(#mpWall)"
+                        stroke="#dcc7a3" stroke-width="3"/>
+                  <path d="M560 114 L616 76 L672 114 Z" fill="url(#mpRoofC)"
+                        stroke="#c98f1c" stroke-width="3"/>
+                  <rect x="578" y="126" width="76" height="28" rx="7" fill="#fffdf6"
+                        stroke="#ff8f33" stroke-width="4"/>
+                  <text x="616" y="148" text-anchor="middle" font-family="'Cafe24 Ssurround', sans-serif"
+                        font-size="23" font-weight="900" fill="#e07a12">702</text>
+                  <rect x="604" y="156" width="24" height="18" rx="3" fill="#a87542"/>
+                  <path d="M616 44 l6 14 15 2 -11 11 3 15 -13 -8 -13 8 3 -15 -11 -11 15 -2z" fill="#ffd23f"/>
+                </g>
+
+                <!-- 집 401 (중하) -->
+                <g>
+                  <ellipse cx="360" cy="348" rx="58" ry="10" fill="rgba(37,52,93,.16)"/>
+                  <rect x="312" y="282" width="96" height="60" rx="7" fill="url(#mpWall)"
+                        stroke="#dcc7a3" stroke-width="3"/>
+                  <path d="M304 284 L360 246 L416 284 Z" fill="url(#mpRoofD)"
+                        stroke="#3a71ad" stroke-width="3"/>
+                  <rect x="324" y="296" width="72" height="26" rx="7" fill="#fffdf6"
+                        stroke="#d8c39c" stroke-width="3"/>
+                  <text x="360" y="317" text-anchor="middle" font-family="'Cafe24 Ssurround', sans-serif"
+                        font-size="22" font-weight="900" fill="#7b6a4e">401</text>
+                  <rect x="348" y="324" width="24" height="18" rx="3" fill="#a87542"/>
+                </g>
+
+                <!-- 라바콘 -->
+                <g transform="translate(424,336)">
+                  <path d="M0 0 L7 -22 L14 0 Z" fill="#ff8f33"/>
+                  <rect x="-3" y="0" width="20" height="5" rx="2" fill="#e8763a"/>
+                </g>
+
+                <!-- 트럭 위치 핀 -->
+                <g transform="translate(196,258)">
+                  <path d="M0 0 C-13 -18 -20 -26 -20 -36 A20 20 0 1 1 20 -36 C20 -26 13 -18 0 0 Z"
+                        fill="#4faa46" stroke="#fff" stroke-width="4"/>
+                  <circle cx="0" cy="-36" r="8" fill="#fff"/>
+                </g>
+
+                <!-- 트럭 '포장이' (도로 위, 정면 3/4) -->
+                <g transform="translate(150,268) scale(0.62)">
+                  <ellipse cx="108" cy="166" rx="84" ry="13" fill="rgba(37,52,93,.26)"/>
+                  <path d="M14 48 L58 38 L58 140 L14 132 Z" fill="url(#mpTruckBody)"
+                        stroke="#9fb0c0" stroke-width="3"/>
+                  <path d="M14 48 L58 38 L58 54 L14 62 Z" fill="#e6edf3"/>
+                  <line x1="30" y1="52" x2="30" y2="136" stroke="#c2cedb" stroke-width="2.5"/>
+                  <line x1="44" y1="48" x2="44" y2="138" stroke="#c2cedb" stroke-width="2.5"/>
+                  <path d="M58 42 C58 32 66 26 78 26 L164 26 C180 26 190 36 190 52
+                           L190 122 C190 134 182 140 170 140 L58 140 Z"
+                        fill="url(#mpTruckBody)" stroke="#9fb0c0" stroke-width="3"/>
+                  <path d="M60 62 L86 58 L86 104 L60 106 Z" fill="#2f92cf" opacity=".8"/>
+                  <path d="M84 40 L176 40 C182 40 184 44 184 50 L184 82
+                           C184 88 180 92 174 92 L84 92 C78 92 76 88 76 82 L76 50
+                           C76 44 78 40 84 40 Z"
+                        fill="#2f92cf" stroke="#8fa3b4" stroke-width="3"/>
+                  <path d="M92 46 L124 46 L100 88 L82 88 Z" fill="#ffffff" opacity=".2"/>
+                  <ellipse cx="110" cy="66" rx="21" ry="23" fill="#ffffff"/>
+                  <ellipse cx="158" cy="66" rx="21" ry="23" fill="#ffffff"/>
+                  <circle cx="116" cy="68" r="10.5" fill="#1d2942"/>
+                  <circle cx="164" cy="68" r="10.5" fill="#1d2942"/>
+                  <circle cx="119" cy="63" r="3.6" fill="#ffffff"/>
+                  <circle cx="167" cy="63" r="3.6" fill="#ffffff"/>
+                  <rect x="66" y="44" width="7" height="22" rx="3.5" fill="#5b6b7a"/>
+                  <rect x="186" y="44" width="7" height="22" rx="3.5" fill="#5b6b7a"/>
+                  <path d="M96 106 C96 100 104 98 134 98 C164 98 172 100 172 106
+                           C172 120 158 128 134 128 C110 128 96 120 96 106 Z"
+                        fill="#e2e9ef" stroke="#8c99a5" stroke-width="3"/>
+                  <g stroke="#8c99a5" stroke-width="2.6" stroke-linecap="round" fill="none">
+                    <path d="M104 108 C114 114 154 114 164 108"/>
+                    <path d="M104 116 C114 122 154 122 164 116"/>
+                  </g>
+                  <ellipse cx="82" cy="112" rx="12" ry="10" fill="#ffe9a8" stroke="#b9c5d0" stroke-width="2.5"/>
+                  <ellipse cx="186" cy="112" rx="12" ry="10" fill="#ffe9a8" stroke="#b9c5d0" stroke-width="2.5"/>
+                  <rect x="62" y="130" width="132" height="16" rx="8" fill="#e2e9ef" stroke="#8c99a5" stroke-width="3"/>
+                  <ellipse cx="30" cy="142" rx="14" ry="11" fill="#2f3646"/>
+                  <ellipse cx="76" cy="150" rx="20" ry="15" fill="#2f3646"/>
+                  <ellipse cx="76" cy="150" rx="9" ry="6.5" fill="#c8ccd4"/>
+                  <ellipse cx="176" cy="150" rx="20" ry="15" fill="#2f3646"/>
+                  <ellipse cx="176" cy="150" rx="9" ry="6.5" fill="#c8ccd4"/>
+                </g>
+              </svg>
+            </div>
+
+            <span class="dv-callout" style="right:6%; top:5%;">여기가 702호!</span>
           </div>
 
-          <div class="dv-minimap" aria-hidden="true">
-            <div class="dv-mm-road" style="left:0; top:44%; width:100%; height:12%;"></div>
-            <div class="dv-mm-road" style="left:46%; top:0; width:8%; height:100%;"></div>
-            <div class="dv-mm-b" data-target="true" style="left:6%; top:8%; width:32%; height:28%;">101</div>
-            <div class="dv-mm-b" style="right:6%; top:8%; width:32%; height:28%;">103</div>
-            <div class="dv-mm-b" style="left:6%; bottom:8%; width:32%; height:24%;">102</div>
-            <div class="dv-mm-truck" style="left:46%; top:46%;"></div>
-          </div>
+          <!-- 우: 조작 패널 -->
+          <div class="dv-panel">
+            <div class="dv-card">
+              <b>이동 명령</b>
+              <div class="dv-queue">
+                <span class="dv-slot" data-filled="true">↑</span>
+                <span class="dv-slot" data-filled="true">→</span>
+                <span class="dv-slot"></span>
+                <span class="dv-slot"></span>
+              </div>
+              <div class="dv-slotnums">
+                <span>1</span><span>2</span><span>3</span><span>4</span>
+              </div>
+            </div>
 
-          <div class="dv-pad" role="group" aria-label="트럭 조작">
-            <button class="dv-pad-up" type="button" aria-label="위로">↑</button>
-            <button class="dv-pad-left" type="button" aria-label="왼쪽">←</button>
-            <button class="dv-pad-down" type="button" aria-label="아래로">↓</button>
-            <button class="dv-pad-right" type="button" aria-label="오른쪽">→</button>
-            <button class="dv-pad-space" type="button" aria-label="딱 주차">⎵ 주차</button>
+            <div class="dv-card">
+              <b>방향 버튼</b>
+              <div class="dv-dirs">
+                <button class="dv-key" type="button" aria-label="위로">↑</button>
+                <button class="dv-key" type="button" aria-label="오른쪽">→</button>
+                <button class="dv-key" type="button" aria-label="아래로">↓</button>
+              </div>
+            </div>
+
+            <button class="dv-key dv-key-go" type="button">▶ 출발! 🚚</button>
           </div>
         </div>
+
+        <!-- 하단 안내 -->
+        <div class="dv-tip">
+          <img class="dv-tip-face" src="../assets/characters/nine.png" alt="">
+          <div class="dv-tip-bubble">
+            <span class="dv-tip-q">?</span>
+            <span class="dv-tip-text">
+              <b>게임 방법</b> — 방향 버튼으로 길을 만들고 <strong>출발</strong> 버튼을 눌러
+              택배차가 목표 호수에 도착하도록 도와주세요!
+            </span>
+            <span class="dv-chip">🚚 배달한 택배: 0 / 5</span>
+          </div>
+        </div>
+
       </div>
     </div>
-    <div class="stage-floor" aria-hidden="true"></div>
   </div>
 
-  <p class="game-keyboard-note">← ↑ ↓ → 운전 · ⎵ 주차·빵빵 · <kbd>Esc</kbd> 처음으로</p>
+  <p class="game-keyboard-note">← ↑ ↓ → 길 만들기 · ⎵ 출발 · <kbd>Esc</kbd> 처음으로</p>
 </section>
 </main>
 </body>

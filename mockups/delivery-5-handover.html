@@ -1,0 +1,366 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>목업 5 — 문 앞 전달 (전달 순간)</title>
+<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="../mobile-games.css">
+<link rel="stylesheet" href="delivery-shared.css">
+<style>
+  body { overflow: auto; }
+  #game.screen {
+    position: relative; inset: auto;
+    display: flex; flex-direction: column; gap: 8px;
+    padding: 10px 14px 8px;
+  }
+  #game .stage-frame { flex: 1; min-height: 0; display: flex; }
+  #game #stage { flex: 1; min-height: 0; position: relative; }
+  .mock-note {
+    font-family: var(--body-font);
+    background: #1f2b39; color: #e7eef6;
+    padding: 10px 16px; font-size: 14px; line-height: 1.5;
+  }
+  .mock-note b { color: #ffd23f; }
+
+  .dv-stage { background: #f6e7cd; }
+
+  /* 무대 위 오버레이 */
+  .dv-recv {
+    position: absolute;
+    left: 12px;
+    top: 12px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    padding: 6px 12px 8px;
+    border-radius: 14px;
+    background: rgba(255, 253, 246, .96);
+    border: 4px solid #fff;
+    box-shadow: 0 4px 0 var(--shadow);
+  }
+  .dv-recv small {
+    font-family: var(--display-font);
+    font-size: clamp(11px, 1.2vw, 14px);
+    color: var(--ink-soft);
+  }
+  .dv-recv b {
+    font-family: var(--display-font);
+    font-size: clamp(18px, 2.2vw, 28px);
+    color: #e07a12;
+  }
+
+  /* 상자 3개 선택 트레이 */
+  .dv-tray {
+    position: absolute;
+    left: 50%;
+    bottom: 10px;
+    transform: translateX(-50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .dv-tray-row { display: flex; gap: 8px; align-items: flex-end; }
+
+  .dv-parcel {
+    display: grid;
+    justify-items: center;
+    gap: 3px;
+    min-width: clamp(74px, 8.6vw, 116px);
+    padding: 8px 10px 9px;
+    border-radius: 14px;
+    border: 4px solid #c9a06a;
+    background: linear-gradient(#f3ddba, #dfbb8a);
+    box-shadow: 0 5px 0 #a97f4c;
+    cursor: pointer;
+  }
+  .dv-parcel .dv-parcel-icon {
+    display: grid;
+    place-items: center;
+    width: clamp(38px, 4.4vw, 58px);
+    aspect-ratio: 1;
+    border-radius: 10px;
+    background: #fffdf6;
+    box-shadow: inset 0 0 0 3px rgba(190, 160, 110, .5);
+    font-size: clamp(20px, 2.4vw, 32px);
+  }
+  .dv-parcel small {
+    font-family: var(--display-font);
+    font-size: clamp(11px, 1.25vw, 15px);
+    color: #6f4f22;
+    white-space: nowrap;
+  }
+  /* 지금 고른 상자 — 금빛 링 + 떠오름 */
+  .dv-parcel[data-picked="true"] {
+    border-color: #ffc61e;
+    background: linear-gradient(#fff3d4, #f3d29a);
+    box-shadow: 0 7px 0 #c8791b, 0 0 0 6px rgba(255, 210, 63, .45);
+    transform: translateY(-6px);
+  }
+
+  .dv-tray-keys { display: flex; gap: 8px; align-items: center; }
+  .dv-tray-keys .dv-key { min-width: 52px; min-height: 46px; }
+  .dv-tray-keys .dv-key-bell { min-width: 62px; min-height: 52px; font-size: 24px; }
+
+  /* 말풍선 */
+  .dv-say {
+    position: absolute;
+    right: 16%;
+    top: 12%;
+    max-width: 46%;
+    padding: 9px 15px;
+    border-radius: 18px;
+    background: #fffdf6;
+    border: 4px solid #d9d3ea;
+    box-shadow: 0 4px 0 rgba(37, 52, 93, .18);
+    font-family: var(--display-font);
+    font-size: clamp(12px, 1.5vw, 19px);
+    color: var(--ink);
+    line-height: 1.35;
+  }
+  .dv-say::after {
+    content: "";
+    position: absolute;
+    left: 22%;
+    bottom: -14px;
+    border: 8px solid transparent;
+    border-top-color: #d9d3ea;
+  }
+
+  /* 조작 방법 카드 */
+  .dv-howto { display: flex; flex-direction: column; gap: 6px; width: 100%; }
+  .dv-howto-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    justify-content: center;
+    font-family: var(--display-font);
+    font-size: clamp(11px, 1.2vw, 15px);
+    color: var(--ink-soft);
+  }
+  .dv-keycap {
+    display: grid;
+    place-items: center;
+    min-width: 34px;
+    height: 30px;
+    padding: 0 8px;
+    border-radius: 9px;
+    border: 3px solid #fff;
+    background: linear-gradient(#5aa9f0, #2879df);
+    color: #fff;
+    font-size: 15px;
+    box-shadow: 0 3px 0 rgba(23, 88, 170, .5);
+  }
+  .dv-keycap-space { background: linear-gradient(#8fb6e8, #4a7fc8); font-size: 13px; }
+
+  .dv-dots { display: flex; gap: 5px; }
+  .dv-dots i {
+    width: 11px; height: 11px; border-radius: 50%;
+    background: #dfe6ee; display: block;
+  }
+  .dv-dots i[data-on="true"] { background: var(--gold); }
+
+  .dv-bonus {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border-radius: 999px;
+    background: #fff8e4;
+    border: 3px solid #f0dcae;
+    font-family: var(--display-font);
+    font-size: clamp(11px, 1.2vw, 15px);
+    color: #b8862f;
+    white-space: nowrap;
+  }
+  .dv-bonus .dv-stars { letter-spacing: 1px; }
+
+  @media (max-width: 760px) {
+    .dv-panel { flex-direction: row; align-items: stretch; }
+    .dv-panel .dv-card { flex: 1; }
+    .dv-parcel { min-width: 66px; padding: 5px 6px 6px; }
+    .dv-say { right: 6%; top: 6%; max-width: 60%; }
+    .dv-recv { left: 6px; top: 6px; padding: 4px 8px 6px; }
+  }
+</style>
+</head>
+<body data-state="playing" data-mode="delivery">
+<p class="mock-note">
+  <b>목업 5 — 전달 순간 (레퍼런스 디자인 기반).</b> 문이 열리면 친구가 <b>어떤 물건을 기다렸는지</b> 말한다.
+  트레이의 상자 3개는 <b>과일 · 화장품 · 장난감</b>이고, <b>←/→로 고르고 ⎵로 건넨다</b>(복도와 같은 키, 새 키 0개).
+  맞히면 상자가 열리며 <b>번호만큼</b> 내용물이 나온다. 틀려도 벌점 없이 친구가 다시 알려 준다.
+  오른쪽에 조작 방법·전달한 수, 하단에 연속 성공 보너스가 붙는다.
+</p>
+
+<main>
+<section id="game" class="screen active" style="height:calc(100vh - 108px)">
+  <div class="stage-curtain curtain-left" aria-hidden="true"></div>
+  <div class="stage-curtain curtain-right" aria-hidden="true"></div>
+
+  <div class="stage-frame">
+    <div id="stage" class="stage">
+      <div class="dv-screen">
+
+        <div class="dv-head">
+          <span class="dv-step">4</span>
+          <span class="dv-stepname">전달 순간</span>
+          <span class="dv-headline">올바른 물건을 골라 전달해요!</span>
+          <span class="dv-chip">⭐ 0</span>
+          <span class="dv-chip dv-chip-sound">♪ 소리</span>
+        </div>
+
+        <div class="dv-body" data-cols="2">
+
+          <div class="dv-stage">
+            <svg viewBox="0 0 900 620" preserveAspectRatio="xMidYMax meet" aria-hidden="true">
+              <defs>
+                <linearGradient id="hoWall" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0" stop-color="#f6e7cd"/><stop offset="1" stop-color="#ddc8a2"/>
+                </linearGradient>
+                <linearGradient id="hoFloor" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0" stop-color="#d3bf9e"/><stop offset="1" stop-color="#b0946c"/>
+                </linearGradient>
+                <linearGradient id="hoDoorWood" x1="0" y1="0" x2="1" y2="0">
+                  <stop offset="0" stop-color="#9d6a35"/>
+                  <stop offset="0.42" stop-color="#c89052"/>
+                  <stop offset="1" stop-color="#8f5f2e"/>
+                </linearGradient>
+                <linearGradient id="hoInside" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0" stop-color="#fff2d2"/><stop offset="1" stop-color="#f2d9a4"/>
+                </linearGradient>
+              </defs>
+
+              <rect width="900" height="620" fill="url(#hoWall)"/>
+              <path d="M0 0 L900 0 L770 68 L130 68 Z" fill="#e9d8b8"/>
+              <path d="M0 392 L900 392 L900 620 L0 620 Z" fill="url(#hoFloor)"/>
+              <rect x="0" y="386" width="900" height="12" fill="#a98a63"/>
+
+              <!-- 왼쪽 닫힌 문 -->
+              <g>
+                <rect x="30" y="110" width="150" height="282" rx="7" fill="#7d5327"/>
+                <rect x="38" y="118" width="134" height="274" rx="6" fill="url(#hoDoorWood)"/>
+                <rect x="56" y="142" width="98" height="96" rx="6" fill="none" stroke="#7d5327" stroke-width="4"/>
+                <rect x="56" y="262" width="98" height="96" rx="6" fill="none" stroke="#7d5327" stroke-width="4"/>
+              </g>
+
+              <!-- 열린 목표 문 702 -->
+              <g>
+                <rect x="248" y="98" width="230" height="294" rx="8" fill="url(#hoInside)"/>
+                <rect x="248" y="98" width="230" height="294" rx="8" fill="none" stroke="#c9a86a" stroke-width="5"/>
+                <!-- 젖혀진 문짝 -->
+                <path d="M248 98 L186 128 L186 424 L248 392 Z" fill="#b07d3f" stroke="#8f5f2e" stroke-width="4"/>
+                <circle cx="202" cy="266" r="9" fill="#f0d99b"/>
+                <!-- 문패 -->
+                <rect x="316" y="60" width="94" height="34" rx="8" fill="#fffdf6" stroke="#c2a87c" stroke-width="4"/>
+                <text x="363" y="85" text-anchor="middle" font-family="'Cafe24 Ssurround', sans-serif"
+                      font-size="23" font-weight="900" fill="#8a7660">702</text>
+              </g>
+
+              <!-- 받는 친구(빨강 넘버블록) -->
+              <g>
+                <ellipse cx="600" cy="424" rx="64" ry="12" fill="rgba(37,52,93,.24)"/>
+                <rect x="552" y="196" width="96" height="94" rx="13" fill="#e8514f" stroke="#b83a38" stroke-width="4"/>
+                <rect x="552" y="290" width="96" height="94" rx="13" fill="#e8514f" stroke="#b83a38" stroke-width="4"/>
+                <ellipse cx="580" cy="238" rx="19" ry="21" fill="#fff"/>
+                <ellipse cx="620" cy="238" rx="19" ry="21" fill="#fff"/>
+                <circle cx="584" cy="240" r="9" fill="#1d2942"/>
+                <circle cx="624" cy="240" r="9" fill="#1d2942"/>
+                <circle cx="587" cy="236" r="3" fill="#fff"/>
+                <circle cx="627" cy="236" r="3" fill="#fff"/>
+                <path d="M580 264 q20 18 40 0" stroke="#8f2b2a" stroke-width="5" fill="none" stroke-linecap="round"/>
+                <rect x="570" y="384" width="18" height="34" rx="8" fill="#b83a38"/>
+                <rect x="612" y="384" width="18" height="34" rx="8" fill="#b83a38"/>
+                <!-- 반가운 손 -->
+                <path d="M648 244 q34 -14 42 -44" stroke="#e8514f" stroke-width="15" fill="none" stroke-linecap="round"/>
+                <path d="M552 300 q-30 6 -34 30" stroke="#e8514f" stroke-width="15" fill="none" stroke-linecap="round"/>
+              </g>
+
+              <!-- 오른쪽 닫힌 문 -->
+              <g>
+                <rect x="740" y="110" width="150" height="282" rx="7" fill="#7d5327"/>
+                <rect x="748" y="118" width="134" height="274" rx="6" fill="url(#hoDoorWood)"/>
+                <rect x="766" y="142" width="98" height="96" rx="6" fill="none" stroke="#7d5327" stroke-width="4"/>
+                <rect x="766" y="262" width="98" height="96" rx="6" fill="none" stroke="#7d5327" stroke-width="4"/>
+              </g>
+            </svg>
+
+            <!-- 받는 친구 카드 -->
+            <div class="dv-recv">
+              <small>받는 친구</small>
+              <b>702호</b>
+            </div>
+
+            <!-- 친구 말풍선 -->
+            <p class="dv-say">나는 🍎 과일 상자를<br>기다리고 있었어!</p>
+
+            <!-- 상자 트레이 + 조작 -->
+            <div class="dv-tray">
+              <div class="dv-tray-row" role="group" aria-label="건넬 상자">
+                <button class="dv-parcel" type="button" data-picked="true" aria-label="과일 상자">
+                  <span class="dv-parcel-icon">🍎</span>
+                  <small>과일 상자</small>
+                </button>
+                <button class="dv-parcel" type="button" aria-label="화장품 상자">
+                  <span class="dv-parcel-icon">💄</span>
+                  <small>화장품 상자</small>
+                </button>
+                <button class="dv-parcel" type="button" aria-label="장난감 상자">
+                  <span class="dv-parcel-icon">🧸</span>
+                  <small>장난감 상자</small>
+                </button>
+              </div>
+              <div class="dv-tray-keys">
+                <button class="dv-key" type="button" aria-label="이전 상자">←</button>
+                <button class="dv-key dv-key-bell" type="button" aria-label="건네주기">🔔</button>
+                <button class="dv-key" type="button" aria-label="다음 상자">→</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="dv-panel">
+            <div class="dv-card">
+              <b>조작 방법</b>
+              <div class="dv-howto">
+                <span class="dv-howto-row">
+                  <span class="dv-keycap">←</span><span class="dv-keycap">→</span> 선택
+                </span>
+                <span class="dv-howto-row">
+                  <span class="dv-keycap dv-keycap-space">Space</span> 전달
+                </span>
+              </div>
+            </div>
+            <div class="dv-card">
+              <b>전달한 수</b>
+              <span class="dv-goal-num">0 / 5</span>
+              <span class="dv-dots">
+                <i data-on="false"></i><i data-on="false"></i><i data-on="false"></i>
+                <i data-on="false"></i><i data-on="false"></i>
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <div class="dv-tip">
+          <img class="dv-tip-face" src="../assets/characters/nine.png" alt="">
+          <div class="dv-tip-bubble">
+            <span class="dv-tip-q">?</span>
+            <span class="dv-tip-text">
+              <b>게임 방법</b> — ←→ 로 상자를 고르고 <strong>Space</strong> 로 전달하세요!
+              친구가 말한 물건을 맞히면 상자가 열려요.
+            </span>
+            <span class="dv-bonus">🏆 연속 성공 보너스! <span class="dv-stars">⭐☆☆☆</span></span>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <p class="game-keyboard-note">← → 상자 고르기 · ⎵ 전달 · <kbd>Esc</kbd> 처음으로</p>
+</section>
+</main>
+</body>
+</html>
