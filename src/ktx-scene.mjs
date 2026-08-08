@@ -55,6 +55,10 @@ import {
   realisticCabAsset,
   realisticExteriorAsset
 } from "./ktx-realistic-assets.mjs";
+import {
+  buildRealisticMotionScene,
+  updateRealisticMotionScene
+} from "./ktx-realistic-motion-scene.mjs";
 
 const WINDOW_SLOTS = 8;
 const NEAR_SCALE = 3;          // 3인칭: 1 game m = 3 px
@@ -502,11 +506,17 @@ export function renderKtxScene(document, state, view = "cab") {
   root.dataset.train = state.train.id;
 
   const stage = el(document, "div", "ktx-stage");
-  stage.append(
-    buildRealisticScene(document, state, () => syncRealisticState(root)),
-    buildCabView(document, state),
-    buildSideView(document, state)
-  );
+  const band = currentBand(state);
+  const motionScene = buildRealisticMotionScene(document, {
+    ...state,
+    land: band.land,
+    markerDistance: distanceToMarker(state)
+  }, status => {
+    root.dataset.motionRealistic = status;
+  });
+  stage.append(buildRealisticScene(document, state, () => syncRealisticState(root)));
+  if (motionScene) stage.append(motionScene);
+  stage.append(buildCabView(document, state), buildSideView(document, state));
   root.append(stage);
 
   const hud = el(document, "div", "ktx-hud");
@@ -823,6 +833,10 @@ export function updateKtxScene(root, state, view, events = [], held = {}) {
   root.dataset.phase = state.phase;
   root.dataset.sky = band.sky;
   root.dataset.land = band.land;
+  updateRealisticMotionScene(root, {
+    ...state,
+    markerDistance: distanceToMarker(state)
+  }, band);
   updateRealisticScene(root, state, band);
   root.dataset.doors = state.doors;
   root.dataset.tunnel = String(band.land === "tunnel");
