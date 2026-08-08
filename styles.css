@@ -8281,7 +8281,9 @@ body[data-mode="ktx"] .stage-lights {
     linear-gradient(90deg,
       transparent 49.6%, rgba(35, 39, 43, .78) 49.8% 50.2%, transparent 50.4%),
     repeating-linear-gradient(to bottom,
-      transparent 0 72px, rgba(35, 39, 43, .64) 73px 76px);
+      transparent 0 calc(var(--cab-catenary-gap, 76px) - 4px),
+      rgba(35, 39, 43, .64) calc(var(--cab-catenary-gap, 76px) - 3px)
+        var(--cab-catenary-gap, 76px));
   background-position: center 0, center var(--cab-catenary-phase, 0px);
   clip-path: polygon(48% 0, 52% 0, 100% 100%, 0 100%);
   transform: translateX(-50%);
@@ -8290,16 +8292,19 @@ body[data-mode="ktx"] .stage-lights {
 }
 
 .ktx-motion-tunnel {
-  --tunnel-wall-offset: var(--tunnel-phase, 0px);
+  --tunnel-wall-offset: var(--tunnel-wall-phase, 0px);
   position: absolute;
   inset: 0;
   z-index: 3;
   overflow: hidden;
   background: repeating-linear-gradient(to bottom,
-    #171a1e 0 46px, #2b3036 47px 50px);
+    #171a1e 0 calc(var(--tunnel-wall-gap, 50px) - 4px),
+    #2b3036 calc(var(--tunnel-wall-gap, 50px) - 3px)
+      var(--tunnel-wall-gap, 50px));
   background-position: center var(--tunnel-wall-offset);
   opacity: 0;
   pointer-events: none;
+  transition: background-position 120ms linear;
 }
 
 .ktx-motion-scene[data-tunnel="true"] .ktx-motion-tunnel { opacity: 1; }
@@ -8331,7 +8336,7 @@ body[data-mode="ktx"] .stage-lights {
       transparent 0 calc(var(--tunnel-light-gap, 98px) - 6px),
       rgba(255, 241, 174, .92) calc(var(--tunnel-light-gap, 98px) - 6px)
         var(--tunnel-light-gap, 98px));
-  background-position: center var(--tunnel-phase, 0px);
+  background-position: center var(--tunnel-light-phase, 0px);
   filter: drop-shadow(0 0 7px rgba(255, 224, 124, .7));
   transition: background-position 120ms linear;
 }
@@ -8367,6 +8372,13 @@ body[data-mode="ktx"] .stage-lights {
   transition: none;
 }
 
+.ktx-motion-scene[data-cab-track-loop-reset="true"] .ktx-motion-cab-sleepers,
+.ktx-motion-scene[data-cab-catenary-loop-reset="true"] .ktx-motion-cab-catenary,
+.ktx-motion-scene[data-tunnel-wall-loop-reset="true"] .ktx-motion-tunnel,
+.ktx-motion-scene[data-tunnel-light-loop-reset="true"] .ktx-motion-tunnel-lights {
+  transition: none;
+}
+
 .ktx-motion-scene[data-motion-moving="false"] .ktx-motion-plate,
 .ktx-motion-scene[data-motion-moving="false"] .ktx-motion-near,
 .ktx-motion-scene[data-motion-moving="false"] .ktx-motion-track,
@@ -8374,6 +8386,7 @@ body[data-mode="ktx"] .stage-lights {
 .ktx-motion-scene[data-motion-moving="false"] .ktx-motion-station,
 .ktx-motion-scene[data-motion-moving="false"] .ktx-motion-cab-sleepers,
 .ktx-motion-scene[data-motion-moving="false"] .ktx-motion-cab-catenary,
+.ktx-motion-scene[data-motion-moving="false"] .ktx-motion-tunnel,
 .ktx-motion-scene[data-motion-moving="false"] .ktx-motion-tunnel-portal,
 .ktx-motion-scene[data-motion-moving="false"] .ktx-motion-tunnel-lights {
   transition: none;

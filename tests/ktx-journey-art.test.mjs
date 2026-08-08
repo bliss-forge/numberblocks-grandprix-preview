@@ -118,7 +118,9 @@ test("운전실 모션은 고정 프레임의 투명 전면창 안에서만 소�
   assert.match(css,
     /\.ktx-motion-cab-sleepers\s*\{[^}]*--cab-sleeper-gap[^}]*background-position:[^}]*--cab-track-phase/s);
   assert.match(css,
-    /\.ktx-motion-cab-catenary\s*\{[^}]*top:\s*40%[^}]*--cab-catenary-phase[^}]*transform-origin:\s*50%\s+0/s);
+    /\.ktx-motion-cab-catenary\s*\{[^}]*top:\s*40%[^}]*--cab-catenary-gap[^}]*--cab-catenary-phase[^}]*transform-origin:\s*50%\s+0/s);
+  assert.match(css,
+    /data-cab-track-loop-reset="true"[^\{]*\.ktx-motion-cab-sleepers[\s\S]*data-cab-catenary-loop-reset="true"[^\{]*\.ktx-motion-cab-catenary[\s\S]*transition:\s*none/s);
   assert.match(css,
     /data-view="cab"\][^\{]*\.ktx-motion-cab-frame\s*\{[^}]*display:\s*block/s);
   assert.match(css,
@@ -141,11 +143,13 @@ test("역 플레이트는 반복 없이 안전 크롭되고 상세 단계에서 
 
 test("터널 벽과 조명은 터널에서만 보이고 속도 기반 위상·밀도를 사용한다", () => {
   assert.match(css,
-    /\.ktx-motion-tunnel\s*\{[^}]*--tunnel-phase[^}]*opacity:\s*0/s);
+    /\.ktx-motion-tunnel\s*\{[^}]*--tunnel-wall-phase[^}]*--tunnel-wall-gap[^}]*opacity:\s*0/s);
   assert.match(css,
     /data-tunnel="true"[^\{]*\.ktx-motion-tunnel\s*\{[^}]*opacity:\s*1/s);
   assert.match(css,
-    /\.ktx-motion-tunnel-lights\s*\{[^}]*--tunnel-light-gap[^}]*--tunnel-phase/s);
+    /\.ktx-motion-tunnel-lights\s*\{[^}]*--tunnel-light-gap[^}]*--tunnel-light-phase/s);
+  assert.match(css,
+    /data-tunnel-wall-loop-reset="true"[^\{]*\.ktx-motion-tunnel[\s\S]*data-tunnel-light-loop-reset="true"[^\{]*\.ktx-motion-tunnel-lights[\s\S]*transition:\s*none/s);
   assert.match(css,
     /data-motion-moving="false"[^\{]*\.ktx-motion-cab-sleepers[\s\S]*data-motion-moving="false"[^\{]*\.ktx-motion-cab-catenary[\s\S]*\.ktx-motion-tunnel-lights\s*\{[^}]*transition:\s*none/s);
 });

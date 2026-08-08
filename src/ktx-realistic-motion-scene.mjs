@@ -7,9 +7,7 @@ const PLATE_SPAN = 4000;
 const PLATE_SWAP_GUARD = 400;
 const PHOTO_SAFE_PAN_PX = 120;
 const PATTERN_PERIOD_PX = Object.freeze({ near: 720, track: 144, streak: 310 });
-const CAB_TRACK_PERIOD_PX = 160;
-const CAB_CATENARY_PERIOD_PX = 304;
-const TUNNEL_PATTERN_PERIOD_PX = 100;
+const TUNNEL_WALL_GAP_PX = 50;
 const TUNNEL_PORTAL_DISTANCE = 600;
 const STATION_PHASES = new Set(["stopped", "boarding", "ready", "branch", "finale"]);
 
@@ -115,15 +113,24 @@ function applyFrame(scene, state, band, controller = null) {
   scene.style.setProperty("--station-clip-bottom", `${rounded(56 * (1 - stationReveal))}%`);
   scene.style.setProperty("--station-opacity", String(rounded(frame.departing
     ? frame.stationProgress : .45 + frame.stationProgress * .55)));
+  const cabSleeperGap = patternGap(scene, "--cab-sleeper-gap",
+    42 - frame.speedRatio * 12, frame.moving);
+  const cabCatenaryGap = patternGap(scene, "--cab-catenary-gap",
+    76 - frame.speedRatio * 20, frame.moving);
+  const tunnelLightGap = patternGap(scene, "--tunnel-light-gap",
+    98 - frame.speedRatio * 42, frame.moving);
+  scene.style.setProperty("--tunnel-wall-gap", `${TUNNEL_WALL_GAP_PX}px`);
   setLoopPhase(scene, "cabTrack", "--cab-track-phase",
-    frame.offsets.track, CAB_TRACK_PERIOD_PX);
+    frame.offsets.track, cabSleeperGap, frame.moving);
   setLoopPhase(scene, "cabCatenary", "--cab-catenary-phase",
-    frame.offsets.track, CAB_CATENARY_PERIOD_PX);
-  scene.style.setProperty("--cab-sleeper-gap", `${rounded(42 - frame.speedRatio * 12)}px`);
-  scene.style.setProperty("--tunnel-light-gap", `${rounded(98 - frame.speedRatio * 42)}px`);
+    frame.offsets.track, cabCatenaryGap, frame.moving);
   const tunnelProgress = tunnelPortalProgress(controller, frame.land, state.x);
-  setLoopPhase(scene, "tunnel", "--tunnel-phase",
-    frame.land === "tunnel" ? frame.offsets.track : 0, TUNNEL_PATTERN_PERIOD_PX);
+  setLoopPhase(scene, "tunnelWall", "--tunnel-wall-phase",
+    frame.land === "tunnel" ? frame.offsets.track : 0,
+    TUNNEL_WALL_GAP_PX, frame.moving);
+  setLoopPhase(scene, "tunnelLight", "--tunnel-light-phase",
+    frame.land === "tunnel" ? frame.offsets.track : 0,
+    tunnelLightGap, frame.moving);
   scene.style.setProperty("--tunnel-progress", String(rounded(tunnelProgress)));
   scene.style.setProperty("--tunnel-scale",
     frame.land === "tunnel"
@@ -171,12 +178,29 @@ function setPatternMotion(scene, layer, offset, period) {
   scene.style.setProperty(phaseProperty, `${phase}px`);
 }
 
-function setLoopPhase(scene, loop, property, offset, period) {
-  const phase = rounded(-(Math.max(0, offset) % period));
+function patternGap(scene, property, nextGap, moving) {
   const previous = Number.parseFloat(scene.style[property]);
+  const gap = !moving && Number.isFinite(previous) ? previous : rounded(nextGap);
+  scene.style.setProperty(property, `${gap}px`);
+  return gap;
+}
+
+function setLoopPhase(scene, loop, property, offset, period, moving) {
+  const previous = Number.parseFloat(scene.style[property]);
+  if (!moving && Number.isFinite(previous)) {
+    scene.dataset[`${loop}LoopReset`] = "false";
+    return;
+  }
+  const phase = rounded(-(Math.max(0, offset) % period));
+  const periodKey = `${loop}LoopPeriod`;
+  const previousPeriod = Number.parseFloat(scene.dataset[periodKey]);
   scene.dataset[`${loop}LoopReset`] = String(
-    Number.isFinite(previous) && Math.abs(phase - previous) > period / 2
+    Number.isFinite(previous) && (
+      phase > previous ||
+      (Number.isFinite(previousPeriod) && previousPeriod !== period)
+    )
   );
+  scene.dataset[periodKey] = String(period);
   scene.style.setProperty(property, `${phase}px`);
 }
 

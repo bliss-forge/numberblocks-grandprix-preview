@@ -554,37 +554,114 @@ test("운전실 선로 위상은 큰 실제 위치에서도 반복 범위 안에
     { land: "field" });
   const slowTrack = Number.parseFloat(scene.style["--cab-track-phase"]);
   const slowSleeperGap = Number.parseFloat(scene.style["--cab-sleeper-gap"]);
+  const slowCatenaryGap = Number.parseFloat(scene.style["--cab-catenary-gap"]);
   const slowTunnelGap = Number.parseFloat(scene.style["--tunnel-light-gap"]);
-  assert.ok(slowTrack <= 0 && slowTrack > -160);
+  assert.ok(slowTrack <= 0 && slowTrack > -slowSleeperGap);
 
   updateRealisticMotionScene(root,
     { ...initial, phase: "driving", x: 2640, v: 240, markerDistance: 700 },
     { land: "field" });
+  const fastSleeperGap = Number.parseFloat(scene.style["--cab-sleeper-gap"]);
+  const fastCatenaryGap = Number.parseFloat(scene.style["--cab-catenary-gap"]);
   assert.ok(Number.parseFloat(scene.style["--cab-track-phase"]) <= 0);
-  assert.ok(Number.parseFloat(scene.style["--cab-track-phase"]) > -160);
+  assert.ok(Number.parseFloat(scene.style["--cab-track-phase"]) > -fastSleeperGap);
   assert.ok(Number.parseFloat(scene.style["--cab-sleeper-gap"]) < slowSleeperGap);
+  assert.ok(fastCatenaryGap < slowCatenaryGap);
   assert.ok(Number.parseFloat(scene.style["--tunnel-light-gap"]) < slowTunnelGap);
+  assert.equal(scene.dataset.cabTrackLoopReset, "true",
+    "속도로 반복 밀도가 바뀌는 프레임은 역방향 보간을 금지");
+  assert.equal(scene.dataset.cabCatenaryLoopReset, "true");
 
   updateRealisticMotionScene(root,
     { ...initial, phase: "driving", x: 5000, v: 240, markerDistance: 700 },
     { land: "field" });
   assert.ok(Number.parseFloat(scene.style["--cab-track-phase"]) <= 0);
-  assert.ok(Number.parseFloat(scene.style["--cab-track-phase"]) > -160,
+  assert.ok(Number.parseFloat(scene.style["--cab-track-phase"]) > -fastSleeperGap,
     "유한 요소가 화면 밖으로 누적 이동하지 않음");
 
+  const speed = 120;
   updateRealisticMotionScene(root,
-    { ...initial, phase: "driving", x: 159, v: 120, markerDistance: 700 },
+    { ...initial, phase: "driving", x: 0, v: speed, markerDistance: 700 },
     { land: "field" });
+  const sleeperGap = Number.parseFloat(scene.style["--cab-sleeper-gap"]);
   updateRealisticMotionScene(root,
-    { ...initial, phase: "driving", x: 160, v: 120, markerDistance: 700 },
+    { ...initial, phase: "driving", x: sleeperGap - 1, v: speed, markerDistance: 700 },
     { land: "field" });
+  assert.equal(Number.parseFloat(scene.style["--cab-track-phase"]), -(sleeperGap - 1));
+  updateRealisticMotionScene(root,
+    { ...initial, phase: "driving", x: sleeperGap, v: speed, markerDistance: 700 },
+    { land: "field" });
+  assert.equal(Number.parseFloat(scene.style["--cab-track-phase"]), 0);
   assert.equal(scene.dataset.cabTrackLoopReset, "true");
+  updateRealisticMotionScene(root,
+    { ...initial, phase: "driving", x: sleeperGap + 1, v: speed, markerDistance: 700 },
+    { land: "field" });
+  assert.equal(Number.parseFloat(scene.style["--cab-track-phase"]), -1,
+    "반복 경계 다음 프레임도 순방향으로 한 픽셀 진행");
+
+  const catenaryGap = Number.parseFloat(scene.style["--cab-catenary-gap"]);
+  updateRealisticMotionScene(root,
+    { ...initial, phase: "driving", x: catenaryGap - 1, v: speed, markerDistance: 700 },
+    { land: "field" });
+  assert.equal(Number.parseFloat(scene.style["--cab-catenary-phase"]), -(catenaryGap - 1));
+  updateRealisticMotionScene(root,
+    { ...initial, phase: "driving", x: catenaryGap, v: speed, markerDistance: 700 },
+    { land: "field" });
+  assert.equal(Number.parseFloat(scene.style["--cab-catenary-phase"]), 0);
+  assert.equal(scene.dataset.cabCatenaryLoopReset, "true");
+  updateRealisticMotionScene(root,
+    { ...initial, phase: "driving", x: catenaryGap + 1, v: speed, markerDistance: 700 },
+    { land: "field" });
+  assert.equal(Number.parseFloat(scene.style["--cab-catenary-phase"]), -1);
 
   const stoppedTrack = scene.style["--cab-track-phase"];
+  const stoppedCatenary = scene.style["--cab-catenary-phase"];
   updateRealisticMotionScene(root,
-    { ...initial, phase: "stopped", x: 160, v: 0, markerDistance: 0 },
+    { ...initial, phase: "stopped", x: catenaryGap + 1, v: 0, markerDistance: 0 },
     { land: "field" });
   assert.equal(scene.style["--cab-track-phase"], stoppedTrack);
+  assert.equal(scene.style["--cab-catenary-phase"], stoppedCatenary);
+});
+
+test("터널 벽과 조명은 각 CSS 반복 간격과 같은 위상 주기로 이음새 없이 순환한다", () => {
+  const initial = createKtxJourney(3, "srt");
+  const root = renderKtxScene(fakeDocument(), initial, "cab");
+  const scene = root.querySelector(".ktx-motion-scene");
+  const speed = 120;
+
+  updateRealisticMotionScene(root,
+    { ...initial, phase: "driving", x: 0, v: speed, markerDistance: 700 },
+    { land: "tunnel" });
+  const lightGap = Number.parseFloat(scene.style["--tunnel-light-gap"]);
+  const wallGap = Number.parseFloat(scene.style["--tunnel-wall-gap"]);
+
+  for (const pattern of [
+    { gap: lightGap, phase: "--tunnel-light-phase", reset: "tunnelLightLoopReset" },
+    { gap: wallGap, phase: "--tunnel-wall-phase", reset: "tunnelWallLoopReset" }
+  ]) {
+    updateRealisticMotionScene(root,
+      { ...initial, phase: "driving", x: pattern.gap - 1, v: speed, markerDistance: 700 },
+      { land: "tunnel" });
+    assert.equal(Number.parseFloat(scene.style[pattern.phase]), -(pattern.gap - 1));
+    updateRealisticMotionScene(root,
+      { ...initial, phase: "driving", x: pattern.gap, v: speed, markerDistance: 700 },
+      { land: "tunnel" });
+    assert.equal(Number.parseFloat(scene.style[pattern.phase]), 0);
+    assert.equal(scene.dataset[pattern.reset], "true");
+    updateRealisticMotionScene(root,
+      { ...initial, phase: "driving", x: pattern.gap + 1, v: speed, markerDistance: 700 },
+      { land: "tunnel" });
+    assert.equal(Number.parseFloat(scene.style[pattern.phase]), -1);
+  }
+
+  updateRealisticMotionScene(root,
+    { ...initial, phase: "driving", x: 5000, v: 240, markerDistance: 700 },
+    { land: "tunnel" });
+  const fastLightGap = Number.parseFloat(scene.style["--tunnel-light-gap"]);
+  assert.ok(Number.parseFloat(scene.style["--tunnel-light-phase"]) <= 0);
+  assert.ok(Number.parseFloat(scene.style["--tunnel-light-phase"]) > -fastLightGap);
+  assert.equal(scene.dataset.tunnelLightLoopReset, "true",
+    "속도 변화로 조명 밀도가 바뀔 때 역방향 보간하지 않음");
 });
 
 for (const routeCase of [
