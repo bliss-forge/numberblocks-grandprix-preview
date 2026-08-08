@@ -10,6 +10,8 @@
 import { truckSprite, truckSpriteHeight } from "./delivery-truck-art.mjs";
 
 export const MAP_VIEW_BOX = "0 0 1140 560";
+// 그림이 무대보다 납작할 때 남는 위아래를 채울 색 — 잔디와 같은 톤.
+export const MAP_BACKDROP = "#74cb5f";
 
 const COLUMN_X = [110, 340, 570, 800, 1030];
 const ROAD_Y = 276;
@@ -265,7 +267,7 @@ export function estateMapSvg(view) {
     width: TRUCK_WIDTH,
   });
 
-  return `<svg class="dv-map" viewBox="${MAP_VIEW_BOX}" preserveAspectRatio="xMidYMid slice" ` +
+  return `<svg class="dv-map" viewBox="${MAP_VIEW_BOX}" preserveAspectRatio="xMidYMid meet" ` +
     `xmlns="http://www.w3.org/2000/svg" role="img" ` +
     `aria-label="아파트 단지 지도. 목표는 ${targetUnit}호예요.">` +
     DEFS + SCENERY + buildings + marker +

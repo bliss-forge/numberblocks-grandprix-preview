@@ -15,6 +15,12 @@ const SHAFT_VIEW_BOX = "0 0 200 520";
 const CABIN_VIEW_BOX = "0 0 1040 510";
 const HALL_VIEW_BOX = "0 0 1100 460";
 
+// 그림은 무대 안에서 통째로 보이도록 meet 로 맞춘다(잘리는 집·상자가 없다).
+// 남는 위아래는 각 장면의 바탕색으로 메워 테두리가 생기지 않게 한다.
+export const SHAFT_BACKDROP = "#ccd5dd";
+export const CABIN_BACKDROP = "#8f9ba7";
+export const HALL_BACKDROP = "#d8c096";
+
 /* ── 공통 조각 ────────────────────────────────────────────────────── */
 
 function parcelBox(x, y, width, height) {
@@ -108,7 +114,7 @@ export function elevatorCabinSvg({ current = 1, doorsOpen = false } = {}) {
 
   const doorGap = doorsOpen ? 120 : 0;
 
-  return `<svg class="dv-cabin" viewBox="${CABIN_VIEW_BOX}" preserveAspectRatio="xMidYMid slice" ` +
+  return `<svg class="dv-cabin" viewBox="${CABIN_VIEW_BOX}" preserveAspectRatio="xMidYMid meet" ` +
     `xmlns="http://www.w3.org/2000/svg" role="img" aria-label="엘리베이터 안.">` +
     `<defs>${CARTON_DEF}` +
     `<linearGradient id="dv-cabwall" x1="0" y1="0" x2="0" y2="1">` +
@@ -195,7 +201,7 @@ export function corridorSvg({ units, focus = 0, targetUnit }) {
 
   const stand = DOOR_SLOTS[Math.min(focus, DOOR_SLOTS.length - 1)].center;
 
-  return `<svg class="dv-corridor" viewBox="${HALL_VIEW_BOX}" preserveAspectRatio="xMidYMid slice" ` +
+  return `<svg class="dv-corridor" viewBox="${HALL_VIEW_BOX}" preserveAspectRatio="xMidYMid meet" ` +
     `xmlns="http://www.w3.org/2000/svg" role="img" ` +
     `aria-label="아파트 복도. ${units.join("호, ")}호 문이 있고 ${targetUnit}호 문이 빛나요.">` +
     `<defs>${CARTON_DEF}` +
@@ -299,7 +305,7 @@ export function handoverSvg({ tray, focus = 0, wanted, unit, friend }) {
   const rollers = [];
   for (let x = 186; x <= 748; x += 52) rollers.push(`<circle cx="${x}" cy="398" r="11"/>`);
 
-  return `<svg class="dv-handover" viewBox="${HALL_VIEW_BOX}" preserveAspectRatio="xMidYMid slice" ` +
+  return `<svg class="dv-handover" viewBox="${HALL_VIEW_BOX}" preserveAspectRatio="xMidYMid meet" ` +
     `xmlns="http://www.w3.org/2000/svg" role="img" ` +
     `aria-label="${unit}호 친구가 ${wanted.label}를 기다려요. 과일, 화장품, 장난감 상자가 놓여 있어요.">` +
     `<defs>` +

@@ -14,8 +14,11 @@ import {
   STREAK_BONUS_SLOTS,
   parcelById,
 } from "./delivery-model.mjs";
-import { estateMapSvg } from "./delivery-estate-art.mjs";
+import { MAP_BACKDROP, estateMapSvg } from "./delivery-estate-art.mjs";
 import {
+  CABIN_BACKDROP,
+  HALL_BACKDROP,
+  SHAFT_BACKDROP,
   corridorSvg,
   elevatorCabinSvg,
   elevatorShaftSvg,
@@ -143,8 +146,9 @@ function bonusExtra(document, state) {
 
 /* ── 무대 ─────────────────────────────────────────────────────────── */
 
-function stage(document, className, markup) {
+function stage(document, className, markup, backdrop) {
   const box = el(document, "div", className);
+  box.style.setProperty("--dv-bg", backdrop);
   box.innerHTML = markup;
   return box;
 }
@@ -360,7 +364,8 @@ function driveBody(document, state) {
         targetUnit: state.order.unit,
         truck: state.drive.truck,
         facing: state.drive.facing,
-      })
+      }),
+      MAP_BACKDROP
     )
   );
   body.append(drivePanel(document, state));
@@ -379,11 +384,17 @@ function elevatorBody(document, state) {
         topFloor,
         current: state.elevator.current,
         target: state.elevator.target,
-      })
+      }),
+      SHAFT_BACKDROP
     )
   );
   body.append(
-    stage(document, "dv-stage", elevatorCabinSvg({ current: state.elevator.current }))
+    stage(
+      document,
+      "dv-stage",
+      elevatorCabinSvg({ current: state.elevator.current }),
+      CABIN_BACKDROP
+    )
   );
   body.append(elevatorPanel(document, state));
   return body;
@@ -399,7 +410,8 @@ function corridorBody(document, state) {
       units: state.corridor.units,
       focus: state.corridor.focus,
       targetUnit: state.order.unit,
-    })
+    }),
+    HALL_BACKDROP
   );
   hall.append(pickControls(document, "초인종 누르기"));
   body.append(hall);
@@ -419,7 +431,8 @@ function handoverBody(document, state) {
       wanted: parcelById(state.order.parcel) ?? PARCELS[0],
       unit: state.order.unit,
       friend: state.order.friend,
-    })
+    }),
+    HALL_BACKDROP
   );
   scene.append(whoCard(document, state));
   scene.append(pickControls(document, "전달하기"));
