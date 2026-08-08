@@ -211,6 +211,25 @@ test("다른 집에 도착하면 벌점 없이 다시 하라고 한다", () => {
   assert.equal(state.delivered, 0);
 });
 
+test("한 칸도 못 가면 이미 서 있던 집을 다시 판정하지 않는다", () => {
+  // 다른 집에 잘못 도착한 뒤 벽 쪽으로 명령을 넣으면, 트럭은 그대로인데
+  // 도착 판정이 다시 돌아 실수가 부풀고 "길이 아니에요" 안내가 묻혔다.
+  const state = createDelivery("steady", 2);
+  const other = state.houses.find(house => house.unit !== state.order.unit && house.cell.y === 0);
+  state.drive.truck = { x: other.cell.x, y: 1 };
+  pushCommand(state, "up");
+  assert.ok(typesOf(runCommands(state)).includes("drive-miss"), "먼저 다른 집에 도착해 둔다");
+
+  const mistakes = state.order.mistakes;
+  pushCommand(state, "up"); // 집에서 위 → 격자 밖
+  const events = typesOf(runCommands(state));
+
+  assert.ok(events.includes("drive-blocked"), "막혔다고 알려야 한다");
+  assert.equal(events.includes("drive-miss"), false, "제자리인데 도착을 또 판정했다");
+  assert.equal(state.order.mistakes, mistakes, "제자리인데 실수가 늘었다");
+  assert.deepEqual(state.drive.truck, { ...other.cell }, "트럭이 움직이면 안 된다");
+});
+
 test("목표 집에 닿으면 엘리베이터로 넘어간다", () => {
   const state = createDelivery("steady", 21);
   const events = driveToTarget(state);
