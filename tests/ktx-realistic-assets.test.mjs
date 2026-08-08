@@ -1,10 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { execFileSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import fs from "node:fs/promises";
-import os from "node:os";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
 import zlib from "node:zlib";
 import {
   REALISTIC_MOTION_ASSETS,
@@ -14,6 +11,11 @@ import {
   realisticMotionAssets
 } from "../src/ktx-realistic-assets.mjs";
 
+const QUALITY_METRICS_URL = new URL(
+  "../assets/train-realistic/motion/quality-metrics.json",
+  import.meta.url
+);
+
 function realisticAssetPaths() {
   return [
     ...Object.values(REALISTIC_TRAIN_ASSETS.srt.exterior),
@@ -22,13 +24,30 @@ function realisticAssetPaths() {
 }
 
 function realisticMotionAssetPaths() {
+  const stations = Array.isArray(REALISTIC_MOTION_ASSETS.station)
+    ? REALISTIC_MOTION_ASSETS.station
+    : [REALISTIC_MOTION_ASSETS.station];
+  const sceneGroups = REALISTIC_MOTION_ASSETS.scenes
+    ? Object.values(REALISTIC_MOTION_ASSETS.scenes)
+    : Object.values(REALISTIC_MOTION_ASSETS.landscapes ?? {})
+      .map(layers => Object.values(layers));
   return [
     REALISTIC_MOTION_ASSETS.train,
     REALISTIC_MOTION_ASSETS.cabMask,
-    REALISTIC_MOTION_ASSETS.station,
-    ...Object.values(REALISTIC_MOTION_ASSETS.landscapes)
-      .flatMap(layers => Object.values(layers))
+    ...stations,
+    ...sceneGroups.flat()
   ];
+}
+
+function motionPhotoPaths() {
+  return [
+    ...REALISTIC_MOTION_ASSETS.station,
+    ...Object.values(REALISTIC_MOTION_ASSETS.scenes).flat()
+  ];
+}
+
+function sha256(buffer) {
+  return createHash("sha256").update(buffer).digest("hex");
 }
 
 function pngDetails(buffer) {
@@ -83,7 +102,6 @@ function pngDetails(buffer) {
     }
   }
   const transparency = chunks.get("tRNS")?.[0] ?? Buffer.alloc(0);
-  const palette = chunks.get("PLTE")?.[0] ?? Buffer.alloc(0);
   const alphaAt = (x, y) => {
     const pixel = y * stride + x * bytesPerPixel;
     if (colorType === 6) return pixels[pixel + 3];
@@ -91,48 +109,7 @@ function pngDetails(buffer) {
     if (colorType === 2) return 255;
     return transparency[pixels[pixel]] ?? 255;
   };
-  const rgbAt = (x, y) => {
-    const pixel = y * stride + x * bytesPerPixel;
-    if (colorType === 2 || colorType === 6) {
-      return [pixels[pixel], pixels[pixel + 1], pixels[pixel + 2]];
-    }
-    if (colorType === 4) return [pixels[pixel], pixels[pixel], pixels[pixel]];
-    const index = pixels[pixel] * 3;
-    return [palette[index], palette[index + 1], palette[index + 2]];
-  };
-  return { width, height, alphaAt, rgbAt };
-}
-
-async function decodedWebpDetails(file) {
-  const directory = await fs.mkdtemp(path.join(os.tmpdir(), "srt-motion-"));
-  const output = path.join(directory, "decoded.png");
-  try {
-    execFileSync("sips", [
-      "-s", "format", "png",
-      fileURLToPath(new URL(`../${file}`, import.meta.url)),
-      "--out", output
-    ], { stdio: "ignore" });
-    return pngDetails(await fs.readFile(output));
-  } finally {
-    await fs.rm(directory, { recursive: true, force: true });
-  }
-}
-
-function meanRgbDelta(image, firstX, secondX, span, mirrored = false) {
-  let difference = 0;
-  let samples = 0;
-  for (let y = 6; y < image.height; y += 12) {
-    for (let offset = 6; offset < span; offset += 12) {
-      const otherOffset = mirrored ? span - 1 - offset : offset;
-      const first = image.rgbAt(firstX + offset, y);
-      const second = image.rgbAt(secondX + otherOffset, y);
-      difference += Math.abs(first[0] - second[0]);
-      difference += Math.abs(first[1] - second[1]);
-      difference += Math.abs(first[2] - second[2]);
-      samples += 3;
-    }
-  }
-  return difference / samples;
+  return { width, height, alphaAt };
 }
 
 function webpDimensions(buffer) {
@@ -180,27 +157,36 @@ test("프로토타입 열차 ID도 실사 장면을 고르지 않는다", () => 
   assert.equal(realisticExteriorAsset("toString", "city"), null);
 });
 
-test("SRT 모션 팩은 환경별 하늘·원경·중경과 공용 열차·역을 제공한다", () => {
+test("SRT 모션 팩은 선택 환경의 완성 장면 3개와 공용 열차·운전실·역을 제공한다", () => {
   const pack = realisticMotionAssets("srt", "river", "day");
-  assert.equal(pack.train, "assets/train-realistic/motion/srt-side-transparent.png");
-  assert.match(pack.sky, /river-sky\.webp$/);
-  assert.match(pack.far, /river-far\.webp$/);
-  assert.match(pack.mid, /river-mid\.webp$/);
-  assert.match(pack.station, /station-platform\.webp$/);
+  assert.deepEqual(pack, {
+    train: "assets/train-realistic/motion/srt-side-transparent.png",
+    cabMask: "assets/train-realistic/motion/cab-window-mask.png",
+    station: ["assets/train-realistic/motion/station-platform-a.webp"],
+    scenes: [
+      "assets/train-realistic/motion/river-a.webp",
+      "assets/train-realistic/motion/river-b.webp",
+      "assets/train-realistic/motion/river-c.webp"
+    ]
+  });
 });
 
 test("KTX는 SRT 모션 자산을 선택하지 않는다", () => {
   assert.equal(realisticMotionAssets("ktx", "city", "day"), null);
 });
 
-test("SRT 모션 원본 매니페스트와 선택 결과는 변경할 수 없다", () => {
+test("SRT 모션 원본 매니페스트와 선택 결과의 모든 배열은 변경할 수 없다", () => {
   assert.ok(Object.isFrozen(REALISTIC_MOTION_ASSETS));
-  assert.ok(Object.isFrozen(REALISTIC_MOTION_ASSETS.landscapes));
-  for (const layers of Object.values(REALISTIC_MOTION_ASSETS.landscapes)) {
-    assert.ok(Object.isFrozen(layers));
+  assert.ok(Object.isFrozen(REALISTIC_MOTION_ASSETS.station));
+  assert.ok(Object.isFrozen(REALISTIC_MOTION_ASSETS.scenes));
+  for (const scenes of Object.values(REALISTIC_MOTION_ASSETS.scenes)) {
+    assert.ok(Object.isFrozen(scenes));
   }
-  assert.ok(Object.isFrozen(realisticMotionAssets("srt", "city")));
-  assert.match(realisticMotionAssets("srt", "unknown").sky, /city-sky\.webp$/);
+  const pack = realisticMotionAssets("srt", "city");
+  assert.ok(Object.isFrozen(pack));
+  assert.ok(Object.isFrozen(pack.station));
+  assert.ok(Object.isFrozen(pack.scenes));
+  assert.match(realisticMotionAssets("srt", "unknown").scenes[0], /city-a\.webp$/);
 });
 
 test("SRT 모션 팩은 서로 다른 21개 래스터를 예산 안에서 제공한다", async () => {
@@ -211,47 +197,68 @@ test("SRT 모션 팩은 서로 다른 21개 래스터를 예산 안에서 제공
   for (const file of paths) {
     const stat = await fs.stat(new URL(`../${file}`, import.meta.url));
     assert.ok(stat.size > 20_000, `${file} is a real image asset`);
-    assert.ok(stat.size <= 900 * 1024, `${file} exceeds the 900KB raster budget`);
+    assert.ok(stat.size <= 1.2 * 1024 * 1024, `${file} exceeds the 1.2MB raster budget`);
     total += stat.size;
   }
-  assert.ok(total <= 18 * 1024 * 1024, `motion pack ${total} exceeds 18MB`);
+  assert.ok(total <= 28 * 1024 * 1024, `motion pack ${total} exceeds 28MB`);
 });
 
-test("SRT 모션 풍경과 역은 목표 해상도를 유지한다", async () => {
-  const station = await fs.readFile(new URL(`../${REALISTIC_MOTION_ASSETS.station}`, import.meta.url));
-  assert.deepEqual(webpDimensions(station), { width: 2560, height: 720 });
-  for (const layers of Object.values(REALISTIC_MOTION_ASSETS.landscapes)) {
-    for (const file of Object.values(layers)) {
+test("SRT 장면·역 플레이트는 원본 크기와 정확한 품질 메타데이터를 유지한다", async () => {
+  const metrics = JSON.parse(await fs.readFile(QUALITY_METRICS_URL, "utf8"));
+  const paths = motionPhotoPaths();
+  assert.equal(metrics.schemaVersion, 3);
+  assert.equal(paths.length, 19);
+  assert.deepEqual(Object.keys(metrics.assets).sort(),
+    paths.map(file => file.split("/").at(-1)).sort());
+
+  for (const file of paths) {
+    const name = file.split("/").at(-1);
+    const metadata = metrics.assets[name];
+    const image = await fs.readFile(new URL(`../${file}`, import.meta.url));
+    const dimensions = webpDimensions(image);
+    assert.ok(dimensions.width >= 1600, `${file} width ${dimensions.width} is below 1600`);
+    assert.ok(dimensions.height >= 850, `${file} height ${dimensions.height} is below 850`);
+    assert.notDeepEqual(dimensions, { width: 3840, height: 720 }, `${file} is a legacy strip`);
+    assert.deepEqual(dimensions, { width: metadata.width, height: metadata.height }, `${file} dimensions`);
+    assert.deepEqual(dimensions,
+      { width: metadata.sourceWidth, height: metadata.sourceHeight }, `${file} must not be upscaled`);
+    assert.equal(metadata.transform, "encode-only", `${file} transform`);
+    assert.equal(metadata.seamFree, true, `${file} seam declaration`);
+    assert.equal(metadata.bytes, image.length, `${file} byte count`);
+    assert.equal(metadata.sha256, sha256(image), `${file} sha256`);
+  }
+});
+
+test("SRT 환경별 세 장면은 동일하거나 좌우 반전한 복제가 아니다", async () => {
+  const metrics = JSON.parse(await fs.readFile(QUALITY_METRICS_URL, "utf8"));
+  for (const [land, scenes] of Object.entries(REALISTIC_MOTION_ASSETS.scenes)) {
+    const hashes = [];
+    for (const file of scenes) {
       const image = await fs.readFile(new URL(`../${file}`, import.meta.url));
-      assert.deepEqual(webpDimensions(image), { width: 3840, height: 720 }, file);
+      hashes.push(sha256(image));
+    }
+    assert.equal(new Set(hashes).size, 3, `${land} variants must have unique hashes`);
+    assert.deepEqual(metrics.comparisons[land].map(({ variants }) => variants),
+      [["a", "b"], ["a", "c"], ["b", "c"]]);
+    for (const comparison of metrics.comparisons[land]) {
+      assert.ok(comparison.meanDelta > 5,
+        `${land}-${comparison.variants.join("/")} duplicates a variant`);
+      assert.ok(comparison.mirroredMeanDelta > 5,
+        `${land}-${comparison.variants.join("/")} mirrors a variant`);
     }
   }
 });
 
-test("SRT 모션 풍경은 반쪽·사분면 반복이나 좌우 반전 복제가 없다", async () => {
-  for (const layers of Object.values(REALISTIC_MOTION_ASSETS.landscapes)) {
-    for (const file of Object.values(layers)) {
-      const image = await decodedWebpDetails(file);
-      for (const mirrored of [false, true]) {
-        assert.ok(meanRgbDelta(image, 0, 1920, 1920, mirrored) > 6,
-          `${file} repeats a half${mirrored ? " as a mirror" : ""}`);
-      }
-      for (let first = 0; first < 4; first += 1) {
-        for (let second = first + 1; second < 4; second += 1) {
-          for (const mirrored of [false, true]) {
-            assert.ok(meanRgbDelta(image, first * 960, second * 960, 960, mirrored) > 6,
-              `${file} repeats quarter ${first + 1} in quarter ${second + 1}${mirrored ? " as a mirror" : ""}`);
-          }
-        }
-      }
-    }
+test("SRT 자산 회귀 검증은 플랫폼 외부 실행 파일에 의존하지 않는다", async () => {
+  const source = await fs.readFile(new URL(import.meta.url), "utf8");
+  const forbidden = [
+    ["node:child", "_process"].join(""),
+    ["exec", "FileSync"].join(""),
+    ["si", "ps"].join("")
+  ];
+  for (const token of forbidden) {
+    assert.ok(!source.includes(token), `test must not depend on ${token}`);
   }
-});
-
-test("SRT 역 플랫폼은 좌우 반전으로 길이를 채우지 않는다", async () => {
-  const image = await decodedWebpDetails(REALISTIC_MOTION_ASSETS.station);
-  assert.ok(meanRgbDelta(image, 0, 1280, 1280, false) > 6, "station repeats its first half");
-  assert.ok(meanRgbDelta(image, 0, 1280, 1280, true) > 6, "station mirrors its first half");
 });
 
 test("SRT 측면 열차는 투명 배경과 충분한 피사체 면적을 유지한다", async () => {

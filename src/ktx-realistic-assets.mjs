@@ -18,14 +18,11 @@ export const REALISTIC_TRAIN_ASSETS = Object.freeze({
 export const REALISTIC_MOTION_ASSETS = Object.freeze({
   train: `${MOTION_ROOT}/srt-side-transparent.png`,
   cabMask: `${MOTION_ROOT}/cab-window-mask.png`,
-  station: `${MOTION_ROOT}/station-platform.webp`,
-  landscapes: Object.freeze(Object.fromEntries(MOTION_LANDS.map(land => [
+  station: Object.freeze([`${MOTION_ROOT}/station-platform-a.webp`]),
+  scenes: Object.freeze(Object.fromEntries(MOTION_LANDS.map(land => [
     land,
-    Object.freeze({
-      sky: `${MOTION_ROOT}/${land}-sky.webp`,
-      far: `${MOTION_ROOT}/${land}-far.webp`,
-      mid: `${MOTION_ROOT}/${land}-mid.webp`
-    })
+    Object.freeze(["a", "b", "c"].map(variant =>
+      `${MOTION_ROOT}/${land}-${variant}.webp`))
   ])))
 });
 
@@ -45,14 +42,14 @@ export function realisticCabAsset(sky, land) {
 
 export function realisticMotionAssets(trainId, land) {
   if (trainId !== "srt") return null;
-  const selected = Object.hasOwn(REALISTIC_MOTION_ASSETS.landscapes, land)
+  const selected = Object.hasOwn(REALISTIC_MOTION_ASSETS.scenes, land)
     ? land
     : "city";
   return Object.freeze({
     train: REALISTIC_MOTION_ASSETS.train,
     cabMask: REALISTIC_MOTION_ASSETS.cabMask,
     station: REALISTIC_MOTION_ASSETS.station,
-    ...REALISTIC_MOTION_ASSETS.landscapes[selected]
+    scenes: REALISTIC_MOTION_ASSETS.scenes[selected]
   });
 }
 
