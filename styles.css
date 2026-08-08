@@ -8560,6 +8560,7 @@ body[data-mode="delivery"] #stage {
 }
 
 .dv-headline {
+  font-weight: 700;
   display: flex;
   flex: 1;
   align-items: center;
@@ -8656,6 +8657,7 @@ body[data-mode="delivery"] #stage {
 }
 
 .dv-progress {
+  font-weight: 700;
   font-family: var(--dv-display);
   font-size: clamp(13px, 1.5vw, 18px);
 }
@@ -8730,7 +8732,7 @@ body[data-mode="delivery"] #stage {
 .dv-slot {
   display: grid;
   place-items: center;
-  width: clamp(28px, 3.3vw, 40px);
+  width: clamp(44px, 3.3vw, 48px);
   aspect-ratio: 1;
   border: 3px dashed #c4d0dc;
   border-radius: 11px;
@@ -8749,6 +8751,7 @@ body[data-mode="delivery"] #stage {
 }
 
 .dv-slotnums {
+  font-weight: 700;
   display: flex;
   gap: 5px;
   justify-content: center;
@@ -8758,12 +8761,17 @@ body[data-mode="delivery"] #stage {
 }
 
 .dv-slotnum {
-  width: clamp(28px, 3.3vw, 40px);
+  width: clamp(44px, 3.3vw, 48px);
   text-align: center;
 }
 
+/* 네 방향은 십자로 놓는다 — 아이가 방향을 그림처럼 읽고, 3칸 폭이라
+   좁은 패널에도 들어간다. 44px 하한은 손가락 기준이라 줄이지 않는다. */
 .dv-dirs {
-  display: flex;
+  display: grid;
+  grid-template-areas:
+    ". up ."
+    "left down right";
   gap: 5px;
   justify-content: center;
 }
@@ -8772,6 +8780,11 @@ body[data-mode="delivery"] #stage {
   min-width: 44px;
   padding: 0;
 }
+
+.dv-key-dir[data-dv-dir="up"] { grid-area: up; }
+.dv-key-dir[data-dv-dir="left"] { grid-area: left; }
+.dv-key-dir[data-dv-dir="down"] { grid-area: down; }
+.dv-key-dir[data-dv-dir="right"] { grid-area: right; }
 
 /* ── STEP 2 · 층 버튼 ────────────────────────────────────────────── */
 
@@ -8790,7 +8803,8 @@ body[data-mode="delivery"] #stage {
 .dv-floorkey {
   display: grid;
   place-items: center;
-  width: clamp(30px, 3.5vw, 44px);
+  /* 손가락 기준 44px 이 하한이다(정본 §11). 좁은 화면에서도 줄이지 않는다. */
+  width: clamp(44px, 3.5vw, 52px);
   aspect-ratio: 1;
   border: none;
   border-radius: 12px;
@@ -8819,7 +8833,7 @@ body[data-mode="delivery"] #stage {
 .dv-bell {
   display: grid;
   place-items: center;
-  width: clamp(34px, 3.9vw, 46px);
+  width: clamp(44px, 3.9vw, 52px);
   aspect-ratio: 1;
   margin-top: 6px;
   border: 3px solid #fff;
@@ -8895,6 +8909,7 @@ body[data-mode="delivery"] #stage {
 }
 
 .dv-who-label {
+  font-weight: 700;
   color: var(--ink-soft);
   font-family: var(--dv-display);
   font-size: clamp(10px, 1.15vw, 13px);
@@ -8936,6 +8951,7 @@ body[data-mode="delivery"] #stage {
 }
 
 .dv-howto-label {
+  font-weight: 700;
   color: var(--ink-soft);
   font-family: var(--dv-display);
   font-size: clamp(10px, 1.2vw, 14px);
@@ -9007,6 +9023,7 @@ body[data-mode="delivery"] #stage {
   color: #6b5a38;
   font-family: var(--dv-body);
   font-size: clamp(11px, 1.2vw, 15px);
+  font-weight: 700;
   line-height: 1.45;
 }
 
@@ -9019,6 +9036,7 @@ body[data-mode="delivery"] #stage {
 .dv-tip-line { display: block; }
 
 .dv-foot-extra {
+  font-weight: 700;
   display: flex;
   flex: none;
   align-items: center;
@@ -9066,6 +9084,7 @@ body[data-mode="delivery"] #stage {
 }
 
 .dv-finale-count {
+  font-weight: 700;
   margin: 0;
   color: var(--ink-soft);
   font-family: var(--dv-display);

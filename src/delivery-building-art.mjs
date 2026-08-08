@@ -200,10 +200,14 @@ export function corridorSvg({ units, focus = 0, targetUnit }) {
     .join("");
 
   const stand = DOOR_SLOTS[Math.min(focus, DOOR_SLOTS.length - 1)].center;
+  // 조명은 목표 문 위를 비춘다(정본 §5 STEP 3: 금빛 링 + 별 + 문 위 조명).
+  const targetIndex = Math.max(0, units.indexOf(targetUnit));
+  const lampX = DOOR_SLOTS[Math.min(targetIndex, DOOR_SLOTS.length - 1)].center;
 
   return `<svg class="dv-corridor" viewBox="${HALL_VIEW_BOX}" preserveAspectRatio="xMidYMid meet" ` +
     `xmlns="http://www.w3.org/2000/svg" role="img" ` +
-    `aria-label="아파트 복도. ${units.join("호, ")}호 문이 있고 ${targetUnit}호 문이 빛나요.">` +
+    `aria-label="아파트 복도. 지금 ${units[Math.min(focus, units.length - 1)]}호 문 앞이에요. ` +
+    `찾는 곳은 ${targetUnit}호예요.">` +
     `<defs>${CARTON_DEF}` +
     `<linearGradient id="dv-hallwall" x1="0" y1="0" x2="0" y2="1">` +
     `<stop offset="0" stop-color="#f0dcb6"/><stop offset="1" stop-color="#e0c99e"/></linearGradient>` +
@@ -224,8 +228,10 @@ export function corridorSvg({ units, focus = 0, targetUnit }) {
     `</defs>` +
     `<rect width="1100" height="460" fill="#d8c096"/>` +
     `<polygon points="0,0 1100,0 960,62 140,62" fill="url(#dv-hallceil)"/>` +
-    `<rect x="470" y="12" width="160" height="22" rx="9" fill="url(#dv-halllamp)" stroke="#e8d5a4" stroke-width="3"/>` +
-    `<polygon points="470,34 630,34 720,150 380,150" fill="#fff6da" opacity=".42"/>` +
+    `<rect x="${lampX - 80}" y="12" width="160" height="22" rx="9" fill="url(#dv-halllamp)" ` +
+    `stroke="#e8d5a4" stroke-width="3"/>` +
+    `<polygon points="${lampX - 80},34 ${lampX + 80},34 ${lampX + 170},150 ${lampX - 170},150" ` +
+    `fill="#fff6da" opacity=".42"/>` +
     `<polygon points="0,0 140,62 140,332 0,460" fill="#c9ad81"/>` +
     `<polygon points="1100,0 960,62 960,332 1100,460" fill="#c9ad81"/>` +
     `<rect x="140" y="62" width="820" height="270" fill="url(#dv-hallwall)"/>` +
@@ -270,12 +276,19 @@ function crate(centerX, base, item, picked) {
 }
 
 function receivingFriend(cx, baseY, friend) {
+  // 넘버블록이라 몸이 정사각 블록을 쌓은 모양이다. 몇 칸을 쌓을지는 데이터가 정한다.
+  const blocks = Math.max(1, Math.min(3, friend.blocks ?? 2));
+  const unitHeight = 172 / blocks;
+  const stack = Array.from({ length: blocks }, (unused, index) =>
+    `<rect x="-46" y="${-26 - unitHeight * (index + 1)}" width="92" height="${unitHeight}" ` +
+    `rx="11" fill="${friend.color}" stroke="${friend.edge}" stroke-width="4"/>`
+  ).join("");
+
   return `<g transform="translate(${cx} ${baseY})">` +
     `<ellipse cx="0" cy="6" rx="62" ry="13" fill="#8a7047" opacity=".4"/>` +
     `<rect x="-24" y="-30" width="14" height="34" rx="7" fill="#3f4a5a"/>` +
     `<rect x="10" y="-30" width="14" height="34" rx="7" fill="#3f4a5a"/>` +
-    `<rect x="-46" y="-112" width="92" height="86" rx="11" fill="${friend.color}" stroke="${friend.edge}" stroke-width="4"/>` +
-    `<rect x="-46" y="-198" width="92" height="90" rx="11" fill="${friend.color}" stroke="${friend.edge}" stroke-width="4"/>` +
+    stack +
     `<path d="M46 -172 q38 -8 48 -46" stroke="#3f4a5a" stroke-width="13" fill="none" stroke-linecap="round"/>` +
     `<path d="M-46 -160 q-30 10 -32 38" stroke="#3f4a5a" stroke-width="13" fill="none" stroke-linecap="round"/>` +
     `<ellipse cx="-17" cy="-162" rx="15" ry="17" fill="#fff" stroke="#3f4a5a" stroke-width="4"/>` +
@@ -307,7 +320,8 @@ export function handoverSvg({ tray, focus = 0, wanted, unit, friend }) {
 
   return `<svg class="dv-handover" viewBox="${HALL_VIEW_BOX}" preserveAspectRatio="xMidYMid meet" ` +
     `xmlns="http://www.w3.org/2000/svg" role="img" ` +
-    `aria-label="${unit}호 친구가 ${wanted.label}를 기다려요. 과일, 화장품, 장난감 상자가 놓여 있어요.">` +
+    `aria-label="${unit}호 친구가 ${wanted.label}를 기다려요. ` +
+    `지금 고른 것은 ${(tray[focus] ?? tray[0]).label}예요.">` +
     `<defs>` +
     `<linearGradient id="dv-hwall" x1="0" y1="0" x2="0" y2="1">` +
     `<stop offset="0" stop-color="#f0dcb6"/><stop offset="1" stop-color="#ddc59a"/></linearGradient>` +

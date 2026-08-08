@@ -184,7 +184,11 @@ function drivePanel(document, state) {
   const queue = el(document, "div", "dv-queue");
   for (let index = 0; index < COMMAND_SLOTS; index += 1) {
     const direction = state.drive.queue[index];
-    const slot = el(document, "span", "dv-slot", direction ? DIRECTION_MARKS[direction] : "");
+    // 채워진 칸은 눌러서 지울 수 있다 — 시안에 없는 새 버튼을 만들지 않으려고
+    // 이미 그려진 칸 자체를 조작면으로 쓴다.
+    const slot = direction
+      ? keyButton(document, "dv-slot", DIRECTION_MARKS[direction], { dvClear: "1" }, "쌓은 명령 지우기")
+      : el(document, "span", "dv-slot", "");
     slot.dataset.filled = String(Boolean(direction));
     queue.append(slot);
   }
@@ -245,7 +249,9 @@ function elevatorPanel(document, state) {
     pad.append(key);
   });
   padCard.append(pad);
-  padCard.append(keyButton(document, "dv-bell", "🔔", { dvBell: "1" }, "벨 누르기"));
+  padCard.append(
+    keyButton(document, "dv-bell", "🔔", { dvBell: "1" }, "목표 층 다시 알려주기")
+  );
   panel.append(padCard);
 
   return panel;
@@ -344,6 +350,9 @@ function finaleBody(document, state) {
     stars.append(mark);
   }
   panel.append(stars);
+  panel.append(
+    keyButton(document, "dv-key dv-key-go dv-finale-home", "🏠 처음으로", { dvHome: "1" }, "처음 화면으로")
+  );
 
   body.append(panel);
   return body;

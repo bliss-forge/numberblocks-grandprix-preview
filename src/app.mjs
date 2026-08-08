@@ -1948,11 +1948,31 @@ const DRIVE_STEP_MS = 420;      // 한 칸 굴러가는 시간
 const DELIVERY_ARRIVE_MS = 1000; // 도착 여운
 const DELIVERY_HANDOFF_MS = 1400; // 전달 성공 여운
 
+// 조작할 때마다 씬을 통째로 갈아 끼우므로, 누르고 있던 버튼과 같은 버튼에
+// 포커스를 되돌려 준다. 안 그러면 키보드 사용자의 포커스가 매번 사라진다.
+const DELIVERY_FOCUS_KEYS = ["dvDir", "dvGo", "dvFloor", "dvBell", "dvMove", "dvClear", "dvHome"];
+
+function deliveryFocusMark() {
+  const active = document.activeElement;
+  if (!active || !dom.stage.contains(active)) return null;
+  const key = DELIVERY_FOCUS_KEYS.find(name => active.dataset?.[name] !== undefined);
+  return key ? { key, value: active.dataset[key] } : null;
+}
+
+function restoreDeliveryFocus(mark) {
+  if (!mark) return;
+  const attribute = mark.key.replace(/[A-Z]/g, letter => `-${letter.toLowerCase()}`);
+  const next = dom.stage.querySelector(`[data-${attribute}="${mark.value}"]`);
+  if (next) next.focus();
+}
+
 function refreshDeliveryScene() {
   if (!state.delivery) return;
+  const mark = deliveryFocusMark();
   state.deliveryScene = renderDelivery(document, state.delivery);
   dom.stage.replaceChildren(state.deliveryScene);
   dom.problem.textContent = deliveryCaption(state.delivery);
+  restoreDeliveryFocus(mark);
 }
 
 // 모델은 이미 다음 단계로 넘어가 있을 수 있다. 연출을 위해 잠시 이전 단계 화면을 그린다.
@@ -2099,6 +2119,7 @@ function handleDeliveryEvents(events) {
         break;
       case "corridor-focus":
         audio.playSfx("key");
+        showHint(`${event.unit}호 문`, 900);
         break;
       case "corridor-edge":
       case "tray-edge":
@@ -2112,17 +2133,23 @@ function handleDeliveryEvents(events) {
       case "corridor-correct": {
         audio.playSfx("bell");
         const asked = parcelById(state.delivery.order.parcel);
+        const askedRound = state.round;
+        const askedUnit = state.delivery.order.unit;
         void audio.playPrompt("delivery-bell").then(() => {
-          if (state.mode === "delivery" && asked) {
-            void audio.playPrompt(`delivery-parcel-${asked.id}`);
-          }
+          // 낭독이 끝났을 때 이미 다음 배송으로 넘어갔다면 이어 읽지 않는다.
+          const still = state.mode === "delivery" && state.round === askedRound &&
+            state.delivery?.order.unit === askedUnit;
+          if (still && asked) void audio.playPrompt(`delivery-parcel-${asked.id}`);
         });
         showHint("딩동! 문이 열려요.", 1600);
         break;
       }
-      case "tray-focus":
+      case "tray-focus": {
         audio.playSfx("key");
+        const picked = parcelById(event.parcel);
+        if (picked) showHint(picked.label, 900);
         break;
+      }
       case "parcel-wrong": {
         const wanted = parcelById(event.want);
         audio.playSfx("pop");
@@ -2140,6 +2167,8 @@ function handleDeliveryEvents(events) {
         showHint(`고마워요! 택배 ${event.delivered}개 전달했어요.`, 2000);
         break;
       case "next-order":
+        showHint(`다음은 ${event.unit}호예요!`, 2000);
+        void audio.playPrompt("delivery-intro");
         break;
       case "finale":
         audio.playSfx("jingle");
@@ -2360,7 +2389,8 @@ dom.stage.addEventListener("click", event => {
   if (state.mode === "delivery" && state.delivery && state.phase === "playing" &&
       !state.deliveryBusy) {
     const control = event.target.closest(
-      "[data-dv-dir],[data-dv-go],[data-dv-floor],[data-dv-bell],[data-dv-move]"
+      "[data-dv-dir],[data-dv-go],[data-dv-floor],[data-dv-bell],[data-dv-move]," +
+      "[data-dv-clear],[data-dv-home]"
     );
     if (control) {
       const data = control.dataset;
@@ -2368,6 +2398,8 @@ dom.stage.addEventListener("click", event => {
       else if (data.dvGo) deliveryGo();
       else if (data.dvFloor) deliveryFloor(Number(data.dvFloor));
       else if (data.dvMove) deliveryMove(Number(data.dvMove));
+      else if (data.dvClear) deliveryClear();
+      else if (data.dvHome) goHome();
       else if (data.dvBell) deliveryBell();
       return;
     }
@@ -2503,7 +2535,12 @@ document.addEventListener("keydown", event => {
 
   // 택배 왔어요! — 단계마다 쓰는 키가 다르다. 새 키는 없다(숫자·화살표·Space·Esc).
   if (state.phase === "playing" && state.mode === "delivery" && state.delivery) {
-    const isSpace = event.key === " " || event.key === "Spacebar" || event.key === "Enter";
+    // 버튼에 포커스가 있으면 브라우저가 눌러 주게 둔다 — 여기서 가로채면
+    // HUD 의 처음·소리 버튼까지 키보드로 못 누르게 된다.
+    const onButton = typeof event.target?.closest === "function" &&
+      Boolean(event.target.closest("button"));
+    const isSpace = !onButton &&
+      (event.key === " " || event.key === "Spacebar" || event.key === "Enter");
     const isDigit = /^[0-9]$/.test(event.key);
     const direction = directionForKey(event.key);
 

@@ -22,11 +22,12 @@ export const PARCELS = Object.freeze([
 ]);
 
 // 받는 친구 — 디자인 락 §7 은 빨강 1번을 예시로 들고 "다양한 캐릭터가 등장할 수 있다"고 적었다.
+// blocks 는 몸을 이루는 정사각 칸 수다 — 시안의 친구는 두 칸짜리다.
 export const FRIENDS = Object.freeze([
-  Object.freeze({ number: 1, color: "#f4544a", edge: "#cd382f" }),
-  Object.freeze({ number: 2, color: "#ff9a3c", edge: "#d97516" }),
-  Object.freeze({ number: 4, color: "#5cc45f", edge: "#3d9a41" }),
-  Object.freeze({ number: 5, color: "#4a9fe8", edge: "#2f7cc0" }),
+  Object.freeze({ blocks: 2, color: "#f4544a", edge: "#cd382f" }),
+  Object.freeze({ blocks: 2, color: "#ff9a3c", edge: "#d97516" }),
+  Object.freeze({ blocks: 3, color: "#5cc45f", edge: "#3d9a41" }),
+  Object.freeze({ blocks: 1, color: "#4a9fe8", edge: "#2f7cc0" }),
 ]);
 
 // 지도 격자 — 디자인 락 §5 STEP 1 의 집 네 채·연못·나무 배치를 그대로 옮겼다.
@@ -222,7 +223,9 @@ export function runCommands(state) {
   const events = [{ type: "drive-path", path, blocked: Boolean(blocked) }];
   if (blocked) events.push({ type: "drive-blocked", direction: blocked.direction });
 
-  const house = houseAt(state, at);
+  // 한 칸도 못 갔으면 도착 판정을 다시 하지 않는다 — 이미 서 있던 집을 또
+  // 판정하면 실수가 부풀고 "길이 아니에요" 안내가 묻힌다.
+  const house = path.length > 0 ? houseAt(state, at) : null;
   if (!house) {
     if (!blocked) events.push({ type: "drive-nowhere" });
     return events;
