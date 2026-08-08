@@ -33,11 +33,16 @@ class FakeElement {
   }
 
   set innerHTML(markup) {
+    this._innerHTML = String(markup);
     this.children = [...markup.matchAll(/class="([^"]+)"/g)].map(match => {
       const child = new FakeElement(this.ownerDocument, "span");
       child.className = match[1];
       return child;
     });
+  }
+
+  get innerHTML() {
+    return this._innerHTML ?? "";
   }
 
   append(...children) {
@@ -138,13 +143,21 @@ test("운전실과 바깥 뷰는 실사 이미지와 기존 SVG 폴백을 함께
 });
 
 test("KTX 선택은 SRT 사진을 마운트하지 않고 전용 SVG 장면을 유지한다", () => {
-  const root = renderKtxScene(fakeDocument(), createKtxJourney(3, "ktx"), "side");
+  const document = fakeDocument();
+  const root = renderKtxScene(document, createKtxJourney(3, "ktx"), "side");
+  const train = root.querySelector(".ktx-side-train");
 
   assert.equal(root.querySelector(".ktx-real-cab-image"), null);
   assert.equal(root.querySelector(".ktx-real-exterior-image"), null);
+  assert.equal(document.createdElements.some(element =>
+    element.tagName === "IMG" && element.src.includes("/assets/train-realistic/")), false,
+  "SRT 실사 자산을 백그라운드에서도 요청하지 않음");
   assert.equal(root.dataset.realistic, "fallback");
   assert.equal(root.dataset.loading, "false");
-  assert.ok(root.querySelector(".ktx-side-train"), "KTX 전용 SVG 열차 유지");
+  assert.ok(train, "KTX 전용 SVG 열차 유지");
+  assert.match(train.innerHTML, /ktx-tm-side-body-ktx/, "KTX 리버리 정의 사용");
+  assert.match(train.innerHTML, />KTX<\/text>/, "KTX 로고 사용");
+  assert.doesNotMatch(train.innerHTML, />SRT<\/text>/, "SRT 로고를 섞지 않음");
 });
 
 test("현재 실사 이미지가 모두 로드된 뒤에만 준비 상태가 된다", () => {
