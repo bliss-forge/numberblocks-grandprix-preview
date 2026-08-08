@@ -37,6 +37,7 @@ KO_SAFETY = {
     "safety-finish": "친구들을 모두 만났어요! 안전하게 도착했어요!",
     "safety-look-both": "멈춰요, 왼쪽 오른쪽을 봐요!",
     "safety-tour": "학교까지 안전하게 가 보자!",
+    "safety-take-the-bus": "여기는 버스를 타고 건너요! 정류장으로 가요.",
 }
 EN_SAFETY = {
     "safety-next-2": "Let's visit Numberblock Two at the nursery.",
@@ -58,6 +59,7 @@ EN_SAFETY = {
     "safety-finish": "We met all our friends and arrived safely!",
     "safety-look-both": "Stop! Look left and right!",
     "safety-tour": "Let's walk safely to school!",
+    "safety-take-the-bus": "We cross here by bus! Let's go to the bus stop.",
 }
 KO_SRT = {
     "srt-arrive": "수서역에 도착하였어요!",
@@ -107,6 +109,11 @@ KO_SUBWAY = {
     "subway-place-childpark": "어린이대공원에 가요!",
     "subway-place-lake": "석촌호수에 가요!",
     "subway-place-assembly": "국회의사당에 가요!",
+    # 실음원이 없는 역 4곳 — 실제 안내방송과 같은 형식으로 읽는다
+    "subway-station-moran": "이번 역은 모란역입니다.",
+    "subway-station-gayang": "이번 역은 가양역입니다.",
+    "subway-station-assembly": "이번 역은 국회의사당역입니다.",
+    "subway-station-bongeunsa": "이번 역은 봉은사역입니다.",
 }
 EN_SUBWAY = {
     "subway-board": "We are on the subway! Off we go!",
@@ -126,6 +133,10 @@ EN_SUBWAY = {
     "subway-place-childpark": "Let's go to the children's park!",
     "subway-place-lake": "Let's go to the lake!",
     "subway-place-assembly": "Let's go to the assembly hall!",
+    "subway-station-moran": "This stop is Moran.",
+    "subway-station-gayang": "This stop is Gayang.",
+    "subway-station-assembly": "This stop is the National Assembly.",
+    "subway-station-bongeunsa": "This stop is Bongeunsa.",
 }
 KO_ONES = ["", "일", "이", "삼", "사", "오", "육", "칠", "팔", "구"]
 EN_ONES = [

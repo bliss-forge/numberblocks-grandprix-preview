@@ -23,7 +23,8 @@ const safety = Object.fromEntries(
     "safety-wrong-order",
     "safety-finish",
     "safety-look-both",
-    "safety-tour"
+    "safety-tour",
+    "safety-take-the-bus"
   ].map(key => [
     key,
     {
@@ -51,7 +52,13 @@ const subway = Object.fromEntries(
     "subway-place-skypark",
     "subway-place-childpark",
     "subway-place-lake",
-    "subway-place-assembly"
+    "subway-place-assembly",
+    // 실음원이 없는 역 4곳의 이름 안내 — subway_sound/에 파일이 생기면
+    // stationSoundSrc가 그쪽을 먼저 쓰고 이 키는 폴백으로만 남는다.
+    "subway-station-moran",
+    "subway-station-gayang",
+    "subway-station-assembly",
+    "subway-station-bongeunsa"
   ].map(key => [
     key,
     {

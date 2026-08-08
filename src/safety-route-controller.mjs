@@ -31,8 +31,9 @@ const BLOCKED_CUES = Object.freeze({
     voiceKey: "safety-car"
   },
   "take-the-bus": {
+    // 글을 못 읽는 아이에게는 이 자막이 유일한 안내였다 — 음성을 붙인다.
     message: "여기는 버스를 타고 건너요! 정류장으로 가요",
-    voiceKey: null
+    voiceKey: "safety-take-the-bus"
   },
   manhole: {
     message: "열린 맨홀이에요. 가까이 가지 말고 돌아가요!",
