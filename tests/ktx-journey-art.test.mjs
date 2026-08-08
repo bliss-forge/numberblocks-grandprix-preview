@@ -43,7 +43,7 @@ test("실사 외부 콘솔은 모든 모션 레이어 위에서 하단 29%를 �
 
 test("실사 모션 플레이트는 겹친 완성 장면으로만 안전 크롭·교차한다", () => {
   assert.match(css,
-    /\.ktx-motion-plate\s*\{[^}]*position:\s*absolute[^}]*object-fit:\s*cover[^}]*transform:\s*translate3d\(var\(--motion-scene-x\)/s);
+    /\.ktx-motion-plate\s*\{[^}]*position:\s*absolute[^}]*object-fit:\s*cover[^}]*transform:\s*translate3d\(var\(--motion-plate-x,\s*var\(--motion-scene-x\)\)/s);
   assert.match(css,
     /\.ktx-motion-plate\s*\{[^}]*width:\s*calc\(100%\s*\+\s*240px\)[^}]*left:\s*-120px/s);
   assert.match(css,
@@ -55,13 +55,22 @@ test("실사 모션 플레이트는 겹친 완성 장면으로만 안전 크롭�
 
 test("실사 근경·선로만 위치 이동과 블러를 받고 열차·조작부는 선명하게 고정된다", () => {
   assert.match(css,
-    /\.ktx-motion-near\s*\{[^}]*transform:\s*translate3d\(var\(--motion-near-x\)[^}]*filter:\s*blur\(var\(--motion-blur\)/s);
+    /\.ktx-motion-near\s*\{[^}]*transform:\s*translate3d\(var\(--motion-near-phase-x\)[^}]*filter:\s*blur\(var\(--motion-blur\)/s);
   assert.match(css,
-    /\.ktx-motion-track\s*\{[^}]*transform:\s*translate3d\(var\(--motion-track-x\)[^}]*filter:\s*blur\(var\(--motion-blur\)/s);
+    /\.ktx-motion-track\s*\{[^}]*transform:\s*translate3d\(var\(--motion-track-phase-x\)[^}]*filter:\s*blur\(var\(--motion-blur\)/s);
   assert.match(css,
     /\.ktx-motion-train\s*\{[^}]*z-index:\s*6[^}]*filter:\s*none/s);
   assert.doesNotMatch(css, /\.ktx-motion-train\s*\{[^}]*animation:[^}]*infinite/s);
   assert.doesNotMatch(css, /\.ktx-motion-cab-frame\s*\{[^}]*filter:\s*blur/s);
+});
+
+test("선로·근경·속도선은 서로 다른 CSS 무늬 주기로 독립 위상 이동한다", () => {
+  assert.match(css,
+    /\.ktx-motion-track\s*\{[^}]*width:\s*calc\(100%\s*\+\s*144px\)[^}]*transform:\s*translate3d\(var\(--motion-track-phase-x\)/s);
+  assert.match(css,
+    /\.ktx-motion-near\s*\{[^}]*width:\s*calc\(100%\s*\+\s*720px\)[^}]*transform:\s*translate3d\(var\(--motion-near-phase-x\)/s);
+  assert.match(css,
+    /\.ktx-motion-near::after\s*\{[^}]*width:\s*calc\(100%\s*\+\s*310px\)[^}]*transform:\s*translate3d\(calc\(var\(--motion-streak-phase-x\)\s*-\s*var\(--motion-near-phase-x\)\)/s);
 });
 
 test("실사 속도선은 고속 밴드에만 보이고 정차하면 모든 이동 보간이 사라진다", () => {
@@ -75,9 +84,22 @@ test("실사 속도선은 고속 밴드에만 보이고 정차하면 모든 이�
     /data-track-loop-reset="true"[^\{]*\.ktx-motion-track\s*\{[^}]*transition:\s*none/s);
 });
 
+test("완성 장면 교차는 유한 애니메이션이며 정차 시 현재 불투명도에서 일시정지한다", () => {
+  assert.match(css,
+    /@keyframes\s+ktx-motion-plate-in\s*\{[^}]*opacity:\s*0[^}]*\}[^}]*opacity:\s*1/s);
+  assert.match(css,
+    /@keyframes\s+ktx-motion-plate-out\s*\{[^}]*opacity:\s*1[^}]*\}[^}]*opacity:\s*0/s);
+  assert.match(css,
+    /\.ktx-motion-plate\[data-crossfade="in"\][^\{]*\.ktx-motion-plate\[data-crossfade="out"\]\s*\{[^}]*animation-duration:\s*var\(--motion-crossfade-ms[^}]*animation-play-state:\s*var\(--motion-crossfade-play-state/s);
+  assert.doesNotMatch(css,
+    /\.ktx-motion-plate\s*\{[^}]*transition:[^;]*opacity/s);
+  assert.doesNotMatch(css,
+    /\.ktx-motion-plate\s*\{[^}]*animation[^}]*infinite/s);
+});
+
 test("동작 줄이기에서는 실사 블러·진동·속도선을 제거하고 장면 교차만 느리게 한다", () => {
   assert.match(css,
-    /prefers-reduced-motion:\s*reduce[\s\S]*\.ktx-motion-plate\s*\{[^}]*transition-duration:\s*1800ms/s);
+    /prefers-reduced-motion:\s*reduce[\s\S]*\.ktx-motion-plate\[data-crossfade\]\s*\{[^}]*animation-duration:\s*1800ms/s);
   assert.match(css,
     /prefers-reduced-motion:\s*reduce[\s\S]*\.ktx-motion-near[^\{]*\.ktx-motion-track\s*\{[^}]*filter:\s*none/s);
   assert.match(css,

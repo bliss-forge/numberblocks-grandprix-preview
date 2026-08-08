@@ -5,7 +5,7 @@ const controllers = new WeakMap();
 const PLATE_SPAN = 4000;
 const PLATE_SWAP_GUARD = 400;
 const PHOTO_SAFE_PAN_PX = 120;
-const MOTION_LOOP_PX = 2400;
+const PATTERN_PERIOD_PX = Object.freeze({ near: 720, track: 144, streak: 310 });
 
 function el(document, tag, className) {
   const node = document.createElement(tag);
@@ -85,16 +85,21 @@ function applyFrame(scene, state, band) {
   scene.dataset.moving = String(frame.moving);
   scene.dataset.motionMoving = String(frame.moving);
   scene.style.setProperty("--motion-scene-x",
-    `${boundedPhotoPan(frame.offsets.far)}px`);
-  setLoopedMotion(scene, "near", loopedOffset(frame.offsets.near));
-  setLoopedMotion(scene, "track", loopedOffset(frame.offsets.track));
+    `${monotonicPhotoPan(state.x)}px`);
+  setPatternMotion(scene, "near", frame.offsets.near, PATTERN_PERIOD_PX.near);
+  setPatternMotion(scene, "track", frame.offsets.track, PATTERN_PERIOD_PX.track);
+  setPatternMotion(scene, "streak", frame.offsets.track, PATTERN_PERIOD_PX.streak);
   scene.style.setProperty("--motion-speed", String(frame.speedRatio));
   scene.style.setProperty("--motion-blur", `${frame.blurPx}px`);
   scene.style.setProperty("--motion-brake-pitch", String(frame.brakePitch));
   scene.style.setProperty("--motion-vibration-y",
     `${motionVibration(state.x, state.v, frame.moving)}px`);
-  scene.style.setProperty("--motion-crossfade-ms",
-    `${crossfadeDuration(frame.speedRatio)}ms`);
+  if (frame.moving || !scene.style["--motion-crossfade-ms"]) {
+    scene.style.setProperty("--motion-crossfade-ms",
+      `${crossfadeDuration(frame.speedRatio)}ms`);
+  }
+  scene.style.setProperty("--motion-crossfade-play-state",
+    frame.moving ? "running" : "paused");
   return frame;
 }
 
@@ -102,22 +107,21 @@ function rounded(value) {
   return Number(value.toFixed(2));
 }
 
-function boundedPhotoPan(offset) {
-  const phase = (offset / PHOTO_SAFE_PAN_PX) * (Math.PI / 2);
-  return rounded(-Math.sin(phase) * PHOTO_SAFE_PAN_PX);
+function monotonicPhotoPan(x) {
+  const distanceInPlate = Math.max(0, x) % PLATE_SPAN;
+  return rounded(-Math.min(PHOTO_SAFE_PAN_PX,
+    distanceInPlate * (PHOTO_SAFE_PAN_PX / (PLATE_SPAN / 2))));
 }
 
-function loopedOffset(offset) {
-  return rounded(-(offset % MOTION_LOOP_PX));
-}
-
-function setLoopedMotion(scene, layer, value) {
-  const property = `--motion-${layer}-x`;
-  const previous = Number.parseFloat(scene.style[property]);
+function setPatternMotion(scene, layer, offset, period) {
+  const phaseProperty = `--motion-${layer}-phase-x`;
+  const phase = rounded(-(offset % period));
+  const previous = Number.parseFloat(scene.style[phaseProperty]);
   scene.dataset[`${layer}LoopReset`] = String(
-    Number.isFinite(previous) && Math.abs(value - previous) > MOTION_LOOP_PX / 2
+    Number.isFinite(previous) && Math.abs(phase - previous) > period / 2
   );
-  scene.style.setProperty(property, `${value}px`);
+  scene.style.setProperty(`--motion-${layer}-x`, `${rounded(-offset)}px`);
+  scene.style.setProperty(phaseProperty, `${phase}px`);
 }
 
 function crossfadeDuration(speedRatio) {
@@ -138,6 +142,7 @@ function resetPlateSlots(controller, catalog) {
   controller.failedPlateSources.clear();
   controller.plates.forEach((plate, index) => {
     plate.dataset.active = String(index === 0);
+    delete plate.dataset.crossfade;
     plate.hidden = index !== 0;
   });
 }
@@ -154,6 +159,7 @@ function assignPreloadedPlate(controller, request) {
   plate.dataset.loaded = "true";
   delete plate.dataset.failed;
   plate.dataset.active = "false";
+  delete plate.dataset.crossfade;
   plate.hidden = true;
   controller.platePreload = null;
 }
@@ -207,10 +213,13 @@ function syncPlateMotion(controller, state, frame) {
   }
   let switched = false;
   if (desiredSlot >= 0 && desiredSlot !== controller.activeSlot) {
+    const outgoingSlot = controller.activeSlot;
     controller.plates.forEach((plate, index) => {
       plate.hidden = false;
       plate.dataset.active = String(index === desiredSlot);
     });
+    controller.plates[outgoingSlot].dataset.crossfade = "out";
+    controller.plates[desiredSlot].dataset.crossfade = "in";
     controller.activeSlot = desiredSlot;
     controller.activeCatalogIndex = desiredIndex;
     controller.platePreload = null;
@@ -218,6 +227,8 @@ function syncPlateMotion(controller, state, frame) {
   } else if (desiredSlot >= 0) {
     controller.activeCatalogIndex = desiredIndex;
   }
+  controller.plates[controller.activeSlot].style.setProperty(
+    "--motion-plate-x", controller.scene.style["--motion-scene-x"]);
   preloadPlate(controller,
     (controller.activeCatalogIndex + 1) % controller.catalog.length,
     controller.currentX + (switched ? PLATE_SWAP_GUARD : 0));

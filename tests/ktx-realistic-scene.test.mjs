@@ -471,6 +471,33 @@ test("사진 팬은 큰 주행 위치에서도 안전 크롭 범위 안에 머�
   }
 });
 
+test("사진 팬은 같은 활성 플레이트에서 되감기 없이 왼쪽으로만 가고 교차할 새 슬롯만 원점에서 시작한다", () => {
+  const initial = createKtxJourney(3, "srt");
+  const root = renderKtxScene(fakeDocument(), initial, "side");
+  loadMotionSideAssets(root);
+  const scene = root.querySelector(".ktx-motion-scene");
+  const plates = root.querySelectorAll(".ktx-motion-plate");
+  const pans = [];
+
+  for (const x of [0, 1000, 2000, 3000, 3999]) {
+    updateRealisticMotionScene(root,
+      { ...initial, phase: "driving", x, v: 240 }, { land: "city" });
+    pans.push(Number.parseFloat(scene.style["--motion-scene-x"]));
+  }
+
+  assert.equal(pans[2], -120, "기존 x=2000 계약 유지");
+  pans.slice(1).forEach((pan, index) => {
+    assert.ok(pan <= pans[index], `${pans[index]}px 다음 ${pan}px는 오른쪽으로 되감기면 안 됨`);
+  });
+  assert.equal(plates[0].style["--motion-plate-x"], "-120px");
+
+  updateRealisticMotionScene(root,
+    { ...initial, phase: "driving", x: 4000, v: 240 }, { land: "city" });
+
+  assert.equal(plates[0].style["--motion-plate-x"], "-120px", "나가는 완성 장면은 위치 고정");
+  assert.equal(plates[1].style["--motion-plate-x"], "0px", "들어오는 완성 장면만 안전 원점으로 재설정");
+});
+
 test("주행 위치가 플레이트 구간을 넘으면 준비된 다음 완성 장면으로 교차한다", () => {
   const initial = createKtxJourney(3, "srt");
   const root = renderKtxScene(fakeDocument(), initial, "side");
@@ -487,6 +514,34 @@ test("주행 위치가 플레이트 구간을 넘으면 준비된 다음 완성 
   assert.ok(Number.parseFloat(
     root.querySelector(".ktx-motion-scene").style["--motion-crossfade-ms"]
   ) >= 450);
+});
+
+test("완성 장면 교차는 정차 중 같은 진행 상태로 멈추고 재출발하면 이어진다", () => {
+  const initial = createKtxJourney(3, "srt");
+  const root = renderKtxScene(fakeDocument(), initial, "side");
+  loadMotionSideAssets(root);
+  const scene = root.querySelector(".ktx-motion-scene");
+  const plates = root.querySelectorAll(".ktx-motion-plate");
+  const moving = { ...initial, phase: "driving", x: 4500, v: 240 };
+
+  updateRealisticMotionScene(root, moving, { land: "city" });
+  assert.equal(plates[0].dataset.crossfade, "out");
+  assert.equal(plates[1].dataset.crossfade, "in");
+  assert.equal(scene.style["--motion-crossfade-play-state"], "running");
+  const duration = scene.style["--motion-crossfade-ms"];
+
+  updateRealisticMotionScene(root,
+    { ...moving, phase: "stopped", v: 0 }, { land: "city" });
+  assert.equal(plates[0].dataset.crossfade, "out", "나가는 장면의 중간 진행 상태 유지");
+  assert.equal(plates[1].dataset.crossfade, "in", "들어오는 장면의 중간 진행 상태 유지");
+  assert.equal(scene.style["--motion-crossfade-play-state"], "paused");
+  assert.equal(scene.style["--motion-crossfade-ms"], duration,
+    "정차 중 애니메이션 시간축도 바꾸지 않아 불투명도 진행률 유지");
+
+  updateRealisticMotionScene(root, moving, { land: "city" });
+  assert.equal(plates[0].dataset.crossfade, "out");
+  assert.equal(plates[1].dataset.crossfade, "in");
+  assert.equal(scene.style["--motion-crossfade-play-state"], "running");
 });
 
 test("다음 플레이트는 비활성 슬롯 교체 전에 별도 이미지로 선로드된다", () => {
@@ -589,18 +644,32 @@ test("빠를수록 완성 장면 교차 시간은 짧아지되 450ms 아래로 �
   assert.ok(slow <= 900);
 });
 
-test("선로 반복 경계를 넘을 때 큰 역방향 보간 없이 무봉합으로 되감는다", () => {
+test("선로·근경·속도선은 각 CSS 무늬 주기 경계 전후에 같은 위상으로 이어진다", () => {
   const initial = createKtxJourney(3, "srt");
   const root = renderKtxScene(fakeDocument(), initial, "side");
-
-  updateRealisticMotionScene(root,
-    { ...initial, phase: "driving", x: 2390, v: 240 }, { land: "city" });
-  updateRealisticMotionScene(root,
-    { ...initial, phase: "driving", x: 2410, v: 240 }, { land: "city" });
-
   const scene = root.querySelector(".ktx-motion-scene");
-  assert.equal(scene.dataset.trackLoopReset, "true");
-  assert.equal(scene.style["--motion-track-x"], "-10px");
+  const cases = [
+    { layer: "track", period: 144, xs: [143, 144, 145] },
+    { layer: "near", period: 720, xs: [719 / .85, 720 / .85, 721 / .85] },
+    { layer: "streak", period: 310, xs: [309, 310, 311] }
+  ];
+  const wrappedDelta = (from, to, period) => {
+    const half = period / 2;
+    return ((to - from + half + period) % period) - half;
+  };
+
+  for (const { layer, period, xs } of cases) {
+    const phases = xs.map(x => {
+      updateRealisticMotionScene(root,
+        { ...initial, phase: "driving", x, v: 240 }, { land: "city" });
+      return Number.parseFloat(scene.style[`--motion-${layer}-phase-x`]);
+    });
+    assert.ok(phases.every(Number.isFinite), `${layer} 전용 위상 변수가 있어야 함`);
+    assert.ok(Math.abs(wrappedDelta(phases[0], phases[1], period) + 1) < .01,
+      `${layer} boundary-1 → boundary 위상 연속`);
+    assert.ok(Math.abs(wrappedDelta(phases[1], phases[2], period) + 1) < .01,
+      `${layer} boundary → boundary+1 위상 연속`);
+  }
 });
 
 test("KTX 선택은 SRT 사진을 마운트하지 않고 전용 SVG 장면을 유지한다", () => {

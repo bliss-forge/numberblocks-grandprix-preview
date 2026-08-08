@@ -8044,21 +8044,46 @@ body[data-mode="ktx"] .stage-lights {
   object-fit: cover;
   object-position: center center;
   opacity: 0;
-  transform: translate3d(var(--motion-scene-x), 0, 0);
-  transition:
-    transform 120ms linear,
-    opacity var(--motion-crossfade-ms, 900ms) ease-in-out;
+  transform: translate3d(var(--motion-plate-x, var(--motion-scene-x)), 0, 0);
+  transition: transform 120ms linear;
   will-change: transform, opacity;
 }
 
 .ktx-motion-plate[data-active="true"] { opacity: 1; }
 .ktx-motion-plate[data-active="false"] { opacity: 0; }
 
+@keyframes ktx-motion-plate-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes ktx-motion-plate-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+.ktx-motion-plate[data-crossfade="in"],
+.ktx-motion-plate[data-crossfade="out"] {
+  animation-duration: var(--motion-crossfade-ms, 900ms);
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: 1;
+  animation-fill-mode: both;
+  animation-play-state: var(--motion-crossfade-play-state, running);
+}
+
+.ktx-motion-plate[data-crossfade="in"] {
+  animation-name: ktx-motion-plate-in;
+}
+
+.ktx-motion-plate[data-crossfade="out"] {
+  animation-name: ktx-motion-plate-out;
+}
+
 .ktx-motion-track {
   position: absolute;
   left: 0;
   bottom: -2%;
-  width: calc(100% + 2400px);
+  width: calc(100% + 144px);
   height: 30%;
   z-index: 3;
   background:
@@ -8067,7 +8092,7 @@ body[data-mode="ktx"] .stage-lights {
     linear-gradient(to bottom,
       transparent 0 18%, #777f85 19% 24%, #d0d4d5 25% 39%,
       #63696c 40% 46%, #c8bca6 47% 100%);
-  transform: translate3d(var(--motion-track-x), 0, 0);
+  transform: translate3d(var(--motion-track-phase-x), 0, 0);
   filter: blur(var(--motion-blur));
   transform-origin: left center;
   will-change: transform;
@@ -8077,7 +8102,7 @@ body[data-mode="ktx"] .stage-lights {
   position: absolute;
   left: 0;
   bottom: 13%;
-  width: calc(100% + 2400px);
+  width: calc(100% + 720px);
   height: 58%;
   z-index: 4;
   background:
@@ -8086,7 +8111,7 @@ body[data-mode="ktx"] .stage-lights {
       rgba(48, 55, 59, .72) 360px 368px,
       rgba(204, 210, 211, .72) 368px 374px,
       transparent 374px 720px);
-  transform: translate3d(var(--motion-near-x), 0, 0);
+  transform: translate3d(var(--motion-near-phase-x), 0, 0);
   filter: blur(var(--motion-blur));
   transform-origin: left center;
   will-change: transform;
@@ -8095,11 +8120,15 @@ body[data-mode="ktx"] .stage-lights {
 /* 고속 스트릭은 근경 이동값을 함께 쓰며 별도 시간 애니메이션을 만들지 않는다. */
 .ktx-motion-near::after {
   position: absolute;
-  inset: 48% 0 8%;
+  top: 48%;
+  bottom: 8%;
+  left: 0;
+  width: calc(100% + 310px);
   background: repeating-linear-gradient(90deg,
     transparent 0 130px, rgba(255, 255, 255, .55) 130px 156px,
     transparent 156px 310px);
   opacity: 0;
+  transform: translate3d(calc(var(--motion-streak-phase-x) - var(--motion-near-phase-x)), 0, 0);
   content: "";
 }
 
@@ -8165,7 +8194,7 @@ body[data-mode="ktx"] .stage-lights {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .ktx-motion-plate { transition-duration: 1800ms; }
+  .ktx-motion-plate[data-crossfade] { animation-duration: 1800ms; }
 
   .ktx-motion-near,
   .ktx-motion-track { filter: none; }
