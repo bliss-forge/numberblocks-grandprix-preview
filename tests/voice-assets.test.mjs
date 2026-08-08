@@ -15,7 +15,10 @@ const subwayKeys = [
   "subway-place-zoo", "subway-place-lunapark", "subway-place-baseball",
   "subway-place-palace", "subway-place-namsan", "subway-place-hanriver",
   "subway-place-skypark", "subway-place-childpark", "subway-place-lake",
-  "subway-place-assembly"
+  "subway-place-assembly",
+  // 실음원이 없는 역 4곳의 이름 낭독 폴백
+  "subway-station-moran", "subway-station-gayang",
+  "subway-station-assembly", "subway-station-bongeunsa"
 ];
 const paintKeys = [
   "paint-intro", "paint-finale", "paint-rainbow",
@@ -41,7 +44,7 @@ const ko = [
   "safety-red-light", "safety-manhole", "safety-construction",
   "safety-scooter", "safety-bicycle", "safety-car",
   "safety-wrong-order", "safety-finish",
-  "safety-look-both", "safety-tour",
+  "safety-look-both", "safety-tour", "safety-take-the-bus",
   ...srtKeys,
   ...subwayKeys,
   ...paintKeys
@@ -52,7 +55,7 @@ const en = [
   "safety-red-light", "safety-manhole", "safety-construction",
   "safety-scooter", "safety-bicycle", "safety-car",
   "safety-wrong-order", "safety-finish",
-  "safety-look-both", "safety-tour",
+  "safety-look-both", "safety-tour", "safety-take-the-bus",
   ...srtKeys,
   ...subwayKeys,
   ...paintKeys,
