@@ -8417,10 +8417,31 @@ body[data-mode="ktx"] .stage-lights {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .ktx-motion-plate[data-crossfade] { animation-duration: 1800ms; }
+  .ktx-motion-scene { --motion-vibration-y: 0px; }
+
+  .ktx-motion-plate[data-crossfade] {
+    animation: none !important;
+    transition: none !important;
+  }
+
+  .ktx-motion-plate,
+  .ktx-motion-near,
+  .ktx-motion-track,
+  .ktx-motion-station-viewport,
+  .ktx-motion-station,
+  .ktx-motion-cab-sleepers,
+  .ktx-motion-cab-catenary,
+  .ktx-motion-tunnel,
+  .ktx-motion-tunnel-portal,
+  .ktx-motion-tunnel-lights,
+  .ktx-motion-train {
+    animation: none !important;
+    transition: none !important;
+  }
 
   .ktx-motion-near,
-  .ktx-motion-track { filter: none; }
+  .ktx-motion-track,
+  .ktx-motion-tunnel-lights { filter: none !important; }
 
   .ktx-motion-near::after { display: none; }
 
@@ -8429,10 +8450,26 @@ body[data-mode="ktx"] .stage-lights {
       rotate(calc(var(--motion-brake-pitch, 0) * 1deg));
   }
 
-  .ktx-motion-scene[data-motion-moving="false"] .ktx-motion-plate,
-  .ktx-motion-scene[data-motion-moving="false"] .ktx-motion-near,
-  .ktx-motion-scene[data-motion-moving="false"] .ktx-motion-track,
-  .ktx-motion-scene[data-motion-moving="false"] .ktx-motion-train {
-    transition: none;
+}
+
+/* 가로 휴대전화에서는 사진 교차의 나가는 슬롯을 즉시 내려 큰 래스터를
+   장면 1장 + 역 1장 + 고정 열차/운전실 1장, 최대 세 장으로 제한한다. */
+@media (orientation: landscape) and (max-width: 900px) and (max-height: 500px) {
+  .ktx-motion-plate[data-crossfade="out"] {
+    display: none !important;
+  }
+
+  .ktx-motion-near,
+  .ktx-motion-track,
+  .ktx-motion-tunnel-lights {
+    filter: none;
+  }
+
+  .ktx-motion-plate,
+  .ktx-motion-near,
+  .ktx-motion-track,
+  .ktx-motion-train,
+  .ktx-motion-cab-frame {
+    will-change: auto;
   }
 }

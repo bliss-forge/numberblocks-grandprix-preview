@@ -97,15 +97,31 @@ test("완성 장면 교차는 유한 애니메이션이며 정차 시 현재 불
     /\.ktx-motion-plate\s*\{[^}]*animation[^}]*infinite/s);
 });
 
-test("동작 줄이기에서는 실사 블러·진동·속도선을 제거하고 장면 교차만 느리게 한다", () => {
+test("동작 줄이기에서는 실사 블러·진동·속도선과 장면 교차를 제거한다", () => {
   assert.match(css,
-    /prefers-reduced-motion:\s*reduce[\s\S]*\.ktx-motion-plate\[data-crossfade\]\s*\{[^}]*animation-duration:\s*1800ms/s);
+    /prefers-reduced-motion:\s*reduce[\s\S]*\.ktx-motion-plate\[data-crossfade\]\s*\{[^}]*animation:\s*none\s*!important/s);
   assert.match(css,
-    /prefers-reduced-motion:\s*reduce[\s\S]*\.ktx-motion-near[^\{]*\.ktx-motion-track\s*\{[^}]*filter:\s*none/s);
+    /prefers-reduced-motion:\s*reduce[\s\S]*\.ktx-motion-near[^\{]*\.ktx-motion-track[^\{]*\.ktx-motion-tunnel-lights\s*\{[^}]*filter:\s*none/s);
   assert.match(css,
     /prefers-reduced-motion:\s*reduce[\s\S]*\.ktx-motion-near::after\s*\{[^}]*display:\s*none/s);
   assert.match(css,
     /prefers-reduced-motion:\s*reduce[\s\S]*\.ktx-motion-train\s*\{[^}]*transform:[^}]*--motion-brake-pitch/s);
+});
+
+test("동작 줄이기는 위치 상태를 남기고 모든 실사 효과와 보간을 즉시 끈다", () => {
+  assert.match(css,
+    /prefers-reduced-motion:\s*reduce[\s\S]*\.ktx-motion-plate\[data-crossfade\]\s*\{[^}]*animation:\s*none\s*!important[^}]*transition:\s*none\s*!important/s);
+  assert.match(css,
+    /prefers-reduced-motion:\s*reduce[\s\S]*\.ktx-motion-plate,[^\{]*\.ktx-motion-near,[^\{]*\.ktx-motion-track,[^\{]*\.ktx-motion-station-viewport,[^\{]*\.ktx-motion-station,[^\{]*\.ktx-motion-cab-sleepers,[^\{]*\.ktx-motion-cab-catenary,[^\{]*\.ktx-motion-tunnel,[^\{]*\.ktx-motion-tunnel-portal,[^\{]*\.ktx-motion-tunnel-lights,[^\{]*\.ktx-motion-train\s*\{[^}]*transition:\s*none\s*!important/s);
+  assert.match(css,
+    /prefers-reduced-motion:\s*reduce[\s\S]*\.ktx-motion-scene\s*\{[^}]*--motion-vibration-y:\s*0px/s);
+  assert.match(css,
+    /prefers-reduced-motion:\s*reduce[\s\S]*\.ktx-motion-near[^\{]*\.ktx-motion-track[^\{]*\.ktx-motion-tunnel-lights\s*\{[^}]*filter:\s*none\s*!important/s);
+  assert.match(css,
+    /prefers-reduced-motion:\s*reduce[\s\S]*\.ktx-motion-near::after\s*\{[^}]*display:\s*none/s);
+  assert.match(css,
+    /\.ktx-motion-plate\s*\{[^}]*transform:\s*translate3d\(var\(--motion-plate-x/s,
+    "줄임 동작에서도 결정적 위치 변수는 계속 렌더링한다");
 });
 
 test("운전실 모션은 고정 프레임의 투명 전면창 안에서만 소실점 투영된다", () => {

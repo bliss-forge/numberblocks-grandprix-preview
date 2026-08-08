@@ -10,6 +10,7 @@ import { fileURLToPath } from "node:url";
 const require = createRequire(import.meta.url);
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const mobileCss = await readFile(resolve(root, "mobile-games.css"), "utf8");
+const stylesCss = await readFile(resolve(root, "styles.css"), "utf8");
 const contentTypes = {
   ".css": "text/css",
   ".html": "text/html",
@@ -576,6 +577,15 @@ test("가로 모바일에서 실사 기관사 화면은 조작부를 48px 이상
   assert.match(mobileCss, /\.ktx-game \.ktx-lever[\s\S]*min-width:\s*48px/);
   assert.match(mobileCss, /\.ktx-game \.ktx-speedo[\s\S]*min-height:\s*48px/);
   assert.match(mobileCss, /\.ktx-game \.ktx-next-key[\s\S]*min-height:\s*48px/);
+});
+
+test("가로 모바일 실사 모션은 사진 세 장 상한과 저비용 페인트 계약을 가진다", () => {
+  assert.match(stylesCss,
+    /@media\s*\(orientation:\s*landscape\)\s*and\s*\(max-width:\s*900px\)\s*and\s*\(max-height:\s*500px\)[\s\S]*\.ktx-motion-plate\[data-crossfade="out"\]\s*\{[^}]*display:\s*none\s*!important/s);
+  assert.match(stylesCss,
+    /@media\s*\(orientation:\s*landscape\)[\s\S]*\.ktx-motion-near[^\{]*\.ktx-motion-track[^\{]*\.ktx-motion-tunnel-lights\s*\{[^}]*filter:\s*none/s);
+  assert.match(stylesCss,
+    /@media\s*\(orientation:\s*landscape\)[\s\S]*\.ktx-motion-plate[^\{]*\.ktx-motion-near[^\{]*\.ktx-motion-track[^\{]*\.ktx-motion-train[^\{]*\.ktx-motion-cab-frame\s*\{[^}]*will-change:\s*auto/s);
 });
 
 test("844×390 실사 기관사 화면은 창과 조작부를 클리핑 없이 유지한다", async t => {
