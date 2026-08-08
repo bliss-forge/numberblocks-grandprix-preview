@@ -516,7 +516,7 @@ test("주행 위치가 플레이트 구간을 넘으면 준비된 다음 완성 
   ) >= 450);
 });
 
-test("완성 장면 교차는 정차 중 같은 진행 상태로 멈추고 재출발하면 이어진다", () => {
+test("완성 장면 교차는 정차와 다른 속도 재출발에도 시작 시간축을 유지하고 다음 교차만 새 속도를 쓴다", () => {
   const initial = createKtxJourney(3, "srt");
   const root = renderKtxScene(fakeDocument(), initial, "side");
   loadMotionSideAssets(root);
@@ -538,10 +538,23 @@ test("완성 장면 교차는 정차 중 같은 진행 상태로 멈추고 재�
   assert.equal(scene.style["--motion-crossfade-ms"], duration,
     "정차 중 애니메이션 시간축도 바꾸지 않아 불투명도 진행률 유지");
 
-  updateRealisticMotionScene(root, moving, { land: "city" });
+  const resumedSlow = { ...moving, v: 40 };
+  updateRealisticMotionScene(root, resumedSlow, { land: "city" });
   assert.equal(plates[0].dataset.crossfade, "out");
   assert.equal(plates[1].dataset.crossfade, "in");
   assert.equal(scene.style["--motion-crossfade-play-state"], "running");
+  assert.equal(scene.style["--motion-crossfade-ms"], duration,
+    "진행 중 교차는 재출발 속도가 달라도 시작할 때의 540ms 유지");
+
+  plates[0].dispatch("animationend");
+  plates[1].dispatch("animationend");
+  updateRealisticMotionScene(root,
+    { ...resumedSlow, x: 1000 }, { land: "city" });
+
+  assert.equal(scene.style["--motion-crossfade-ms"], "840ms",
+    "끝난 뒤 시작한 새 교차부터 현재 저속 시간을 사용");
+  assert.equal(plates[0].dataset.crossfade, "in");
+  assert.equal(plates[1].dataset.crossfade, "out");
 });
 
 test("다음 플레이트는 비활성 슬롯 교체 전에 별도 이미지로 선로드된다", () => {

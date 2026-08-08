@@ -71,7 +71,7 @@ function syncReadiness(controller) {
   setStatus(controller, ready ? "ready" : "pending");
 }
 
-function applyFrame(scene, state, band) {
+function applyFrame(scene, state, band, controller = null) {
   const frame = realisticMotionFrame({
     x: state.x,
     v: state.v,
@@ -94,10 +94,9 @@ function applyFrame(scene, state, band) {
   scene.style.setProperty("--motion-brake-pitch", String(frame.brakePitch));
   scene.style.setProperty("--motion-vibration-y",
     `${motionVibration(state.x, state.v, frame.moving)}px`);
-  if (frame.moving || !scene.style["--motion-crossfade-ms"]) {
-    scene.style.setProperty("--motion-crossfade-ms",
-      `${crossfadeDuration(frame.speedRatio)}ms`);
-  }
+  const durationMs = controller?.crossfade?.durationMs ??
+    crossfadeDuration(frame.speedRatio);
+  scene.style.setProperty("--motion-crossfade-ms", `${durationMs}ms`);
   scene.style.setProperty("--motion-crossfade-play-state",
     frame.moving ? "running" : "paused");
   return frame;
@@ -134,11 +133,24 @@ function motionVibration(x, v, moving) {
   return rounded(Math.sin(x * 0.16) * amplitude);
 }
 
+function finishPlateCrossfade(controller, slot) {
+  const crossfade = controller.crossfade;
+  if (!crossfade || !crossfade.remainingSlots.has(slot)) return;
+  crossfade.remainingSlots.delete(slot);
+  if (crossfade.remainingSlots.size > 0) return;
+  controller.crossfade = null;
+  controller.plates.forEach((plate, index) => {
+    delete plate.dataset.crossfade;
+    plate.hidden = index !== controller.activeSlot;
+  });
+}
+
 function resetPlateSlots(controller, catalog) {
   controller.catalog = catalog;
   controller.activeSlot = 0;
   controller.activeCatalogIndex = 0;
   controller.platePreload = null;
+  controller.crossfade = null;
   controller.failedPlateSources.clear();
   controller.plates.forEach((plate, index) => {
     plate.dataset.active = String(index === 0);
@@ -220,6 +232,11 @@ function syncPlateMotion(controller, state, frame) {
     });
     controller.plates[outgoingSlot].dataset.crossfade = "out";
     controller.plates[desiredSlot].dataset.crossfade = "in";
+    controller.crossfade = {
+      durationMs: Number.parseFloat(
+        controller.scene.style["--motion-crossfade-ms"]),
+      remainingSlots: new Set([outgoingSlot, desiredSlot])
+    };
     controller.activeSlot = desiredSlot;
     controller.activeCatalogIndex = desiredIndex;
     controller.platePreload = null;
@@ -298,6 +315,7 @@ export function buildRealisticMotionScene(document, state, onStateChange) {
     activeSlot: 0,
     activeCatalogIndex: 0,
     platePreload: null,
+    crossfade: null,
     failedPlateSources: new Set(),
     currentX: Math.max(0, state.x),
     loadedEnvironments: new Map(),
@@ -314,6 +332,10 @@ export function buildRealisticMotionScene(document, state, onStateChange) {
     return plate;
   });
   controller.plates = plates;
+  plates.forEach((plate, index) => {
+    plate.addEventListener?.("animationend", () =>
+      finishPlateCrossfade(controller, index));
+  });
 
   const track = el(document, "div", "ktx-motion-track");
   const near = el(document, "div", "ktx-motion-near");
@@ -346,7 +368,7 @@ export function updateRealisticMotionScene(root, state, band) {
   }
   controller.root = root;
   controller.view = root.dataset.view === "cab" ? "cab" : "side";
-  const frame = applyFrame(scene, state, band);
+  const frame = applyFrame(scene, state, band, controller);
 
   const pack = realisticMotionAssets(state.train.id, band.land);
   const sources = pack.scenes.slice(0, 2);
