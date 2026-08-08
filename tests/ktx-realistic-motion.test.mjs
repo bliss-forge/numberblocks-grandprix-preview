@@ -43,3 +43,32 @@ test("300km/h 이상은 상한으로 고정되고 같은 입력은 같은 프레
   assert.equal(frame.blurPx, 2.62);
   assert.deepEqual(realisticMotionFrame({ ...input }), frame);
 });
+
+test("역은 600m에서 나타나 0m에서 정위치에 단조롭게 도착한다", () => {
+  const input = { x: 0, v: 120, phase: "driving", land: "city" };
+  const progresses = [600, 320, 100, 0].map(markerDistance =>
+    realisticMotionFrame({ ...input, markerDistance }).stationProgress);
+
+  assert.deepEqual(progresses, [0, 0.47, 0.83, 1]);
+  progresses.slice(1).forEach((progress, index) => {
+    assert.ok(progress >= progresses[index]);
+  });
+  assert.equal(realisticMotionFrame({
+    ...input, x: 600, v: 0, phase: "stopped", markerDistance: 0
+  }).stationProgress, 1);
+});
+
+test("출발하면 직전 역이 600m 동안 뒤로 물러난 뒤 제거된다", () => {
+  const input = { v: 80, phase: "driving", markerDistance: 5000, land: "field" };
+  const start = realisticMotionFrame({ ...input, x: 0 });
+  const middle = realisticMotionFrame({ ...input, x: 300 });
+  const exited = realisticMotionFrame({ ...input, x: 600 });
+
+  assert.equal(start.departing, true);
+  assert.equal(start.stationProgress, 1);
+  assert.equal(middle.departing, true);
+  assert.equal(middle.stationProgress, 0.5);
+  assert.equal(exited.departing, false);
+  assert.equal(exited.stationProgress, 0);
+  assert.equal(exited.stationStage, "hidden");
+});

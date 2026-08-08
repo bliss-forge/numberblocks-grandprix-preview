@@ -77,7 +77,7 @@ test("실사 속도선은 고속 밴드에만 보이고 정차하면 모든 이�
   assert.match(css,
     /data-speed-band="fast"[^\{]*\.ktx-motion-near::after[^\{]*data-speed-band="very-fast"[^\{]*\.ktx-motion-near::after\s*\{[^}]*opacity:/s);
   assert.match(css,
-    /data-motion-moving="false"[^\{]*\.ktx-motion-plate[^\{]*\.ktx-motion-near[^\{]*\.ktx-motion-track\s*\{[^}]*transition:\s*none/s);
+    /data-motion-moving="false"[^\{]*\.ktx-motion-plate[\s\S]*?data-motion-moving="false"[^\{]*\.ktx-motion-track[\s\S]*?\{[^}]*transition:\s*none/s);
   assert.match(css,
     /data-motion-moving="true"[^\{]*\.ktx-motion-near[^\{]*data-motion-moving="true"[^\{]*\.ktx-motion-track\s*\{[^}]*transition:\s*transform\s+120ms\s+linear/s);
   assert.match(css,
@@ -106,4 +106,51 @@ test("동작 줄이기에서는 실사 블러·진동·속도선을 제거하고
     /prefers-reduced-motion:\s*reduce[\s\S]*\.ktx-motion-near::after\s*\{[^}]*display:\s*none/s);
   assert.match(css,
     /prefers-reduced-motion:\s*reduce[\s\S]*\.ktx-motion-train\s*\{[^}]*transform:[^}]*--motion-brake-pitch/s);
+});
+
+test("운전실 모션은 고정 프레임의 투명 전면창 안에서만 소실점 투영된다", () => {
+  assert.match(css,
+    /data-view="cab"\][^\{]*\.ktx-motion-scene\s*\{[^}]*inset:\s*0[^}]*opacity:\s*1/s);
+  assert.match(css,
+    /\.ktx-motion-cab-window\s*\{[^}]*position:\s*absolute[^}]*overflow:\s*hidden[^}]*clip-path:\s*polygon\([^)]*\)/s);
+  assert.match(css,
+    /\.ktx-motion-cab-rail\s*\{[^}]*top:\s*40%[^}]*transform-origin:\s*50%\s+40%/s);
+  assert.match(css,
+    /\.ktx-motion-cab-sleepers\s*\{[^}]*--cab-sleeper-gap[^}]*--cab-track-phase/s);
+  assert.match(css,
+    /\.ktx-motion-cab-catenary\s*\{[^}]*--cab-track-phase[^}]*transform-origin:\s*50%\s+40%/s);
+  assert.match(css,
+    /data-view="cab"\][^\{]*\.ktx-motion-cab-frame\s*\{[^}]*display:\s*block/s);
+  assert.match(css,
+    /\.ktx-motion-cab-frame\s*\{[^}]*position:\s*absolute[^}]*pointer-events:\s*none/s);
+});
+
+test("역 플레이트는 반복 없이 안전 크롭되고 상세 단계에서 읽을 수 있는 표지를 보인다", () => {
+  assert.match(css,
+    /\.ktx-motion-station\s*\{[^}]*object-fit:\s*cover[^}]*transform:[^}]*--station-x/s);
+  assert.match(css,
+    /data-station-visible="true"[^\{]*\.ktx-motion-station\s*\{[^}]*opacity:\s*1/s);
+  assert.doesNotMatch(css, /\.ktx-motion-station\s*\{[^}]*repeat/s);
+  assert.match(css,
+    /data-station-stage="detail"[^\{]*\.ktx-motion-station-sign[\s\S]*data-station-stage="stopped"[^\{]*\.ktx-motion-station-sign\s*\{[^}]*opacity:\s*1/s);
+  assert.match(css,
+    /data-near-suppressed="true"[^\{]*\.ktx-motion-near\s*\{[^}]*opacity:\s*0/s);
+});
+
+test("터널 벽과 조명은 터널에서만 보이고 속도 기반 위상·밀도를 사용한다", () => {
+  assert.match(css,
+    /\.ktx-motion-tunnel\s*\{[^}]*--tunnel-phase[^}]*opacity:\s*0/s);
+  assert.match(css,
+    /data-tunnel="true"[^\{]*\.ktx-motion-tunnel\s*\{[^}]*opacity:\s*1/s);
+  assert.match(css,
+    /\.ktx-motion-tunnel-lights\s*\{[^}]*--tunnel-light-gap[^}]*--tunnel-phase/s);
+  assert.match(css,
+    /data-motion-moving="false"[^\{]*\.ktx-motion-cab-sleepers[\s\S]*data-motion-moving="false"[^\{]*\.ktx-motion-cab-catenary[\s\S]*\.ktx-motion-tunnel-lights\s*\{[^}]*transition:\s*none/s);
+});
+
+test("모션 운전실 준비 상태는 정적 폴백과 무관하게 기존 배경만 숨기고 계기는 유지한다", () => {
+  assert.match(css,
+    /data-motion-realistic="ready"[^\{]*\.ktx-view-cab \.ktx-cab-backdrop[\s\S]*?\.ktx-view-cab \.ktx-cab-dash\s*\{[^}]*opacity:\s*0/s);
+  assert.doesNotMatch(css,
+    /data-motion-realistic="ready"[^\{]*\.ktx-speedo[^\{]*\{[^}]*display:\s*none/s);
 });

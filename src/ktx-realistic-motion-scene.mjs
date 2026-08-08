@@ -82,6 +82,11 @@ function applyFrame(scene, state, band, controller = null) {
   scene.dataset.land = frame.land;
   scene.dataset.speedBand = frame.speedBand;
   scene.dataset.stationStage = frame.stationStage;
+  scene.dataset.stationVisible = String(frame.stationStage !== "hidden");
+  scene.dataset.nearSuppressed = String(
+    frame.stationStage === "detail" || frame.stationStage === "stopped" || frame.departing
+  );
+  scene.dataset.tunnel = String(frame.land === "tunnel");
   scene.dataset.moving = String(frame.moving);
   scene.dataset.motionMoving = String(frame.moving);
   scene.style.setProperty("--motion-scene-x",
@@ -92,6 +97,21 @@ function applyFrame(scene, state, band, controller = null) {
   scene.style.setProperty("--motion-speed", String(frame.speedRatio));
   scene.style.setProperty("--motion-blur", `${frame.blurPx}px`);
   scene.style.setProperty("--motion-brake-pitch", String(frame.brakePitch));
+  scene.style.setProperty("--station-progress", String(frame.stationProgress));
+  scene.style.setProperty("--station-x", `${rounded((1 - frame.stationProgress) * 35)}%`);
+  scene.style.setProperty("--station-y", `${rounded((1 - frame.stationProgress) * -18)}%`);
+  scene.style.setProperty("--station-scale", String(rounded(.28 + frame.stationProgress * .72)));
+  scene.style.setProperty("--cab-track-phase", `${rounded(-frame.offsets.track)}px`);
+  scene.style.setProperty("--cab-sleeper-gap", `${rounded(42 - frame.speedRatio * 12)}px`);
+  scene.style.setProperty("--tunnel-light-gap", `${rounded(98 - frame.speedRatio * 42)}px`);
+  scene.style.setProperty("--tunnel-phase",
+    frame.land === "tunnel" ? `${rounded(-frame.offsets.track)}px` : "0px");
+  scene.style.setProperty("--tunnel-progress",
+    frame.land === "tunnel" ? String(rounded(Math.min(1, Math.max(0, state.x / 600)))) : "0");
+  scene.style.setProperty("--tunnel-scale",
+    frame.land === "tunnel"
+      ? String(rounded(.18 + Math.min(1, Math.max(0, state.x / 600)) * 1.15))
+      : ".18");
   scene.style.setProperty("--motion-vibration-y",
     `${motionVibration(state.x, state.v, frame.moving)}px`);
   const durationMs = controller?.crossfade?.durationMs ??
@@ -99,6 +119,10 @@ function applyFrame(scene, state, band, controller = null) {
   scene.style.setProperty("--motion-crossfade-ms", `${durationMs}ms`);
   scene.style.setProperty("--motion-crossfade-play-state",
     frame.moving ? "running" : "paused");
+  if (controller?.station) {
+    controller.station.dataset.lifecycle = frame.departing
+      ? "departing" : frame.stationStage;
+  }
   return frame;
 }
 
@@ -341,13 +365,25 @@ export function buildRealisticMotionScene(document, state, onStateChange) {
   const near = el(document, "div", "ktx-motion-near");
   const station = motionImage(document, "ktx-motion-station",
     pack.station[0], "", controller);
+  const stationSign = el(document, "div", "ktx-motion-station-sign");
+  stationSign.textContent = "SRT 역";
+  const cabWindow = el(document, "div", "ktx-motion-cab-window");
+  const cabRailLeft = el(document, "div", "ktx-motion-cab-rail ktx-motion-cab-rail-left");
+  const cabRailRight = el(document, "div", "ktx-motion-cab-rail ktx-motion-cab-rail-right");
+  const cabSleepers = el(document, "div", "ktx-motion-cab-sleepers");
+  const cabCatenary = el(document, "div", "ktx-motion-cab-catenary");
+  const tunnel = el(document, "div", "ktx-motion-tunnel");
+  const tunnelPortal = el(document, "div", "ktx-motion-tunnel-portal");
+  const tunnelLights = el(document, "div", "ktx-motion-tunnel-lights");
+  tunnel.append(tunnelPortal, tunnelLights);
+  cabWindow.append(cabRailLeft, cabRailRight, cabSleepers, cabCatenary, tunnel);
   const train = motionImage(document, "ktx-motion-train",
     pack.train, "실사 SRT 열차", controller);
   const cabFrame = motionImage(document, "ktx-motion-cab-frame",
     pack.cabMask, "실사 SRT 운전실", controller);
   Object.assign(controller, { station, train, cabFrame });
 
-  scene.append(...plates, track, near, station, train, cabFrame);
+  scene.append(...plates, station, stationSign, track, near, cabWindow, train, cabFrame);
   scene.dataset.readiness = "pending";
   applyFrame(scene, state, { land: state.land });
   controllers.set(scene, controller);

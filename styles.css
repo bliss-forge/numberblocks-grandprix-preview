@@ -8032,6 +8032,11 @@ body[data-mode="ktx"] .stage-lights {
   opacity: 1;
 }
 
+.ktx-game[data-motion-realistic="ready"][data-view="cab"] .ktx-motion-scene {
+  inset: 0;
+  opacity: 1;
+}
+
 /* 모든 사진 슬롯은 같은 화면을 완전히 덮는다. 120px 오버스캔 안에서만
    팬하므로 어떤 위치에서도 사진 모서리나 사진끼리 맞닿은 경계가 보이지 않는다. */
 .ktx-motion-plate {
@@ -8162,9 +8167,179 @@ body[data-mode="ktx"] .stage-lights {
   height: 100%;
   object-fit: cover;
   filter: none;
+  pointer-events: none;
 }
 
-.ktx-motion-station { display: none; }
+.ktx-motion-station {
+  position: absolute;
+  left: -120px;
+  top: 0;
+  z-index: 2;
+  display: block;
+  width: calc(100% + 240px);
+  height: 100%;
+  object-fit: cover;
+  object-position: center center;
+  opacity: 0;
+  transform: translate3d(var(--station-x, 35%), var(--station-y, -18%), 0)
+    scale(var(--station-scale, .28));
+  transform-origin: 50% 40%;
+  transition: transform 120ms linear, opacity 120ms linear;
+  will-change: transform, opacity;
+}
+
+.ktx-motion-scene[data-station-visible="true"] .ktx-motion-station { opacity: 1; }
+
+.ktx-motion-station-sign {
+  position: absolute;
+  left: 50%;
+  top: 21%;
+  z-index: 5;
+  min-width: 144px;
+  padding: 9px 18px;
+  border: 4px solid #f7f8f9;
+  border-radius: 7px;
+  color: #fff;
+  font: 900 clamp(17px, 2vw, 28px)/1.1 var(--display-font);
+  text-align: center;
+  background: #24475f;
+  box-shadow: 0 5px 14px rgba(0, 0, 0, .3);
+  opacity: 0;
+  transform: translateX(-50%);
+}
+
+.ktx-motion-scene[data-station-stage="detail"] .ktx-motion-station-sign,
+.ktx-motion-scene[data-station-stage="stopped"] .ktx-motion-station-sign {
+  opacity: 1;
+}
+
+.ktx-motion-scene[data-near-suppressed="true"] .ktx-motion-near {
+  opacity: 0;
+}
+
+/* 전면창 안의 절차적 선로만 소실점(화면 높이 40%)에서 하단으로 확대된다. */
+.ktx-motion-cab-window {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: none;
+  overflow: hidden;
+  clip-path: polygon(13% 7%, 87% 7%, 78% 66%, 22% 66%);
+  pointer-events: none;
+}
+
+.ktx-motion-cab-rail {
+  position: absolute;
+  left: 50%;
+  top: 40%;
+  width: 9px;
+  height: 78%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #2a2d30, #d9dde0 46%, #45494d);
+  box-shadow: 0 0 8px rgba(255, 255, 255, .45);
+  transform-origin: 50% 40%;
+}
+
+.ktx-motion-cab-rail-left { transform: translateX(-50%) rotate(15deg); }
+.ktx-motion-cab-rail-right { transform: translateX(-50%) rotate(-15deg); }
+
+.ktx-motion-cab-sleepers {
+  position: absolute;
+  left: 19%;
+  right: 19%;
+  top: 40%;
+  bottom: -12%;
+  background: repeating-linear-gradient(to bottom,
+    transparent 0 calc(var(--cab-sleeper-gap, 42px) - 8px),
+    rgba(46, 43, 40, .88) calc(var(--cab-sleeper-gap, 42px) - 8px)
+      var(--cab-sleeper-gap, 42px));
+  transform: perspective(360px) rotateX(58deg)
+    translate3d(0, var(--cab-track-phase, 0px), 0);
+  transform-origin: 50% 40%;
+  transition: transform 120ms linear;
+}
+
+.ktx-motion-cab-catenary {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  width: 44%;
+  height: 100%;
+  background:
+    linear-gradient(90deg,
+      transparent 49.6%, rgba(35, 39, 43, .78) 49.8% 50.2%, transparent 50.4%),
+    repeating-linear-gradient(to bottom,
+      transparent 0 72px, rgba(35, 39, 43, .64) 73px 76px);
+  background-position: center 0, center var(--cab-track-phase, 0px);
+  clip-path: polygon(48% 0, 52% 0, 100% 100%, 0 100%);
+  transform: translateX(-50%);
+  transform-origin: 50% 40%;
+  transition: background-position 120ms linear;
+}
+
+.ktx-motion-tunnel {
+  --tunnel-wall-offset: var(--tunnel-phase, 0px);
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  overflow: hidden;
+  background: repeating-linear-gradient(to bottom,
+    #171a1e 0 46px, #2b3036 47px 50px);
+  background-position: center var(--tunnel-wall-offset);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.ktx-motion-scene[data-tunnel="true"] .ktx-motion-tunnel { opacity: 1; }
+
+.ktx-motion-tunnel-portal {
+  position: absolute;
+  left: 50%;
+  top: 40%;
+  width: 72%;
+  height: 82%;
+  border: clamp(18px, 5vw, 72px) solid #24282d;
+  border-bottom-width: clamp(28px, 8vw, 108px);
+  border-radius: 46% 46% 9% 9%;
+  background: transparent;
+  transform: translate(-50%, -50%) scale(var(--tunnel-scale, .18));
+  transform-origin: 50% 40%;
+  transition: transform 120ms linear;
+}
+
+.ktx-motion-tunnel-lights {
+  position: absolute;
+  inset: 0 4%;
+  background:
+    repeating-linear-gradient(to bottom,
+      transparent 0 calc(var(--tunnel-light-gap, 98px) - 6px),
+      rgba(255, 241, 174, .92) calc(var(--tunnel-light-gap, 98px) - 6px)
+        var(--tunnel-light-gap, 98px));
+  background-position: center var(--tunnel-phase, 0px);
+  filter: drop-shadow(0 0 7px rgba(255, 224, 124, .7));
+  transition: background-position 120ms linear;
+}
+
+.ktx-game[data-view="cab"] .ktx-motion-cab-window,
+.ktx-game[data-view="cab"] .ktx-motion-cab-frame {
+  display: block;
+}
+
+.ktx-game[data-view="cab"] .ktx-motion-cab-frame {
+  position: absolute;
+  pointer-events: none;
+}
+
+.ktx-game[data-view="cab"] .ktx-motion-train,
+.ktx-game[data-view="cab"] .ktx-motion-track,
+.ktx-game[data-view="cab"] .ktx-motion-near {
+  display: none;
+}
+
+.ktx-game[data-view="side"] .ktx-motion-cab-window,
+.ktx-game[data-view="side"] .ktx-motion-cab-frame {
+  display: none;
+}
 
 .ktx-motion-scene[data-motion-moving="true"] .ktx-motion-near,
 .ktx-motion-scene[data-motion-moving="true"] .ktx-motion-track {
@@ -8178,7 +8353,12 @@ body[data-mode="ktx"] .stage-lights {
 
 .ktx-motion-scene[data-motion-moving="false"] .ktx-motion-plate,
 .ktx-motion-scene[data-motion-moving="false"] .ktx-motion-near,
-.ktx-motion-scene[data-motion-moving="false"] .ktx-motion-track {
+.ktx-motion-scene[data-motion-moving="false"] .ktx-motion-track,
+.ktx-motion-scene[data-motion-moving="false"] .ktx-motion-station,
+.ktx-motion-scene[data-motion-moving="false"] .ktx-motion-cab-sleepers,
+.ktx-motion-scene[data-motion-moving="false"] .ktx-motion-cab-catenary,
+.ktx-motion-scene[data-motion-moving="false"] .ktx-motion-tunnel-portal,
+.ktx-motion-scene[data-motion-moving="false"] .ktx-motion-tunnel-lights {
   transition: none;
   will-change: auto;
 }
@@ -8190,6 +8370,19 @@ body[data-mode="ktx"] .stage-lights {
 
 /* 모션 장면이 준비되면 정적 사진은 뒤에 폴백으로 남기되 페인트하지 않는다. */
 .ktx-game[data-motion-realistic="ready"][data-view="side"] .ktx-real-scene {
+  opacity: 0;
+}
+
+.ktx-game[data-motion-realistic="ready"][data-view="cab"] .ktx-real-scene {
+  opacity: 0;
+}
+
+/* 모션 자산이 먼저 준비돼도 뒤늦은 정적/SVG 폴백이 전면창을 덮지 않는다.
+   실제 계기와 조작부는 이 목록에 넣지 않아 계속 고정·상호작용 가능하다. */
+.ktx-game[data-motion-realistic="ready"] .ktx-view-cab .ktx-cab-backdrop,
+.ktx-game[data-motion-realistic="ready"] .ktx-view-cab .ktx-cab-world,
+.ktx-game[data-motion-realistic="ready"] .ktx-view-cab .ktx-cab-frame,
+.ktx-game[data-motion-realistic="ready"] .ktx-view-cab .ktx-cab-dash {
   opacity: 0;
 }
 

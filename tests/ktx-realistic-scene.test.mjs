@@ -156,6 +156,18 @@ test("SRT는 분리 실사 모션 리그와 정적 폴백을 함께 마운트한
   assert.ok(root.querySelector(".ktx-real-exterior-image"), "정적 실사 폴백 유지");
 });
 
+test("SRT 모션 리그는 운전실 전면창 투영과 역·터널 장면 객체를 마운트한다", () => {
+  const root = renderKtxScene(fakeDocument(), createKtxJourney(3, "srt"), "cab");
+
+  assert.ok(root.querySelector(".ktx-motion-cab-window"));
+  assert.equal(root.querySelectorAll(".ktx-motion-cab-rail").length, 2);
+  assert.ok(root.querySelector(".ktx-motion-cab-sleepers"));
+  assert.ok(root.querySelector(".ktx-motion-cab-catenary"));
+  assert.ok(root.querySelector(".ktx-motion-tunnel"));
+  assert.ok(root.querySelector(".ktx-motion-tunnel-lights"));
+  assert.ok(root.querySelector(".ktx-motion-station-sign"));
+});
+
 test("KTX는 분리 실사 모션 리그와 모션 자산 요청을 만들지 않는다", () => {
   const document = fakeDocument();
   const root = renderKtxScene(document, createKtxJourney(3, "ktx"), "side");
@@ -435,6 +447,84 @@ test("정차한 실사 외부 모션은 모든 보간 효과를 즉시 멈춘다
   assert.equal(scene.style["--motion-speed"], "0");
   assert.equal(scene.style["--motion-blur"], "0px");
   assert.equal(scene.style["--motion-brake-pitch"], "0");
+});
+
+test("역 접근·정차·출발은 진행률과 근경 억제를 하나의 수명주기로 동기화한다", () => {
+  const initial = createKtxJourney(3, "srt");
+  const root = renderKtxScene(fakeDocument(), initial, "side");
+  const scene = root.querySelector(".ktx-motion-scene");
+  const station = root.querySelector(".ktx-motion-station");
+
+  updateRealisticMotionScene(root,
+    { ...initial, phase: "driving", x: 100, v: 120, markerDistance: 600 },
+    { land: "city" });
+  assert.equal(scene.style["--station-progress"], "0");
+  assert.equal(scene.dataset.nearSuppressed, "false");
+
+  updateRealisticMotionScene(root,
+    { ...initial, phase: "stopping", x: 500, v: 40, markerDistance: 100 },
+    { land: "city" });
+  assert.equal(scene.style["--station-progress"], "0.83");
+  assert.equal(scene.dataset.nearSuppressed, "true");
+  assert.equal(scene.dataset.stationVisible, "true");
+
+  updateRealisticMotionScene(root,
+    { ...initial, phase: "stopped", x: 600, v: 0, markerDistance: 0 },
+    { land: "city" });
+  const stoppedProgress = scene.style["--station-progress"];
+  assert.equal(stoppedProgress, "1");
+  assert.equal(scene.dataset.motionMoving, "false");
+  assert.equal(station.dataset.lifecycle, "stopped");
+
+  updateRealisticMotionScene(root,
+    { ...initial, phase: "driving", x: 300, v: 80, markerDistance: 5000 },
+    { land: "field" });
+  assert.equal(scene.style["--station-progress"], "0.5");
+  assert.equal(station.dataset.lifecycle, "departing");
+
+  updateRealisticMotionScene(root,
+    { ...initial, phase: "driving", x: 600, v: 80, markerDistance: 4400 },
+    { land: "field" });
+  assert.equal(scene.dataset.stationVisible, "false");
+  assert.equal(station.dataset.lifecycle, "hidden");
+});
+
+test("운전실 선로와 터널 위상은 실제 위치를 따르고 정차 시 멈춘다", () => {
+  const initial = createKtxJourney(3, "srt");
+  const root = renderKtxScene(fakeDocument(), initial, "cab");
+  const scene = root.querySelector(".ktx-motion-scene");
+
+  updateRealisticMotionScene(root,
+    { ...initial, phase: "driving", x: 100, v: 80, markerDistance: 900 },
+    { land: "tunnel" });
+  const slowTrack = Number.parseFloat(scene.style["--cab-track-phase"]);
+  const slowTunnel = Number.parseFloat(scene.style["--tunnel-phase"]);
+  const slowSleeperGap = Number.parseFloat(scene.style["--cab-sleeper-gap"]);
+  const slowTunnelGap = Number.parseFloat(scene.style["--tunnel-light-gap"]);
+  assert.equal(scene.dataset.tunnel, "true");
+
+  updateRealisticMotionScene(root,
+    { ...initial, phase: "driving", x: 300, v: 240, markerDistance: 700 },
+    { land: "tunnel" });
+  assert.ok(Number.parseFloat(scene.style["--cab-track-phase"]) < slowTrack);
+  assert.ok(Number.parseFloat(scene.style["--tunnel-phase"]) < slowTunnel,
+    "터널 포털/벽 위상은 진행 방향으로 단조 이동");
+  assert.ok(Number.parseFloat(scene.style["--cab-sleeper-gap"]) < slowSleeperGap);
+  assert.ok(Number.parseFloat(scene.style["--tunnel-light-gap"]) < slowTunnelGap);
+
+  const stoppedTrack = scene.style["--cab-track-phase"];
+  const stoppedTunnel = scene.style["--tunnel-phase"];
+  updateRealisticMotionScene(root,
+    { ...initial, phase: "stopped", x: 300, v: 0, markerDistance: 0 },
+    { land: "tunnel" });
+  assert.equal(scene.style["--cab-track-phase"], stoppedTrack);
+  assert.equal(scene.style["--tunnel-phase"], stoppedTunnel);
+
+  updateRealisticMotionScene(root,
+    { ...initial, phase: "driving", x: 400, v: 120, markerDistance: 600 },
+    { land: "city" });
+  assert.equal(scene.dataset.tunnel, "false");
+  assert.equal(scene.style["--tunnel-phase"], "0px");
 });
 
 test("고속 진동은 160km/h 위에서만 생기고 1.5px를 넘지 않는다", () => {
