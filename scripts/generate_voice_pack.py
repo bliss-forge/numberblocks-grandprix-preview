@@ -285,6 +285,42 @@ EN = {
 }
 
 
+KO_DELIVERY = {
+    "delivery-intro": "택배가 왔어요! 목표 호수로 배달해요.",
+    "delivery-go": "출발!",
+    "delivery-blocked": "그쪽은 길이 아니에요. 다시 만들어 봐요.",
+    "delivery-wrong-house": "여기가 아니에요. 목표 호수를 다시 봐요.",
+    "delivery-arrive": "도착했어요! 이제 엘리베이터를 타요.",
+    "delivery-floor-wrong": "그 층이 아니에요. 목표 층을 눌러요.",
+    "delivery-floor-ok": "다 왔어요! 문이 열려요.",
+    "delivery-door-wrong": "이 문이 아니에요. 라벨과 같은 호수를 찾아요.",
+    "delivery-bell": "딩동! 택배 왔어요.",
+    "delivery-parcel-wrong": "친구가 기다리는 물건이 아니에요. 다시 골라요.",
+    "delivery-parcel-ok": "고마워요! 잘 전달했어요.",
+    "delivery-finale": "오늘 배달을 모두 마쳤어요. 정말 잘했어요!",
+    "delivery-parcel-fruit": "과일 상자",
+    "delivery-parcel-cosmetic": "화장품 상자",
+    "delivery-parcel-toy": "장난감 상자",
+}
+
+EN_DELIVERY = {
+    "delivery-intro": "A parcel is here! Drive it to the right home.",
+    "delivery-go": "Let's go!",
+    "delivery-blocked": "That way is blocked. Try another path.",
+    "delivery-wrong-house": "This is not the one. Check the number again.",
+    "delivery-arrive": "We are here! Now take the elevator.",
+    "delivery-floor-wrong": "That is not the floor. Press the goal floor.",
+    "delivery-floor-ok": "Here we are! The doors are opening.",
+    "delivery-door-wrong": "Not this door. Find the same number as the label.",
+    "delivery-bell": "Ding dong! Delivery!",
+    "delivery-parcel-wrong": "That is not what your friend wants. Try again.",
+    "delivery-parcel-ok": "Thank you! Well delivered.",
+    "delivery-finale": "All parcels delivered. Great job today!",
+    "delivery-parcel-fruit": "fruit box",
+    "delivery-parcel-cosmetic": "lotion box",
+    "delivery-parcel-toy": "toy box",
+}
+
 async def render_pack(lang, lines, voice, rate, pitch):
     output = ROOT / lang
     output.mkdir(parents=True, exist_ok=True)
@@ -310,11 +346,13 @@ async def main():
     await render_pack("ko", KO_SRT, KO_VOICE, "-5%", "+2Hz")
     await render_pack("ko", KO_SUBWAY, KO_VOICE, "-5%", "+2Hz")
     await render_pack("ko", KO_PAINT, KO_VOICE, "-4%", "+3Hz")
+    await render_pack("ko", KO_DELIVERY, KO_VOICE, "-4%", "+3Hz")
     await render_pack("en", EN_PROMPTS, EN_VOICE, "-4%", "+0Hz")
     await render_pack("en", EN_SAFETY, EN_VOICE, "-5%", "+2Hz")
     await render_pack("en", EN_SRT, EN_VOICE, "-5%", "+2Hz")
     await render_pack("en", EN_SUBWAY, EN_VOICE, "-5%", "+2Hz")
     await render_pack("en", EN_PAINT, EN_VOICE, "-4%", "+3Hz")
+    await render_pack("en", EN_DELIVERY, EN_VOICE, "-4%", "+3Hz")
     await render_pack("en", EN, EN_VOICE, "+4%", "+7Hz")
 
 

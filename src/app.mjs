@@ -1992,6 +1992,7 @@ function startDeliveryRun() {
   dom.hint.textContent = "";
   setPhase("playing");
   audio.playSfx("win");
+  void audio.playPrompt("delivery-intro");
   showHint(`${state.delivery.order.unit}호로 택배를 배달해요!`, 2200);
 }
 
@@ -2035,6 +2036,7 @@ function finishDrive(events) {
   const arrived = events.find(event => event.type === "drive-arrived");
   if (arrived) {
     audio.playSfx("win");
+    void audio.playPrompt("delivery-arrive");
     showHint(`${arrived.unit}호에 도착! 이제 ${arrived.floor}층으로 올라가요.`, 2000);
     holdDelivery(DELIVERY_ARRIVE_MS);
     return;
@@ -2044,11 +2046,13 @@ function finishDrive(events) {
   const miss = events.find(event => event.type === "drive-miss");
   if (miss) {
     audio.playSfx("pop");
+    void audio.playPrompt("delivery-wrong-house");
     showHint(`여기는 ${miss.unit}호예요. 목표는 ${miss.want}호!`, 1900);
     return;
   }
   if (events.some(event => event.type === "drive-blocked")) {
     audio.playSfx("pop");
+    void audio.playPrompt("delivery-blocked");
     showHint("그쪽은 길이 아니에요. 다시 만들어 봐요!", 1800);
     return;
   }
@@ -2069,6 +2073,9 @@ function handleDeliveryEvents(events) {
       case "command-added":
         audio.playSfx("key");
         break;
+      case "command-cleared":
+        audio.playSfx("pop");
+        break;
       case "command-full":
         audio.playSfx("pop");
         showHint("명령은 네 칸까지 담을 수 있어요.", 1500);
@@ -2079,10 +2086,12 @@ function handleDeliveryEvents(events) {
         break;
       case "floor-wrong":
         audio.playSfx("pop");
+        void audio.playPrompt("delivery-floor-wrong");
         showHint(`${event.digit}층이 아니에요. ${event.target}층을 눌러요!`, 1900);
         break;
       case "elevator-arrived":
         audio.playSfx("door");
+        void audio.playPrompt("delivery-floor-ok");
         showHint(`${event.to}층이에요! 문이 열려요.`, 1800);
         break;
       case "corridor-focus":
@@ -2094,23 +2103,33 @@ function handleDeliveryEvents(events) {
         break;
       case "corridor-wrong":
         audio.playSfx("bell");
+        void audio.playPrompt("delivery-door-wrong");
         showHint(`여기는 ${event.unit}호예요. ${event.want}호를 찾아요!`, 1900);
         break;
-      case "corridor-correct":
+      case "corridor-correct": {
         audio.playSfx("bell");
+        const asked = parcelById(state.delivery.order.parcel);
+        void audio.playPrompt("delivery-bell").then(() => {
+          if (state.mode === "delivery" && asked) {
+            void audio.playPrompt(`delivery-parcel-${asked.id}`);
+          }
+        });
         showHint("딩동! 문이 열려요.", 1600);
         break;
+      }
       case "tray-focus":
         audio.playSfx("key");
         break;
       case "parcel-wrong": {
         const wanted = parcelById(event.want);
         audio.playSfx("pop");
+        void audio.playPrompt("delivery-parcel-wrong");
         showHint(`친구는 ${wanted ? wanted.label : "다른 물건"}를 기다려요!`, 2000);
         break;
       }
       case "parcel-correct":
         audio.playSfx("win");
+        void audio.playPrompt("delivery-parcel-ok");
         break;
       case "delivered":
         state.stars += 1;
@@ -2121,6 +2140,7 @@ function handleDeliveryEvents(events) {
         break;
       case "finale":
         audio.playSfx("jingle");
+        void audio.playPrompt("delivery-finale");
         break;
       default:
         break;
@@ -2156,6 +2176,7 @@ function deliveryPush(direction) {
 
 function deliveryGo() {
   if (!deliveryActionable()) return;
+  if (state.delivery.drive.queue.length > 0) void audio.playPrompt("delivery-go");
   handleDeliveryEvents(runDeliveryCommands(state.delivery));
 }
 

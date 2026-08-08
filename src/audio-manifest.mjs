@@ -118,6 +118,32 @@ const paint = Object.fromEntries(
   ])
 );
 
+const delivery = Object.fromEntries(
+  [
+    "delivery-intro",
+    "delivery-go",
+    "delivery-blocked",
+    "delivery-wrong-house",
+    "delivery-arrive",
+    "delivery-floor-wrong",
+    "delivery-floor-ok",
+    "delivery-door-wrong",
+    "delivery-bell",
+    "delivery-parcel-wrong",
+    "delivery-parcel-ok",
+    "delivery-finale",
+    "delivery-parcel-fruit",
+    "delivery-parcel-cosmetic",
+    "delivery-parcel-toy",
+  ].map(key => [
+    key,
+    {
+      ko: `assets/audio/voice/ko/${key}.mp3`,
+      en: `assets/audio/voice/en/${key}.mp3`
+    }
+  ])
+);
+
 export const VOICE = Object.freeze({
   "prompt-count": { ko: "assets/audio/voice/ko/prompt-count.mp3" },
   "prompt-add": { ko: "assets/audio/voice/ko/prompt-add.mp3" },
@@ -130,6 +156,7 @@ export const VOICE = Object.freeze({
   ...srt,
   ...subway,
   ...paint,
+  ...delivery,
   ...numbers,
   ...Object.fromEntries(
     Array.from({ length: 4 }, (_, index) => [
