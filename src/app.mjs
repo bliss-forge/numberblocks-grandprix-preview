@@ -138,6 +138,19 @@ import {
   updatePaintPlay
 } from "./paint-play-scene.mjs";
 import { PAINT_COLORS, PAINT_TUBES, josa } from "./paint-play-data.mjs";
+import {
+  clearCommands as clearDeliveryCommands,
+  createDelivery,
+  deliverParcel,
+  moveCorridorFocus,
+  moveTrayFocus,
+  parcelById,
+  pressFloor,
+  pushCommand as pushDeliveryCommand,
+  ringBell as ringDeliveryBell,
+  runCommands as runDeliveryCommands
+} from "./delivery-model.mjs";
+import { deliveryCaption, renderDelivery } from "./delivery-scene.mjs";
 
 const WALK_REPEAT_MS = 110;
 const audio = new AudioManager();
@@ -191,6 +204,9 @@ const state = {
   paint: null,
   paintScene: null,
   paintBusy: false,   // 자동 혼합→채색 연출 동안 입력 잠금
+  delivery: null,
+  deliveryScene: null,
+  deliveryBusy: false,   // 주행 연출·도착 여운 동안 입력 잠금
   paintFinaleAt: 0,   // 피날레 화면이 뜬 시각(최소 체류 계산용)
   wrongCount: 0,
   round: 0,
@@ -1923,6 +1939,261 @@ function activatePaintFocus() {
   handlePaintEvents(paintRinseJar(state.paint));
 }
 
+/* ── 택배 왔어요! ─────────────────────────────────────────────────────
+   네 단계(운전 → 엘리베이터 → 호수 찾기 → 전달)를 모델이 판정하고, 여기서는
+   그 이벤트를 소리·자막·연출로 옮긴다. 벌점은 어디에도 없다 — 틀리면 다시
+   알려 주고 다시 시킨다. 연출 중에는 deliveryBusy 로 입력을 잠근다. */
+
+const DRIVE_STEP_MS = 420;      // 한 칸 굴러가는 시간
+const DELIVERY_ARRIVE_MS = 1000; // 도착 여운
+const DELIVERY_HANDOFF_MS = 1400; // 전달 성공 여운
+
+function refreshDeliveryScene() {
+  if (!state.delivery) return;
+  state.deliveryScene = renderDelivery(document, state.delivery);
+  dom.stage.replaceChildren(state.deliveryScene);
+  dom.problem.textContent = deliveryCaption(state.delivery);
+}
+
+// 모델은 이미 다음 단계로 넘어가 있을 수 있다. 연출을 위해 잠시 이전 단계 화면을 그린다.
+function renderDeliveryAs(phase) {
+  const model = state.delivery;
+  if (!model) return;
+  const real = model.phase;
+  model.phase = phase;
+  refreshDeliveryScene();
+  model.phase = real;
+}
+
+function holdDelivery(delayMs) {
+  const round = state.round;
+  state.deliveryBusy = true;
+  schedule(() => {
+    if (state.round !== round || state.mode !== "delivery" || !state.delivery) return;
+    state.deliveryBusy = false;
+    refreshDeliveryScene();
+  }, delayMs);
+}
+
+function startDeliveryRun() {
+  stopSafetyHold();
+  clearTimers();
+  audio.cancel();
+  state.round += 1;
+  state.problem = null;
+  state.buffer = "";
+  const seed = Math.floor(Math.random() * 0x100000000);
+  state.delivery = createDelivery(state.difficulty, seed);
+  state.deliveryBusy = false;
+  dom.stage.setAttribute("aria-live", "off");
+  refreshDeliveryScene();
+  dom.cheer.classList.remove("show");
+  dom.hint.className = "toast";
+  dom.hint.textContent = "";
+  setPhase("playing");
+  audio.playSfx("win");
+  showHint(`${state.delivery.order.unit}호로 택배를 배달해요!`, 2200);
+}
+
+// 쌓아 둔 명령을 한 칸씩 굴린다. 판정은 모델이 이미 끝냈고 여기선 보여 주기만 한다.
+function animateDrive(path, onDone) {
+  const model = state.delivery;
+  const round = state.round;
+  const finalCell = { ...model.drive.truck };
+  const finalFacing = model.drive.facing;
+  let index = 0;
+
+  state.deliveryBusy = true;
+
+  const step = () => {
+    if (state.round !== round || state.mode !== "delivery" || !state.delivery) return;
+    if (index >= path.length) {
+      model.drive.truck = finalCell;
+      model.drive.facing = finalFacing;
+      renderDeliveryAs("drive");
+      onDone();
+      return;
+    }
+    const point = path[index];
+    index += 1;
+    model.drive.truck = { x: point.x, y: point.y };
+    model.drive.facing = point.facing;
+    renderDeliveryAs("drive");
+    audio.playSfx("pop");
+    schedule(step, DRIVE_STEP_MS);
+  };
+
+  if (path.length === 0) {
+    renderDeliveryAs("drive");
+    onDone();
+    return;
+  }
+  step();
+}
+
+function finishDrive(events) {
+  const arrived = events.find(event => event.type === "drive-arrived");
+  if (arrived) {
+    audio.playSfx("win");
+    showHint(`${arrived.unit}호에 도착! 이제 ${arrived.floor}층으로 올라가요.`, 2000);
+    holdDelivery(DELIVERY_ARRIVE_MS);
+    return;
+  }
+
+  state.deliveryBusy = false;
+  const miss = events.find(event => event.type === "drive-miss");
+  if (miss) {
+    audio.playSfx("pop");
+    showHint(`여기는 ${miss.unit}호예요. 목표는 ${miss.want}호!`, 1900);
+    return;
+  }
+  if (events.some(event => event.type === "drive-blocked")) {
+    audio.playSfx("pop");
+    showHint("그쪽은 길이 아니에요. 다시 만들어 봐요!", 1800);
+    return;
+  }
+  showHint("집 앞까지 가 볼까요?", 1600);
+}
+
+function handleDeliveryEvents(events) {
+  if (events.length === 0) return;
+
+  const path = events.find(event => event.type === "drive-path");
+  if (path) {
+    animateDrive(path.path, () => finishDrive(events));
+    return;
+  }
+
+  for (const event of events) {
+    switch (event.type) {
+      case "command-added":
+        audio.playSfx("key");
+        break;
+      case "command-full":
+        audio.playSfx("pop");
+        showHint("명령은 네 칸까지 담을 수 있어요.", 1500);
+        break;
+      case "command-empty":
+        audio.playSfx("pop");
+        showHint("방향 버튼으로 길을 먼저 만들어요!", 1600);
+        break;
+      case "floor-wrong":
+        audio.playSfx("pop");
+        showHint(`${event.digit}층이 아니에요. ${event.target}층을 눌러요!`, 1900);
+        break;
+      case "elevator-arrived":
+        audio.playSfx("door");
+        showHint(`${event.to}층이에요! 문이 열려요.`, 1800);
+        break;
+      case "corridor-focus":
+        audio.playSfx("key");
+        break;
+      case "corridor-edge":
+      case "tray-edge":
+        audio.playSfx("pop");
+        break;
+      case "corridor-wrong":
+        audio.playSfx("bell");
+        showHint(`여기는 ${event.unit}호예요. ${event.want}호를 찾아요!`, 1900);
+        break;
+      case "corridor-correct":
+        audio.playSfx("bell");
+        showHint("딩동! 문이 열려요.", 1600);
+        break;
+      case "tray-focus":
+        audio.playSfx("key");
+        break;
+      case "parcel-wrong": {
+        const wanted = parcelById(event.want);
+        audio.playSfx("pop");
+        showHint(`친구는 ${wanted ? wanted.label : "다른 물건"}를 기다려요!`, 2000);
+        break;
+      }
+      case "parcel-correct":
+        audio.playSfx("win");
+        break;
+      case "delivered":
+        state.stars += 1;
+        dom.stars.textContent = String(state.stars);
+        showHint(`고마워요! 택배 ${event.delivered}개 전달했어요.`, 2000);
+        break;
+      case "next-order":
+        break;
+      case "finale":
+        audio.playSfx("jingle");
+        break;
+      default:
+        break;
+    }
+  }
+
+  // 초인종·전달 성공은 그 장면을 잠깐 남겨 둔다. 나머지는 곧바로 새로 그린다.
+  if (events.some(event => event.type === "corridor-correct")) {
+    holdDelivery(DELIVERY_ARRIVE_MS);
+    return;
+  }
+  if (events.some(event => event.type === "parcel-correct")) {
+    holdDelivery(DELIVERY_HANDOFF_MS);
+    return;
+  }
+  if (events.some(event => event.type === "elevator-arrived")) {
+    renderDeliveryAs("elevator");
+    holdDelivery(DELIVERY_ARRIVE_MS);
+    return;
+  }
+  refreshDeliveryScene();
+}
+
+function deliveryActionable() {
+  return state.phase === "playing" && state.mode === "delivery" &&
+    Boolean(state.delivery) && !state.deliveryBusy;
+}
+
+function deliveryPush(direction) {
+  if (!deliveryActionable()) return;
+  handleDeliveryEvents(pushDeliveryCommand(state.delivery, direction));
+}
+
+function deliveryGo() {
+  if (!deliveryActionable()) return;
+  handleDeliveryEvents(runDeliveryCommands(state.delivery));
+}
+
+function deliveryClear() {
+  if (!deliveryActionable()) return;
+  handleDeliveryEvents(clearDeliveryCommands(state.delivery));
+}
+
+function deliveryFloor(digit) {
+  if (!deliveryActionable()) return;
+  handleDeliveryEvents(pressFloor(state.delivery, digit));
+}
+
+function deliveryMove(delta) {
+  if (!deliveryActionable()) return;
+  const model = state.delivery;
+  if (model.phase === "corridor") {
+    handleDeliveryEvents(moveCorridorFocus(model, delta));
+  } else if (model.phase === "handover") {
+    handleDeliveryEvents(moveTrayFocus(model, delta));
+  }
+}
+
+function deliveryBell() {
+  if (!deliveryActionable()) return;
+  const model = state.delivery;
+  if (model.phase === "corridor") {
+    handleDeliveryEvents(ringDeliveryBell(model));
+  } else if (model.phase === "handover") {
+    handleDeliveryEvents(deliverParcel(model));
+  } else if (model.phase === "elevator") {
+    audio.playSfx("bell");
+    showHint(`${model.elevator.target}층 버튼을 눌러요!`, 1600);
+  } else if (model.phase === "finale") {
+    goHome();
+  }
+}
+
 function startMode(mode) {
   if (!isModeAvailable(mode, state.difficulty)) {
     showHint("도전에서는 더하기, 빼기와 곱하기를 해요.");
@@ -1941,6 +2212,9 @@ function startMode(mode) {
   state.paint = null;
   state.paintScene = null;
   state.paintBusy = false;
+  state.delivery = null;
+  state.deliveryScene = null;
+  state.deliveryBusy = false;
   if (mode === "safety") {
     startSafetyRoute();
   } else if (mode === "subway") {
@@ -1955,6 +2229,10 @@ function startMode(mode) {
     state.safety = null;
     state.safetyView = null;
     startPaintPlay();
+  } else if (mode === "delivery") {
+    state.safety = null;
+    state.safetyView = null;
+    startDeliveryRun();
   } else {
     state.safety = null;
     state.safetyView = null;
@@ -1987,6 +2265,9 @@ function goHome() {
   state.paint = null;
   state.paintScene = null;
   state.paintBusy = false;
+  state.delivery = null;
+  state.deliveryScene = null;
+  state.deliveryBusy = false;
   dom.stage.setAttribute("aria-live", "polite");
   state.buffer = "";
   setMode(null);
@@ -2051,6 +2332,22 @@ document.addEventListener("keyup", event => {
 });
 
 dom.stage.addEventListener("click", event => {
+  // 택배 왔어요! — 방향·출발·층·벨·좌우 버튼을 한자리에서 받는다.
+  if (state.mode === "delivery" && state.delivery && state.phase === "playing" &&
+      !state.deliveryBusy) {
+    const control = event.target.closest(
+      "[data-dv-dir],[data-dv-go],[data-dv-floor],[data-dv-bell],[data-dv-move]"
+    );
+    if (control) {
+      const data = control.dataset;
+      if (data.dvDir) deliveryPush(data.dvDir);
+      else if (data.dvGo) deliveryGo();
+      else if (data.dvFloor) deliveryFloor(Number(data.dvFloor));
+      else if (data.dvMove) deliveryMove(Number(data.dvMove));
+      else if (data.dvBell) deliveryBell();
+      return;
+    }
+  }
   if (state.mode === "paint" && state.paint && state.phase === "playing" &&
       !state.paintBusy) {
     const tubeButton = event.target.closest(".pp-tube");
@@ -2175,6 +2472,88 @@ document.addEventListener("keydown", event => {
       } else {
         audio.playSfx("pop");
       }
+      return;
+    }
+    return;
+  }
+
+  // 택배 왔어요! — 단계마다 쓰는 키가 다르다. 새 키는 없다(숫자·화살표·Space·Esc).
+  if (state.phase === "playing" && state.mode === "delivery" && state.delivery) {
+    const isSpace = event.key === " " || event.key === "Spacebar" || event.key === "Enter";
+    const isDigit = /^[0-9]$/.test(event.key);
+    const direction = directionForKey(event.key);
+
+    // 연출 중에는 조작 키를 먹는다(Esc는 위에서 이미 처리했다).
+    if (state.deliveryBusy) {
+      if (isSpace || isDigit || direction) event.preventDefault();
+      return;
+    }
+
+    const model = state.delivery;
+
+    if (model.phase === "drive") {
+      if (direction) {
+        event.preventDefault();
+        if (!event.repeat) deliveryPush(direction);
+        return;
+      }
+      if (isSpace) {
+        event.preventDefault();
+        if (!event.repeat) deliveryGo();
+        return;
+      }
+      if (event.key === "Backspace") {
+        event.preventDefault();
+        if (!event.repeat) deliveryClear();
+        return;
+      }
+      if (isDigit) {
+        event.preventDefault();
+        audio.playSfx("pop");
+      }
+      return;
+    }
+
+    if (model.phase === "elevator") {
+      if (/^[1-9]$/.test(event.key)) {
+        event.preventDefault();
+        if (!event.repeat) deliveryFloor(Number(event.key));
+        return;
+      }
+      if (isSpace) {
+        event.preventDefault();
+        if (!event.repeat) deliveryBell();
+        return;
+      }
+      if (isDigit || direction || event.key === "Backspace") event.preventDefault();
+      return;
+    }
+
+    if (model.phase === "corridor" || model.phase === "handover") {
+      if (direction === "left" || direction === "right") {
+        event.preventDefault();
+        if (!event.repeat) deliveryMove(direction === "right" ? 1 : -1);
+        return;
+      }
+      if (isSpace) {
+        event.preventDefault();
+        if (!event.repeat) deliveryBell();
+        return;
+      }
+      if (isDigit || direction || event.key === "Backspace") {
+        event.preventDefault();
+        audio.playSfx("pop");
+      }
+      return;
+    }
+
+    if (model.phase === "finale") {
+      if (isSpace) {
+        event.preventDefault();
+        if (!event.repeat) goHome();
+        return;
+      }
+      if (isDigit || direction || event.key === "Backspace") event.preventDefault();
       return;
     }
     return;

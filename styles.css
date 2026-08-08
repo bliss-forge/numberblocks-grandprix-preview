@@ -1579,6 +1579,9 @@ body[data-state="celebrating"] .answer-box {
   }
 
   body[data-state="home"] .creator-credit {
+    /* #home 안에 있으므로 absolute 로 두면 카드와 함께 스크롤된다 —
+       고정이면 카드 수가 늘 때마다 어느 행이 아래로 깔릴지 알 수 없다. */
+    position: absolute;
     left: 8px;
     right: auto;
     top: 6px;
@@ -8434,5 +8437,691 @@ body[data-mode="paint"] .stage-lights {
 @media (min-width: 761px) {
   body[data-mode="paint"] .toast {
     bottom: min(240px, 30vh);
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   택배 왔어요! (delivery) — 디자인 정본 락 §5·§6 의 화면.
+   무대 안에 [헤더 / 좌 정보·중앙 그림·우 조작 / 마스코트 안내] 세 줄을 세운다.
+   ══════════════════════════════════════════════════════════════════════ */
+
+body[data-mode="delivery"] #game {
+  grid-template-rows: minmax(0, 1fr);
+  gap: 0;
+  padding: 74px 1.4vw 10px;
+}
+
+body[data-mode="delivery"] .answer-dock,
+body[data-mode="delivery"] .number-pad,
+body[data-mode="delivery"] .game-keyboard-note {
+  display: none;
+}
+
+/* 단계 문구는 씬 헤더가 보여 준다. 알약은 낭독용으로만 남긴다. */
+body[data-mode="delivery"] .problem-pill {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+body[data-mode="delivery"] .stage-frame {
+  width: min(97vw, 1360px);
+  border-radius: 30px;
+  border-width: 7px;
+  background: linear-gradient(180deg, #8fd6fb 0%, #b6e6fd 46%, #d7f2ff 74%, #e9f9ff 100%);
+}
+
+body[data-mode="delivery"] .stage-frame::before,
+body[data-mode="delivery"] .stage-lights,
+body[data-mode="delivery"] .stage-floor,
+body[data-mode="delivery"] .stage-curtain {
+  display: none;
+}
+
+body[data-mode="delivery"] #stage {
+  display: block;
+  padding: 0;
+}
+
+/* ── 씬 뼈대 ─────────────────────────────────────────────────────── */
+
+.dv-scene {
+  --dv-display: "Pretendard", "Pretendard Variable", var(--display-font);
+  --dv-body: "Pretendard", "Pretendard Variable", var(--body-font);
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  gap: 8px;
+  padding: 10px 12px 8px;
+  overflow: hidden;
+  color: var(--ink);
+}
+
+/* 하단 잔디 — 마스코트가 서는 바닥 */
+.dv-scene::after {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: clamp(70px, 15%, 118px);
+  border-top: 4px solid #c4f0a4;
+  background: linear-gradient(180deg, #a6e485 0%, #7ecd60 42%, #63bd52 100%);
+  content: "";
+  z-index: 0;
+}
+
+.dv-scene > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* ── 헤더 ────────────────────────────────────────────────────────── */
+
+.dv-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.dv-step {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: clamp(30px, 3.3vw, 42px);
+  aspect-ratio: 1;
+  border: 3px solid #fff;
+  border-radius: 50%;
+  background: radial-gradient(circle at 36% 28%, #7cc0f7, #2f7fdd 62%, #1e63b8);
+  box-shadow: 0 3px 0 rgba(20, 76, 148, .55);
+  color: #fff;
+  font-family: var(--dv-display);
+  font-size: clamp(15px, 1.8vw, 22px);
+  font-weight: 800;
+}
+
+.dv-stepname {
+  flex: none;
+  padding: 6px 16px;
+  border: 3px solid #fff;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #61b0f4, #2c79dc 62%, #1f66c2);
+  box-shadow: 0 3px 0 rgba(20, 76, 148, .5);
+  color: #fff;
+  font-family: var(--dv-display);
+  font-size: clamp(13px, 1.65vw, 21px);
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.dv-headline {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  margin: 0;
+  padding: 8px 16px;
+  overflow: hidden;
+  border: 3px solid #fff;
+  border-radius: 999px;
+  background: rgba(255, 253, 246, .97);
+  box-shadow: 0 3px 0 rgba(37, 52, 93, .16);
+  color: var(--ink);
+  font-family: var(--dv-display);
+  font-size: clamp(12px, 1.5vw, 19px);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.dv-emoji { font-size: 1.2em; }
+
+/* ── 본문 3열 ────────────────────────────────────────────────────── */
+
+.dv-body {
+  display: grid;
+  grid-template-columns: clamp(100px, 11vw, 152px) minmax(0, 1fr) clamp(128px, 15vw, 214px);
+  gap: 8px;
+  min-height: 0;
+}
+
+.dv-body[data-cols="2"] {
+  grid-template-columns: minmax(0, 1fr) clamp(136px, 16vw, 222px);
+}
+
+.dv-body[data-cols="elev"] {
+  grid-template-columns: clamp(96px, 11vw, 168px) minmax(0, 1fr) clamp(132px, 15.5vw, 218px);
+}
+
+.dv-body[data-cols="1"] {
+  grid-template-columns: minmax(0, 1fr);
+  place-items: center;
+}
+
+.dv-side,
+.dv-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 0;
+}
+
+/* ── 카드 ────────────────────────────────────────────────────────── */
+
+.dv-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  min-height: 0;
+  padding: 8px 9px 10px;
+  border: 4px solid #fff;
+  border-radius: 18px;
+  background: linear-gradient(180deg, #fffefa, #f4f8fd);
+  box-shadow: 0 4px 0 rgba(37, 52, 93, .17);
+}
+
+.dv-card-title {
+  padding: 3px 12px;
+  border: 2px solid #fff;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #61b0f4, #2c79dc);
+  box-shadow: 0 2px 0 rgba(20, 76, 148, .45);
+  color: #fff;
+  font-family: var(--dv-display);
+  font-size: clamp(10px, 1.15vw, 14px);
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.dv-goal-num {
+  width: 100%;
+  padding: 5px 9px;
+  border: 3px solid #f0c987;
+  border-radius: 13px;
+  background: linear-gradient(180deg, #fff8e8, #ffeecb);
+  box-shadow: inset 0 -2px 0 rgba(215, 165, 80, .3);
+  color: #e07a12;
+  font-family: var(--dv-display);
+  font-size: clamp(17px, 2.2vw, 29px);
+  font-weight: 800;
+  line-height: 1.18;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.dv-progress {
+  font-family: var(--dv-display);
+  font-size: clamp(13px, 1.5vw, 18px);
+}
+
+/* ── 무대 ────────────────────────────────────────────────────────── */
+
+.dv-stage {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  border: 5px solid #fff;
+  border-radius: 20px;
+  background: #dfeaf3;
+  box-shadow: 0 5px 0 rgba(37, 52, 93, .2), inset 0 0 0 2px rgba(37, 52, 93, .05);
+}
+
+.dv-stage > svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.dv-stage-shaft { background: #c3ccd4; }
+
+/* ── 버튼 ────────────────────────────────────────────────────────── */
+
+.dv-key {
+  display: grid;
+  place-items: center;
+  min-width: 44px;
+  min-height: 44px;
+  border: 3px solid #fff;
+  border-radius: 14px;
+  background: linear-gradient(180deg, #61b0f4, #2c79dc 65%, #1f66c2);
+  box-shadow: 0 4px 0 rgba(20, 76, 148, .6);
+  color: #fff;
+  font-family: var(--dv-display);
+  font-size: clamp(16px, 1.9vw, 24px);
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.dv-key:focus-visible {
+  outline: 4px solid var(--gold);
+  outline-offset: 3px;
+}
+
+.dv-key-go {
+  gap: 6px;
+  width: 100%;
+  min-height: 48px;
+  background: linear-gradient(180deg, #8ade6c, #4aa843 62%, #3a8c37);
+  box-shadow: 0 4px 0 #2c7332;
+  font-size: clamp(14px, 1.6vw, 20px);
+}
+
+.dv-key-bell {
+  background: radial-gradient(circle at 36% 28%, #ffeaa2, #ffc61e 58%, #e8a00c);
+  box-shadow: 0 4px 0 #c9860c;
+  color: #7a4a05;
+}
+
+/* ── STEP 1 · 이동 명령 ──────────────────────────────────────────── */
+
+.dv-queue {
+  display: flex;
+  gap: 5px;
+  justify-content: center;
+}
+
+.dv-slot {
+  display: grid;
+  place-items: center;
+  width: clamp(28px, 3.3vw, 40px);
+  aspect-ratio: 1;
+  border: 3px dashed #c4d0dc;
+  border-radius: 11px;
+  background: #eef4fa;
+  color: #a7b7c6;
+  font-family: var(--dv-display);
+  font-size: clamp(14px, 1.8vw, 21px);
+}
+
+.dv-slot[data-filled="true"] {
+  border-style: solid;
+  border-color: #fff;
+  background: linear-gradient(180deg, #8ade6c, #4aa843);
+  box-shadow: 0 3px 0 #2c7332;
+  color: #fff;
+}
+
+.dv-slotnums {
+  display: flex;
+  gap: 5px;
+  justify-content: center;
+  color: var(--ink-soft);
+  font-family: var(--dv-display);
+  font-size: clamp(9px, 1.05vw, 12px);
+}
+
+.dv-slotnum {
+  width: clamp(28px, 3.3vw, 40px);
+  text-align: center;
+}
+
+.dv-dirs {
+  display: flex;
+  gap: 5px;
+  justify-content: center;
+}
+
+.dv-key-dir {
+  min-width: 44px;
+  padding: 0;
+}
+
+/* ── STEP 2 · 층 버튼 ────────────────────────────────────────────── */
+
+.dv-pad {
+  display: grid;
+  grid-template-columns: repeat(3, auto);
+  gap: 6px;
+  justify-content: center;
+  padding: 8px;
+  border: 3px solid #fff;
+  border-radius: 14px;
+  background: linear-gradient(180deg, #e8edf2, #ccd6de);
+  box-shadow: inset 0 2px 5px rgba(40, 60, 85, .22);
+}
+
+.dv-floorkey {
+  display: grid;
+  place-items: center;
+  width: clamp(30px, 3.5vw, 44px);
+  aspect-ratio: 1;
+  border: none;
+  border-radius: 12px;
+  background: linear-gradient(180deg, #6f7b87, #454f5a 62%, #363f48);
+  box-shadow: 0 3px 0 #262d34, inset 0 2px 0 rgba(255, 255, 255, .32);
+  color: #fff;
+  font-family: var(--dv-display);
+  font-size: clamp(14px, 1.7vw, 21px);
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.dv-floorkey[data-on="true"] {
+  background: radial-gradient(circle at 38% 28%, #b6f7a0, #4fc45a 58%, #2f9c3d);
+  box-shadow: 0 3px 0 #217a2c, inset 0 2px 0 rgba(255, 255, 255, .45),
+    0 0 0 4px rgba(90, 220, 110, .45);
+  color: #10360f;
+}
+
+.dv-floorkey:focus-visible,
+.dv-bell:focus-visible {
+  outline: 4px solid var(--gold);
+  outline-offset: 3px;
+}
+
+.dv-bell {
+  display: grid;
+  place-items: center;
+  width: clamp(34px, 3.9vw, 46px);
+  aspect-ratio: 1;
+  margin-top: 6px;
+  border: 3px solid #fff;
+  border-radius: 50%;
+  background: radial-gradient(circle at 36% 28%, #ffeaa2, #ffc61e 58%, #e8a00c);
+  box-shadow: 0 4px 0 #c9860c;
+  font-size: clamp(15px, 1.8vw, 22px);
+  cursor: pointer;
+}
+
+/* ── STEP 3 · 힌트 라벨 ──────────────────────────────────────────── */
+
+.dv-hints {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  width: 100%;
+}
+
+.dv-hint {
+  padding: 6px 9px;
+  border: 3px solid #ecd7ac;
+  border-radius: 13px;
+  background: linear-gradient(180deg, #fffaf0, #fdf0d8);
+  box-shadow: inset 0 -2px 0 rgba(200, 165, 110, .28);
+  color: #6f5a34;
+  font-family: var(--dv-display);
+  font-size: clamp(14px, 1.75vw, 22px);
+  font-weight: 800;
+  text-align: center;
+}
+
+/* ── 무대 위 조작 · 카드 ─────────────────────────────────────────── */
+
+.dv-controls {
+  position: absolute;
+  bottom: 9px;
+  left: 50%;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  z-index: 2;
+  transform: translateX(-50%);
+}
+
+/* 전달 순간에는 컨베이어 한가운데(무대 폭의 42%)에 맞춘다. */
+.dv-scene[data-phase="handover"] .dv-controls { left: 42%; }
+
+.dv-controls .dv-key { min-width: 54px; }
+
+.dv-controls .dv-key-bell {
+  width: 54px;
+  min-width: 54px;
+  min-height: 54px;
+  border-radius: 50%;
+  font-size: 23px;
+}
+
+.dv-who {
+  position: absolute;
+  top: 9px;
+  left: 9px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 6px 12px 7px;
+  border: 4px solid #fff;
+  border-radius: 16px;
+  background: rgba(255, 253, 246, .97);
+  box-shadow: 0 4px 0 rgba(37, 52, 93, .2);
+  z-index: 2;
+}
+
+.dv-who-label {
+  color: var(--ink-soft);
+  font-family: var(--dv-display);
+  font-size: clamp(10px, 1.15vw, 13px);
+}
+
+.dv-who-unit {
+  color: #e07a12;
+  font-family: var(--dv-display);
+  font-size: clamp(16px, 1.9vw, 25px);
+  font-weight: 800;
+}
+
+/* ── STEP 4 · 조작 방법 · 전달한 수 ──────────────────────────────── */
+
+.dv-howto {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  width: 100%;
+}
+
+.dv-howto-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+}
+
+.dv-howto-row .dv-key {
+  min-width: 38px;
+  min-height: 38px;
+  font-size: clamp(13px, 1.5vw, 18px);
+}
+
+.dv-key-space {
+  min-width: 74px;
+  border-radius: 12px;
+  font-size: clamp(11px, 1.25vw, 15px);
+}
+
+.dv-howto-label {
+  color: var(--ink-soft);
+  font-family: var(--dv-display);
+  font-size: clamp(10px, 1.2vw, 14px);
+  font-style: normal;
+}
+
+.dv-dots {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.dv-dots-truck { font-size: 16px; }
+
+.dv-dot {
+  display: block;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #cfd8e2;
+}
+
+.dv-dot[data-on="true"] { background: #f7b715; }
+
+/* ── 하단 안내 ───────────────────────────────────────────────────── */
+
+.dv-foot {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  min-width: 0;
+}
+
+.dv-mascot {
+  flex: none;
+  align-self: flex-end;
+  width: clamp(46px, 5.4vw, 76px);
+  filter: drop-shadow(0 3px 3px rgba(30, 60, 30, .28));
+}
+
+.dv-tip {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 8px 13px;
+  border: 3px solid #f4e2b4;
+  border-radius: 19px;
+  background: linear-gradient(180deg, #fffdf3, #fdf3d8);
+  box-shadow: 0 3px 0 rgba(140, 112, 58, .3);
+}
+
+.dv-tip-q {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 25px;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: linear-gradient(180deg, #6bb6f6, #2c79dc);
+  color: #fff;
+  font-family: var(--dv-display);
+  font-size: 15px;
+}
+
+.dv-tip-text {
+  margin: 0;
+  color: #6b5a38;
+  font-family: var(--dv-body);
+  font-size: clamp(11px, 1.2vw, 15px);
+  line-height: 1.45;
+}
+
+.dv-tip-title {
+  display: block;
+  color: #2879df;
+  font-family: var(--dv-display);
+}
+
+.dv-tip-line { display: block; }
+
+.dv-foot-extra {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 13px;
+  border: 3px solid #fff;
+  border-radius: 19px;
+  background: rgba(255, 253, 246, .97);
+  box-shadow: 0 3px 0 rgba(37, 52, 93, .17);
+  color: var(--ink);
+  font-family: var(--dv-display);
+  font-size: clamp(11px, 1.3vw, 15px);
+  white-space: nowrap;
+}
+
+.dv-stars {
+  display: flex;
+  gap: 3px;
+  font-size: clamp(14px, 1.6vw, 20px);
+}
+
+.dv-star { color: #cfd6de; }
+.dv-star[data-on="true"] { color: #f7b715; }
+
+/* ── 피날레 ──────────────────────────────────────────────────────── */
+
+.dv-finale {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 22px 34px 26px;
+  border: 5px solid #fff;
+  border-radius: 26px;
+  background: rgba(255, 253, 246, .97);
+  box-shadow: 0 6px 0 rgba(37, 52, 93, .18);
+}
+
+.dv-finale-title {
+  margin: 0;
+  color: #2879df;
+  font-family: var(--dv-display);
+  font-size: clamp(20px, 3vw, 38px);
+  font-weight: 800;
+}
+
+.dv-finale-count {
+  margin: 0;
+  color: var(--ink-soft);
+  font-family: var(--dv-display);
+  font-size: clamp(13px, 1.7vw, 21px);
+}
+
+.dv-stars-big { font-size: clamp(24px, 3.4vw, 44px); }
+
+/* ── 모바일 — 3열을 세로로 눕힌다 ───────────────────────────────── */
+
+@media (max-width: 640px) {
+  body[data-mode="delivery"] #game { padding: 62px 2vw 8px; }
+
+  body[data-mode="delivery"] .stage-frame {
+    width: 96vw;
+    border-width: 5px;
+    border-radius: 22px;
+  }
+
+  .dv-scene { gap: 6px; padding: 7px 8px 6px; }
+
+  .dv-scene::after { height: 84px; }
+
+  .dv-body,
+  .dv-body[data-cols="2"],
+  .dv-body[data-cols="elev"] {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto minmax(120px, 1fr) auto;
+  }
+
+  .dv-body[data-cols="elev"] { grid-template-rows: minmax(90px, 0.7fr) minmax(0, 1fr) auto; }
+
+  .dv-side { flex-direction: row; }
+
+  .dv-side .dv-card {
+    flex: 1;
+    flex-direction: row;
+    gap: 8px;
+    padding: 5px 7px;
+  }
+
+  .dv-headline { display: none; }
+
+  .dv-foot-extra { display: none; }
+
+  .dv-controls { left: 50%; }
+}
+
+/* ── 움직임 줄이기 ───────────────────────────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+  .dv-truck-sprite,
+  .dv-slot,
+  .dv-floorkey,
+  .dv-star {
+    animation: none !important;
+    transition: none !important;
   }
 }

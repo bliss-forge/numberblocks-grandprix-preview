@@ -49,7 +49,9 @@ export const BLOCKED_CELLS = Object.freeze([
 ]);
 
 // 난이도는 층수 범위만 바꾼다. 명령 칸 수와 지도는 그대로다.
-const TOP_FLOOR = Object.freeze({ easy: 4, steady: 6, challenge: 7 });
+// 1층은 쓰지 않는다 — 목표가 1층이면 엘리베이터가 이미 도착해 있어 단계가 사라진다.
+export const LOWEST_FLOOR = 2;
+const TOP_FLOOR = Object.freeze({ easy: 5, steady: 7, challenge: 7 });
 
 const STEPS = Object.freeze({
   up: { x: 0, y: -1 },
@@ -81,7 +83,10 @@ export function houseAt(state, point) {
 /* ── 배송 건 만들기 ───────────────────────────────────────────────── */
 
 function pickDistinctFloors(random, topFloor, count) {
-  const pool = Array.from({ length: topFloor }, (unused, index) => index + 1);
+  const pool = Array.from(
+    { length: topFloor - LOWEST_FLOOR + 1 },
+    (unused, index) => index + LOWEST_FLOOR
+  );
   for (let index = pool.length - 1; index > 0; index -= 1) {
     const swap = Math.floor(random() * (index + 1));
     [pool[index], pool[swap]] = [pool[swap], pool[index]];

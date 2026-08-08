@@ -9,6 +9,7 @@ import {
   GRID_COLUMNS,
   GRID_ROWS,
   HOUSE_CELLS,
+  LOWEST_FLOOR,
   PARCELS,
   STREAK_BONUS_SLOTS,
   TRUCK_START,
@@ -25,7 +26,7 @@ import {
   runCommands,
 } from "../src/delivery-model.mjs";
 
-const TOP_FLOOR = { easy: 4, steady: 6, challenge: 7 };
+const TOP_FLOOR = { easy: 5, steady: 7, challenge: 7 };
 
 function typesOf(events) {
   return events.map(event => event.type);
@@ -124,8 +125,21 @@ test("집 네 채는 서로 다른 층을 갖고 난이도 상한을 넘지 않�
       const floors = state.houses.map(house => house.floor);
       assert.equal(new Set(floors).size, HOUSE_CELLS.length, `${difficulty}/${seed}: 층이 겹친다`);
       for (const floor of floors) {
-        assert.ok(floor >= 1 && floor <= topFloor, `${difficulty}/${seed}: ${floor}층은 범위 밖`);
+        assert.ok(
+          floor >= LOWEST_FLOOR && floor <= topFloor,
+          `${difficulty}/${seed}: ${floor}층은 범위 밖`
+        );
       }
+    }
+  }
+});
+
+test("목표 층은 1층이 아니다 — 그러면 엘리베이터 단계가 사라진다", () => {
+  for (const difficulty of ["easy", "steady", "challenge"]) {
+    for (let seed = 1; seed <= 60; seed += 1) {
+      const state = createDelivery(difficulty, seed);
+      assert.ok(state.order.floor >= LOWEST_FLOOR, `${difficulty}/${seed}: ${state.order.floor}층`);
+      assert.ok(state.elevator.current < state.elevator.target, "출발층과 목표층이 같다");
     }
   }
 });
