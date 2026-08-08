@@ -66,6 +66,56 @@
     color: var(--ink);
   }
 
+  /* 카트의 상자 고르기 */
+  .dv-cart {
+    position: absolute;
+    left: 50%;
+    bottom: 10px;
+    transform: translateX(-50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 5px;
+    padding: 8px 14px 10px;
+    border-radius: 18px;
+    background: rgba(255, 253, 246, .96);
+    border: 4px solid #fff;
+    box-shadow: 0 5px 0 var(--shadow), 0 10px 18px rgba(37, 52, 93, .14);
+  }
+  .dv-cart-label {
+    font-family: var(--display-font);
+    font-size: clamp(13px, 1.5vw, 18px);
+    color: var(--ink-soft);
+  }
+  .dv-cart-row { display: flex; gap: 8px; }
+
+  .dv-parcel {
+    display: grid;
+    justify-items: center;
+    gap: 2px;
+    min-width: 62px;
+    min-height: 62px;
+    padding: 6px 10px 7px;
+    border-radius: 13px;
+    border: 4px solid #d8b98a;
+    background: linear-gradient(#f6dcb4, #e2bd85);
+    box-shadow: 0 4px 0 #b78e58;
+    cursor: pointer;
+  }
+  .dv-parcel .dv-parcel-icon { font-size: clamp(22px, 2.6vw, 32px); line-height: 1; }
+  .dv-parcel small {
+    font-family: var(--display-font);
+    font-size: clamp(11px, 1.2vw, 14px);
+    color: #7b5a2c;
+  }
+  /* 지금 고른 상자 — 노란 링 + 살짝 떠오름 */
+  .dv-parcel[data-picked="true"] {
+    border-color: var(--orange);
+    background: linear-gradient(#fff0cf, #f4d197);
+    box-shadow: 0 6px 0 #c8791b, 0 0 0 5px rgba(255, 210, 63, .45);
+    transform: translateY(-4px);
+  }
+
   /* 모바일 밴드: ←/→ + 중앙 초인종 */
   .dv-band { display: none; }
   @media (max-width: 760px) {
@@ -93,19 +143,23 @@
     .dv-target { top: 8px; left: 8px; padding: 6px 10px; }
     .dv-target b { font-size: 24px; }
     .dv-keyhint { display: none; }
+    .dv-cart { bottom: 6px; padding: 6px 10px 8px; gap: 3px; }
+    .dv-cart-label { font-size: 12px; }
+    .dv-parcel { min-width: 54px; min-height: 54px; padding: 4px 7px 5px; }
   }
 </style>
 </head>
 <body data-state="playing" data-mode="delivery">
 <p class="mock-note">
-  <b>목업 4 — 문 앞 전달(감정 정점).</b> 복도 문패는 <b>전체 호수 표기</b>(501·502·503) — 뒤 두 자리를 떼어내는 과제가 아니라
-  <b>라벨과 똑같은 모양 찾기</b>다. 딩동 뒤 문이 열리고 친구(넘버블록 5)가 폴짝, 상자에서 <b>번호만큼</b> 서프라이즈가 나온다
-  (여기서는 사과 5개 — 시각 스폰은 최대 8개까지, 그 이상은 덩어리 1개 + "스물!" 명명).
-  Space는 이 존에서 <b>초인종 하나</b>이고 문이 열린 뒤에만 건네주기로 바뀐다.
+  <b>목업 4 — 문 앞 전달(감정 정점) + 물건 종류 고르기.</b> 복도 문패는 <b>전체 호수 표기</b>(501·502·503) —
+  라벨과 <b>똑같은 모양 찾기</b>다. 딩동 뒤 문이 열리면 친구가 <b>어떤 상자를 기다렸는지</b> 말한다("나는 과일 상자!").
+  카트의 상자 3개는 각각 <b>과일 · 화장품 · 장난감</b> 아이콘이 붙어 있고, <b>←/→로 고르고 Space로 건넨다</b>
+  (새 키 없음 — 복도와 같은 키다). 맞는 종류를 건네면 상자가 열리며 <b>번호만큼</b> 내용물이 나온다(여기서는 사과 5개).
+  틀린 종류를 건네도 벌점은 없다 — 친구가 웃으며 "그건 다음에! 과일 상자 주세요~"라고 다시 알려준다.
 </p>
 
 <main>
-<section id="game" class="screen active" style="height:100vh">
+<section id="game" class="screen active" style="height:calc(100vh - 108px)">
   <div class="stage-curtain curtain-left" aria-hidden="true"></div>
   <div class="stage-curtain curtain-right" aria-hidden="true"></div>
   <p id="problem-text" class="problem-pill">🎁 5 친구에게 택배를 건네요!</p>
@@ -272,9 +326,10 @@
               <line x1="697" y1="330" x2="697" y2="384" stroke="#b07c34" stroke-width="3.5"/>
               <rect x="666" y="348" width="62" height="12" fill="#f6e3c0" opacity=".85"/>
               <!-- 상자 라벨 -->
-              <rect x="676" y="336" width="42" height="18" rx="4" fill="#fffdf6" stroke="#b79c74" stroke-width="2"/>
-              <text x="697" y="350" text-anchor="middle" font-family="'Cafe24 Ssurround', sans-serif"
-                    font-size="13" font-weight="900" fill="#e07a12">502</text>
+              <rect x="670" y="334" width="38" height="17" rx="4" fill="#fffdf6" stroke="#b79c74" stroke-width="2"/>
+              <text x="689" y="347" text-anchor="middle" font-family="'Cafe24 Ssurround', sans-serif"
+                    font-size="12" font-weight="900" fill="#e07a12">502</text>
+              <text x="716" y="350" text-anchor="middle" font-size="17">🍎</text>
             </g>
           </g>
 
@@ -292,12 +347,33 @@
 
           <!-- 말풍선: 고마워요! -->
           <g>
-            <rect x="376" y="182" width="150" height="52" rx="18" fill="#fffdf6" stroke="#2fc0e8" stroke-width="4"/>
-            <path d="M512 226 l16 22 -30 -12z" fill="#fffdf6" stroke="#2fc0e8" stroke-width="4"/>
-            <text x="451" y="216" text-anchor="middle" font-family="'Cafe24 Ssurround', sans-serif"
-                  font-size="25" font-weight="900" fill="#1a7ea8">고마워요!</text>
+            <rect x="308" y="166" width="228" height="76" rx="20" fill="#fffdf6" stroke="#2fc0e8" stroke-width="4"/>
+            <path d="M522 234 l18 24 -34 -12z" fill="#fffdf6" stroke="#2fc0e8" stroke-width="4"/>
+            <text x="422" y="200" text-anchor="middle" font-family="'Cafe24 Ssurround', sans-serif"
+                  font-size="23" font-weight="900" fill="#1a7ea8">나는 🍎 과일 상자를</text>
+            <text x="422" y="228" text-anchor="middle" font-family="'Cafe24 Ssurround', sans-serif"
+                  font-size="23" font-weight="900" fill="#1a7ea8">기다렸어요!</text>
           </g>
         </svg>
+
+        <!-- 카트: 종류가 다른 상자 3개 — ←/→로 고르고 ⎵로 건넨다 -->
+        <div class="dv-cart" role="group" aria-label="카트의 상자">
+          <span class="dv-cart-label">어떤 상자를 줄까요?</span>
+          <div class="dv-cart-row">
+            <button class="dv-parcel" type="button" data-picked="true" aria-label="과일 상자">
+              <span class="dv-parcel-icon">🍎</span>
+              <small>과일</small>
+            </button>
+            <button class="dv-parcel" type="button" aria-label="화장품 상자">
+              <span class="dv-parcel-icon">💄</span>
+              <small>화장품</small>
+            </button>
+            <button class="dv-parcel" type="button" aria-label="장난감 상자">
+              <span class="dv-parcel-icon">🧸</span>
+              <small>장난감</small>
+            </button>
+          </div>
+        </div>
 
         <div class="dv-target">
           <b><i>5</i>02</b>
