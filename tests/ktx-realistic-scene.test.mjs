@@ -325,6 +325,32 @@ test("실패 환경은 같은 밴드에서 고정되고 정상 환경을 거친 
   assert.equal(root.dataset.motionRealistic, "pending");
 });
 
+test("늦게 ready가 된 정상 환경도 실패 환경 재시도를 다시 허용한다", () => {
+  const document = fakeDocument();
+  const initial = createKtxJourney(3, "srt");
+  const root = renderKtxScene(document, initial, "side");
+  const field = { ...initial, phase: "driving", x: 2000, v: 80 };
+  const fieldPreloads = () => document.createdElements.filter(element =>
+    element.tagName === "IMG" && /\/field-[ab]\.webp$/.test(element.src) &&
+    !element.className.includes("ktx-motion-plate"));
+
+  assert.equal(root.dataset.motionRealistic, "pending", "city가 아직 로드되지 않음");
+  updateKtxScene(root, field, "side");
+  assert.equal(fieldPreloads().length, 2);
+  fieldPreloads()[0].dispatch("error");
+  assert.equal(root.dataset.motionRealistic, "fallback");
+
+  updateKtxScene(root, initial, "side");
+  assert.equal(root.dataset.motionRealistic, "pending");
+  loadMotionSideAssets(root);
+  assert.equal(root.dataset.motionRealistic, "ready", "돌아온 city가 뒤늦게 준비됨");
+
+  updateKtxScene(root, field, "side");
+
+  assert.equal(fieldPreloads().length, 4, "field에 정확히 한 쌍의 재시도 요청 추가");
+  assert.equal(root.dataset.motionRealistic, "pending");
+});
+
 test("환경 선로드 중 원래 장면으로 돌아오면 늦은 요청이 화면을 덮지 않는다", () => {
   const document = fakeDocument();
   const initial = createKtxJourney(3, "srt");

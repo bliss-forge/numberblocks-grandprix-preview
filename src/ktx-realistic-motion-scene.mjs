@@ -62,6 +62,7 @@ function syncReadiness(controller) {
   const ready = required.every(image => image.dataset.loaded === "true");
   if (ready) {
     controller.loadedEnvironments.set(controller.land, controller.scenes);
+    controller.failedEnvironments.clear();
   }
   setStatus(controller, ready ? "ready" : "pending");
 }
