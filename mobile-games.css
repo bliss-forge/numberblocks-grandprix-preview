@@ -124,16 +124,12 @@
     font-size: 11px;
   }
 
+  /* 좁은 홈에서는 크레딧을 감춘다. 화면에 고정해 두면 카드가 늘어날 때마다
+     어느 행이 그 아래로 깔릴지 알 수 없고(9장에서 실제로 1번 카드가 걸렸다),
+     여백으로는 못 푼다 — 카드 행 간격이 크레딧이 가리는 띠보다 좁다.
+     게임 화면에서는 원래도 숨기므로(styles.css) 보이는 곳은 넓은 홈뿐이다. */
   body[data-state="home"] .creator-credit {
-    /* #home 안에 있으므로 absolute 로 두면 카드와 함께 스크롤된다 —
-       고정이면 카드가 늘 때마다 어느 행이 크레딧 아래로 깔릴지 알 수 없다. */
-    position: absolute;
-    left: 8px;
-    right: auto;
-    top: max(8px, env(safe-area-inset-top));
-    bottom: auto;
-    z-index: 1;
-    font-size: 9px;
+    display: none;
   }
 
   body:is(

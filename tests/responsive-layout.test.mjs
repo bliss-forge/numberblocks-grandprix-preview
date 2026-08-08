@@ -13,6 +13,10 @@ import {
 } from "../src/app-behavior.mjs";
 
 const css = await readFile(new URL("../styles.css", import.meta.url), "utf8");
+const mobileGamesCss = await readFile(
+  new URL("../mobile-games.css", import.meta.url),
+  "utf8"
+);
 const shortHeightMarker =
   "@media (max-width: 900px) and (max-height: 500px)";
 
@@ -204,26 +208,33 @@ test("낮은 모바일 화면은 두 줄 숫자판과 최소 무대 높이를 �
   );
 });
 
-test("좁은 게임 화면에서만 제작자 서명을 숨기고 홈에서는 유지한다", () => {
+test("좁은 화면에서는 제작자 서명을 감춘다 — 넓은 화면에서만 보인다", () => {
+  // 카드가 아홉 장이 되면서 좁은 홈이 스크롤된다. 화면에 고정된 서명을 남겨 두면
+  // 어느 카드 행이 그 아래로 깔릴지 알 수 없어(9장에서 1번 카드가 실제로 걸렸다)
+  // 좁은 화면에서는 게임뿐 아니라 홈에서도 감춘다. 넓은 화면은 그대로 보인다.
   const mobileCss = mediaBlock("@media (max-width: 640px)");
   const shortHeightCss = mediaBlock(shortHeightMarker);
+  const homeHidden = /body\[data-state="home"\]\s+\.creator-credit\s*\{[^}]*display:\s*none;/s;
+  const gameHidden = /body:not\(\[data-state="home"\]\)\s+\.creator-credit\s*\{[^}]*display:\s*none;/s;
 
-  assert.match(
-    mobileCss,
-    /body:not\(\[data-state="home"\]\)\s+\.creator-credit\s*\{[^}]*display:\s*none;/s
-  );
-  assert.match(
-    shortHeightCss,
-    /body:not\(\[data-state="home"\]\)\s+\.creator-credit\s*\{[^}]*display:\s*none;/s
-  );
-  assert.doesNotMatch(
-    shortHeightCss,
-    /^\s*\.creator-credit\s*\{[^}]*display:\s*none;/m
-  );
-  assert.match(
-    shortHeightCss,
-    /body\[data-state="home"\]\s+\.creator-credit\s*\{[^}]*left:\s*8px;[^}]*right:\s*auto;[^}]*top:\s*6px;[^}]*bottom:\s*auto;/s
-  );
+  assert.match(shortHeightCss, homeHidden, "짧은 가로 홈에서 서명을 감춰야 한다");
+  assert.match(mobileGamesCss, homeHidden, "좁은 세로 홈에서 서명을 감춰야 한다");
+  assert.match(mobileCss, gameHidden);
+  assert.match(shortHeightCss, gameHidden);
+
+  // 넓은 화면의 기본 규칙에는 숨김이 없다 — 홈과 게임 양쪽에서 보인다.
+  // 들여쓰기 없는 최상위 선언만 골라야 미디어쿼리 안의 규칙과 섞이지 않는다.
+  const baseRule = css.match(/\n\.creator-credit\s*\{([^}]*)\}/);
+  assert.ok(baseRule, "기본 .creator-credit 규칙이 없다");
+  assert.doesNotMatch(baseRule[1], /display:\s*none;/);
+  assert.match(baseRule[1], /position:\s*fixed;/);
+});
+
+test("좁은 가로 홈은 카드 줄이 늘어나도 스크롤로 닿을 수 있다", () => {
+  // 6열 두 줄이 되면 둘째 줄이 390px 화면 밖으로 나간다. 스크롤이 없으면
+  // 7·8·9번 카드는 눌릴 방법이 아예 없다.
+  const shortHeightCss = mediaBlock(shortHeightMarker);
+  assert.match(shortHeightCss, /#home\s*\{[^}]*overflow-y:\s*auto;/s);
 });
 
 test("낮은 홈 화면은 네 모드 카드를 한 줄에 모두 표시한다", () => {
