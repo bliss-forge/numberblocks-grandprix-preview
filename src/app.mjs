@@ -2024,7 +2024,10 @@ function animateDrive(path, onDone) {
     schedule(step, DRIVE_STEP_MS);
   };
 
-  if (path.length === 0) {
+  // 움직임을 줄이겠다고 한 기기에서는 칸칸이 굴리지 않고 도착 자리만 보여 준다.
+  if (path.length === 0 || prefersReducedMotion()) {
+    model.drive.truck = finalCell;
+    model.drive.facing = finalFacing;
     renderDeliveryAs("drive");
     onDone();
     return;
