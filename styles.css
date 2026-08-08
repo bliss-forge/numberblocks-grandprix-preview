@@ -7856,13 +7856,8 @@ body[data-mode="ktx"] .stage-lights {
    크롭만 천천히 이동시키고, 속도감은 별도 전경 레이어가 담당한다. */
 .ktx-game[data-realistic="ready"][data-moving="true"] .ktx-real-cab-image,
 .ktx-game[data-realistic="ready"][data-moving="true"] .ktx-real-exterior-image {
-  animation: ktx-real-camera-drift 9s ease-in-out infinite alternate;
-  will-change: transform;
-}
-
-@keyframes ktx-real-camera-drift {
-  from { transform: scale(1.01) translate3d(.15%, 0, 0); }
-  to { transform: scale(1.01) translate3d(-.35%, -.12%, 0); }
+  animation: none;
+  will-change: auto;
 }
 
 /* 로드 전(pending)과 오류(fallback)에는 절대 적용되지 않는 폴백 스위치. */
@@ -8018,4 +8013,174 @@ body[data-mode="ktx"] .stage-lights {
   }
 
   .ktx-game[data-realistic="ready"] .ktx-side-near { filter: none; }
+}
+
+/* ── SRT 실사 모션 리그 — 완성 장면 교차 + 독립 선로/근경 모션 ───────── */
+
+.ktx-motion-scene {
+  position: absolute;
+  inset: 0 0 29%;
+  z-index: 2;
+  overflow: hidden;
+  background: #b9d5df;
+  opacity: 0;
+  pointer-events: none;
+  isolation: isolate;
+}
+
+.ktx-game[data-motion-realistic="ready"][data-view="side"] .ktx-motion-scene {
+  opacity: 1;
+}
+
+/* 모든 사진 슬롯은 같은 화면을 완전히 덮는다. 120px 오버스캔 안에서만
+   팬하므로 어떤 위치에서도 사진 모서리나 사진끼리 맞닿은 경계가 보이지 않는다. */
+.ktx-motion-plate {
+  position: absolute;
+  top: 0;
+  width: calc(100% + 240px);
+  height: 100%;
+  left: -120px;
+  z-index: 1;
+  object-fit: cover;
+  object-position: center center;
+  opacity: 0;
+  transform: translate3d(var(--motion-scene-x), 0, 0);
+  transition:
+    transform 120ms linear,
+    opacity var(--motion-crossfade-ms, 900ms) ease-in-out;
+  will-change: transform, opacity;
+}
+
+.ktx-motion-plate[data-active="true"] { opacity: 1; }
+.ktx-motion-plate[data-active="false"] { opacity: 0; }
+
+.ktx-motion-track {
+  position: absolute;
+  left: 0;
+  bottom: -2%;
+  width: calc(100% + 2400px);
+  height: 30%;
+  z-index: 3;
+  background:
+    repeating-linear-gradient(90deg,
+      transparent 0 66px, rgba(64, 65, 68, .74) 66px 78px, transparent 78px 144px),
+    linear-gradient(to bottom,
+      transparent 0 18%, #777f85 19% 24%, #d0d4d5 25% 39%,
+      #63696c 40% 46%, #c8bca6 47% 100%);
+  transform: translate3d(var(--motion-track-x), 0, 0);
+  filter: blur(var(--motion-blur));
+  transform-origin: left center;
+  will-change: transform;
+}
+
+.ktx-motion-near {
+  position: absolute;
+  left: 0;
+  bottom: 13%;
+  width: calc(100% + 2400px);
+  height: 58%;
+  z-index: 4;
+  background:
+    repeating-linear-gradient(90deg,
+      transparent 0 360px,
+      rgba(48, 55, 59, .72) 360px 368px,
+      rgba(204, 210, 211, .72) 368px 374px,
+      transparent 374px 720px);
+  transform: translate3d(var(--motion-near-x), 0, 0);
+  filter: blur(var(--motion-blur));
+  transform-origin: left center;
+  will-change: transform;
+}
+
+/* 고속 스트릭은 근경 이동값을 함께 쓰며 별도 시간 애니메이션을 만들지 않는다. */
+.ktx-motion-near::after {
+  position: absolute;
+  inset: 48% 0 8%;
+  background: repeating-linear-gradient(90deg,
+    transparent 0 130px, rgba(255, 255, 255, .55) 130px 156px,
+    transparent 156px 310px);
+  opacity: 0;
+  content: "";
+}
+
+.ktx-motion-scene[data-speed-band="fast"] .ktx-motion-near::after,
+.ktx-motion-scene[data-speed-band="very-fast"] .ktx-motion-near::after {
+  opacity: calc(.18 + var(--motion-speed, 0) * .36);
+}
+
+.ktx-motion-train {
+  position: absolute;
+  left: 50%;
+  top: 49%;
+  width: min(78%, 1120px);
+  height: auto;
+  z-index: 6;
+  object-fit: contain;
+  filter: none;
+  transform: translate3d(-50%, calc(-50% + var(--motion-vibration-y, 0px)), 0)
+    rotate(calc(var(--motion-brake-pitch, 0) * 1deg));
+  transform-origin: center 72%;
+  transition: transform 120ms linear;
+  will-change: transform;
+}
+
+.ktx-motion-cab-frame {
+  position: absolute;
+  inset: 0;
+  z-index: 7;
+  display: none;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: none;
+}
+
+.ktx-motion-station { display: none; }
+
+.ktx-motion-scene[data-motion-moving="true"] .ktx-motion-near,
+.ktx-motion-scene[data-motion-moving="true"] .ktx-motion-track {
+  transition: transform 120ms linear;
+}
+
+.ktx-motion-scene[data-near-loop-reset="true"] .ktx-motion-near,
+.ktx-motion-scene[data-track-loop-reset="true"] .ktx-motion-track {
+  transition: none;
+}
+
+.ktx-motion-scene[data-motion-moving="false"] .ktx-motion-plate,
+.ktx-motion-scene[data-motion-moving="false"] .ktx-motion-near,
+.ktx-motion-scene[data-motion-moving="false"] .ktx-motion-track {
+  transition: none;
+  will-change: auto;
+}
+
+.ktx-motion-scene[data-motion-moving="false"] .ktx-motion-train {
+  transition: none;
+  will-change: auto;
+}
+
+/* 모션 장면이 준비되면 정적 사진은 뒤에 폴백으로 남기되 페인트하지 않는다. */
+.ktx-game[data-motion-realistic="ready"][data-view="side"] .ktx-real-scene {
+  opacity: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ktx-motion-plate { transition-duration: 1800ms; }
+
+  .ktx-motion-near,
+  .ktx-motion-track { filter: none; }
+
+  .ktx-motion-near::after { display: none; }
+
+  .ktx-motion-train {
+    transform: translate3d(-50%, -50%, 0)
+      rotate(calc(var(--motion-brake-pitch, 0) * 1deg));
+  }
+
+  .ktx-motion-scene[data-motion-moving="false"] .ktx-motion-plate,
+  .ktx-motion-scene[data-motion-moving="false"] .ktx-motion-near,
+  .ktx-motion-scene[data-motion-moving="false"] .ktx-motion-track,
+  .ktx-motion-scene[data-motion-moving="false"] .ktx-motion-train {
+    transition: none;
+  }
 }

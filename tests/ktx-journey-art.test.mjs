@@ -40,3 +40,48 @@ test("실사 외부 콘솔은 모든 모션 레이어 위에서 하단 29%를 �
   assert.match(css,
     /data-view="side"\][^\{]*\.ktx-view-cab::before\s*\{[^}]*height:\s*29%[^}]*z-index:\s*10/s);
 });
+
+test("실사 모션 플레이트는 겹친 완성 장면으로만 안전 크롭·교차한다", () => {
+  assert.match(css,
+    /\.ktx-motion-plate\s*\{[^}]*position:\s*absolute[^}]*object-fit:\s*cover[^}]*transform:\s*translate3d\(var\(--motion-scene-x\)/s);
+  assert.match(css,
+    /\.ktx-motion-plate\s*\{[^}]*width:\s*calc\(100%\s*\+\s*240px\)[^}]*left:\s*-120px/s);
+  assert.match(css,
+    /\.ktx-motion-plate\[data-active="true"\]\s*\{[^}]*opacity:\s*1/s);
+  assert.match(css,
+    /\.ktx-motion-plate\[data-active="false"\]\s*\{[^}]*opacity:\s*0/s);
+  assert.doesNotMatch(css, /\.ktx-motion-plate\s*\{[^}]*repeat/s);
+});
+
+test("실사 근경·선로만 위치 이동과 블러를 받고 열차·조작부는 선명하게 고정된다", () => {
+  assert.match(css,
+    /\.ktx-motion-near\s*\{[^}]*transform:\s*translate3d\(var\(--motion-near-x\)[^}]*filter:\s*blur\(var\(--motion-blur\)/s);
+  assert.match(css,
+    /\.ktx-motion-track\s*\{[^}]*transform:\s*translate3d\(var\(--motion-track-x\)[^}]*filter:\s*blur\(var\(--motion-blur\)/s);
+  assert.match(css,
+    /\.ktx-motion-train\s*\{[^}]*z-index:\s*6[^}]*filter:\s*none/s);
+  assert.doesNotMatch(css, /\.ktx-motion-train\s*\{[^}]*animation:[^}]*infinite/s);
+  assert.doesNotMatch(css, /\.ktx-motion-cab-frame\s*\{[^}]*filter:\s*blur/s);
+});
+
+test("실사 속도선은 고속 밴드에만 보이고 정차하면 모든 이동 보간이 사라진다", () => {
+  assert.match(css,
+    /data-speed-band="fast"[^\{]*\.ktx-motion-near::after[^\{]*data-speed-band="very-fast"[^\{]*\.ktx-motion-near::after\s*\{[^}]*opacity:/s);
+  assert.match(css,
+    /data-motion-moving="false"[^\{]*\.ktx-motion-plate[^\{]*\.ktx-motion-near[^\{]*\.ktx-motion-track\s*\{[^}]*transition:\s*none/s);
+  assert.match(css,
+    /data-motion-moving="true"[^\{]*\.ktx-motion-near[^\{]*data-motion-moving="true"[^\{]*\.ktx-motion-track\s*\{[^}]*transition:\s*transform\s+120ms\s+linear/s);
+  assert.match(css,
+    /data-track-loop-reset="true"[^\{]*\.ktx-motion-track\s*\{[^}]*transition:\s*none/s);
+});
+
+test("동작 줄이기에서는 실사 블러·진동·속도선을 제거하고 장면 교차만 느리게 한다", () => {
+  assert.match(css,
+    /prefers-reduced-motion:\s*reduce[\s\S]*\.ktx-motion-plate\s*\{[^}]*transition-duration:\s*1800ms/s);
+  assert.match(css,
+    /prefers-reduced-motion:\s*reduce[\s\S]*\.ktx-motion-near[^\{]*\.ktx-motion-track\s*\{[^}]*filter:\s*none/s);
+  assert.match(css,
+    /prefers-reduced-motion:\s*reduce[\s\S]*\.ktx-motion-near::after\s*\{[^}]*display:\s*none/s);
+  assert.match(css,
+    /prefers-reduced-motion:\s*reduce[\s\S]*\.ktx-motion-train\s*\{[^}]*transform:[^}]*--motion-brake-pitch/s);
+});
