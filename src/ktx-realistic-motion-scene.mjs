@@ -102,17 +102,12 @@ function applyFrame(scene, state, band, controller = null) {
   scene.style.setProperty("--motion-blur", `${frame.blurPx}px`);
   scene.style.setProperty("--motion-brake-pitch", String(frame.brakePitch));
   scene.style.setProperty("--station-progress", String(frame.stationProgress));
-  const stationReveal = frame.departing ? 1 : frame.stationProgress;
   const stationOffsetX = frame.departing
     ? -PHOTO_SAFE_PAN_PX * (1 - frame.stationProgress)
     : PHOTO_SAFE_PAN_PX * (1 - frame.stationProgress);
   scene.style.setProperty("--station-offset-x", `${rounded(stationOffsetX)}px`);
   scene.style.setProperty("--station-cover-scale", "1");
-  scene.style.setProperty("--station-clip-top", `${rounded(36 * (1 - stationReveal))}%`);
-  scene.style.setProperty("--station-clip-side", `${rounded(45 * (1 - stationReveal))}%`);
-  scene.style.setProperty("--station-clip-bottom", `${rounded(56 * (1 - stationReveal))}%`);
-  scene.style.setProperty("--station-opacity", String(rounded(frame.departing
-    ? frame.stationProgress : .45 + frame.stationProgress * .55)));
+  scene.style.setProperty("--station-opacity", String(frame.stationProgress));
   const cabSleeperGap = patternGap(scene, "--cab-sleeper-gap",
     42 - frame.speedRatio * 12, frame.moving);
   const cabCatenaryGap = patternGap(scene, "--cab-catenary-gap",

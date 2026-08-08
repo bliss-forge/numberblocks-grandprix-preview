@@ -145,9 +145,12 @@ test("운전실 모션은 고정 프레임의 투명 전면창 안에서만 소�
 
 test("역 플레이트는 반복 없이 안전 크롭되고 상세 단계에서 읽을 수 있는 표지를 보인다", () => {
   assert.match(css,
-    /\.ktx-motion-station-viewport\s*\{[^}]*overflow:\s*hidden[^}]*--station-clip-side/s);
+    /\.ktx-motion-station-viewport\s*\{[^}]*position:\s*absolute[^}]*inset:\s*0[^}]*z-index:\s*5[^}]*overflow:\s*hidden[^}]*opacity:\s*0/s);
+  assert.doesNotMatch(css,
+    /\.ktx-motion-station-viewport\s*\{[^}]*clip-path:/s,
+    "역 사진의 사각 경계를 드러내는 부분 클립 금지");
   assert.match(css,
-    /\.ktx-motion-station\s*\{[^}]*object-fit:\s*cover[^}]*--station-cover-scale/s);
+    /\.ktx-motion-station\s*\{[^}]*width:\s*calc\(100%\s*\+\s*240px\)[^}]*height:\s*100%[^}]*object-fit:\s*cover[^}]*--station-cover-scale/s);
   assert.match(css,
     /data-station-visible="true"[^\{]*\.ktx-motion-station-viewport\s*\{[^}]*opacity:[^}]*--station-opacity/s);
   assert.doesNotMatch(css, /\.ktx-motion-station\s*\{[^}]*repeat/s);

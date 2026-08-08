@@ -165,7 +165,10 @@ test("SRT 모션 리그는 운전실 전면창 투영과 역·터널 장면 객�
   assert.ok(root.querySelector(".ktx-motion-cab-catenary"));
   assert.ok(root.querySelector(".ktx-motion-tunnel"));
   assert.ok(root.querySelector(".ktx-motion-tunnel-lights"));
-  assert.ok(root.querySelector(".ktx-motion-station-viewport"));
+  const stationViewport = root.querySelector(".ktx-motion-station-viewport");
+  assert.ok(stationViewport);
+  assert.ok(stationViewport.querySelector(".ktx-motion-station"),
+    "역 완성 장면은 전체 화면 레이어 안에 포함됨");
   assert.ok(root.querySelector(".ktx-motion-station-sign"));
 });
 
@@ -460,15 +463,25 @@ test("역 접근·정차·출발은 진행률과 근경 억제를 하나의 수�
     { ...initial, phase: "driving", x: 100, v: 120, markerDistance: 600 },
     { land: "city" });
   assert.equal(scene.style["--station-progress"], "0");
+  assert.equal(scene.style["--station-opacity"], "0",
+    "600m 경계에서는 전체 프레임 교차가 투명도 0에서 시작");
   const approachStartX = Number.parseFloat(scene.style["--station-offset-x"]);
   assert.ok(approachStartX > 0);
   assert.ok(Number.parseFloat(scene.style["--station-cover-scale"]) >= 1);
   assert.equal(scene.dataset.nearSuppressed, "false");
 
   updateRealisticMotionScene(root,
+    { ...initial, phase: "stopping", x: 400, v: 80, markerDistance: 320 },
+    { land: "city" });
+  assert.equal(scene.style["--station-progress"], "0.47");
+  assert.equal(scene.style["--station-opacity"], "0.47",
+    "320m에서는 전체 역 장면이 일반 풍경과 절반가량 교차");
+
+  updateRealisticMotionScene(root,
     { ...initial, phase: "stopping", x: 500, v: 40, markerDistance: 100 },
     { land: "city" });
   assert.equal(scene.style["--station-progress"], "0.83");
+  assert.equal(scene.style["--station-opacity"], "0.83");
   const approachDetailX = Number.parseFloat(scene.style["--station-offset-x"]);
   assert.ok(approachDetailX < approachStartX);
   assert.equal(scene.dataset.nearSuppressed, "true");
@@ -479,6 +492,7 @@ test("역 접근·정차·출발은 진행률과 근경 억제를 하나의 수�
     { land: "city" });
   const stoppedProgress = scene.style["--station-progress"];
   assert.equal(stoppedProgress, "1");
+  assert.equal(scene.style["--station-opacity"], "1");
   const stoppedX = Number.parseFloat(scene.style["--station-offset-x"]);
   assert.equal(stoppedX, 0);
   assert.equal(scene.dataset.motionMoving, "false");
@@ -507,7 +521,7 @@ test("역 접근·정차·출발은 진행률과 근경 억제를 하나의 수�
   assert.equal(station.dataset.lifecycle, "hidden");
 });
 
-test("1280×720 역 사진은 축소되지 않고 잘린 뷰포트 안에서 항상 화면을 덮는다", () => {
+test("1280×720 역 사진은 사진 경계 없이 전체 모션 월드를 항상 덮는다", () => {
   const initial = createKtxJourney(3, "srt");
   const root = renderKtxScene(fakeDocument(), initial, "side");
   const scene = root.querySelector(".ktx-motion-scene");
@@ -524,8 +538,8 @@ test("1280×720 역 사진은 축소되지 않고 잘린 뷰포트 안에서 항
     "안전 여백을 포함한 이미지가 1280×720 뷰포트를 덮음");
   assert.ok(Math.abs(Number.parseFloat(scene.style["--station-offset-x"])) <= 120,
     "역 사진 이동은 좌우 120px 안전 크롭 여백을 넘지 않음");
-  assert.equal(scene.style["--station-clip-side"], "45%");
-  assert.equal(scene.style["--station-clip-top"], "36%");
+  assert.equal(scene.style["--station-clip-side"], undefined);
+  assert.equal(scene.style["--station-clip-top"], undefined);
 });
 
 test("역 표지는 주행 중 목적지와 정차한 현재 역 이름을 표시한다", () => {

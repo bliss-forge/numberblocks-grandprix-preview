@@ -8173,13 +8173,11 @@ body[data-mode="ktx"] .stage-lights {
 .ktx-motion-station-viewport {
   position: absolute;
   inset: 0;
-  z-index: 2;
+  z-index: 5;
   overflow: hidden;
-  clip-path: inset(var(--station-clip-top, 36%) var(--station-clip-side, 45%)
-    var(--station-clip-bottom, 56%));
   opacity: 0;
-  transition: opacity 120ms linear, clip-path 120ms linear;
-  will-change: opacity, clip-path;
+  transition: opacity 120ms linear;
+  will-change: opacity;
 }
 
 .ktx-motion-station {
