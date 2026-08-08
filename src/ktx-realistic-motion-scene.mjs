@@ -1,11 +1,17 @@
 import { realisticMotionAssets } from "./ktx-realistic-assets.mjs";
 import { realisticMotionFrame } from "./ktx-realistic-motion.mjs";
+import { routeSegments } from "./ktx-journey.mjs";
 
 const controllers = new WeakMap();
 const PLATE_SPAN = 4000;
 const PLATE_SWAP_GUARD = 400;
 const PHOTO_SAFE_PAN_PX = 120;
 const PATTERN_PERIOD_PX = Object.freeze({ near: 720, track: 144, streak: 310 });
+const CAB_TRACK_PERIOD_PX = 160;
+const CAB_CATENARY_PERIOD_PX = 304;
+const TUNNEL_PATTERN_PERIOD_PX = 100;
+const TUNNEL_PORTAL_DISTANCE = 600;
+const STATION_PHASES = new Set(["stopped", "boarding", "ready", "branch", "finale"]);
 
 function el(document, tag, className) {
   const node = document.createElement(tag);
@@ -98,20 +104,35 @@ function applyFrame(scene, state, band, controller = null) {
   scene.style.setProperty("--motion-blur", `${frame.blurPx}px`);
   scene.style.setProperty("--motion-brake-pitch", String(frame.brakePitch));
   scene.style.setProperty("--station-progress", String(frame.stationProgress));
-  scene.style.setProperty("--station-x", `${rounded((1 - frame.stationProgress) * 35)}%`);
-  scene.style.setProperty("--station-y", `${rounded((1 - frame.stationProgress) * -18)}%`);
-  scene.style.setProperty("--station-scale", String(rounded(.28 + frame.stationProgress * .72)));
-  scene.style.setProperty("--cab-track-phase", `${rounded(-frame.offsets.track)}px`);
+  const stationReveal = frame.departing ? 1 : frame.stationProgress;
+  const stationOffsetX = frame.departing
+    ? -PHOTO_SAFE_PAN_PX * (1 - frame.stationProgress)
+    : PHOTO_SAFE_PAN_PX * (1 - frame.stationProgress);
+  scene.style.setProperty("--station-offset-x", `${rounded(stationOffsetX)}px`);
+  scene.style.setProperty("--station-cover-scale", "1");
+  scene.style.setProperty("--station-clip-top", `${rounded(36 * (1 - stationReveal))}%`);
+  scene.style.setProperty("--station-clip-side", `${rounded(45 * (1 - stationReveal))}%`);
+  scene.style.setProperty("--station-clip-bottom", `${rounded(56 * (1 - stationReveal))}%`);
+  scene.style.setProperty("--station-opacity", String(rounded(frame.departing
+    ? frame.stationProgress : .45 + frame.stationProgress * .55)));
+  setLoopPhase(scene, "cabTrack", "--cab-track-phase",
+    frame.offsets.track, CAB_TRACK_PERIOD_PX);
+  setLoopPhase(scene, "cabCatenary", "--cab-catenary-phase",
+    frame.offsets.track, CAB_CATENARY_PERIOD_PX);
   scene.style.setProperty("--cab-sleeper-gap", `${rounded(42 - frame.speedRatio * 12)}px`);
   scene.style.setProperty("--tunnel-light-gap", `${rounded(98 - frame.speedRatio * 42)}px`);
-  scene.style.setProperty("--tunnel-phase",
-    frame.land === "tunnel" ? `${rounded(-frame.offsets.track)}px` : "0px");
-  scene.style.setProperty("--tunnel-progress",
-    frame.land === "tunnel" ? String(rounded(Math.min(1, Math.max(0, state.x / 600)))) : "0");
+  const tunnelProgress = tunnelPortalProgress(controller, frame.land, state.x);
+  setLoopPhase(scene, "tunnel", "--tunnel-phase",
+    frame.land === "tunnel" ? frame.offsets.track : 0, TUNNEL_PATTERN_PERIOD_PX);
+  scene.style.setProperty("--tunnel-progress", String(rounded(tunnelProgress)));
   scene.style.setProperty("--tunnel-scale",
     frame.land === "tunnel"
-      ? String(rounded(.18 + Math.min(1, Math.max(0, state.x / 600)) * 1.15))
+      ? String(rounded(.18 + tunnelProgress * 1.15))
       : ".18");
+  scene.dataset.tunnelPortalVisible = String(
+    frame.land === "tunnel" && tunnelProgress <= 1 &&
+    (controller?.tunnelDistance ?? 0) <= TUNNEL_PORTAL_DISTANCE
+  );
   scene.style.setProperty("--motion-vibration-y",
     `${motionVibration(state.x, state.v, frame.moving)}px`);
   const durationMs = controller?.crossfade?.durationMs ??
@@ -122,6 +143,9 @@ function applyFrame(scene, state, band, controller = null) {
   if (controller?.station) {
     controller.station.dataset.lifecycle = frame.departing
       ? "departing" : frame.stationStage;
+  }
+  if (controller?.stationSign) {
+    controller.stationSign.textContent = stationName(state);
   }
   return frame;
 }
@@ -145,6 +169,38 @@ function setPatternMotion(scene, layer, offset, period) {
   );
   scene.style.setProperty(`--motion-${layer}-x`, `${rounded(-offset)}px`);
   scene.style.setProperty(phaseProperty, `${phase}px`);
+}
+
+function setLoopPhase(scene, loop, property, offset, period) {
+  const phase = rounded(-(Math.max(0, offset) % period));
+  const previous = Number.parseFloat(scene.style[property]);
+  scene.dataset[`${loop}LoopReset`] = String(
+    Number.isFinite(previous) && Math.abs(phase - previous) > period / 2
+  );
+  scene.style.setProperty(property, `${phase}px`);
+}
+
+function tunnelPortalProgress(controller, land, x) {
+  if (!controller) return 0;
+  if (land !== "tunnel") {
+    controller.tunnelEntryX = null;
+    controller.tunnelDistance = 0;
+    controller.lastTunnelLand = land;
+    return 0;
+  }
+  if (controller.lastTunnelLand !== "tunnel" ||
+    controller.tunnelEntryX === null || x < controller.tunnelEntryX) {
+    controller.tunnelEntryX = x;
+  }
+  controller.lastTunnelLand = land;
+  controller.tunnelDistance = Math.max(0, x - controller.tunnelEntryX);
+  return Math.min(1, controller.tunnelDistance / TUNNEL_PORTAL_DISTANCE);
+}
+
+function stationName(state) {
+  if (STATION_PHASES.has(state.phase) && state.station) return state.station;
+  const segment = routeSegments(state)[state.segIndex];
+  return segment?.to ?? state.station ?? "SRT 역";
 }
 
 function crossfadeDuration(speedRatio) {
@@ -345,6 +401,9 @@ export function buildRealisticMotionScene(document, state, onStateChange) {
     loadedEnvironments: new Map(),
     failedEnvironments: new Set(),
     pending: null,
+    tunnelEntryX: null,
+    tunnelDistance: 0,
+    lastTunnelLand: state.land,
     onStateChange
   };
 
@@ -365,8 +424,10 @@ export function buildRealisticMotionScene(document, state, onStateChange) {
   const near = el(document, "div", "ktx-motion-near");
   const station = motionImage(document, "ktx-motion-station",
     pack.station[0], "", controller);
+  const stationViewport = el(document, "div", "ktx-motion-station-viewport");
+  stationViewport.append(station);
   const stationSign = el(document, "div", "ktx-motion-station-sign");
-  stationSign.textContent = "SRT 역";
+  stationSign.textContent = stationName(state);
   const cabWindow = el(document, "div", "ktx-motion-cab-window");
   const cabRailLeft = el(document, "div", "ktx-motion-cab-rail ktx-motion-cab-rail-left");
   const cabRailRight = el(document, "div", "ktx-motion-cab-rail ktx-motion-cab-rail-right");
@@ -381,11 +442,11 @@ export function buildRealisticMotionScene(document, state, onStateChange) {
     pack.train, "실사 SRT 열차", controller);
   const cabFrame = motionImage(document, "ktx-motion-cab-frame",
     pack.cabMask, "실사 SRT 운전실", controller);
-  Object.assign(controller, { station, train, cabFrame });
+  Object.assign(controller, { station, stationSign, train, cabFrame });
 
-  scene.append(...plates, station, stationSign, track, near, cabWindow, train, cabFrame);
+  scene.append(...plates, stationViewport, stationSign, track, near, cabWindow, train, cabFrame);
   scene.dataset.readiness = "pending";
-  applyFrame(scene, state, { land: state.land });
+  applyFrame(scene, state, { land: state.land }, controller);
   controllers.set(scene, controller);
   return scene;
 }

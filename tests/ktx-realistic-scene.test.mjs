@@ -165,6 +165,7 @@ test("SRT 모션 리그는 운전실 전면창 투영과 역·터널 장면 객�
   assert.ok(root.querySelector(".ktx-motion-cab-catenary"));
   assert.ok(root.querySelector(".ktx-motion-tunnel"));
   assert.ok(root.querySelector(".ktx-motion-tunnel-lights"));
+  assert.ok(root.querySelector(".ktx-motion-station-viewport"));
   assert.ok(root.querySelector(".ktx-motion-station-sign"));
 });
 
@@ -459,12 +460,17 @@ test("역 접근·정차·출발은 진행률과 근경 억제를 하나의 수�
     { ...initial, phase: "driving", x: 100, v: 120, markerDistance: 600 },
     { land: "city" });
   assert.equal(scene.style["--station-progress"], "0");
+  const approachStartX = Number.parseFloat(scene.style["--station-offset-x"]);
+  assert.ok(approachStartX > 0);
+  assert.ok(Number.parseFloat(scene.style["--station-cover-scale"]) >= 1);
   assert.equal(scene.dataset.nearSuppressed, "false");
 
   updateRealisticMotionScene(root,
     { ...initial, phase: "stopping", x: 500, v: 40, markerDistance: 100 },
     { land: "city" });
   assert.equal(scene.style["--station-progress"], "0.83");
+  const approachDetailX = Number.parseFloat(scene.style["--station-offset-x"]);
+  assert.ok(approachDetailX < approachStartX);
   assert.equal(scene.dataset.nearSuppressed, "true");
   assert.equal(scene.dataset.stationVisible, "true");
 
@@ -473,6 +479,8 @@ test("역 접근·정차·출발은 진행률과 근경 억제를 하나의 수�
     { land: "city" });
   const stoppedProgress = scene.style["--station-progress"];
   assert.equal(stoppedProgress, "1");
+  const stoppedX = Number.parseFloat(scene.style["--station-offset-x"]);
+  assert.equal(stoppedX, 0);
   assert.equal(scene.dataset.motionMoving, "false");
   assert.equal(station.dataset.lifecycle, "stopped");
 
@@ -480,7 +488,17 @@ test("역 접근·정차·출발은 진행률과 근경 억제를 하나의 수�
     { ...initial, phase: "driving", x: 300, v: 80, markerDistance: 5000 },
     { land: "field" });
   assert.equal(scene.style["--station-progress"], "0.5");
+  const departureMiddleX = Number.parseFloat(scene.style["--station-offset-x"]);
+  assert.ok(departureMiddleX < stoppedX, "출발 시 역은 열차 뒤쪽인 왼쪽으로 밀려야 함");
   assert.equal(station.dataset.lifecycle, "departing");
+
+  updateRealisticMotionScene(root,
+    { ...initial, phase: "driving", x: 599, v: 80, markerDistance: 4401 },
+    { land: "field" });
+  const departureEndX = Number.parseFloat(scene.style["--station-offset-x"]);
+  assert.ok(departureEndX < departureMiddleX,
+    "접근→정차→출발의 역 이동은 오른쪽으로 되감기지 않음");
+  assert.ok(Number.parseFloat(scene.style["--station-opacity"]) < 0.01);
 
   updateRealisticMotionScene(root,
     { ...initial, phase: "driving", x: 600, v: 80, markerDistance: 4400 },
@@ -489,43 +507,126 @@ test("역 접근·정차·출발은 진행률과 근경 억제를 하나의 수�
   assert.equal(station.dataset.lifecycle, "hidden");
 });
 
-test("운전실 선로와 터널 위상은 실제 위치를 따르고 정차 시 멈춘다", () => {
+test("1280×720 역 사진은 축소되지 않고 잘린 뷰포트 안에서 항상 화면을 덮는다", () => {
+  const initial = createKtxJourney(3, "srt");
+  const root = renderKtxScene(fakeDocument(), initial, "side");
+  const scene = root.querySelector(".ktx-motion-scene");
+
+  updateRealisticMotionScene(root,
+    { ...initial, phase: "driving", x: 100, v: 120, markerDistance: 600 },
+    { land: "city" });
+
+  const scale = Number.parseFloat(scene.style["--station-cover-scale"]);
+  const sourceWidth = (1280 + 240) * scale;
+  const sourceHeight = 720 * scale;
+  assert.ok(scale >= 1, "커버 이미지는 어떤 접근 단계에서도 축소 금지");
+  assert.ok(sourceWidth >= 1280 && sourceHeight >= 720,
+    "안전 여백을 포함한 이미지가 1280×720 뷰포트를 덮음");
+  assert.ok(Math.abs(Number.parseFloat(scene.style["--station-offset-x"])) <= 120,
+    "역 사진 이동은 좌우 120px 안전 크롭 여백을 넘지 않음");
+  assert.equal(scene.style["--station-clip-side"], "45%");
+  assert.equal(scene.style["--station-clip-top"], "36%");
+});
+
+test("역 표지는 주행 중 목적지와 정차한 현재 역 이름을 표시한다", () => {
+  const initial = createKtxJourney(3, "srt");
+  const root = renderKtxScene(fakeDocument(), initial, "side");
+  const sign = root.querySelector(".ktx-motion-station-sign");
+
+  updateRealisticMotionScene(root,
+    { ...initial, phase: "stopping", x: 4000, v: 40, markerDistance: 100 },
+    { land: "field" });
+  assert.equal(sign.textContent, "동탄");
+
+  updateRealisticMotionScene(root,
+    { ...initial, phase: "stopped", segIndex: 1, station: "동탄", x: 0, v: 0,
+      markerDistance: 0 }, { land: "field" });
+  assert.equal(sign.textContent, "동탄", "정차 직후 다음 구간 목적지로 먼저 바뀌지 않음");
+});
+
+test("운전실 선로 위상은 큰 실제 위치에서도 반복 범위 안에 있고 정차 시 멈춘다", () => {
   const initial = createKtxJourney(3, "srt");
   const root = renderKtxScene(fakeDocument(), initial, "cab");
   const scene = root.querySelector(".ktx-motion-scene");
 
   updateRealisticMotionScene(root,
-    { ...initial, phase: "driving", x: 100, v: 80, markerDistance: 900 },
-    { land: "tunnel" });
+    { ...initial, phase: "driving", x: 2530, v: 80, markerDistance: 900 },
+    { land: "field" });
   const slowTrack = Number.parseFloat(scene.style["--cab-track-phase"]);
-  const slowTunnel = Number.parseFloat(scene.style["--tunnel-phase"]);
   const slowSleeperGap = Number.parseFloat(scene.style["--cab-sleeper-gap"]);
   const slowTunnelGap = Number.parseFloat(scene.style["--tunnel-light-gap"]);
-  assert.equal(scene.dataset.tunnel, "true");
+  assert.ok(slowTrack <= 0 && slowTrack > -160);
 
   updateRealisticMotionScene(root,
-    { ...initial, phase: "driving", x: 300, v: 240, markerDistance: 700 },
-    { land: "tunnel" });
-  assert.ok(Number.parseFloat(scene.style["--cab-track-phase"]) < slowTrack);
-  assert.ok(Number.parseFloat(scene.style["--tunnel-phase"]) < slowTunnel,
-    "터널 포털/벽 위상은 진행 방향으로 단조 이동");
+    { ...initial, phase: "driving", x: 2640, v: 240, markerDistance: 700 },
+    { land: "field" });
+  assert.ok(Number.parseFloat(scene.style["--cab-track-phase"]) <= 0);
+  assert.ok(Number.parseFloat(scene.style["--cab-track-phase"]) > -160);
   assert.ok(Number.parseFloat(scene.style["--cab-sleeper-gap"]) < slowSleeperGap);
   assert.ok(Number.parseFloat(scene.style["--tunnel-light-gap"]) < slowTunnelGap);
 
-  const stoppedTrack = scene.style["--cab-track-phase"];
-  const stoppedTunnel = scene.style["--tunnel-phase"];
   updateRealisticMotionScene(root,
-    { ...initial, phase: "stopped", x: 300, v: 0, markerDistance: 0 },
-    { land: "tunnel" });
-  assert.equal(scene.style["--cab-track-phase"], stoppedTrack);
-  assert.equal(scene.style["--tunnel-phase"], stoppedTunnel);
+    { ...initial, phase: "driving", x: 5000, v: 240, markerDistance: 700 },
+    { land: "field" });
+  assert.ok(Number.parseFloat(scene.style["--cab-track-phase"]) <= 0);
+  assert.ok(Number.parseFloat(scene.style["--cab-track-phase"]) > -160,
+    "유한 요소가 화면 밖으로 누적 이동하지 않음");
 
   updateRealisticMotionScene(root,
-    { ...initial, phase: "driving", x: 400, v: 120, markerDistance: 600 },
-    { land: "city" });
-  assert.equal(scene.dataset.tunnel, "false");
-  assert.equal(scene.style["--tunnel-phase"], "0px");
+    { ...initial, phase: "driving", x: 159, v: 120, markerDistance: 700 },
+    { land: "field" });
+  updateRealisticMotionScene(root,
+    { ...initial, phase: "driving", x: 160, v: 120, markerDistance: 700 },
+    { land: "field" });
+  assert.equal(scene.dataset.cabTrackLoopReset, "true");
+
+  const stoppedTrack = scene.style["--cab-track-phase"];
+  updateRealisticMotionScene(root,
+    { ...initial, phase: "stopped", x: 160, v: 0, markerDistance: 0 },
+    { land: "field" });
+  assert.equal(scene.style["--cab-track-phase"], stoppedTrack);
 });
+
+for (const routeCase of [
+  { route: "busan", entryX: 2640, beforeLand: "mountain" },
+  { route: "mokpo", entryX: 2530, beforeLand: "field" }
+]) {
+  test(`${routeCase.route} 터널은 실제 진입점부터 포털 진행률을 새로 센다`, () => {
+    const initial = { ...createKtxJourney(3, "srt"), route: routeCase.route,
+      selectedRoute: routeCase.route, segIndex: 2 };
+    const root = renderKtxScene(fakeDocument(), initial, "cab");
+    const scene = root.querySelector(".ktx-motion-scene");
+
+    updateRealisticMotionScene(root,
+      { ...initial, phase: "driving", x: routeCase.entryX - 1, v: 180 },
+      { land: routeCase.beforeLand });
+    updateRealisticMotionScene(root,
+      { ...initial, phase: "driving", x: routeCase.entryX, v: 180 },
+      { land: "tunnel" });
+    assert.equal(scene.style["--tunnel-progress"], "0");
+    assert.equal(scene.dataset.tunnelPortalVisible, "true");
+
+    updateRealisticMotionScene(root,
+      { ...initial, phase: "driving", x: routeCase.entryX + 300, v: 180 },
+      { land: "tunnel" });
+    assert.equal(scene.style["--tunnel-progress"], "0.5");
+
+    updateRealisticMotionScene(root,
+      { ...initial, phase: "driving", x: routeCase.entryX + 601, v: 180 },
+      { land: "tunnel" });
+    assert.equal(scene.dataset.tunnelPortalVisible, "false");
+    assert.equal(scene.dataset.tunnel, "true", "포털 뒤에도 벽과 조명은 유지");
+
+    updateRealisticMotionScene(root,
+      { ...initial, phase: "driving", x: routeCase.entryX + 900, v: 180 },
+      { land: routeCase.beforeLand });
+    updateRealisticMotionScene(root,
+      { ...initial, phase: "driving", x: 100, v: 180 },
+      { land: "tunnel" });
+    assert.equal(scene.style["--tunnel-progress"], "0",
+      "터널을 나갔다 다시 들어오면 로컬 진입 거리를 초기화");
+  });
+}
 
 test("고속 진동은 160km/h 위에서만 생기고 1.5px를 넘지 않는다", () => {
   const initial = createKtxJourney(3, "srt");

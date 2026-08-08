@@ -8170,25 +8170,37 @@ body[data-mode="ktx"] .stage-lights {
   pointer-events: none;
 }
 
+.ktx-motion-station-viewport {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  overflow: hidden;
+  clip-path: inset(var(--station-clip-top, 36%) var(--station-clip-side, 45%)
+    var(--station-clip-bottom, 56%));
+  opacity: 0;
+  transition: opacity 120ms linear, clip-path 120ms linear;
+  will-change: opacity, clip-path;
+}
+
 .ktx-motion-station {
   position: absolute;
   left: -120px;
   top: 0;
-  z-index: 2;
   display: block;
   width: calc(100% + 240px);
   height: 100%;
   object-fit: cover;
   object-position: center center;
-  opacity: 0;
-  transform: translate3d(var(--station-x, 35%), var(--station-y, -18%), 0)
-    scale(var(--station-scale, .28));
-  transform-origin: 50% 40%;
-  transition: transform 120ms linear, opacity 120ms linear;
-  will-change: transform, opacity;
+  transform: translate3d(var(--station-offset-x, 120px), 0, 0)
+    scale(var(--station-cover-scale, 1));
+  transform-origin: center center;
+  transition: transform 120ms linear;
+  will-change: transform;
 }
 
-.ktx-motion-scene[data-station-visible="true"] .ktx-motion-station { opacity: 1; }
+.ktx-motion-scene[data-station-visible="true"] .ktx-motion-station-viewport {
+  opacity: var(--station-opacity, 1);
+}
 
 .ktx-motion-station-sign {
   position: absolute;
@@ -8237,7 +8249,7 @@ body[data-mode="ktx"] .stage-lights {
   border-radius: 999px;
   background: linear-gradient(90deg, #2a2d30, #d9dde0 46%, #45494d);
   box-shadow: 0 0 8px rgba(255, 255, 255, .45);
-  transform-origin: 50% 40%;
+  transform-origin: 50% 0;
 }
 
 .ktx-motion-cab-rail-left { transform: translateX(-50%) rotate(15deg); }
@@ -8253,27 +8265,27 @@ body[data-mode="ktx"] .stage-lights {
     transparent 0 calc(var(--cab-sleeper-gap, 42px) - 8px),
     rgba(46, 43, 40, .88) calc(var(--cab-sleeper-gap, 42px) - 8px)
       var(--cab-sleeper-gap, 42px));
-  transform: perspective(360px) rotateX(58deg)
-    translate3d(0, var(--cab-track-phase, 0px), 0);
-  transform-origin: 50% 40%;
-  transition: transform 120ms linear;
+  background-position: center var(--cab-track-phase, 0px);
+  transform: perspective(360px) rotateX(58deg);
+  transform-origin: 50% 0;
+  transition: background-position 120ms linear;
 }
 
 .ktx-motion-cab-catenary {
   position: absolute;
   left: 50%;
-  top: 0;
+  top: 40%;
   width: 44%;
-  height: 100%;
+  height: 60%;
   background:
     linear-gradient(90deg,
       transparent 49.6%, rgba(35, 39, 43, .78) 49.8% 50.2%, transparent 50.4%),
     repeating-linear-gradient(to bottom,
       transparent 0 72px, rgba(35, 39, 43, .64) 73px 76px);
-  background-position: center 0, center var(--cab-track-phase, 0px);
+  background-position: center 0, center var(--cab-catenary-phase, 0px);
   clip-path: polygon(48% 0, 52% 0, 100% 100%, 0 100%);
   transform: translateX(-50%);
-  transform-origin: 50% 40%;
+  transform-origin: 50% 0;
   transition: background-position 120ms linear;
 }
 
@@ -8305,6 +8317,10 @@ body[data-mode="ktx"] .stage-lights {
   transform: translate(-50%, -50%) scale(var(--tunnel-scale, .18));
   transform-origin: 50% 40%;
   transition: transform 120ms linear;
+}
+
+.ktx-motion-scene[data-tunnel-portal-visible="false"] .ktx-motion-tunnel-portal {
+  opacity: 0;
 }
 
 .ktx-motion-tunnel-lights {
@@ -8354,6 +8370,7 @@ body[data-mode="ktx"] .stage-lights {
 .ktx-motion-scene[data-motion-moving="false"] .ktx-motion-plate,
 .ktx-motion-scene[data-motion-moving="false"] .ktx-motion-near,
 .ktx-motion-scene[data-motion-moving="false"] .ktx-motion-track,
+.ktx-motion-scene[data-motion-moving="false"] .ktx-motion-station-viewport,
 .ktx-motion-scene[data-motion-moving="false"] .ktx-motion-station,
 .ktx-motion-scene[data-motion-moving="false"] .ktx-motion-cab-sleepers,
 .ktx-motion-scene[data-motion-moving="false"] .ktx-motion-cab-catenary,

@@ -114,11 +114,11 @@ test("운전실 모션은 고정 프레임의 투명 전면창 안에서만 소�
   assert.match(css,
     /\.ktx-motion-cab-window\s*\{[^}]*position:\s*absolute[^}]*overflow:\s*hidden[^}]*clip-path:\s*polygon\([^)]*\)/s);
   assert.match(css,
-    /\.ktx-motion-cab-rail\s*\{[^}]*top:\s*40%[^}]*transform-origin:\s*50%\s+40%/s);
+    /\.ktx-motion-cab-rail\s*\{[^}]*top:\s*40%[^}]*transform-origin:\s*50%\s+0/s);
   assert.match(css,
-    /\.ktx-motion-cab-sleepers\s*\{[^}]*--cab-sleeper-gap[^}]*--cab-track-phase/s);
+    /\.ktx-motion-cab-sleepers\s*\{[^}]*--cab-sleeper-gap[^}]*background-position:[^}]*--cab-track-phase/s);
   assert.match(css,
-    /\.ktx-motion-cab-catenary\s*\{[^}]*--cab-track-phase[^}]*transform-origin:\s*50%\s+40%/s);
+    /\.ktx-motion-cab-catenary\s*\{[^}]*top:\s*40%[^}]*--cab-catenary-phase[^}]*transform-origin:\s*50%\s+0/s);
   assert.match(css,
     /data-view="cab"\][^\{]*\.ktx-motion-cab-frame\s*\{[^}]*display:\s*block/s);
   assert.match(css,
@@ -127,9 +127,11 @@ test("운전실 모션은 고정 프레임의 투명 전면창 안에서만 소�
 
 test("역 플레이트는 반복 없이 안전 크롭되고 상세 단계에서 읽을 수 있는 표지를 보인다", () => {
   assert.match(css,
-    /\.ktx-motion-station\s*\{[^}]*object-fit:\s*cover[^}]*transform:[^}]*--station-x/s);
+    /\.ktx-motion-station-viewport\s*\{[^}]*overflow:\s*hidden[^}]*--station-clip-side/s);
   assert.match(css,
-    /data-station-visible="true"[^\{]*\.ktx-motion-station\s*\{[^}]*opacity:\s*1/s);
+    /\.ktx-motion-station\s*\{[^}]*object-fit:\s*cover[^}]*--station-cover-scale/s);
+  assert.match(css,
+    /data-station-visible="true"[^\{]*\.ktx-motion-station-viewport\s*\{[^}]*opacity:[^}]*--station-opacity/s);
   assert.doesNotMatch(css, /\.ktx-motion-station\s*\{[^}]*repeat/s);
   assert.match(css,
     /data-station-stage="detail"[^\{]*\.ktx-motion-station-sign[\s\S]*data-station-stage="stopped"[^\{]*\.ktx-motion-station-sign\s*\{[^}]*opacity:\s*1/s);
