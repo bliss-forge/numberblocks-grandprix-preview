@@ -4,7 +4,7 @@
 
 **Goal:** Replace the static SRT photos in game 7 with speed-driven photorealistic exterior, cab-window, landscape, track, tunnel, and station motion while preserving the approved train composition and existing controls.
 
-**Architecture:** A pure motion-model module converts journey position, speed, phase, and marker distance into deterministic CSS values. The scene renderer mounts a separate motion asset rig only for SRT, keeps the current static realistic scene as the first fallback, and keeps the train-specific SVG as the final fallback. CSS composites a fixed train or cab shell over position-driven sky, far, mid, near, track, and station layers.
+**Architecture:** A pure motion-model module converts journey position, speed, phase, and marker distance into deterministic CSS values. The scene renderer mounts a separate motion asset rig only for SRT, keeps the current static realistic scene as the first fallback, and keeps the train-specific SVG as the final fallback. One native-resolution complete environment plate (sky + far + mid) pans only inside its safe crop range and crossfades to another complete plate; photographic plates are never stitched or tiled. CSS/SVG near objects and track patterns provide uninterrupted high-speed motion beneath a fixed train or cab shell.
 
 **Tech Stack:** Native ES modules, DOM/SVG/CSS transforms, WebP/PNG assets, Node `node:test`, existing fake DOM test harness, browser visual QA.
 
@@ -20,6 +20,8 @@
 - `prefers-reduced-motion: reduce` removes blur, vibration, and speed streaks while preserving low-frequency position changes.
 - Desktop 1280×720 and mobile landscape 844×390 must have no clipping, horizontal overflow, or control overlap.
 - Existing SRT visual fidelity remains at least 95/100.
+- Never stitch, mirror, or tile generated photographic plates. A photographic edge must never meet another photographic edge inside the viewport.
+- At 0km/h both plate panning and any in-progress plate crossfade must freeze.
 
 ---
 
@@ -111,18 +113,19 @@ git add src/ktx-realistic-motion.mjs tests/ktx-realistic-motion.test.mjs
 git commit -m "feat: model speed-driven SRT motion"
 ```
 
-### Task 2: Motion asset manifest and generated scene pack
+### Task 2: Native scene-plate manifest and generated scene pack
 
 **Files:**
 - Modify: `src/ktx-realistic-assets.mjs`
 - Modify: `tests/ktx-realistic-assets.test.mjs`
 - Create: `assets/train-realistic/motion/srt-side-transparent.png`
 - Create: `assets/train-realistic/motion/cab-window-mask.png`
-- Create: `assets/train-realistic/motion/station-platform.webp`
-- Create: `assets/train-realistic/motion/{city,field,mountain,river,sea,tunnel}-{sky,far,mid}.webp`
+- Create: `assets/train-realistic/motion/station-platform-a.webp`
+- Create: `assets/train-realistic/motion/{city,field,mountain,river,sea,tunnel}-{a,b,c}.webp`
+- Create: `assets/train-realistic/motion/quality-metrics.json`
 
 **Interfaces:**
-- Produces: `realisticMotionAssets(trainId, land)` returning `null` for non-SRT and `{ train, cabMask, station, sky, far, mid }` for SRT.
+- Produces: `realisticMotionAssets(trainId, land)` returning `null` for non-SRT and `{ train, cabMask, station, scenes }` for SRT, where `station` and `scenes` are frozen arrays of native scene-plate paths.
 - Produces: `REALISTIC_MOTION_ASSETS` as the immutable source manifest.
 
 - [ ] **Step 1: Write failing manifest tests**
@@ -131,10 +134,12 @@ git commit -m "feat: model speed-driven SRT motion"
 test("SRT 모션 팩은 환경별 하늘·원경·중경과 공용 열차·역을 제공한다", () => {
   const pack = realisticMotionAssets("srt", "river", "day");
   assert.equal(pack.train, "assets/train-realistic/motion/srt-side-transparent.png");
-  assert.match(pack.sky, /river-sky\.webp$/);
-  assert.match(pack.far, /river-far\.webp$/);
-  assert.match(pack.mid, /river-mid\.webp$/);
-  assert.match(pack.station, /station-platform\.webp$/);
+  assert.deepEqual(pack.scenes, [
+    "assets/train-realistic/motion/river-a.webp",
+    "assets/train-realistic/motion/river-b.webp",
+    "assets/train-realistic/motion/river-c.webp"
+  ]);
+  assert.deepEqual(pack.station, ["assets/train-realistic/motion/station-platform-a.webp"]);
 });
 
 test("KTX는 SRT 모션 자산을 선택하지 않는다", () => {
@@ -149,18 +154,20 @@ Expected: FAIL because `realisticMotionAssets` is not exported.
 
 - [ ] **Step 3: Generate the assets with the image generation tool**
 
-Generate one clean transparent SRT side profile, one transparent cab-window mask, one
-station panorama, and eighteen seamless landscape strips. Every landscape prompt must
-say: realistic Korean high-speed railway, no train, no people close-up, no text, no
-watermark, level horizon, seamless horizontal edges, correct environment, neutral daylight.
+Generate one clean transparent SRT side profile, one full-screen cab frame with transparency
+only in the windshield, one native station plate, and at least three independent native complete
+scene plates for every environment. Every landscape prompt must say: realistic Korean
+high-speed railway, no train, no people close-up, no text, no watermark, level horizon,
+correct environment, neutral daylight. Do not request or construct seamless horizontal edges.
 The SRT prompt must say: complete right-facing white/silver SRT, plum roof and stripe,
 pantograph visible, both ends inside frame, transparent background, no text except SRT logo.
 
 - [ ] **Step 4: Normalize dimensions and encoding**
 
-Use the workspace image runtime to make landscape strips 3840×720 WebP, the station
-2560×720 WebP, the train 2400×640 transparent PNG, and the cab mask 2560×1440 transparent
-PNG. Do not upscale a source smaller than its target; regenerate it instead.
+Keep every landscape and station plate at its native aspect ratio and at least 1600×850;
+down-encode to WebP without spatial upscaling. Keep the train at 2400×640 transparent PNG
+and the cab frame at 2560×1440 transparent PNG. Do not stitch, mirror, tile, stretch, or
+extend any photographic plate. If a native source is below the minimum, regenerate it.
 
 - [ ] **Step 5: Implement and freeze the manifest**
 
@@ -174,18 +181,21 @@ export function realisticMotionAssets(trainId, land) {
   return {
     train: `${MOTION_ROOT}/srt-side-transparent.png`,
     cabMask: `${MOTION_ROOT}/cab-window-mask.png`,
-    station: `${MOTION_ROOT}/station-platform.webp`,
-    sky: `${MOTION_ROOT}/${selected}-sky.webp`,
-    far: `${MOTION_ROOT}/${selected}-far.webp`,
-    mid: `${MOTION_ROOT}/${selected}-mid.webp`
+    station: [`${MOTION_ROOT}/station-platform-a.webp`],
+    scenes: ["a", "b", "c"].map((variant) => `${MOTION_ROOT}/${selected}-${variant}.webp`)
   };
 }
 ```
 
 - [ ] **Step 6: Add existence, dimensions, alpha, and budget assertions**
 
-Verify all assets exist, strips are at least 3840×720, train and mask retain alpha,
-each raster is at most 900KB, and the full motion pack is at most 18MB.
+Verify all assets exist, every photographic plate is at least 1600×850, train and mask
+retain alpha, and the cab is opaque outside representative windshield points. Validate
+asset bytes and dimensions with Node built-ins plus committed SHA-256-bound metadata;
+tests must not shell out to platform-only tools such as `sips`. Reject same-hash variants,
+obvious mirrored duplicates, any dimension implying a stitched 3840×720 strip, and any
+metadata whose SHA no longer matches the asset. Each raster is at most 1.2MB and the full
+motion pack is at most 28MB.
 
 Run: `node --test tests/ktx-realistic-assets.test.mjs`
 Expected: PASS.
@@ -197,7 +207,7 @@ git add src/ktx-realistic-assets.mjs tests/ktx-realistic-assets.test.mjs assets/
 git commit -m "feat: add layered SRT motion assets"
 ```
 
-### Task 3: Motion rig mounting, readiness, and fallback
+### Task 3: Scene-plate rig mounting, readiness, and fallback
 
 **Files:**
 - Create: `src/ktx-realistic-motion-scene.mjs`
@@ -216,9 +226,7 @@ git commit -m "feat: add layered SRT motion assets"
 test("SRT는 분리 실사 모션 리그와 정적 폴백을 함께 마운트한다", () => {
   const root = renderKtxScene(fakeDocument(), createKtxJourney(3, "srt"), "side");
   assert.ok(root.querySelector(".ktx-motion-scene"));
-  assert.ok(root.querySelector(".ktx-motion-sky"));
-  assert.ok(root.querySelector(".ktx-motion-far"));
-  assert.ok(root.querySelector(".ktx-motion-mid"));
+  assert.equal(root.querySelectorAll(".ktx-motion-plate").length, 2);
   assert.ok(root.querySelector(".ktx-motion-track"));
   assert.ok(root.querySelector(".ktx-motion-train"));
   assert.ok(root.querySelector(".ktx-real-exterior-image"), "정적 실사 폴백 유지");
@@ -237,8 +245,10 @@ Expected: FAIL because the motion rig is absent.
 
 - [ ] **Step 4: Implement the focused motion-scene module**
 
-Build separate image nodes for sky, far, mid, train, cab mask, and station plus CSS nodes
-for track and near objects. Track all required image load/error events. Only set `ready`
+Build two complete-scene image slots, one fixed train/cab frame, one station slot,
+plus CSS nodes for track and near objects. Only one scene slot is visible normally;
+the second slot exists only for a full-frame crossfade. Track all required image load/error
+events. Only set `ready`
 when the current view's required assets are loaded. On failure, set `fallback` without
 changing the existing `data-realistic` static fallback state.
 
@@ -250,8 +260,9 @@ speed, phase, land, and `distanceToMarker(state)`.
 
 - [ ] **Step 6: Add recovery tests**
 
-Cover pending → ready, one layer failure → static realistic fallback, environment switch
-preload, retry after returning to a loaded environment, and KTX zero-request isolation.
+Cover pending → ready, one plate failure → static realistic fallback, environment switch
+preload, inactive-slot preload before crossfade, retry after returning to a loaded environment,
+and KTX zero-request isolation.
 
 Run: `node --test tests/ktx-realistic-scene.test.mjs`
 Expected: PASS.
@@ -273,14 +284,14 @@ git commit -m "feat: mount resilient SRT motion rig"
 
 **Interfaces:**
 - Consumes: `realisticMotionFrame` values.
-- Produces CSS variables `--motion-sky-x`, `--motion-far-x`, `--motion-mid-x`,
-  `--motion-near-x`, `--motion-track-x`, `--motion-speed`, `--motion-blur`, and
+- Produces CSS variables `--motion-scene-x`, `--motion-near-x`, `--motion-track-x`,
+  `--motion-speed`, `--motion-blur`, and
   `--motion-brake-pitch`.
 
 - [ ] **Step 1: Write failing renderer tests for exact CSS variables**
 
-At `x=2000`, `v=240`, assert the root receives sky `-20px`, far `-120px`, mid
-`-440px`, near `-1700px`, track `-2000px`, a speed ratio of `.8`, and a positive blur.
+At `x=2000`, `v=240`, assert the root receives scene `-120px`, near `-1700px`,
+track `-2000px`, a speed ratio of `.8`, and a positive blur.
 At `v=0`, assert `data-motion-moving="false"` and blur `0px`.
 
 - [ ] **Step 2: Write failing CSS contract tests**
@@ -296,8 +307,11 @@ Expected: FAIL on missing motion variables and selectors.
 
 - [ ] **Step 4: Implement exterior CSS composition**
 
-Use doubled layer backgrounds translated by modulo width so there is no seam. Keep the
-train at the approved center scale. Add a 1–2% pitch/settle transform for braking and a
+Use `object-fit: cover` scene plates translated only within their computed safe crop range.
+Choose a deterministic active plate from position, preload the next plate in the inactive
+slot, and crossfade the two complete slots for 450–900ms; never place their horizontal edges
+beside each other. Keep CSS/SVG near objects and track looping continuously across plate
+changes. Keep the train at the approved center scale. Add a 1–2% pitch/settle transform for braking and a
 maximum 1.5px vertical vibration above 160km/h. Never blur `.ktx-motion-train` or controls.
 
 - [ ] **Step 5: Connect motion values on every state update**
