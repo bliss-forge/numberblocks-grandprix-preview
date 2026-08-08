@@ -45,6 +45,15 @@ function requiredImages(controller) {
 }
 
 function syncReadiness(controller) {
+  if (controller.failedEnvironments.has(controller.requestedLand)) {
+    setStatus(controller, "fallback");
+    return;
+  }
+  if (controller.pending?.land === controller.requestedLand ||
+    controller.requestedLand !== controller.land) {
+    setStatus(controller, "pending");
+    return;
+  }
   const required = requiredImages(controller);
   if (required.some(image => image.dataset.failed === "true")) {
     setStatus(controller, "fallback");
@@ -74,6 +83,7 @@ function applyFrame(scene, state, band) {
 function assignLoadedScenes(controller, land, sources) {
   controller.land = land;
   controller.scenes = sources;
+  controller.failedEnvironments.clear();
   controller.plates.forEach((plate, index) => {
     const src = sources[index];
     if (plate.dataset.assetSrc !== src) {
@@ -107,6 +117,7 @@ function preloadEnvironment(controller, land, sources) {
       if (controller.pending !== request) return;
       request.failed = true;
       controller.pending = null;
+      controller.failedEnvironments.add(land);
       setStatus(controller, "fallback");
     });
     preloader.src = src;
@@ -125,8 +136,10 @@ export function buildRealisticMotionScene(document, state, onStateChange) {
     root: null,
     view: "side",
     land: state.land,
+    requestedLand: state.land,
     scenes: pack.scenes.slice(0, 2),
     loadedEnvironments: new Map(),
+    failedEnvironments: new Set(),
     pending: null,
     onStateChange
   };
@@ -175,8 +188,18 @@ export function updateRealisticMotionScene(root, state, band) {
 
   const pack = realisticMotionAssets(state.train.id, band.land);
   const sources = pack.scenes.slice(0, 2);
+  const previousRequestedLand = controller.requestedLand;
+  controller.requestedLand = band.land;
   if (controller.pending && controller.pending.land !== band.land) {
     controller.pending = null;
+  }
+  if (previousRequestedLand !== band.land && controller.land === band.land &&
+    controller.loadedEnvironments.has(band.land)) {
+    controller.failedEnvironments.clear();
+  }
+  if (controller.failedEnvironments.has(band.land)) {
+    setStatus(controller, "fallback");
+    return;
   }
   if (controller.land !== band.land) {
     const loaded = controller.loadedEnvironments.get(band.land);

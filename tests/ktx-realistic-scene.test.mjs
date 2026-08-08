@@ -230,6 +230,23 @@ test("환경 변경은 활성·비활성 플레이트를 모두 선로드한 뒤
   assert.ok(plates[1].src.endsWith("/field-b.webp"));
 });
 
+test("새 환경 대기 중 무관한 고정 프레임 로드는 pending을 해제하지 않는다", () => {
+  const document = fakeDocument();
+  const initial = createKtxJourney(3, "srt");
+  const root = renderKtxScene(document, initial, "side");
+  loadMotionSideAssets(root);
+  assert.equal(root.dataset.motionRealistic, "ready");
+
+  const field = { ...initial, phase: "driving", x: 2000, v: 80 };
+  updateKtxScene(root, field, "side");
+  assert.equal(root.dataset.motionRealistic, "pending");
+
+  root.querySelector(".ktx-motion-cab-frame").dispatch("load");
+
+  assert.equal(root.dataset.motionRealistic, "pending",
+    "요청한 field 플레이트가 끝나기 전 city 준비 상태로 돌아가지 않음");
+});
+
 test("로드된 환경으로 복귀하거나 재진입하면 중복 선로드하지 않는다", () => {
   const document = fakeDocument();
   const initial = createKtxJourney(3, "srt");
@@ -279,6 +296,33 @@ test("실패한 환경은 정상 환경 복귀 후 다시 선로드할 수 있�
   assert.equal(attempts.length, 4, "실패한 두 장을 새 이미지 요청으로 재시도");
   attempts.slice(-2).forEach(image => image.dispatch("load"));
   assert.equal(root.dataset.motionRealistic, "ready");
+});
+
+test("실패 환경은 같은 밴드에서 고정되고 정상 환경을 거친 뒤 한 번만 재시도한다", () => {
+  const document = fakeDocument();
+  const initial = createKtxJourney(3, "srt");
+  const root = renderKtxScene(document, initial, "side");
+  loadMotionSideAssets(root);
+  const field = { ...initial, phase: "driving", x: 2000, v: 80 };
+  const fieldPreloads = () => document.createdElements.filter(element =>
+    element.tagName === "IMG" && /\/field-[ab]\.webp$/.test(element.src) &&
+    !element.className.includes("ktx-motion-plate"));
+
+  updateKtxScene(root, field, "side");
+  assert.equal(fieldPreloads().length, 2);
+  fieldPreloads()[0].dispatch("error");
+  assert.equal(root.dataset.motionRealistic, "fallback");
+
+  updateKtxScene(root, field, "side");
+  assert.equal(fieldPreloads().length, 2, "같은 실패 밴드는 즉시 다시 요청하지 않음");
+  assert.equal(root.dataset.motionRealistic, "fallback");
+
+  updateKtxScene(root, initial, "side");
+  assert.equal(root.dataset.motionRealistic, "ready");
+  updateKtxScene(root, field, "side");
+
+  assert.equal(fieldPreloads().length, 4, "정상 city를 거친 뒤 새 두 장만 재시도");
+  assert.equal(root.dataset.motionRealistic, "pending");
 });
 
 test("환경 선로드 중 원래 장면으로 돌아오면 늦은 요청이 화면을 덮지 않는다", () => {
