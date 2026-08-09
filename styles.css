@@ -8368,24 +8368,65 @@ body[data-mode="paint"] .stage-lights {
 
 .pp-finale-title { font-size: clamp(24px, 3.4vw, 40px); color: #31445b; margin: 0; }
 
-.pp-finale-row { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+/* 전시회 벽 — 내가 칠한 그림들이 도화지로 붙는다(테이프 + 살짝 기울임) */
+.pp-wall {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  justify-content: center;
+  max-width: 920px;
+  padding: 18px 22px;
+  background:
+    repeating-linear-gradient(90deg,
+      rgba(214, 196, 168, .35) 0 3px, transparent 3px 96px),
+    #f3e7d3;
+  border: 6px solid #d9c6a6;
+  border-radius: 16px;
+}
 
-.pp-finale-chip {
-  padding: 8px 16px;
-  border-radius: 14px;
-  font-weight: 900;
-  font-size: 15px;
-  color: #fff;
-  background: var(--frame-color, #888);
+.pp-paper {
+  margin: 0;
+  padding: 8px 8px 3px;
+  background: #fff;
+  border: 2px solid #e8e0d2;
+  border-radius: 6px;
+  box-shadow: 0 5px 12px rgba(90, 70, 40, .2);
+  position: relative;
   animation: pp-frame-in .5s ease backwards;
 }
 
-.pp-finale-chip:nth-child(2) { animation-delay: .12s; }
-.pp-finale-chip:nth-child(3) { animation-delay: .24s; }
-.pp-finale-chip:nth-child(4) { animation-delay: .36s; }
-.pp-finale-chip:nth-child(5) { animation-delay: .48s; }
-.pp-finale-chip:nth-child(6) { animation-delay: .6s; }
-.pp-finale-chip:nth-child(7) { animation-delay: .72s; }
+.pp-paper::before {
+  content: "";
+  position: absolute;
+  top: -9px;
+  left: 50%;
+  width: 46px;
+  height: 15px;
+  transform: translateX(-50%) rotate(-3deg);
+  background: rgba(244, 197, 66, .78);
+  border-radius: 3px;
+}
+
+.pp-paper:nth-child(odd) { transform: rotate(-2deg); }
+.pp-paper:nth-child(even) { transform: rotate(2deg); }
+
+.pp-paper-art { width: 104px; height: 88px; }
+.pp-paper-art svg { width: 100%; height: 100%; display: block; }
+
+.pp-paper-name {
+  font-size: 12px;
+  font-weight: 900;
+  color: #7d8ea1;
+  text-align: center;
+  padding-top: 2px;
+}
+
+.pp-paper:nth-child(2) { animation-delay: .12s; }
+.pp-paper:nth-child(3) { animation-delay: .24s; }
+.pp-paper:nth-child(4) { animation-delay: .36s; }
+.pp-paper:nth-child(5) { animation-delay: .48s; }
+.pp-paper:nth-child(6) { animation-delay: .6s; }
+.pp-paper:nth-child(7) { animation-delay: .72s; }
 
 .pp-finale-note { font-size: clamp(16px, 2vw, 22px); font-weight: 900; color: #7d8ea1; margin: 0; }
 
@@ -8437,6 +8478,11 @@ body[data-mode="paint"] .stage-lights {
   .pp-actions { flex-direction: row; margin-left: 0; width: 100%; }
   .pp-action { flex: 1; }
 
+  /* 전시회 벽 — 좁은 화면에선 도화지를 줄이고 세로 스크롤에 맡긴다 */
+  .pp-finale { overflow-y: auto; justify-content: flex-start; padding-top: 36px; }
+  .pp-wall { gap: 12px; padding: 14px; }
+  .pp-paper-art { width: 78px; height: 66px; }
+
   body[data-mode="paint"] .toast {
     bottom: 10px;
     z-index: 20;
@@ -8454,7 +8500,7 @@ body[data-mode="paint"] .stage-lights {
   .pp-tube[data-hint="drop"]::after,
   .pp-tube[data-hint="sparkle"]::after,
   .pp-tube[data-hint="sparkle"] .pp-tube-body,
-  .pp-finale-chip { animation: none; }
+  .pp-paper { animation: none; }
 
   .pp-fillable { transition: none; }
 }

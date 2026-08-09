@@ -3,6 +3,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
+  CANONICAL_MIX,
+  MIX3_TABLE,
   MIX_TABLE,
   PAINT_COLORS,
   PAINT_RECIPES,
@@ -23,7 +25,7 @@ test("모든 레시피 재료는 실제 튜브고, 결과는 팔레트에 있다
   const tubeIds = new Set(PAINT_TUBES.map(tube => tube.id));
   for (const [result, parts] of Object.entries(PAINT_RECIPES)) {
     assert.ok(PAINT_COLORS[result], `${result} 팔레트 등재`);
-    assert.ok(parts.length === 1 || parts.length === 2, `${result} 재료 수`);
+    assert.ok([1, 2, 3].includes(parts.length), `${result} 재료 수`);
     for (const part of parts) {
       assert.ok(tubeIds.has(part), `${result}의 재료 ${part}는 튜브여야 한다`);
     }
@@ -50,18 +52,65 @@ test("튜브 5종의 모든 2색 조합(중복 포함)이 진짜 색을 낸다 �
   assert.equal(mixResult("yellow", "white"), "lightyellow");
 });
 
+test("서로 다른 튜브 3색 조합 10가지가 전부 진짜 색을 낸다 — null 금지", () => {
+  const tubes = PAINT_TUBES.map(tube => tube.id);
+  for (let i = 0; i < tubes.length; i += 1) {
+    for (let j = i + 1; j < tubes.length; j += 1) {
+      for (let k = j + 1; k < tubes.length; k += 1) {
+        const result = mixResult(tubes[i], tubes[j], tubes[k]);
+        assert.ok(result, `${tubes[i]}+${tubes[j]}+${tubes[k]}`);
+        assert.ok(PAINT_COLORS[result],
+          `${tubes[i]}+${tubes[j]}+${tubes[k]} → ${result} 팔레트 등재`);
+      }
+    }
+  }
+  // 대표 조합 — 순서 무관, 빨+노+검은 기존 밤색을 재사용한다(주황+검정 직관)
+  assert.equal(mixResult("red", "yellow", "white"), "peach");
+  assert.equal(mixResult("white", "yellow", "red"), "peach");
+  assert.equal(mixResult("red", "yellow", "black"), "brown");
+});
+
+test("혼합 낭독 원본(CANONICAL_MIX) — 모든 혼합색의 재료가 정의된다", () => {
+  for (const [colorId, parts] of Object.entries(CANONICAL_MIX)) {
+    assert.ok(PAINT_COLORS[colorId], `${colorId} 팔레트 등재`);
+    assert.ok(parts.length === 2 || parts.length === 3, `${colorId} 재료 수`);
+    const sorted = [...parts].sort().join("+");
+    const table = parts.length === 2 ? MIX_TABLE : MIX3_TABLE;
+    assert.equal(table[sorted], colorId, `${colorId} 재료가 혼합 테이블과 일치`);
+  }
+  // 레시피 있는 혼합색·발견색 모두 낭독 원본이 있다
+  for (const [result, parts] of Object.entries(PAINT_RECIPES)) {
+    if (parts.length >= 2) assert.ok(CANONICAL_MIX[result], `${result} 낭독 원본`);
+  }
+  for (const id of ["lightyellow", "olive", "gray", "brick", "khaki", "bluegray"]) {
+    assert.ok(CANONICAL_MIX[id], `${id} 발견색 낭독 원본`);
+  }
+});
+
 test("그림 주제는 목표색·스테이지가 팔레트·레시피와 정합한다", () => {
   for (const subject of PAINT_SUBJECTS) {
     assert.ok(PAINT_COLORS[subject.color], `${subject.id} 색`);
     const parts = PAINT_RECIPES[subject.color];
     assert.ok(parts, `${subject.id} 레시피`);
     if (subject.stage === 1) assert.equal(parts.length, 1, subject.id);
+    else if (subject.stage === 5) assert.equal(parts.length, 3, subject.id);
     else assert.equal(parts.length, 2, subject.id);
     if (subject.stage === 3) {
       assert.ok(parts.includes("white") || parts.includes("black"),
         `${subject.id}는 연하게/진하게 스테이지`);
     }
   }
+});
+
+test("3색 혼합 스테이지(5) — 주문 가능한 색과 그림이 충분히 있다", () => {
+  const stage5 = PAINT_SUBJECTS.filter(subject => subject.stage === 5);
+  assert.ok(stage5.length >= 6, "3색 혼합 그림 6종 이상");
+  const colors = new Set(stage5.map(subject => subject.color));
+  assert.ok(colors.size >= 6, "3색 혼합 주문색 6종 이상");
+  // steady·challenge 난이도에만 등장하고 easy에는 없다
+  assert.ok(!STAGE_PLANS.easy.includes(5), "easy에는 3색 혼합 없음");
+  assert.ok(STAGE_PLANS.steady.includes(5), "steady에 3색 혼합");
+  assert.ok(STAGE_PLANS.challenge.includes(5), "challenge에 3색 혼합");
 });
 
 test("모든 스테이지 계획의 스테이지에 출제 가능한 주제가 있다", () => {

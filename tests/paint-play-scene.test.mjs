@@ -14,7 +14,7 @@ import {
   renderPaintPlay,
   updatePaintPlay
 } from "../src/paint-play-scene.mjs";
-import { PAINT_SUBJECTS } from "../src/paint-play-data.mjs";
+import { PAINT_COLORS, PAINT_SUBJECTS } from "../src/paint-play-data.mjs";
 
 class FakeStyle {
   constructor() { this.values = new Map(); }
@@ -127,7 +127,7 @@ test("성공 라운드 뒤 갤러리 액자가 채워진다", () => {
   assert.equal(frames[1].dataset.filled, "");
 });
 
-test("피날레 — data-finale와 완성 칩·별 문구", () => {
+test("피날레 — 전시회 벽에 칠한 그림 도화지가 걸리고 화가님 멘트가 나온다", () => {
   const state = createPaintPlay("easy", 5);
   while (!state.finale) {
     const round = currentRound(state);
@@ -136,7 +136,39 @@ test("피날레 — data-finale와 완성 칩·별 문구", () => {
   }
   const root = renderPaintPlay(document, state);
   assert.equal(root.dataset.finale, "true");
-  assert.equal(byClass(root, "pp-finale-chip").length, state.rounds.length);
+  const papers = byClass(root, "pp-paper");
+  assert.equal(papers.length, state.rounds.length, "완주한 그림 수만큼 도화지");
+  papers.forEach((paper, index) => {
+    const art = byClass(paper, "pp-paper-art")[0];
+    assert.ok(art, `도화지 ${index} 그림`);
+    assert.ok(art.innerHTML.includes("pp-fillable"), `도화지 ${index} SVG`);
+    assert.equal(
+      art.style.values.get("--pp-fill"),
+      // 완성색으로 칠해진 채 전시된다
+      PAINT_COLORS[state.gallery[index].colorId].hex,
+      `도화지 ${index} 채색`
+    );
+    const name = byClass(paper, "pp-paper-name")[0];
+    assert.ok(name.textContent.length > 0, `도화지 ${index} 이름표`);
+  });
   const note = byClass(root, "pp-finale-note")[0];
   assert.ok(note.textContent.includes(`별 ${state.stars}개`));
+  assert.ok(note.textContent.includes("멋진 화가님"), "화가님 멘트");
+});
+
+test("3색 혼합 라운드 — 수식 칩이 세 재료로 늘어난다", () => {
+  const state = createPaintPlay("challenge", 1);
+  const index = state.rounds.findIndex(round => round.stage === 5);
+  assert.ok(index >= 0);
+  state.roundIndex = index;
+  const round = currentRound(state);
+  const [a, b, c] = recipeFor(round.colorId);
+  let root = renderPaintPlay(document, state);
+  assert.equal(byClass(root, "pp-eq-c").length, 1, "세 번째 칩 자리");
+  squeezeTube(state, a);
+  squeezeTube(state, b);
+  squeezeTube(state, c);
+  root = updatePaintPlay(root, state, document);
+  assert.equal(byClass(root, "pp-jar-layer").length, 3, "병에 세 층");
+  assert.notEqual(byClass(root, "pp-eq-result")[0].textContent, "?");
 });
