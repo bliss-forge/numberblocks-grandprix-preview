@@ -510,6 +510,7 @@ export function renderKtxScene(document, state, view = "cab") {
   const band = currentBand(state);
   const motionScene = buildRealisticMotionScene(document, {
     ...state,
+    sky: band.sky,
     land: band.land,
     markerDistance: distanceToMarker(state)
   }, status => {

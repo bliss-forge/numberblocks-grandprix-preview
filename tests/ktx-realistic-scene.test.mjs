@@ -234,9 +234,15 @@ test("SRT는 분리 실사 모션 리그와 정적 폴백을 함께 마운트한
 
   assert.ok(root.querySelector(".ktx-motion-scene"));
   assert.equal(root.querySelectorAll(".ktx-motion-plate").length, 2);
+  assert.ok(root.querySelector(".ktx-motion-mid"));
   assert.ok(root.querySelector(".ktx-motion-track"));
   assert.ok(root.querySelector(".ktx-motion-near"));
+  assert.ok(root.querySelector(".ktx-motion-wheel-shadow"));
+  assert.ok(root.querySelector(".ktx-motion-train-rig"));
   assert.ok(root.querySelector(".ktx-motion-train"));
+  assert.ok(root.querySelector(".ktx-motion-door"));
+  assert.ok(root.querySelector(".ktx-motion-door-leaf-left"));
+  assert.ok(root.querySelector(".ktx-motion-door-leaf-right"));
   assert.ok(root.querySelector(".ktx-motion-cab-frame"));
   assert.ok(root.querySelector(".ktx-motion-station"));
   assert.ok(root.querySelector(".ktx-real-exterior-image"), "정적 실사 폴백 유지");
@@ -247,15 +253,80 @@ test("SRT 모션 리그는 운전실 전면창 투영과 역·터널 장면 객�
 
   assert.ok(root.querySelector(".ktx-motion-cab-window"));
   assert.equal(root.querySelectorAll(".ktx-motion-cab-rail").length, 2);
+  assert.ok(root.querySelector(".ktx-motion-cab-ground"));
+  assert.ok(root.querySelector(".ktx-motion-cab-ballast"));
   assert.ok(root.querySelector(".ktx-motion-cab-sleepers"));
+  assert.ok(root.querySelector(".ktx-motion-cab-poles"));
   assert.ok(root.querySelector(".ktx-motion-cab-catenary"));
   assert.ok(root.querySelector(".ktx-motion-tunnel"));
   assert.ok(root.querySelector(".ktx-motion-tunnel-lights"));
+  assert.ok(root.querySelector(".ktx-motion-train-rig")
+    .querySelector(".ktx-motion-door"),
+  "차체 문은 열차와 같은 변환 좌표계 안에 포함됨");
   const stationViewport = root.querySelector(".ktx-motion-station-viewport");
   assert.ok(stationViewport);
   assert.ok(stationViewport.querySelector(".ktx-motion-station"),
     "역 완성 장면은 전체 화면 레이어 안에 포함됨");
   assert.ok(root.querySelector(".ktx-motion-station-sign"));
+});
+
+test("SRT 외부 깊이와 운전실 원근 위상은 주행 거리마다 계속 갱신된다", () => {
+  const initial = createKtxJourney(3, "srt");
+  const root = renderKtxScene(fakeDocument(), initial, "side");
+  const scene = root.querySelector(".ktx-motion-scene");
+  const snapshot = x => {
+    updateRealisticMotionScene(root,
+      { ...initial, phase: "driving", doors: "closed", x, v: 240 },
+      { land: "field" });
+    return {
+      far: Number.parseFloat(scene.style.getPropertyValue("--motion-far-x")),
+      mid: scene.style.getPropertyValue("--motion-mid-phase-x"),
+      near: scene.style.getPropertyValue("--motion-near-phase-x"),
+      track: scene.style.getPropertyValue("--motion-track-phase-x"),
+      sleeper: scene.style.getPropertyValue("--cab-sleeper-phase"),
+      pole: scene.style.getPropertyValue("--cab-pole-phase")
+    };
+  };
+
+  const before = snapshot(200);
+  const after = snapshot(700);
+  assert.ok(after.far < before.far, "원경 사진도 플레이트 끝까지 계속 왼쪽으로 이동");
+  for (const name of ["mid", "near", "track", "sleeper", "pole"]) {
+    assert.notEqual(after[name], before[name], `${name} 위상이 주행 거리와 함께 변함`);
+  }
+});
+
+test("SRT 실제 차체 문은 정차 승하차 상태에서만 열린다", () => {
+  const initial = createKtxJourney(3, "srt");
+  const root = renderKtxScene(fakeDocument(), initial, "side");
+  const scene = root.querySelector(".ktx-motion-scene");
+
+  updateRealisticMotionScene(root,
+    { ...initial, phase: "stopped", doors: "open", x: 0, v: 0 },
+    { land: "city" });
+  assert.equal(scene.dataset.doors, "open");
+
+  updateRealisticMotionScene(root,
+    { ...initial, phase: "driving", doors: "open", x: 20, v: 40 },
+    { land: "city" });
+  assert.equal(scene.dataset.doors, "closed", "주행 중 잘못 열린 모델 상태도 화면에서는 닫힘");
+
+  updateRealisticMotionScene(root,
+    { ...initial, phase: "finale", doors: "open", x: 0, v: 0 },
+    { sky: "day", land: "city" });
+  assert.equal(scene.dataset.doors, "open", "종착역에서도 실제 차체 문이 열림");
+});
+
+test("SRT 운전실은 노선의 밤 구간에서 야간 전면창을 선택한다", () => {
+  const initial = createKtxJourney(3, "srt");
+  const root = renderKtxScene(fakeDocument(), initial, "cab");
+  const scene = root.querySelector(".ktx-motion-scene");
+
+  updateRealisticMotionScene(root,
+    { ...initial, phase: "driving", x: 2600, v: 240 },
+    { sky: "night", land: "mountain" });
+
+  assert.equal(scene.dataset.sky, "night");
 });
 
 test("KTX는 분리 실사 모션 리그와 모션 자산 요청을 만들지 않는다", () => {
@@ -517,7 +588,8 @@ test("실사 외부 모션은 위치·속도를 정확한 CSS 변수로 동기�
   updateRealisticMotionScene(root, moving, { land: "city" });
   const scene = root.querySelector(".ktx-motion-scene");
 
-  assert.equal(scene.style.getPropertyValue("--motion-scene-x"), "-120px");
+  assert.equal(scene.style.getPropertyValue("--motion-scene-x"), "-53.33px");
+  assert.equal(scene.style.getPropertyValue("--motion-far-x"), "-53.33px");
   assert.equal(scene.style.getPropertyValue("--motion-near-x"), "-1700px");
   assert.equal(scene.style.getPropertyValue("--motion-track-x"), "-2000px");
   assert.equal(scene.style.getPropertyValue("--motion-speed"), "0.8");
@@ -838,14 +910,14 @@ test("사진 팬은 큰 주행 위치에서도 안전 크롭 범위 안에 머�
   const initial = createKtxJourney(3, "srt");
   const root = renderKtxScene(fakeDocument(), initial, "side");
 
-  for (const x of [0, 2000, 20_000, 200_000]) {
+  for (const x of [0, 600, 20_000, 200_000]) {
     updateRealisticMotionScene(root,
       { ...initial, phase: "driving", x, v: 240 }, { land: "city" });
     const pan = Number.parseFloat(
       root.querySelector(".ktx-motion-scene").style
         .getPropertyValue("--motion-scene-x")
     );
-    assert.ok(pan >= -120 && pan <= 120, `${x}m의 팬 ${pan}px가 안전 범위 안`);
+    assert.ok(pan >= -160 && pan <= 160, `${x}m의 팬 ${pan}px가 안전 범위 안`);
   }
 });
 
@@ -857,23 +929,25 @@ test("사진 팬은 같은 활성 플레이트에서 되감기 없이 왼쪽으�
   const plates = root.querySelectorAll(".ktx-motion-plate");
   const pans = [];
 
-  for (const x of [0, 1000, 2000, 3000, 3999]) {
+  for (const x of [0, 300, 600, 900, 1199]) {
     updateRealisticMotionScene(root,
       { ...initial, phase: "driving", x, v: 240 }, { land: "city" });
     pans.push(Number.parseFloat(scene.style.getPropertyValue("--motion-scene-x")));
   }
 
-  assert.equal(pans[2], -120, "기존 x=2000 계약 유지");
+  assert.equal(pans[2], 0, "플레이트 중간에서는 오버스캔 중심을 통과");
   pans.slice(1).forEach((pan, index) => {
     assert.ok(pan <= pans[index], `${pans[index]}px 다음 ${pan}px는 오른쪽으로 되감기면 안 됨`);
   });
-  assert.equal(plates[0].style.getPropertyValue("--motion-plate-x"), "-120px");
+  assert.ok(Number.parseFloat(plates[0].style.getPropertyValue("--motion-plate-x")) < -159);
 
   updateRealisticMotionScene(root,
-    { ...initial, phase: "driving", x: 4000, v: 240 }, { land: "city" });
+    { ...initial, phase: "driving", x: 1200, v: 240 }, { land: "city" });
 
-  assert.equal(plates[0].style.getPropertyValue("--motion-plate-x"), "-120px", "나가는 완성 장면은 위치 고정");
-  assert.equal(plates[1].style.getPropertyValue("--motion-plate-x"), "0px", "들어오는 완성 장면만 안전 원점으로 재설정");
+  assert.ok(Number.parseFloat(plates[0].style.getPropertyValue("--motion-plate-x")) < -159,
+    "나가는 완성 장면은 왼쪽 끝 위치 고정");
+  assert.equal(plates[1].style.getPropertyValue("--motion-plate-x"), "160px",
+    "들어오는 완성 장면은 오른쪽 안전 여백에서 시작");
 });
 
 test("주행 위치가 플레이트 구간을 넘으면 준비된 다음 완성 장면으로 교차한다", () => {
@@ -883,7 +957,7 @@ test("주행 위치가 플레이트 구간을 넘으면 준비된 다음 완성 
   const plates = root.querySelectorAll(".ktx-motion-plate");
 
   updateRealisticMotionScene(root,
-    { ...initial, phase: "driving", x: 4500, v: 240 }, { land: "city" });
+    { ...initial, phase: "driving", x: 1300, v: 240 }, { land: "city" });
 
   assert.equal(plates[0].dataset.active, "false");
   assert.equal(plates[1].dataset.active, "true");
@@ -901,7 +975,7 @@ test("완성 장면 교차는 정차와 다른 속도 재출발에도 시작 시
   loadMotionSideAssets(root);
   const scene = root.querySelector(".ktx-motion-scene");
   const plates = root.querySelectorAll(".ktx-motion-plate");
-  const moving = { ...initial, phase: "driving", x: 4500, v: 240 };
+  const moving = { ...initial, phase: "driving", x: 1300, v: 240 };
 
   updateRealisticMotionScene(root, moving, { land: "city" });
   assert.equal(plates[0].dataset.crossfade, "out");
@@ -943,9 +1017,9 @@ test("다음 플레이트는 비활성 슬롯 교체 전에 별도 이미지로 
   loadMotionSideAssets(root);
 
   updateRealisticMotionScene(root,
-    { ...initial, phase: "driving", x: 4500, v: 240 }, { land: "city" });
+    { ...initial, phase: "driving", x: 1300, v: 240 }, { land: "city" });
   updateRealisticMotionScene(root,
-    { ...initial, phase: "driving", x: 5000, v: 240 }, { land: "city" });
+    { ...initial, phase: "driving", x: 1500, v: 240 }, { land: "city" });
 
   const preload = document.createdElements.find(element =>
     element.tagName === "IMG" &&
@@ -967,7 +1041,7 @@ test("다음 플레이트가 즉시 로드돼도 현재 교차 중인 이전 슬
   const plates = root.querySelectorAll(".ktx-motion-plate");
 
   updateRealisticMotionScene(root,
-    { ...initial, phase: "driving", x: 4500, v: 240 }, { land: "city" });
+    { ...initial, phase: "driving", x: 1300, v: 240 }, { land: "city" });
   const preload = document.createdElements.find(element =>
     element.tagName === "IMG" && element.src.endsWith("/city-c.webp") &&
     !element.className.includes("ktx-motion-plate"));
@@ -975,7 +1049,7 @@ test("다음 플레이트가 즉시 로드돼도 현재 교차 중인 이전 슬
 
   assert.ok(plates[0].src.endsWith("/city-a.webp"), "A→B 교차가 끝날 때까지 A 유지");
   updateRealisticMotionScene(root,
-    { ...initial, phase: "driving", x: 4900, v: 240 }, { land: "city" });
+    { ...initial, phase: "driving", x: 1490, v: 240 }, { land: "city" });
   assert.ok(plates[0].src.endsWith("/city-c.webp"), "충분히 진행한 뒤 비활성 슬롯 교체");
 });
 
@@ -984,7 +1058,7 @@ test("선택형 다음 플레이트 오류는 같은 환경의 상태 틱마다 
   const initial = createKtxJourney(3, "srt");
   const root = renderKtxScene(document, initial, "side");
   loadMotionSideAssets(root);
-  const moving = { ...initial, phase: "driving", x: 4500, v: 240 };
+  const moving = { ...initial, phase: "driving", x: 1300, v: 240 };
   const optionalPreloads = () => document.createdElements.filter(element =>
     element.tagName === "IMG" && element.src.endsWith("/city-c.webp") &&
     !element.className.includes("ktx-motion-plate"));
@@ -1003,7 +1077,7 @@ test("주행 위치를 건너뛰어도 해당 구간의 플레이트를 결정�
   const initial = createKtxJourney(3, "srt");
   const root = renderKtxScene(document, initial, "side");
   loadMotionSideAssets(root);
-  const jumped = { ...initial, phase: "driving", x: 8500, v: 240 };
+  const jumped = { ...initial, phase: "driving", x: 2500, v: 240 };
 
   updateRealisticMotionScene(root, jumped, { land: "city" });
   const preload = document.createdElements.find(element =>

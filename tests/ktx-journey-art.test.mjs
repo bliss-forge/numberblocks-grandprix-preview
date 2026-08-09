@@ -63,12 +63,51 @@ test("실사 모션 플레이트는 겹친 완성 장면으로만 안전 크롭�
   assert.match(css,
     /\.ktx-motion-plate\s*\{[^}]*position:\s*absolute[^}]*object-fit:\s*cover[^}]*transform:\s*translate3d\(var\(--motion-plate-x,\s*var\(--motion-scene-x\)\)/s);
   assert.match(css,
-    /\.ktx-motion-plate\s*\{[^}]*width:\s*calc\(100%\s*\+\s*240px\)[^}]*left:\s*-120px/s);
+    /\.ktx-motion-plate\s*\{[^}]*width:\s*calc\(100%\s*\+\s*640px\)[^}]*left:\s*-320px/s);
   assert.match(css,
     /\.ktx-motion-plate\[data-active="true"\]\s*\{[^}]*opacity:\s*1/s);
   assert.match(css,
     /\.ktx-motion-plate\[data-active="false"\]\s*\{[^}]*opacity:\s*0/s);
   assert.doesNotMatch(css, /\.ktx-motion-plate\s*\{[^}]*repeat/s);
+});
+
+test("실사 외부 장면은 원경·중경·근경·선로를 서로 다른 속도로 이동한다", () => {
+  assert.match(css,
+    /\.ktx-motion-plate\s*\{[^}]*object-fit:\s*cover[^}]*--motion-plate-x/s);
+  assert.match(css,
+    /\.ktx-motion-mid\s*\{[^}]*transform:\s*translate3d\(var\(--motion-mid-phase-x\)/s);
+  assert.match(css,
+    /\.ktx-motion-near\s*\{[^}]*transform:\s*translate3d\(var\(--motion-near-phase-x\)/s);
+  assert.match(css,
+    /\.ktx-motion-wheel-shadow\s*\{[^}]*filter:\s*blur/s);
+  assert.match(css,
+    /\.ktx-motion-train-rig\s*\{[^}]*--motion-vibration-y[^}]*--motion-brake-pitch/s);
+});
+
+test("운전실 창은 하늘 아래에 지면·자갈·원근 선로와 전차선 기둥을 표시한다", () => {
+  assert.match(css,
+    /\.ktx-motion-cab-ground\s*\{[^}]*top:\s*22%[^}]*bottom:\s*0[^}]*background:/s);
+  assert.match(css,
+    /\.ktx-motion-cab-ballast\s*\{[^}]*clip-path:\s*polygon\([^)]*\)[^}]*background:/s);
+  assert.match(css,
+    /\.ktx-motion-cab-rail-left\s*\{[^}]*clip-path:\s*polygon\([^)]*\)/s);
+  assert.match(css,
+    /\.ktx-motion-cab-rail-right\s*\{[^}]*clip-path:\s*polygon\([^)]*\)/s);
+  assert.match(css,
+    /\.ktx-motion-cab-sleepers\s*\{[^}]*--cab-sleeper-phase[^}]*perspective/s);
+  assert.match(css,
+    /\.ktx-motion-cab-poles\s*\{[^}]*background-position:[^}]*--cab-pole-phase/s);
+});
+
+test("정차한 실사 SRT는 차체 문짝 두 장이 실제로 반대 방향으로 열린다", () => {
+  assert.match(css,
+    /\.ktx-motion-door\s*\{[^}]*position:\s*absolute[^}]*overflow:\s*hidden/s);
+  assert.match(css,
+    /\.ktx-motion-door-leaf\s*\{[^}]*transition:\s*transform\s+600ms/s);
+  assert.match(css,
+    /data-doors="open"[^\{]*\.ktx-motion-door-leaf-left\s*\{[^}]*translateX\(-/s);
+  assert.match(css,
+    /data-doors="open"[^\{]*\.ktx-motion-door-leaf-right\s*\{[^}]*translateX\(/s);
 });
 
 test("실사 근경·선로만 위치 이동과 블러를 받고 열차·조작부는 선명하게 고정된다", () => {
@@ -77,7 +116,9 @@ test("실사 근경·선로만 위치 이동과 블러를 받고 열차·조작�
   assert.match(css,
     /\.ktx-motion-track\s*\{[^}]*transform:\s*translate3d\(var\(--motion-track-phase-x\)[^}]*filter:\s*blur\(var\(--motion-blur\)/s);
   assert.match(css,
-    /\.ktx-motion-train\s*\{[^}]*z-index:\s*6[^}]*filter:\s*none/s);
+    /\.ktx-motion-train-rig\s*\{[^}]*--motion-vibration-y[^}]*--motion-brake-pitch[^}]*z-index:\s*6/s);
+  assert.match(css,
+    /\.ktx-motion-train\s*\{[^}]*z-index:\s*2[^}]*filter:\s*none/s);
   assert.doesNotMatch(css, /\.ktx-motion-train\s*\{[^}]*animation:[^}]*infinite/s);
   assert.doesNotMatch(css, /\.ktx-motion-cab-frame\s*\{[^}]*filter:\s*blur/s);
 });
@@ -123,14 +164,14 @@ test("동작 줄이기에서는 실사 블러·진동·속도선과 장면 교�
   assert.match(css,
     /prefers-reduced-motion:\s*reduce[\s\S]*\.ktx-motion-near::after\s*\{[^}]*display:\s*none/s);
   assert.match(css,
-    /prefers-reduced-motion:\s*reduce[\s\S]*\.ktx-motion-train\s*\{[^}]*transform:[^}]*--motion-brake-pitch/s);
+    /prefers-reduced-motion:\s*reduce[\s\S]*\.ktx-motion-train-rig\s*\{[^}]*transform:[^}]*--motion-brake-pitch/s);
 });
 
 test("동작 줄이기는 위치 상태를 남기고 모든 실사 효과와 보간을 즉시 끈다", () => {
   assert.match(css,
     /prefers-reduced-motion:\s*reduce[\s\S]*\.ktx-motion-plate\[data-crossfade\]\s*\{[^}]*animation:\s*none\s*!important[^}]*transition:\s*none\s*!important/s);
   assert.match(css,
-    /prefers-reduced-motion:\s*reduce[\s\S]*\.ktx-motion-plate,[^\{]*\.ktx-motion-near,[^\{]*\.ktx-motion-track,[^\{]*\.ktx-motion-station-viewport,[^\{]*\.ktx-motion-station,[^\{]*\.ktx-motion-cab-sleepers,[^\{]*\.ktx-motion-cab-catenary,[^\{]*\.ktx-motion-tunnel,[^\{]*\.ktx-motion-tunnel-portal,[^\{]*\.ktx-motion-tunnel-lights,[^\{]*\.ktx-motion-train\s*\{[^}]*transition:\s*none\s*!important/s);
+    /prefers-reduced-motion:\s*reduce[\s\S]*\.ktx-motion-plate,[^\{]*\.ktx-motion-mid,[^\{]*\.ktx-motion-near,[^\{]*\.ktx-motion-track,[^\{]*\.ktx-motion-station-viewport,[^\{]*\.ktx-motion-station,[^\{]*\.ktx-motion-cab-sleepers,[^\{]*\.ktx-motion-cab-catenary,[^\{]*\.ktx-motion-tunnel,[^\{]*\.ktx-motion-tunnel-portal,[^\{]*\.ktx-motion-tunnel-lights,[^\{]*\.ktx-motion-train-rig\s*\{[^}]*transition:\s*none\s*!important/s);
   assert.match(css,
     /prefers-reduced-motion:\s*reduce[\s\S]*\.ktx-motion-scene\s*\{[^}]*--motion-vibration-y:\s*0px/s);
   assert.match(css,
@@ -146,21 +187,21 @@ test("운전실 모션은 고정 프레임의 투명 전면창 안에서만 소�
   assert.match(css,
     /data-view="cab"\][^\{]*\.ktx-motion-scene\s*\{[^}]*inset:\s*0[^}]*opacity:\s*1/s);
   assert.match(css,
-    /\.ktx-motion-cab-window\s*\{[^}]*position:\s*absolute[^}]*z-index:\s*5[^}]*overflow:\s*hidden[^}]*clip-path:\s*polygon\([^)]*42%[^)]*\)/s,
+    /\.ktx-motion-cab-window\s*\{[^}]*position:\s*absolute[^}]*z-index:\s*5[^}]*overflow:\s*hidden[^}]*clip-path:\s*polygon\([^)]*49%[^)]*\)/s,
     "절차적 선로는 실제 투명 전면창을 마스크로 쓰도록 운전실 프레임 아래에 표시됨");
   assert.match(css,
-    /\.ktx-motion-cab-rail\s*\{[^}]*top:\s*22%[^}]*background-position:[^}]*--cab-track-phase[^}]*transform-origin:\s*50%\s+0/s,
+    /\.ktx-motion-cab-rail\s*\{[^}]*top:\s*20%[^}]*transform-origin:\s*50%\s+0/s,
     "선로 소실점은 불투명 계기판 위의 실제 투명창 안에 있어야 함");
   assert.match(css,
-    /\.ktx-motion-cab-rail-left\s*\{[^}]*left:\s*38%[^}]*rotate\(58deg\)/s);
+    /\.ktx-motion-cab-rail-left\s*\{[^}]*left:\s*19%[^}]*clip-path:\s*polygon\([^)]*\)[^}]*transform:\s*none/s);
   assert.match(css,
-    /\.ktx-motion-cab-rail-right\s*\{[^}]*left:\s*62%[^}]*rotate\(-58deg\)/s,
+    /\.ktx-motion-cab-rail-right\s*\{[^}]*left:\s*50%[^}]*transform:\s*none/s,
     "고정 속도계 양옆의 전면창에서 두 레일 이동이 보여야 함");
   assert.match(css,
-    /\.ktx-motion-cab-sleepers\s*\{[^}]*top:\s*22%[^}]*--cab-sleeper-gap[^}]*background-position:[^}]*--cab-track-phase[^}]*clip-path:\s*polygon\([^)]*\)[^}]*transform:\s*none/s,
+    /\.ktx-motion-cab-sleepers\s*\{[^}]*top:\s*21%[^}]*--cab-sleeper-gap[^}]*background-position:[^}]*--cab-sleeper-phase[^}]*clip-path:\s*polygon\([^)]*\)[^}]*perspective:\s*600px/s,
     "속도계 양옆에 실제 위상 이동 침목이 압축 없이 보여야 함");
   assert.match(css,
-    /\.ktx-motion-cab-catenary\s*\{[^}]*top:\s*16%[^}]*--cab-catenary-gap[^}]*--cab-catenary-phase[^}]*transform-origin:\s*50%\s+0/s);
+    /\.ktx-motion-cab-catenary\s*\{[^}]*top:\s*11%[^}]*--cab-catenary-gap[^}]*--cab-catenary-phase[^}]*transform-origin:\s*50%\s+0/s);
   assert.match(css,
     /data-cab-track-loop-reset="true"[^\{]*\.ktx-motion-cab-sleepers[\s\S]*data-cab-catenary-loop-reset="true"[^\{]*\.ktx-motion-cab-catenary[\s\S]*transition:\s*none/s);
   assert.match(css,
@@ -188,7 +229,7 @@ test("역 플레이트는 반복 없이 안전 크롭되고 상세 단계에서 
   assert.match(css,
     /data-near-suppressed="true"[^\{]*\.ktx-motion-near\s*\{[^}]*opacity:\s*0/s);
   assert.match(css,
-    /\.ktx-motion-train\s*\{[^}]*top:\s*68%/s,
+    /\.ktx-motion-train-rig\s*\{[^}]*top:\s*68%/s,
     "열차 바퀴 기준선은 풍경·승강장의 선로 높이에 놓임");
   assert.match(css,
     /\.ktx-motion-station\s*\{[^}]*object-position:\s*center\s+var\(--station-object-y/s,

@@ -24,6 +24,34 @@ test("속도와 위치는 실사 흐름을 단조롭게 키운다", () => {
   assert.ok(fast.blurPx > slow.blurPx);
 });
 
+test("외부 깊이 레이어는 원경보다 선로가 빠르게 이동한다", () => {
+  const frame = realisticMotionFrame({
+    x: 2400, v: 240, phase: "driving", markerDistance: 1800, land: "field"
+  });
+
+  assert.ok(frame.offsets.far < frame.offsets.mid);
+  assert.ok(frame.offsets.mid < frame.offsets.near);
+  assert.ok(frame.offsets.near < frame.offsets.track);
+});
+
+test("운전실 원근 위상은 주행 거리에서 결정되고 정차 여부와 무관하게 재현된다", () => {
+  const input = {
+    x: 900, markerDistance: 2000, land: "city"
+  };
+  const moving = realisticMotionFrame({
+    ...input, v: 180, phase: "driving"
+  });
+  const stopped = realisticMotionFrame({
+    ...input, v: 0, phase: "stopped"
+  });
+
+  assert.ok(Number.isFinite(moving.cab.sleeperPhase));
+  assert.ok(Number.isFinite(moving.cab.polePhase));
+  assert.equal(stopped.moving, false);
+  assert.equal(stopped.cab.sleeperPhase, moving.cab.sleeperPhase);
+  assert.equal(stopped.cab.polePhase, moving.cab.polePhase);
+});
+
 test("역 표시는 600m와 320m, 0m 경계에서 정해진 단계로 바뀐다", () => {
   const input = { x: 0, v: 120, phase: "driving", land: "city" };
   assert.equal(realisticMotionFrame({ ...input, markerDistance: 601 }).stationStage, "hidden");
