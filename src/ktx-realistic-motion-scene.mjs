@@ -106,7 +106,10 @@ function applyFrame(scene, state, band, controller = null) {
     ? -PHOTO_SAFE_PAN_PX * (1 - frame.stationProgress)
     : PHOTO_SAFE_PAN_PX * (1 - frame.stationProgress);
   scene.style.setProperty("--station-offset-x", `${rounded(stationOffsetX)}px`);
-  scene.style.setProperty("--station-cover-scale", "1");
+  scene.style.setProperty("--station-cover-scale",
+    String(rounded(1 + frame.stationProgress * .06)));
+  scene.style.setProperty("--station-object-y",
+    `${rounded(50 + frame.stationProgress * 30)}%`);
   scene.style.setProperty("--station-opacity", String(frame.stationProgress));
   const cabSleeperGap = patternGap(scene, "--cab-sleeper-gap",
     42 - frame.speedRatio * 12, frame.moving);
@@ -119,22 +122,17 @@ function applyFrame(scene, state, band, controller = null) {
     frame.offsets.track, cabSleeperGap, frame.moving);
   setLoopPhase(scene, "cabCatenary", "--cab-catenary-phase",
     frame.offsets.track, cabCatenaryGap, frame.moving);
-  const tunnelProgress = tunnelPortalProgress(controller, frame.land, state.x);
+  const tunnelPortal = tunnelPortalState(state, frame.land);
   setLoopPhase(scene, "tunnelWall", "--tunnel-wall-phase",
     frame.land === "tunnel" ? frame.offsets.track : 0,
     TUNNEL_WALL_GAP_PX, frame.moving);
   setLoopPhase(scene, "tunnelLight", "--tunnel-light-phase",
     frame.land === "tunnel" ? frame.offsets.track : 0,
     tunnelLightGap, frame.moving);
-  scene.style.setProperty("--tunnel-progress", String(rounded(tunnelProgress)));
+  scene.style.setProperty("--tunnel-progress", String(rounded(tunnelPortal.progress)));
   scene.style.setProperty("--tunnel-scale",
-    frame.land === "tunnel"
-      ? String(rounded(.18 + tunnelProgress * 1.15))
-      : ".18");
-  scene.dataset.tunnelPortalVisible = String(
-    frame.land === "tunnel" && tunnelProgress <= 1 &&
-    (controller?.tunnelDistance ?? 0) <= TUNNEL_PORTAL_DISTANCE
-  );
+    String(rounded(.32 + tunnelPortal.progress * 1.36)));
+  scene.dataset.tunnelPortalVisible = String(tunnelPortal.visible);
   scene.style.setProperty("--motion-vibration-y",
     `${motionVibration(state.x, state.v, frame.moving)}px`);
   const durationMs = controller?.crossfade?.durationMs ??
@@ -199,21 +197,37 @@ function setLoopPhase(scene, loop, property, offset, period, moving) {
   scene.style.setProperty(property, `${phase}px`);
 }
 
-function tunnelPortalProgress(controller, land, x) {
-  if (!controller) return 0;
+function tunnelPortalState(state, land) {
+  const segment = routeSegments(state)[state.segIndex];
+  if (!segment) return { progress: 0, visible: false };
+
+  let previousUntil = 0;
+  let tunnelStart = null;
+  for (const band of segment.bands) {
+    if (band.land === "tunnel") {
+      tunnelStart = previousUntil * segment.length;
+      break;
+    }
+    previousUntil = band.until;
+  }
+  if (tunnelStart === null) return { progress: 0, visible: false };
+
+  const distance = tunnelStart - state.x;
   if (land !== "tunnel") {
-    controller.tunnelEntryX = null;
-    controller.tunnelDistance = 0;
-    controller.lastTunnelLand = land;
-    return 0;
+    if (distance < 0 || distance > TUNNEL_PORTAL_DISTANCE) {
+      return { progress: 0, visible: false };
+    }
+    return {
+      progress: 1 - distance / TUNNEL_PORTAL_DISTANCE,
+      visible: true
+    };
   }
-  if (controller.lastTunnelLand !== "tunnel" ||
-    controller.tunnelEntryX === null || x < controller.tunnelEntryX) {
-    controller.tunnelEntryX = x;
-  }
-  controller.lastTunnelLand = land;
-  controller.tunnelDistance = Math.max(0, x - controller.tunnelEntryX);
-  return Math.min(1, controller.tunnelDistance / TUNNEL_PORTAL_DISTANCE);
+
+  const insideDistance = Math.max(0, state.x - tunnelStart);
+  return {
+    progress: 1 + Math.min(.35, insideDistance / 120 * .35),
+    visible: insideDistance <= 120
+  };
 }
 
 function stationName(state) {
@@ -420,9 +434,6 @@ export function buildRealisticMotionScene(document, state, onStateChange) {
     loadedEnvironments: new Map(),
     failedEnvironments: new Set(),
     pending: null,
-    tunnelEntryX: null,
-    tunnelDistance: 0,
-    lastTunnelLand: state.land,
     onStateChange
   };
 

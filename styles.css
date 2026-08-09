@@ -7908,6 +7908,12 @@ body[data-mode="ktx"] .stage-lights {
   filter: drop-shadow(0 9px 18px rgba(0, 0, 0, .42));
 }
 
+.ktx-game[data-realistic="ready"][data-view="cab"] .ktx-speedo {
+  width: 188px;
+  height: 188px;
+  margin-left: -94px;
+}
+
 .ktx-game[data-realistic="ready"] .ktx-lever {
   right: 34px;
   bottom: 20px;
@@ -8145,7 +8151,7 @@ body[data-mode="ktx"] .stage-lights {
 .ktx-motion-train {
   position: absolute;
   left: 50%;
-  top: 49%;
+  top: 68%;
   width: min(78%, 1120px);
   height: auto;
   z-index: 6;
@@ -8188,7 +8194,7 @@ body[data-mode="ktx"] .stage-lights {
   width: calc(100% + 240px);
   height: 100%;
   object-fit: cover;
-  object-position: center center;
+  object-position: center var(--station-object-y, 50%);
   transform: translate3d(var(--station-offset-x, 120px), 0, 0)
     scale(var(--station-cover-scale, 1));
   transform-origin: center center;
@@ -8227,44 +8233,56 @@ body[data-mode="ktx"] .stage-lights {
   opacity: 0;
 }
 
-/* 전면창 안의 절차적 선로만 소실점(화면 높이 40%)에서 하단으로 확대된다. */
+/* 실제 투명 전면창의 위쪽 소실점에서 선로가 계기판 경계까지 다가온다. */
 .ktx-motion-cab-window {
   position: absolute;
   inset: 0;
-  z-index: 5;
+  z-index: 8;
   display: none;
   overflow: hidden;
-  clip-path: polygon(13% 7%, 87% 7%, 78% 66%, 22% 66%);
+  clip-path: polygon(13% 7%, 87% 7%, 78% 42%, 22% 42%);
   pointer-events: none;
 }
 
 .ktx-motion-cab-rail {
   position: absolute;
   left: 50%;
-  top: 40%;
+  top: 22%;
   width: 9px;
   height: 78%;
   border-radius: 999px;
-  background: linear-gradient(90deg, #2a2d30, #d9dde0 46%, #45494d);
+  background: repeating-linear-gradient(to bottom,
+    #aeb5ba 0 9px, #454b50 9px 15px, #7d858b 15px 24px);
+  background-position: center var(--cab-track-phase, 0px);
   box-shadow: 0 0 8px rgba(255, 255, 255, .45);
   transform-origin: 50% 0;
+  transition: background-position 120ms linear;
 }
 
-.ktx-motion-cab-rail-left { transform: translateX(-50%) rotate(15deg); }
-.ktx-motion-cab-rail-right { transform: translateX(-50%) rotate(-15deg); }
+.ktx-motion-cab-rail-left {
+  left: 38%;
+  transform: translateX(-50%) rotate(58deg);
+}
+
+.ktx-motion-cab-rail-right {
+  left: 62%;
+  transform: translateX(-50%) rotate(-58deg);
+}
 
 .ktx-motion-cab-sleepers {
   position: absolute;
   left: 19%;
   right: 19%;
-  top: 40%;
+  top: 22%;
   bottom: -12%;
   background: repeating-linear-gradient(to bottom,
-    transparent 0 calc(var(--cab-sleeper-gap, 42px) - 8px),
-    rgba(46, 43, 40, .88) calc(var(--cab-sleeper-gap, 42px) - 8px)
+    transparent 0 calc(var(--cab-sleeper-gap, 42px) - 7px),
+    rgba(64, 54, 45, .92) calc(var(--cab-sleeper-gap, 42px) - 7px)
       var(--cab-sleeper-gap, 42px));
   background-position: center var(--cab-track-phase, 0px);
-  transform: perspective(360px) rotateX(58deg);
+  clip-path: polygon(48% 0, 52% 0, 100% 100%, 0 100%);
+  filter: drop-shadow(0 1px 1px rgba(255, 255, 255, .5));
+  transform: none;
   transform-origin: 50% 0;
   transition: background-position 120ms linear;
 }
@@ -8272,18 +8290,19 @@ body[data-mode="ktx"] .stage-lights {
 .ktx-motion-cab-catenary {
   position: absolute;
   left: 50%;
-  top: 40%;
-  width: 44%;
-  height: 60%;
+  top: 16%;
+  width: 84%;
+  height: 32%;
   background:
     linear-gradient(90deg,
-      transparent 49.6%, rgba(35, 39, 43, .78) 49.8% 50.2%, transparent 50.4%),
+      transparent 49.4%, rgba(54, 60, 65, .82) 49.7% 50.3%, transparent 50.6%),
     repeating-linear-gradient(to bottom,
-      transparent 0 calc(var(--cab-catenary-gap, 76px) - 4px),
-      rgba(35, 39, 43, .64) calc(var(--cab-catenary-gap, 76px) - 3px)
+      transparent 0 calc(var(--cab-catenary-gap, 76px) - 5px),
+      rgba(91, 98, 104, .8) calc(var(--cab-catenary-gap, 76px) - 4px)
         var(--cab-catenary-gap, 76px));
   background-position: center 0, center var(--cab-catenary-phase, 0px);
-  clip-path: polygon(48% 0, 52% 0, 100% 100%, 0 100%);
+  clip-path: polygon(46% 0, 54% 0, 100% 100%, 0 100%);
+  filter: drop-shadow(0 1px 1px rgba(255, 255, 255, .5));
   transform: translateX(-50%);
   transform-origin: 50% 0;
   transition: background-position 120ms linear;
@@ -8295,28 +8314,34 @@ body[data-mode="ktx"] .stage-lights {
   inset: 0;
   z-index: 3;
   overflow: hidden;
-  background: repeating-linear-gradient(to bottom,
-    #171a1e 0 calc(var(--tunnel-wall-gap, 50px) - 4px),
-    #2b3036 calc(var(--tunnel-wall-gap, 50px) - 3px)
-      var(--tunnel-wall-gap, 50px));
+  background: transparent;
   background-position: center var(--tunnel-wall-offset);
   opacity: 0;
   pointer-events: none;
   transition: background-position 120ms linear;
 }
 
+.ktx-motion-scene[data-tunnel-portal-visible="true"] .ktx-motion-tunnel,
 .ktx-motion-scene[data-tunnel="true"] .ktx-motion-tunnel { opacity: 1; }
+
+.ktx-motion-scene[data-tunnel="true"] .ktx-motion-tunnel {
+  background: repeating-linear-gradient(to bottom,
+    #171a1e 0 calc(var(--tunnel-wall-gap, 50px) - 4px),
+    #2b3036 calc(var(--tunnel-wall-gap, 50px) - 3px)
+      var(--tunnel-wall-gap, 50px));
+}
 
 .ktx-motion-tunnel-portal {
   position: absolute;
   left: 50%;
-  top: 40%;
-  width: 72%;
-  height: 82%;
-  border: clamp(18px, 5vw, 72px) solid #24282d;
-  border-bottom-width: clamp(28px, 8vw, 108px);
-  border-radius: 46% 46% 9% 9%;
-  background: transparent;
+  top: 29%;
+  width: 58%;
+  height: 42%;
+  border: clamp(12px, 2.4vw, 34px) solid #7d858c;
+  border-bottom-width: clamp(16px, 3.4vw, 48px);
+  border-radius: 50% 50% 12% 12%;
+  background: rgba(8, 11, 14, .94);
+  box-shadow: 0 0 0 6px rgba(36, 40, 45, .9), 0 8px 18px rgba(0, 0, 0, .45);
   transform: translate(-50%, -50%) scale(var(--tunnel-scale, .18));
   transform-origin: 50% 40%;
   transition: transform 120ms linear;
@@ -8336,8 +8361,11 @@ body[data-mode="ktx"] .stage-lights {
         var(--tunnel-light-gap, 98px));
   background-position: center var(--tunnel-light-phase, 0px);
   filter: drop-shadow(0 0 7px rgba(255, 224, 124, .7));
+  opacity: 0;
   transition: background-position 120ms linear;
 }
+
+.ktx-motion-scene[data-tunnel="true"] .ktx-motion-tunnel-lights { opacity: 1; }
 
 .ktx-game[data-view="cab"] .ktx-motion-cab-window,
 .ktx-game[data-view="cab"] .ktx-motion-cab-frame {

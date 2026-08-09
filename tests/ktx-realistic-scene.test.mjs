@@ -466,8 +466,10 @@ test("역 접근·정차·출발은 진행률과 근경 억제를 하나의 수�
   assert.equal(scene.style["--station-opacity"], "0",
     "600m 경계에서는 전체 프레임 교차가 투명도 0에서 시작");
   const approachStartX = Number.parseFloat(scene.style["--station-offset-x"]);
+  const approachStartY = Number.parseFloat(scene.style["--station-object-y"]);
   assert.ok(approachStartX > 0);
-  assert.ok(Number.parseFloat(scene.style["--station-cover-scale"]) >= 1);
+  assert.equal(approachStartY, 50);
+  assert.equal(Number.parseFloat(scene.style["--station-cover-scale"]), 1);
   assert.equal(scene.dataset.nearSuppressed, "false");
 
   updateRealisticMotionScene(root,
@@ -484,6 +486,10 @@ test("역 접근·정차·출발은 진행률과 근경 억제를 하나의 수�
   assert.equal(scene.style["--station-opacity"], "0.83");
   const approachDetailX = Number.parseFloat(scene.style["--station-offset-x"]);
   assert.ok(approachDetailX < approachStartX);
+  assert.ok(Number.parseFloat(scene.style["--station-object-y"]) > approachStartY,
+    "접근할수록 승강장 선형이 열차 바퀴 높이로 올라옴");
+  assert.ok(Number.parseFloat(scene.style["--station-cover-scale"]) > 1,
+    "접근할수록 역 장면이 소실점에서 확대됨");
   assert.equal(scene.dataset.nearSuppressed, "true");
   assert.equal(scene.dataset.stationVisible, "true");
 
@@ -495,6 +501,8 @@ test("역 접근·정차·출발은 진행률과 근경 억제를 하나의 수�
   assert.equal(scene.style["--station-opacity"], "1");
   const stoppedX = Number.parseFloat(scene.style["--station-offset-x"]);
   assert.equal(stoppedX, 0);
+  assert.equal(Number.parseFloat(scene.style["--station-object-y"]), 80);
+  assert.equal(Number.parseFloat(scene.style["--station-cover-scale"]), 1.06);
   assert.equal(scene.dataset.motionMoving, "false");
   assert.equal(station.dataset.lifecycle, "stopped");
 
@@ -682,40 +690,41 @@ for (const routeCase of [
   { route: "busan", entryX: 2640, beforeLand: "mountain" },
   { route: "mokpo", entryX: 2530, beforeLand: "field" }
 ]) {
-  test(`${routeCase.route} 터널은 실제 진입점부터 포털 진행률을 새로 센다`, () => {
+  test(`${routeCase.route} 터널 포털은 야외 600m 전부터 다가오고 진입 뒤 내부로 전환된다`, () => {
     const initial = { ...createKtxJourney(3, "srt"), route: routeCase.route,
       selectedRoute: routeCase.route, segIndex: 2 };
     const root = renderKtxScene(fakeDocument(), initial, "cab");
     const scene = root.querySelector(".ktx-motion-scene");
 
     updateRealisticMotionScene(root,
-      { ...initial, phase: "driving", x: routeCase.entryX - 1, v: 180 },
+      { ...initial, phase: "driving", x: routeCase.entryX - 600, v: 180 },
       { land: routeCase.beforeLand });
+    assert.equal(scene.style["--tunnel-progress"], "0");
+    assert.equal(scene.dataset.tunnelPortalVisible, "true");
+    assert.equal(scene.dataset.tunnel, "false", "야외에서는 내부 벽을 아직 표시하지 않음");
+    assert.ok(Number.parseFloat(scene.style["--tunnel-scale"]) >= .3,
+      "600m에서도 소실점의 작은 입구가 식별 가능함");
+
+    updateRealisticMotionScene(root,
+      { ...initial, phase: "driving", x: routeCase.entryX - 300, v: 180 },
+      { land: routeCase.beforeLand });
+    assert.equal(scene.style["--tunnel-progress"], "0.5");
+    assert.equal(scene.dataset.tunnelPortalVisible, "true");
+    assert.ok(Number.parseFloat(scene.style["--tunnel-scale"]) >= .9,
+      "300m에서는 운전실 표지 뒤로도 입구 윤곽이 식별 가능함");
+
     updateRealisticMotionScene(root,
       { ...initial, phase: "driving", x: routeCase.entryX, v: 180 },
       { land: "tunnel" });
-    assert.equal(scene.style["--tunnel-progress"], "0");
+    assert.equal(scene.style["--tunnel-progress"], "1");
     assert.equal(scene.dataset.tunnelPortalVisible, "true");
+    assert.equal(scene.dataset.tunnel, "true", "진입 시점부터 내부 벽과 조명을 표시");
 
     updateRealisticMotionScene(root,
-      { ...initial, phase: "driving", x: routeCase.entryX + 300, v: 180 },
-      { land: "tunnel" });
-    assert.equal(scene.style["--tunnel-progress"], "0.5");
-
-    updateRealisticMotionScene(root,
-      { ...initial, phase: "driving", x: routeCase.entryX + 601, v: 180 },
+      { ...initial, phase: "driving", x: routeCase.entryX + 121, v: 180 },
       { land: "tunnel" });
     assert.equal(scene.dataset.tunnelPortalVisible, "false");
     assert.equal(scene.dataset.tunnel, "true", "포털 뒤에도 벽과 조명은 유지");
-
-    updateRealisticMotionScene(root,
-      { ...initial, phase: "driving", x: routeCase.entryX + 900, v: 180 },
-      { land: routeCase.beforeLand });
-    updateRealisticMotionScene(root,
-      { ...initial, phase: "driving", x: 100, v: 180 },
-      { land: "tunnel" });
-    assert.equal(scene.style["--tunnel-progress"], "0",
-      "터널을 나갔다 다시 들어오면 로컬 진입 거리를 초기화");
   });
 }
 

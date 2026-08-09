@@ -128,17 +128,28 @@ test("운전실 모션은 고정 프레임의 투명 전면창 안에서만 소�
   assert.match(css,
     /data-view="cab"\][^\{]*\.ktx-motion-scene\s*\{[^}]*inset:\s*0[^}]*opacity:\s*1/s);
   assert.match(css,
-    /\.ktx-motion-cab-window\s*\{[^}]*position:\s*absolute[^}]*overflow:\s*hidden[^}]*clip-path:\s*polygon\([^)]*\)/s);
+    /\.ktx-motion-cab-window\s*\{[^}]*position:\s*absolute[^}]*z-index:\s*8[^}]*overflow:\s*hidden[^}]*clip-path:\s*polygon\([^)]*42%[^)]*\)/s,
+    "절차적 선로는 운전실 프레임 위지만 실제 전면창 경계 안에만 표시됨");
   assert.match(css,
-    /\.ktx-motion-cab-rail\s*\{[^}]*top:\s*40%[^}]*transform-origin:\s*50%\s+0/s);
+    /\.ktx-motion-cab-rail\s*\{[^}]*top:\s*22%[^}]*background-position:[^}]*--cab-track-phase[^}]*transform-origin:\s*50%\s+0/s,
+    "선로 소실점은 불투명 계기판 위의 실제 투명창 안에 있어야 함");
   assert.match(css,
-    /\.ktx-motion-cab-sleepers\s*\{[^}]*--cab-sleeper-gap[^}]*background-position:[^}]*--cab-track-phase/s);
+    /\.ktx-motion-cab-rail-left\s*\{[^}]*left:\s*38%[^}]*rotate\(58deg\)/s);
   assert.match(css,
-    /\.ktx-motion-cab-catenary\s*\{[^}]*top:\s*40%[^}]*--cab-catenary-gap[^}]*--cab-catenary-phase[^}]*transform-origin:\s*50%\s+0/s);
+    /\.ktx-motion-cab-rail-right\s*\{[^}]*left:\s*62%[^}]*rotate\(-58deg\)/s,
+    "고정 속도계 양옆의 전면창에서 두 레일 이동이 보여야 함");
+  assert.match(css,
+    /\.ktx-motion-cab-sleepers\s*\{[^}]*top:\s*22%[^}]*--cab-sleeper-gap[^}]*background-position:[^}]*--cab-track-phase[^}]*clip-path:\s*polygon\([^)]*\)[^}]*transform:\s*none/s,
+    "속도계 양옆에 실제 위상 이동 침목이 압축 없이 보여야 함");
+  assert.match(css,
+    /\.ktx-motion-cab-catenary\s*\{[^}]*top:\s*16%[^}]*--cab-catenary-gap[^}]*--cab-catenary-phase[^}]*transform-origin:\s*50%\s+0/s);
   assert.match(css,
     /data-cab-track-loop-reset="true"[^\{]*\.ktx-motion-cab-sleepers[\s\S]*data-cab-catenary-loop-reset="true"[^\{]*\.ktx-motion-cab-catenary[\s\S]*transition:\s*none/s);
   assert.match(css,
     /data-view="cab"\][^\{]*\.ktx-motion-cab-frame\s*\{[^}]*display:\s*block/s);
+  assert.match(css,
+    /data-realistic="ready"\]\[data-view="cab"\][^\{]*\.ktx-speedo\s*\{[^}]*width:\s*188px[^}]*height:\s*188px[^}]*margin-left:\s*-94px/s,
+    "운전실 속도계는 전면창의 선로·터널 접근을 가리지 않음");
   assert.match(css,
     /\.ktx-motion-cab-frame\s*\{[^}]*position:\s*absolute[^}]*pointer-events:\s*none/s);
 });
@@ -158,13 +169,26 @@ test("역 플레이트는 반복 없이 안전 크롭되고 상세 단계에서 
     /data-station-stage="detail"[^\{]*\.ktx-motion-station-sign[\s\S]*data-station-stage="stopped"[^\{]*\.ktx-motion-station-sign\s*\{[^}]*opacity:\s*1/s);
   assert.match(css,
     /data-near-suppressed="true"[^\{]*\.ktx-motion-near\s*\{[^}]*opacity:\s*0/s);
+  assert.match(css,
+    /\.ktx-motion-train\s*\{[^}]*top:\s*68%/s,
+    "열차 바퀴 기준선은 풍경·승강장의 선로 높이에 놓임");
+  assert.match(css,
+    /\.ktx-motion-station\s*\{[^}]*object-position:\s*center\s+var\(--station-object-y/s,
+    "역 접근 진행률에 따라 승강장 크롭 위치를 정렬함");
 });
 
 test("터널 벽과 조명은 터널에서만 보이고 속도 기반 위상·밀도를 사용한다", () => {
   assert.match(css,
-    /\.ktx-motion-tunnel\s*\{[^}]*--tunnel-wall-phase[^}]*--tunnel-wall-gap[^}]*opacity:\s*0/s);
+    /\.ktx-motion-tunnel\s*\{[^}]*--tunnel-wall-phase[^}]*opacity:\s*0/s);
   assert.match(css,
-    /data-tunnel="true"[^\{]*\.ktx-motion-tunnel\s*\{[^}]*opacity:\s*1/s);
+    /data-tunnel-portal-visible="true"[^\{]*\.ktx-motion-tunnel[^\{]*data-tunnel="true"[^\{]*\.ktx-motion-tunnel\s*\{[^}]*opacity:\s*1/s,
+    "야외 접근 포털과 터널 내부 모두 터널 레이어를 표시함");
+  assert.match(css,
+    /data-tunnel="true"[^\{]*\.ktx-motion-tunnel\s*\{[^}]*--tunnel-wall-gap/s,
+    "반복 벽은 실제 터널 내부에서만 활성화됨");
+  assert.match(css,
+    /\.ktx-motion-tunnel-portal\s*\{[^}]*border:[^;]*#7d858c[^}]*box-shadow:/s,
+    "산 배경에서도 터널 입구 윤곽이 식별되는 콘크리트 테두리");
   assert.match(css,
     /\.ktx-motion-tunnel-lights\s*\{[^}]*--tunnel-light-gap[^}]*--tunnel-light-phase/s);
   assert.match(css,
