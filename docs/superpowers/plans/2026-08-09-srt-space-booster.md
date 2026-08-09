@@ -115,7 +115,6 @@ git commit -m "feat: model SRT space booster"
 
 **Files:**
 - Modify: `src/ktx-scene.mjs`
-- Modify: `src/ktx-realistic-motion.mjs`
 - Modify: `styles.css`
 - Test: `tests/ktx-realistic-scene.test.mjs`
 - Test: `tests/ktx-journey-art.test.mjs`
@@ -173,7 +172,7 @@ const needleSpeed = Math.min(MAX_SPEED, Math.max(0, state.v));
 root.style.setProperty("--needle-deg", `${(needleSpeed * 0.8 - 120).toFixed(1)}deg`);
 ```
 
-In `src/ktx-realistic-motion.mjs`, keep the existing 0–300 speed bands stable and expose a `boostRatio = clamp((v - 300) / 200, 0, 1)` for extra blur/vibration only above 300. In CSS, place the badge inside the HUD without hiding station chips or view keys; active uses cyan glow and a restrained pulse, cooldown uses slate, and reduced motion sets `animation: none`.
+Keep the existing 0–300 motion bands stable. In CSS, place the badge inside the HUD without hiding station chips or view keys; active uses cyan glow and a restrained pulse, cooldown uses slate, and `.ktx-game[data-boost="active"] .ktx-motion-near::after` strengthens the existing speed-line layer. Reduced motion sets badge animation to `none` while preserving its text and colour.
 
 - [ ] **Step 4: Run focused UI tests and verify GREEN**
 
@@ -184,7 +183,7 @@ Expected: all focused scene/style tests PASS in cab and exterior views.
 - [ ] **Step 5: Commit the presentation**
 
 ```bash
-git add tests/ktx-realistic-scene.test.mjs tests/ktx-journey-art.test.mjs src/ktx-scene.mjs src/ktx-realistic-motion.mjs styles.css
+git add tests/ktx-realistic-scene.test.mjs tests/ktx-journey-art.test.mjs src/ktx-scene.mjs styles.css
 git commit -m "feat: show SRT booster status"
 ```
 
@@ -193,62 +192,77 @@ git commit -m "feat: show SRT booster status"
 ### Task 3: App Feedback and Input Contract
 
 **Files:**
+- Modify: `src/app-behavior.mjs`
 - Modify: `src/app.mjs`
-- Test: `tests/app-contract.test.mjs`
 - Test: `tests/app-behavior.test.mjs`
 
 **Interfaces:**
 - Consumes: Task 1 model events through `handleKtxEvents`; existing `audio.playSfx`, `showHint`, `moveKtxSpace`, and keydown repeat guard.
-- Produces: child-readable boost start/end/ready/cooldown hints with existing sound effects; unchanged repeat-key suppression.
+- Produces: exported pure `ktxBoosterCue(event)` from `src/app-behavior.mjs`; child-readable boost start/end/ready/cooldown hints with existing sound effects; unchanged repeat-key suppression.
 
-- [ ] **Step 1: Write failing app contract and behavior tests**
+- [ ] **Step 1: Write failing app behavior tests**
 
-Add contract assertions that `handleKtxEvents` contains all four boost event branches and that the existing Space handler still calls `moveKtxSpace()` only under `!event.repeat`. Add behavior assertions for exact copy:
+Import the wished-for `ktxBoosterCue` and assert real return values rather than searching source text:
 
 ```js
-assert.match(app, /boost-start[\s\S]*부스터 출발! 5초 동안 500!/);
-assert.match(app, /boost-unavailable[\s\S]*충전 중이에요/);
-assert.match(app, /boost-end[\s\S]*부스터 끝! 안전 운전해요/);
-assert.match(app, /boost-ready[\s\S]*부스터 준비 완료!/);
+test("SRT 부스터 이벤트는 아이가 읽는 효과음과 안내로 바뀐다", () => {
+  assert.deepEqual(ktxBoosterCue({ type: "boost-start" }), {
+    sfx: "win", hint: "🚄 부스터 출발! 5초 동안 500!"
+  });
+  assert.deepEqual(ktxBoosterCue({ type: "boost-unavailable", remainingMs: 5200 }), {
+    sfx: "key", hint: "충전 중이에요! 6초"
+  });
+  assert.deepEqual(ktxBoosterCue({ type: "boost-end" }), {
+    sfx: "pop", hint: "부스터 끝! 안전 운전해요"
+  });
+  assert.deepEqual(ktxBoosterCue({ type: "boost-ready" }), {
+    sfx: "key", hint: "부스터 준비 완료!"
+  });
+  assert.equal(ktxBoosterCue({ type: "zone-enter" }), null);
+});
 ```
 
 - [ ] **Step 2: Run app tests and verify RED**
 
-Run: `node --test tests/app-contract.test.mjs tests/app-behavior.test.mjs`
+Run: `node --test tests/app-behavior.test.mjs`
 
-Expected: FAIL because boost event feedback is absent.
+Expected: FAIL because `ktxBoosterCue` is not exported.
 
 - [ ] **Step 3: Add minimal event feedback**
 
-Add branches beside the existing KTX milestone/zone events:
+Implement the pure mapper in `src/app-behavior.mjs`:
 
 ```js
-} else if (event.type === "boost-start") {
-  audio.playSfx("win");
-  showHint("🚄 부스터 출발! 5초 동안 500!");
-} else if (event.type === "boost-unavailable") {
-  audio.playSfx("key");
-  showHint(`충전 중이에요! ${Math.ceil(event.remainingMs / 1000)}초`);
-} else if (event.type === "boost-end") {
-  audio.playSfx("pop");
-  showHint("부스터 끝! 안전 운전해요");
-} else if (event.type === "boost-ready") {
-  audio.playSfx("key");
-  showHint("부스터 준비 완료!");
+export function ktxBoosterCue(event) {
+  if (event.type === "boost-start") {
+    return { sfx: "win", hint: "🚄 부스터 출발! 5초 동안 500!" };
+  }
+  if (event.type === "boost-unavailable") {
+    return { sfx: "key",
+      hint: `충전 중이에요! ${Math.ceil(event.remainingMs / 1000)}초` };
+  }
+  if (event.type === "boost-end") {
+    return { sfx: "pop", hint: "부스터 끝! 안전 운전해요" };
+  }
+  if (event.type === "boost-ready") {
+    return { sfx: "key", hint: "부스터 준비 완료!" };
+  }
+  return null;
+}
 ```
 
-Do not change the document keydown routing: its existing `event.preventDefault()`, `!event.repeat`, and contextual `moveKtxSpace()` call remain the single input path.
+Import it in `src/app.mjs`; at the top of each `handleKtxEvents` iteration, map the event and, when non-null, play its existing SFX and show its hint before continuing to the next event. Do not change the document keydown routing: its existing `event.preventDefault()`, `!event.repeat`, and contextual `moveKtxSpace()` call remain the single input path. Task 4 verifies the live wiring in Chromium.
 
 - [ ] **Step 4: Run app tests and verify GREEN**
 
-Run: `node --test tests/app-contract.test.mjs tests/app-behavior.test.mjs`
+Run: `node --test tests/app-behavior.test.mjs`
 
-Expected: both files PASS without changing subway or other game Space handling.
+Expected: PASS without changing subway or other game Space handling.
 
 - [ ] **Step 5: Commit app integration**
 
 ```bash
-git add tests/app-contract.test.mjs tests/app-behavior.test.mjs src/app.mjs
+git add tests/app-behavior.test.mjs src/app-behavior.mjs src/app.mjs
 git commit -m "feat: add SRT booster feedback"
 ```
 
@@ -294,7 +308,7 @@ For each failure, first add a focused failing assertion to the matching existing
 If tracked corrections were needed:
 
 ```bash
-git add -- src/ktx-journey.mjs src/ktx-scene.mjs src/ktx-realistic-motion.mjs src/app.mjs styles.css tests/ktx-journey.test.mjs tests/ktx-realistic-scene.test.mjs tests/ktx-journey-art.test.mjs tests/app-contract.test.mjs tests/app-behavior.test.mjs
+git add -- src/ktx-journey.mjs src/ktx-scene.mjs src/app-behavior.mjs src/app.mjs styles.css tests/ktx-journey.test.mjs tests/ktx-realistic-scene.test.mjs tests/ktx-journey-art.test.mjs tests/app-behavior.test.mjs
 git commit -m "fix: verify SRT booster experience"
 ```
 
