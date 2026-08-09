@@ -34,7 +34,14 @@ export function subwayArrivingCue(kind, travelSide) {
 
 export function ktxBoosterCue(event) {
   if (event?.type === "boost-start") {
-    return { sfx: "win", hint: "🚄 부스터 출발! 5초 동안 500!" };
+    // 목표는 발동 시점 속도 +200 — 300에서 켜야 500에 닿는다.
+    const target = Number.isFinite(event.target) ? Math.round(event.target) : null;
+    return {
+      sfx: "win",
+      hint: target
+        ? `🚄 부스터! 쭉쭉 밀어서 ${target}까지!`
+        : "🚄 부스터! 쭉쭉 밀어요!"
+    };
   }
   if (event?.type === "boost-unavailable") {
     const remainingMs = Number.isFinite(event.remainingMs)

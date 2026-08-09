@@ -44,7 +44,13 @@ export const BOARD_LOCK_MS = 1200;     // 마지막 승객 후 합계 연출 잠
 export const DOOR_COUNTDOWN_MS = 6000; // 대기열 0 → 자동 문닫기 카운트다운(앞 3초는 감상 유예)
 export const ASSIST_TARGET = 80;       // 자동 크리프 목표 속도
 export const CORRECT_SPEED = 22;       // 오버런 복귀 후진 속도
-export const BOOST_SPEED = 500;        // SRT 일반 주행 Space 부스터
+// SRT 부스터 — 즉시 점프가 아니라 가속이다. 발동 시점 속도에 +200을 5초에
+// 걸쳐 더하고(40km/h/s), 그동안만 300 제한이 풀린다. 300에서 켜야 500에
+// 닿는 구조라 "언제 켤까"가 전략이 된다. 끝나면 초과분은 자연 감쇠로 복귀.
+export const BOOST_SPEED = 500;          // 절대 상한
+export const BOOST_GAIN = 200;           // 발동 시점 속도에 더해 주는 양
+export const BOOST_ACCEL_KMH_PER_S = 40; // +200 ÷ 5초
+export const BOOST_DECAY_KMH_PER_S = 45; // 종료 후 300 복귀 감쇠
 export const BOOST_DURATION_MS = 5000;
 export const BOOST_COOLDOWN_MS = 10000;
 export const BASELINE_RESPONSES = Object.freeze(["magpie", "scarecrow", "wave"]);
@@ -130,6 +136,7 @@ export function createKtxJourney(seed = 0, trainId = "srt") {
     v: 0,
     boostRemainingMs: 0,
     boostCooldownMs: 0,
+    boostTarget: 0,
     queue: manifest.stops[KTX_STATIONS[0]] ?? [],
     boarded: [],
     metThisStop: 0,
@@ -375,15 +382,16 @@ export function pressKtxSpace(state) {
           events: [{ type: "boost-unavailable", remainingMs }]
         };
       }
+      const boostTarget = Math.min(state.v + BOOST_GAIN, BOOST_SPEED);
       return {
         state: {
           ...state,
-          v: BOOST_SPEED,
           boostRemainingMs: BOOST_DURATION_MS,
           boostCooldownMs: 0,
+          boostTarget,
           idleMs: 0
         },
-        events: [{ type: "boost-start" }]
+        events: [{ type: "boost-start", target: boostTarget }]
       };
     }
     // 경적 — 눌러서 재미없는 순간 0 (베이스라인 보장 + 이벤트 3단 에스컬레이션)
@@ -562,8 +570,17 @@ export function tickKtx(state, held = {}, elapsedMs = 150) {
 
   // phase === "driving"
   const vStart = state.v;
+  const boostDt = boostElapsedMs / 1000;
   const normalDt = Math.max(0, elapsedMs - boostElapsedMs) / 1000;
-  next.v = Math.min(MAX_SPEED, Math.max(0, next.v));
+  next.v = Math.max(0, next.v);
+
+  // 부스터 램프 — 목표(발동 시점 +200, 절대 500)까지 40km/h/s. 즉시 점프 금지.
+  if (boostDt > 0) {
+    const target = Number.isFinite(next.boostTarget) && next.boostTarget > 0
+      ? Math.min(next.boostTarget, BOOST_SPEED)
+      : BOOST_SPEED;
+    next.v = Math.min(target, next.v + BOOST_ACCEL_KMH_PER_S * boostDt);
+  }
   if (held.up) next.v += ACCEL_KMH_PER_S * normalDt;
   else if (held.down) next.v -= BRAKE_KMH_PER_S * normalDt;
   else if (next.assist && next.v < ASSIST_TARGET) {
@@ -571,7 +588,7 @@ export function tickKtx(state, held = {}, elapsedMs = 150) {
   }
   // 코스트 순항: 놓아도 감속하지 않는다(감쇠 0)
 
-  next.v = Math.max(0, Math.min(MAX_SPEED, next.v));
+  next.v = Math.max(0, next.v);
 
   const marker = markerPosition(segment(next));
   const remaining = Math.max(0, marker - next.x);
@@ -580,16 +597,19 @@ export function tickKtx(state, held = {}, elapsedMs = 150) {
   const cap = remaining <= ARM_DISTANCE
     ? ENVELOPE_FLOOR
     : envelopeSpeed(remaining);
-  if (next.boostRemainingMs === 0 && next.v > cap) next.v = cap;
+  if (next.boostRemainingMs === 0 && next.v > cap) {
+    // 접근 봉투(<300)는 안전이라 즉시 준수. 300 상한 초과분(부스터 잔량)은
+    // 급정거처럼 뚝 떨어뜨리지 않고 감쇠로 되돌린다.
+    next.v = cap < MAX_SPEED
+      ? cap
+      : Math.max(MAX_SPEED, next.v - BOOST_DECAY_KMH_PER_S * normalDt);
+  }
   // 봉투 바닥: 존에 들어온 열차는 35 밑으로 못 내려가 반드시 앞으로 간다 —
   // 어떤 입력이든 유한 시간 안에 정지 또는 오버런에 닿는 무스톨 보장.
   if (next.zoneEntered && next.v < ENVELOPE_FLOOR) next.v = ENVELOPE_FLOOR;
 
   const prevX = next.x;
-  const boostDistance = (BOOST_SPEED / 3.6) * (boostElapsedMs / 1000);
-  const normalDistance = (next.v / 3.6) * normalDt;
-  next.x += boostDistance + normalDistance;
-  if (next.boostRemainingMs > 0) next.v = BOOST_SPEED;
+  next.x += (next.v / 3.6) * dt;
 
   // 속도 마일스톤 — 구간당 각 1회
   for (const milestone of SPEED_MILESTONES) {

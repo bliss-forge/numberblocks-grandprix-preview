@@ -68,9 +68,14 @@ function audioHarness() {
 
 test("SRT 부스터 이벤트를 짧은 효과음과 자연스러운 안내로 바꾼다", () => {
   assert.equal(typeof appBehavior.ktxBoosterCue, "function");
+  // 부스터는 +200 램프 — 안내가 발동 시점 목표를 말한다(즉시 500 아님).
+  assert.deepEqual(appBehavior.ktxBoosterCue({ type: "boost-start", target: 500 }), {
+    sfx: "win",
+    hint: "🚄 부스터! 쭉쭉 밀어서 500까지!"
+  });
   assert.deepEqual(appBehavior.ktxBoosterCue({ type: "boost-start" }), {
     sfx: "win",
-    hint: "🚄 부스터 출발! 5초 동안 500!"
+    hint: "🚄 부스터! 쭉쭉 밀어요!"
   });
   assert.deepEqual(appBehavior.ktxBoosterCue({
     type: "boost-unavailable",

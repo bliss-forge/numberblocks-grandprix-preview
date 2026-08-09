@@ -228,9 +228,11 @@ test("역 플레이트는 반복 없이 안전 크롭되고 상세 단계에서 
     /data-station-stage="detail"[^\{]*\.ktx-motion-station-sign[\s\S]*data-station-stage="stopped"[^\{]*\.ktx-motion-station-sign\s*\{[^}]*opacity:\s*1/s);
   assert.match(css,
     /data-near-suppressed="true"[^\{]*\.ktx-motion-near\s*\{[^}]*opacity:\s*0/s);
+  // 실물 크기 개편(2026-08-10): 승강장 구조물과 같은 자로 잰 132% 폭 —
+  // 코끝·꼬리가 화면 밖으로 살짝 나가는 게 실사 배경과 맞는 스케일이다.
   assert.match(css,
-    /\.ktx-motion-train-rig\s*\{[^}]*top:\s*68%/s,
-    "열차 바퀴 기준선은 풍경·승강장의 선로 높이에 놓임");
+    /\.ktx-motion-train-rig\s*\{[^}]*top:\s*62%[^}]*width:\s*min\(132%,\s*1900px\)/s,
+    "열차는 실물 스케일(132%)로 바퀴가 선로 높이에 놓임");
   assert.match(css,
     /\.ktx-motion-station\s*\{[^}]*object-position:\s*center\s+var\(--station-object-y/s,
     "역 접근 진행률에 따라 승강장 크롭 위치를 정렬함");

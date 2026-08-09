@@ -1055,11 +1055,14 @@ export function updateKtxScene(root, state, view, events = [], held = {}) {
     boardedNode.textContent = boardedText;
   }
 
-  // 속도 풍선 — 존 안에서는 억제(시선 깔때기, 아이 렌즈 §6)
+  // 속도 풍선 — 존 안에서는 억제(시선 깔때기, 아이 렌즈 §6).
+  // 300 링은 뺀다 — 최고속 부근에서 "300" 동그라미가 경고판처럼 읽힌다는
+  // 피드백(2026-08-10). 세기 놀이용 낮은 마일스톤(50~250)만 띄운다.
   const nextMilestone = SPEED_MILESTONES.find(milestone =>
     !state.milestones.includes(milestone) && milestone > state.v - 1);
   const balloon = root.querySelector(".ktx-speed-balloon");
   const balloonOn = state.phase === "driving" && nextMilestone !== undefined &&
+    nextMilestone < 300 &&
     nextMilestone - state.v <= 20 && !state.zoneEntered;
   balloon.dataset.on = String(balloonOn);
   if (balloonOn) {
@@ -1110,9 +1113,8 @@ export function updateKtxScene(root, state, view, events = [], held = {}) {
     if (event.type === "zone-enter") {
       spawnObj(root, "speed35", "l", "", state.v);
     }
-    if (event.type === "event" && event.event === "sprint300") {
-      spawnObj(root, "sign300", "r", "", state.v);
-    }
+    // sprint300의 "300" 경고판 소환은 뺐다 — 실사 배경 위에 뜬 표지판이
+    // 경고처럼 읽힌다는 피드백(2026-08-10). 문구 힌트("300까지 가 볼까?")만 남긴다.
     if (event.type === "boarded") {
       const pop = root.querySelector(".ktx-board-pop");
       const face = root.querySelector(".ktx-board-face");

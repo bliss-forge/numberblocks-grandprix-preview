@@ -400,18 +400,67 @@ test("경적은 이벤트 안에서 3단 에스컬레이션, 밖에서는 베이
   assert.deepEqual(levels, [1, 2, 3, 1, 2], "3단 뒤 반복");
 });
 
-test("SRT 일반 주행 Space는 500km/h 부스터를 5초 시작한다", () => {
+test("부스터는 즉시 점프가 아니라 +200 램프다 — 5초에 걸쳐 목표에 닿는다", () => {
   const driving = {
     ...readyToDrive(createKtxJourney(3, "srt")),
-    phase: "driving"
+    phase: "driving",
+    v: 120
   };
 
   const result = pressKtxSpace(driving);
 
-  assert.equal(result.state.v, 500);
+  // 발동 순간 속도는 그대로 — 한 방에 500이 되지 않는다.
+  assert.equal(result.state.v, 120);
   assert.equal(result.state.boostRemainingMs, 5000);
   assert.equal(result.state.boostCooldownMs, 0);
-  assert.deepEqual(result.events, [{ type: "boost-start" }]);
+  assert.equal(result.state.boostTarget, 320, "목표 = 발동 속도 +200");
+  assert.deepEqual(result.events, [{ type: "boost-start", target: 320 }]);
+
+  // 1초 뒤 +40, 부스터가 살아 있는 동안의 정점은 목표(+200) 근처.
+  // 만료 틱에서는 같은 틱 안에서 감쇠가 시작되므로 정점은 만료 직전에 잰다.
+  const after1s = tickKtx(result.state, {}, 1000).state;
+  assert.ok(Math.abs(after1s.v - 160) < 1, `1초 뒤 160 근처여야 한다: ${after1s.v}`);
+  let state = result.state;
+  let peak = state.v;
+  for (let i = 0; i < 36; i += 1) {
+    state = tickKtx(state, {}, 150).state;
+    peak = Math.max(peak, state.v);
+  }
+  assert.ok(peak >= 318 && peak <= 320.5, `정점이 320 근처여야 한다: ${peak}`);
+});
+
+test("300에서 부스터를 켜면 제한이 풀려 500까지 — 끝나면 감쇠로 300 복귀", () => {
+  const driving = {
+    ...readyToDrive(createKtxJourney(3, "srt")),
+    phase: "driving",
+    v: 300
+  };
+
+  const boosted = pressKtxSpace(driving);
+  assert.equal(boosted.state.boostTarget, 500, "300 +200 = 절대 상한 500");
+
+  let state = boosted.state;
+  for (let i = 0; i < 34; i += 1) state = tickKtx(state, {}, 150).state;
+  assert.ok(state.v >= 495, `부스터 끝 무렵 500 근처: ${state.v}`);
+
+  // 만료 뒤에는 뚝 떨어지지 않고 감쇠(45km/h/s)로 300에 돌아온다.
+  const justAfter = tickKtx(state, {}, 300).state;
+  assert.ok(justAfter.v > 300 && justAfter.v < 500,
+    `만료 직후 하드클램프 금지: ${justAfter.v}`);
+  for (let i = 0; i < 40; i += 1) state = tickKtx(state, {}, 150).state;
+  assert.ok(state.v <= 300.5, `감쇠 후 300 복귀: ${state.v}`);
+});
+
+test("부스터가 없는 낮은 속도 발동도 +200만 준다 — 0에서 켜면 200", () => {
+  const driving = {
+    ...readyToDrive(createKtxJourney(3, "srt")),
+    phase: "driving",
+    v: 0
+  };
+  let state = pressKtxSpace(driving).state;
+  assert.equal(state.boostTarget, 200);
+  for (let i = 0; i < 40; i += 1) state = tickKtx(state, {}, 150).state;
+  assert.ok(state.v <= 200.5, `0 발동 목표는 200 이하: ${state.v}`);
 });
 
 test("활성 중 Space는 시간을 늘리지 않고 종료 뒤 10초를 기다려야 다시 쓴다", () => {
@@ -497,6 +546,9 @@ test("역 진입 틱은 부스터를 즉시 끝내고 기존 정차 봉투로 �
   const driving = {
     ...readyToDrive(createKtxJourney(3, "srt")),
     phase: "driving",
+    // 램프 물리에서는 발동 순간 속도가 그대로다 — 존 경계를 한 틱에 넘도록
+    // 최고속으로 달려 들어온다.
+    v: 300,
     x: zoneStart - 10
   };
   const boosted = pressKtxSpace(driving).state;

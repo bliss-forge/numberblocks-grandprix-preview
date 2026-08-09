@@ -9634,8 +9634,10 @@ body[data-mode="delivery"] #stage {
   --train-brake-pitch: var(--motion-brake-pitch, 0);
   position: absolute;
   left: 50%;
-  top: 68%;
-  width: min(78%, 1120px);
+  top: 62%;
+  /* 승강장 벤치·지붕 기둥과 같은 자로 잰 크기 — 장난감처럼 작아 보이면 실사
+     배경과 붕 뜬다. 코끝·꼬리가 화면 밖으로 살짝 나가는 게 실물 감각이다. */
+  width: min(132%, 1900px);
   z-index: 6;
   transform: translate3d(-50%, calc(-50% + var(--train-vibration-y)), 0)
     rotate(calc(var(--train-brake-pitch) * 1deg));
@@ -9672,8 +9674,9 @@ body[data-mode="delivery"] #stage {
   left: 63.8%;
   top: 45.7%;
   z-index: 7;
-  width: clamp(8px, 1.05vw, 14px);
-  height: clamp(22px, 2.5vw, 31px);
+  /* 열차 확대(78%→132%)와 같은 배율 — vw 고정이면 그림의 문보다 작아진다 */
+  width: clamp(14px, 1.8vw, 24px);
+  height: clamp(37px, 4.2vw, 52px);
   overflow: hidden;
   border: 1px solid rgba(45, 43, 50, .72);
   border-radius: 2px 2px 1px 1px;
