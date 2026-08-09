@@ -5,6 +5,7 @@
 
 import {
   PAINT_COLORS,
+  PAINT_SUBJECTS,
   PAINT_TUBES,
   RAINBOW_COUNT,
   josa
@@ -124,7 +125,94 @@ const SUBJECT_ART = {
     <path d="M190 140 L226 182 L190 182z" ${FILL}/>
     <circle cx="140" cy="112" r="24" fill="#dfe8f2" stroke="${DETAIL}" stroke-width="5"/>
     <path d="M124 186 C130 206 150 206 156 186 C152 216 128 216 124 186z" fill="#ffb15c" stroke="#e8763a" stroke-width="4"/>
-    <circle cx="52" cy="60" r="5" fill="#f4c542"/><circle cx="232" cy="88" r="5" fill="#f4c542"/><circle cx="224" cy="44" r="4" fill="#f4c542"/>`
+    <circle cx="52" cy="60" r="5" fill="#f4c542"/><circle cx="232" cy="88" r="5" fill="#f4c542"/><circle cx="224" cy="44" r="4" fill="#f4c542"/>`,
+  strawberry: `
+    <path d="M140 64 C186 64 218 86 218 118 C218 162 182 204 140 214 C98 204 62 162 62 118 C62 86 94 64 140 64z" ${FILL}/>
+    <path d="M104 52 C114 38 126 32 140 32 C154 32 166 38 176 52 C164 62 152 66 140 66 C128 66 116 62 104 52z" fill="#cfe3c8" stroke="#9fb89f" stroke-width="4"/>
+    <ellipse cx="110" cy="112" rx="5" ry="7" fill="${DETAIL}"/>
+    <ellipse cx="170" cy="112" rx="5" ry="7" fill="${DETAIL}"/>
+    <ellipse cx="140" cy="146" rx="5" ry="7" fill="${DETAIL}"/>
+    <ellipse cx="112" cy="172" rx="5" ry="7" fill="${DETAIL}"/>
+    <ellipse cx="168" cy="172" rx="5" ry="7" fill="${DETAIL}"/>`,
+  banana: `
+    <path d="M52 92 C62 152 116 192 186 192 C210 192 228 186 240 174 C234 204 192 226 152 226 C92 226 42 178 38 118 C38 106 42 98 52 92z" ${FILL}/>
+    <path d="M40 86 L56 80 L62 96 L46 104z" fill="#8a6a48" stroke="#6f5237" stroke-width="4"/>
+    <path d="M238 172 L254 166 L258 182 L244 188z" fill="#8a6a48" stroke="#6f5237" stroke-width="4"/>`,
+  whale: `
+    <path d="M48 132 C48 96 88 74 140 74 C192 74 226 100 230 134 C231 146 228 156 222 164 L60 164 C52 154 48 144 48 132z" ${FILL}/>
+    <path d="M222 148 C238 134 250 132 260 136 C256 148 248 156 238 162 C248 166 254 174 256 184 C244 186 232 182 222 172z" ${FILL}/>
+    <path d="M88 66 C82 50 84 38 92 28" stroke="#8fd0f8" stroke-width="6" fill="none" stroke-linecap="round"/>
+    <path d="M100 66 C102 50 100 38 92 28" stroke="#8fd0f8" stroke-width="6" fill="none" stroke-linecap="round"/>
+    <circle cx="94" cy="116" r="8" fill="#31445b"/>
+    <path d="M106 142 C118 152 138 152 150 142" fill="none" stroke="#31445b" stroke-width="6" stroke-linecap="round"/>`,
+  tangerine: `
+    <circle cx="140" cy="146" r="74" ${FILL}/>
+    <path d="M140 66 C138 52 130 44 118 40" stroke="#8a6a48" stroke-width="7" fill="none" stroke-linecap="round"/>
+    <path d="M146 58 C162 42 184 40 198 50 C188 64 168 68 152 62z" fill="#cfe3c8" stroke="#9fb89f" stroke-width="4"/>`,
+  plane: `
+    <path d="M34 132 C52 114 92 104 148 104 L214 104 C238 104 252 114 250 128 C248 142 234 152 210 152 L72 152 C50 152 38 144 34 132z" ${FILL}/>
+    <path d="M202 104 L224 62 L248 62 L232 106z" ${FILL}/>
+    <path d="M120 122 L64 172 L96 178 L156 132z" ${FILL}/>
+    <path d="M226 112 C238 112 246 118 246 126 L222 126z" fill="#dfe8f2" stroke="${DETAIL}" stroke-width="4"/>
+    <circle cx="104" cy="120" r="7" fill="#dfe8f2" stroke="${DETAIL}" stroke-width="3"/>
+    <circle cx="132" cy="120" r="7" fill="#dfe8f2" stroke="${DETAIL}" stroke-width="3"/>
+    <circle cx="160" cy="120" r="7" fill="#dfe8f2" stroke="${DETAIL}" stroke-width="3"/>`,
+  submarine: `
+    <ellipse cx="136" cy="152" rx="102" ry="50" ${FILL}/>
+    <rect x="108" y="70" width="56" height="46" rx="10" ${FILL}/>
+    <path d="M120 70 L120 46 L148 46" stroke="#3a4152" stroke-width="7" fill="none" stroke-linecap="round"/>
+    <path d="M238 134 L262 118 L262 186 L238 170z" fill="#c8ccd4" stroke="${DETAIL}" stroke-width="4"/>
+    <circle cx="92" cy="152" r="13" fill="#dfe8f2" stroke="${DETAIL}" stroke-width="4"/>
+    <circle cx="136" cy="154" r="13" fill="#dfe8f2" stroke="${DETAIL}" stroke-width="4"/>
+    <circle cx="180" cy="152" r="13" fill="#dfe8f2" stroke="${DETAIL}" stroke-width="4"/>
+    <circle cx="226" cy="66" r="6" fill="#8fd0f8"/><circle cx="244" cy="46" r="5" fill="#8fd0f8"/><circle cx="256" cy="70" r="4" fill="#8fd0f8"/>`,
+  pig: `
+    <circle cx="140" cy="142" r="84" ${FILL}/>
+    <path d="M78 88 L62 46 L106 62z" ${FILL}/>
+    <path d="M202 88 L218 46 L174 62z" ${FILL}/>
+    <ellipse cx="140" cy="160" rx="34" ry="25" fill="#ffd3df" stroke="#e8a3b8" stroke-width="4"/>
+    <ellipse cx="128" cy="160" rx="6" ry="8" fill="#b06a80"/>
+    <ellipse cx="152" cy="160" rx="6" ry="8" fill="#b06a80"/>
+    <circle cx="110" cy="120" r="9" fill="#31445b"/>
+    <circle cx="170" cy="120" r="9" fill="#31445b"/>`,
+  peach: `
+    <path d="M140 72 C190 72 220 106 220 146 C220 186 184 212 140 212 C96 212 60 186 60 146 C60 106 90 72 140 72z" ${FILL}/>
+    <path d="M140 76 C132 102 132 132 140 160" stroke="${DETAIL}" stroke-width="4" fill="none"/>
+    <path d="M140 70 C138 58 132 50 122 44" stroke="#8a6a48" stroke-width="6" fill="none" stroke-linecap="round"/>
+    <path d="M144 62 C158 46 178 42 194 50 C184 64 166 70 150 66z" fill="#cfe3c8" stroke="#9fb89f" stroke-width="4"/>`,
+  caterpillar: `
+    <circle cx="64" cy="140" r="36" ${FILL}/>
+    <circle cx="116" cy="158" r="30" ${FILL}/>
+    <circle cx="164" cy="166" r="30" ${FILL}/>
+    <circle cx="210" cy="172" r="28" ${FILL}/>
+    <path d="M52 106 C46 92 48 80 56 70" stroke="#31445b" stroke-width="5" fill="none" stroke-linecap="round"/>
+    <path d="M78 104 C82 90 90 80 100 74" stroke="#31445b" stroke-width="5" fill="none" stroke-linecap="round"/>
+    <circle cx="56" cy="134" r="6" fill="#31445b"/>
+    <circle cx="78" cy="134" r="6" fill="#31445b"/>
+    <path d="M56 152 C62 158 72 158 78 152" fill="none" stroke="#31445b" stroke-width="5" stroke-linecap="round"/>`,
+  butterfly: `
+    <ellipse cx="84" cy="94" rx="48" ry="40" transform="rotate(-18 84 94)" ${FILL}/>
+    <ellipse cx="196" cy="94" rx="48" ry="40" transform="rotate(18 196 94)" ${FILL}/>
+    <ellipse cx="96" cy="168" rx="36" ry="30" transform="rotate(14 96 168)" ${FILL}/>
+    <ellipse cx="184" cy="168" rx="36" ry="30" transform="rotate(-14 184 168)" ${FILL}/>
+    <ellipse cx="140" cy="132" rx="12" ry="52" fill="#3a4152"/>
+    <path d="M132 84 C126 66 116 54 102 48" stroke="#3a4152" stroke-width="5" fill="none" stroke-linecap="round"/>
+    <path d="M148 84 C154 66 164 54 178 48" stroke="#3a4152" stroke-width="5" fill="none" stroke-linecap="round"/>`,
+  acorn: `
+    <path d="M84 118 L196 118 C196 164 172 200 140 210 C108 200 84 164 84 118z" ${FILL}/>
+    <path d="M78 118 C74 82 102 54 140 54 C178 54 206 82 202 118z" ${FILL}/>
+    <path d="M102 78 C126 66 154 66 178 78" stroke="${DETAIL}" stroke-width="4" fill="none"/>
+    <path d="M140 54 C138 44 132 38 124 34" stroke="#8a6a48" stroke-width="6" fill="none" stroke-linecap="round"/>
+    <circle cx="140" cy="204" r="6" fill="#8a6a48"/>`,
+  pine: `
+    <path d="M140 28 L198 104 L82 104z" ${FILL}/>
+    <path d="M140 74 L212 160 L68 160z" ${FILL}/>
+    <path d="M140 124 L226 214 L54 214z" ${FILL}/>
+    <rect x="124" y="214" width="32" height="22" fill="#8a6a48"/>`,
+  eggplant: `
+    <ellipse cx="150" cy="150" rx="88" ry="60" transform="rotate(32 150 150)" ${FILL}/>
+    <path d="M88 96 C76 80 74 64 80 50 C96 56 108 68 114 84 C122 76 134 72 146 74 C138 88 124 98 108 100z" fill="#4f7a4f" stroke="#3d5f3d" stroke-width="4"/>
+    <path d="M84 92 C74 80 70 68 72 54" stroke="#4f7a4f" stroke-width="7" fill="none" stroke-linecap="round"/>`
 };
 
 export function paintSubjectSvg(subjectId) {
@@ -140,13 +228,13 @@ function buildGallery(document, state) {
   gallery.append(el(document, "b", "pp-gallery-title", "완성한 그림"));
   const total = state.rounds.length;
   for (let index = 0; index < total; index += 1) {
-    const colorId = state.gallery[index];
+    const colorId = state.gallery[index]?.colorId;
     const frame = el(document, "span", "pp-frame");
     frame.dataset.filled = colorId ?? "";
     if (colorId) frame.style.setProperty("--frame-color", PAINT_COLORS[colorId].hex);
     gallery.append(frame);
   }
-  const distinct = new Set(state.gallery).size;
+  const distinct = new Set(state.gallery.map(entry => entry.colorId)).size;
   gallery.append(el(
     document, "span", "pp-rainbow-note",
     `🌈 ${Math.min(distinct, RAINBOW_COUNT)}/${RAINBOW_COUNT}색`
@@ -222,9 +310,13 @@ function buildJar(document, state) {
   const parts = equationFor(state);
   const need = round ? recipeFor(round.colorId).length : 2;
   equation.append(el(document, "span", "pp-eq pp-eq-a", parts?.a ?? "?"));
-  if (need === 2) {
+  if (need >= 2) {
     equation.append(el(document, "span", "pp-eq-op", "+"));
     equation.append(el(document, "span", "pp-eq pp-eq-b", parts?.b ?? "?"));
+  }
+  if (need >= 3) {
+    equation.append(el(document, "span", "pp-eq-op", "+"));
+    equation.append(el(document, "span", "pp-eq pp-eq-c", parts?.c ?? "?"));
   }
   equation.append(el(document, "span", "pp-eq-op", "="));
   equation.append(el(
@@ -281,24 +373,33 @@ function buildShelf(document, state) {
   return shelf;
 }
 
+// 피날레 = 전시회 벽. 내가 칠한 그림들이 도화지로 벽에 붙고 화가님 멘트가 나온다.
 function buildFinale(document, state) {
   const finale = el(document, "div", "pp-finale");
   finale.dataset.on = String(state.finale);
   if (!state.finale) return finale;
   finale.append(el(
     document, "h2", "pp-finale-title",
-    state.rainbow ? "🌈 무지개 화가 탄생!" : "⭐ 오늘의 그림 완성!"
+    state.rainbow ? "🌈 무지개 화가 탄생!" : "🖼️ 오늘의 전시회 완성!"
   ));
-  const shelfRow = el(document, "div", "pp-finale-row");
-  state.gallery.forEach(colorId => {
-    const chip = el(document, "span", "pp-finale-chip", PAINT_COLORS[colorId].ko);
-    chip.style.setProperty("--frame-color", PAINT_COLORS[colorId].hex);
-    shelfRow.append(chip);
+  const wall = el(document, "div", "pp-wall");
+  state.gallery.forEach(entry => {
+    const paper = el(document, "figure", "pp-paper");
+    const art = el(document, "div", "pp-paper-art");
+    art.style.setProperty("--pp-fill", PAINT_COLORS[entry.colorId].hex);
+    art.innerHTML = paintSubjectSvg(entry.subjectId);
+    const subject = PAINT_SUBJECTS.find(item => item.id === entry.subjectId);
+    paper.append(art);
+    paper.append(el(
+      document, "figcaption", "pp-paper-name",
+      `${PAINT_COLORS[entry.colorId].ko} ${subject?.ko ?? ""}`.trim()
+    ));
+    wall.append(paper);
   });
-  finale.append(shelfRow);
+  finale.append(wall);
   finale.append(el(
     document, "p", "pp-finale-note",
-    `별 ${state.stars}개 — 고마워요, 꼬마 화가님!`
+    `별 ${state.stars}개 — 정말 멋진 화가님이에요!`
   ));
   return finale;
 }

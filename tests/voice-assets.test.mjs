@@ -24,15 +24,21 @@ const paintKeys = [
   "paint-intro", "paint-finale", "paint-rainbow",
   ...[
     "firetruck", "chick", "bus", "carrot", "car", "frog", "tractor",
-    "grape", "heli", "blossom", "boat", "bear", "rocket"
+    "grape", "heli", "blossom", "boat", "bear", "rocket",
+    "strawberry", "banana", "whale", "tangerine", "plane", "submarine",
+    "pig", "peach", "caterpillar", "butterfly", "acorn", "pine", "eggplant"
   ].map(subject => `paint-order-${subject}`),
   ...[
     "orange", "green", "purple", "pink", "sky", "brown", "navy",
-    "lightyellow", "olive", "gray"
+    "lightyellow", "olive", "gray",
+    "peach", "yellowgreen", "lavender", "darkbrown", "darkgreen",
+    "darkpurple", "brick", "khaki", "bluegray"
   ].map(color => `paint-mix-${color}`),
   ...[
     "red", "yellow", "blue", "black", "white", "orange", "green",
-    "purple", "pink", "sky", "brown", "navy", "lightyellow", "olive", "gray"
+    "purple", "pink", "sky", "brown", "navy", "lightyellow", "olive", "gray",
+    "peach", "yellowgreen", "lavender", "darkbrown", "darkgreen",
+    "darkpurple", "brick", "khaki", "bluegray"
   ].map(color => `paint-made-${color}`)
 ];
 // 택배 왔어요! — 진행 안내 12 + 상자 이름 3. 매니페스트와의 대조는

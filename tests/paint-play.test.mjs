@@ -186,7 +186,7 @@ test("역추론 라운드(스테이지 4) — 힌트 0에서 2회 실패 시 물
   assert.equal(round.hintLevel, 1);
 });
 
-test("성공 — 별+1·갤러리 적재·수식 포함·다음 라운드로", () => {
+test("성공 — 별+1·갤러리에 색과 그림 적재·수식 포함·다음 라운드로", () => {
   const state = createPaintPlay("easy", 3);
   const round = currentRound(state);
   const events = solveRound(state);
@@ -195,8 +195,57 @@ test("성공 — 별+1·갤러리 적재·수식 포함·다음 라운드로", (
   assert.equal(success.color, round.colorId);
   assert.ok(success.equation.a, "성공 이벤트에 수식");
   assert.equal(state.stars, 1);
-  assert.deepEqual(state.gallery, [round.colorId]);
+  // 피날레 전시회 벽이 그림까지 걸 수 있게 색+그림을 함께 기억한다
+  assert.deepEqual(state.gallery,
+    [{ colorId: round.colorId, subjectId: round.subjectId }]);
   assert.equal(state.roundIndex, 1);
+});
+
+test("3색 혼합 라운드 — 세 번째 튜브에서 자동으로 섞이고 수식에 세 재료가 실린다", () => {
+  const state = createPaintPlay("challenge", 1);
+  const index = state.rounds.findIndex(round => round.stage === 5);
+  assert.ok(index >= 0, "challenge에 3색 혼합 라운드");
+  state.roundIndex = index;
+  const round = state.rounds[index];
+  const [a, b, c] = recipeFor(round.colorId);
+  assert.ok(c, "3재료 레시피");
+  squeezeTube(state, a);
+  const two = squeezeTube(state, b);
+  assert.ok(!two.some(event => event.type === "mixed"), "두 개로는 안 섞인다");
+  assert.equal(jarColor(state), null);
+  const events = squeezeTube(state, c);
+  const mixed = events.find(event => event.type === "mixed");
+  assert.ok(mixed, "세 번째에서 혼합");
+  assert.equal(jarColor(state), round.colorId);
+  assert.deepEqual([...mixed.jar].sort(), [a, b, c].sort(), "혼합 이벤트에 병 내용");
+  const equation = equationFor(state);
+  assert.equal(equation.c, PAINT_COLORS[c].ko, "세 번째 수식 칩");
+  assert.ok(equation.result, "결과 이름");
+  assert.ok(paintCanvas(state).some(event => event.type === "success"));
+});
+
+test("3색 회귀 — 서로 다른 세 튜브 전 조합이 이름 있는 색으로 판정된다", () => {
+  const tubes = PAINT_TUBES.map(tube => tube.id);
+  for (let i = 0; i < tubes.length; i += 1) {
+    for (let j = i + 1; j < tubes.length; j += 1) {
+      for (let k = j + 1; k < tubes.length; k += 1) {
+        const state = createPaintPlay("challenge", 1);
+        const index = state.rounds.findIndex(round => round.stage === 5);
+        state.roundIndex = index;
+        state.rounds[index].colorId = "peach"; // 3재료 라운드로 고정
+        squeezeTube(state, tubes[i]);
+        squeezeTube(state, tubes[j]);
+        squeezeTube(state, tubes[k]);
+        const label = `${tubes[i]}+${tubes[j]}+${tubes[k]}`;
+        assert.ok(jarColor(state), `${label} 혼합색`);
+        const outcome = paintCanvas(state).find(
+          event => event.type === "success" || event.type === "mismatch"
+        );
+        assert.ok(outcome, `${label} 판정 이벤트`);
+        assert.ok(outcome.color, `${label} 색 이름 존재`);
+      }
+    }
+  }
 });
 
 test("전 라운드 완주 — finale 이벤트와 상태", () => {
@@ -209,7 +258,8 @@ test("전 라운드 완주 — finale 이벤트와 상태", () => {
   assert.ok(finale);
   assert.equal(state.stars, state.rounds.length);
   assert.equal(state.gallery.length, state.rounds.length);
-  assert.equal(finale.rainbow, new Set(state.gallery).size >= 7);
+  const distinct = new Set(state.gallery.map(entry => entry.colorId)).size;
+  assert.equal(finale.rainbow, distinct >= 7);
 });
 
 test("도전 완주 시 서로 다른 색 7개면 무지개가 뜰 수 있다", () => {
