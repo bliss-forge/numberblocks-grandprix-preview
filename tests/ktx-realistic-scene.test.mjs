@@ -1334,3 +1334,41 @@ test("브라우저 NodeList처럼 배열 메서드가 없어도 실사 상태를
   assert.doesNotThrow(() => updateKtxScene(root, state, "cab"));
   assert.equal(root.dataset.realistic, "pending");
 });
+
+// ── 서행 표지 HUD(협회 게임 디자인 2026-08-10) ─────────────────────────────
+
+test("서행 배지는 예고·준수·초과를 색 상태로 갈라 보여 준다", () => {
+  const base = createKtxJourney(7, "srt", "steady");
+  const segIndex = base.slowZones.findIndex(Boolean);
+  assert.ok(segIndex > 0, "시드 7에 서행 존이 있다");
+  const zone = base.slowZones[segIndex];
+  const root = renderKtxScene(fakeDocument(), base, "cab");
+  const badge = root.querySelector(".ktx-slow-badge");
+  assert.ok(badge, "HUD에 서행 배지 자리가 있다");
+
+  // 평시 — 꺼짐
+  updateKtxScene(root, { ...base, phase: "driving" }, "cab");
+  assert.equal(root.dataset.slow, "off");
+  assert.equal(badge.textContent, "");
+
+  // 예고 후 존 앞 — coming, 제한 숫자 표시
+  updateKtxScene(root, {
+    ...base, phase: "driving", segIndex, slowWarned: true, x: 0, v: 200
+  }, "cab");
+  assert.equal(root.dataset.slow, "coming");
+  assert.equal(badge.textContent, String(zone.limit));
+
+  // 존 안 준수 — calm
+  updateKtxScene(root, {
+    ...base, phase: "driving", segIndex, slowWarned: true, v: zone.limit - 20,
+    slow: { limit: zone.limit, grace: zone.grace, calm: 1, total: 1, wobbles: 0 }
+  }, "cab");
+  assert.equal(root.dataset.slow, "calm");
+
+  // 존 안 초과 — over
+  updateKtxScene(root, {
+    ...base, phase: "driving", segIndex, slowWarned: true, v: zone.limit + 60,
+    slow: { limit: zone.limit, grace: zone.grace, calm: 0, total: 1, wobbles: 1 }
+  }, "cab");
+  assert.equal(root.dataset.slow, "over");
+});

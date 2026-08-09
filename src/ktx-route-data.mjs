@@ -162,6 +162,27 @@ export function segmentBand(segment, progress) {
   return segment.bands[segment.bands.length - 1];
 }
 
+// ── 게임성 시스템(협회 게임 디자인 보고) — 서행·부드러운 도착·골드 프리셋 ──
+// grace: 서행 제한 초과 허용 여유(km/h). smoothEntry: 정차 존 진입 속도가 이
+// 값 이하면 "부드러운 도착". 강제 감속·벌점은 어느 난이도에도 없다.
+export const SLOW_ZONE_PRESETS = Object.freeze({
+  easy: Object.freeze({ zones: 1, grace: 30, smoothEntry: 170 }),
+  steady: Object.freeze({ zones: 1, grace: 15, smoothEntry: 140 }),
+  challenge: Object.freeze({ zones: 2, grace: 10, smoothEntry: 120 })
+});
+
+// 제한 속도는 이 둘뿐 — number-100/number-150 음성 자산을 그대로 재사용한다.
+export const SLOW_ZONE_LIMITS = Object.freeze([150, 100]);
+export const SLOW_ZONE_SPAN = 0.15;           // 존 길이(구간 진행률)
+export const SLOW_ZONE_AT_MIN = 0.2;          // 존 시작 진행률 창 — 0구간은
+export const SLOW_ZONE_AT_MAX = 0.6;          // sprint300 몫이라 배치 제외
+export const SLOW_ZONE_APPROACH_GUARD = 0.25; // 구간 마지막 25%는 정차 접근 몫
+export const SLOW_WARN_DISTANCE = 500;        // m — 존 시작 500m 전 예고 1회
+export const SLOW_CALM_RATIO = 0.75;          // calm/total ≥ 0.75 → 성공(회복 가능)
+export const SLOW_WOBBLE_THROTTLE_MS = 2000;  // 초과 알림 쓰로틀(모델 시간)
+export const SLOW_WOBBLE_MAX = 3;             // 존당 알림 상한 — 잔소리 방지
+export const GOLD_WINDOW = 4;                 // |정지점-마커| ≤ 4m → 골드(challenge 전용)
+
 // 속도 마일스톤 — 도달 순간 숫자가 커지며 음성이 붙는다. 250은 음성이
 // 없어(number 음성은 150까지) 시각 확대만 한다(협회 실측).
 export const SPEED_MILESTONES = Object.freeze([50, 100, 150, 200, 250, 300]);

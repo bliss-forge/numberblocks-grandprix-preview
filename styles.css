@@ -7454,6 +7454,48 @@ body[data-mode="ktx"] .stage-lights {
 .ktx-game[data-boost="cooldown"] .ktx-boost-badge { background: #718196; }
 .ktx-game[data-boost="unavailable"] .ktx-boost-badge { background: #9aa7b5; }
 
+/* 서행 표지 배지 — 실제 도로 속도제한 표지처럼 빨간 테 흰 원. 예고(coming)
+   부터 존 종료까지 붙어 있고, 초과(over) 순간 호박색으로 끓는다. */
+.ktx-slow-badge {
+  display: none;
+  min-width: 44px;
+  height: 44px;
+  padding: 0 6px;
+  border-radius: 50%;
+  border: 5px solid #e03131;
+  background: #fff;
+  color: #1d2733;
+  font-size: 17px;
+  font-weight: 900;
+  line-height: 34px;
+  text-align: center;
+  white-space: nowrap;
+  box-shadow: 0 2px 0 rgba(25, 49, 70, .18);
+}
+
+.ktx-game[data-slow="coming"] .ktx-slow-badge,
+.ktx-game[data-slow="calm"] .ktx-slow-badge,
+.ktx-game[data-slow="over"] .ktx-slow-badge { display: inline-block; }
+
+.ktx-game[data-slow="coming"] .ktx-slow-badge { opacity: .85; }
+
+.ktx-game[data-slow="calm"] .ktx-slow-badge { border-color: #2f9e44; }
+
+.ktx-game[data-slow="over"] .ktx-slow-badge {
+  border-color: #f08c00;
+  animation: ktx-boost-pulse .5s ease-in-out infinite;
+}
+
+/* 덜컹 — 무대 전체가 통통 튀는 개그 톤 바운스(벌 아님) */
+@keyframes ktx-wobble {
+  0%, 100% { transform: translate3d(0, 0, 0); }
+  25% { transform: translate3d(-3px, 1px, 0); }
+  50% { transform: translate3d(3px, -1px, 0); }
+  75% { transform: translate3d(-2px, 0, 0); }
+}
+
+.ktx-game.ktx-wobble { animation: ktx-wobble .5s ease-in-out 2; }
+
 @keyframes ktx-boost-pulse {
   50% { transform: scale(1.04); filter: brightness(1.2); }
 }
@@ -10285,6 +10327,8 @@ body[data-mode="delivery"] #stage {
     transform: translate3d(-50%, -50%, 0)
       rotate(calc(var(--motion-brake-pitch, 0) * 1deg));
   }
+
+  .ktx-game.ktx-wobble { animation: none !important; }
 
   /* 운전실 리그·평면·스트릭·스트로브 — 움직임 감축에서는 흔들림과 맥동을
      전부 끄고 위치는 150ms 이산 스냅으로만 갱신한다(기존 철학 동일). */

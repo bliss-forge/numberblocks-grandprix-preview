@@ -536,6 +536,7 @@ export function renderKtxScene(document, state, view = "cab") {
   score.append(el(document, "span", "ktx-boarded-total", "친구 0"));
   hud.append(score);
   hud.append(el(document, "span", "ktx-boost-badge", ""));
+  hud.append(el(document, "span", "ktx-slow-badge", ""));
   const viewKeys = el(document, "div", "ktx-view-keys");
   const cabKey = el(document, "span", "ktx-view-key", "1 운전실");
   cabKey.dataset.viewKey = "cab";
@@ -877,6 +878,25 @@ export function updateKtxScene(root, state, view, events = [], held = {}) {
   if (boostBadge && boostBadge.textContent !== boostText) {
     boostBadge.textContent = boostText;
   }
+  // 서행 표지 배지 — 예고 순간부터 존 종료까지 제한 숫자를 계속 보여 준다.
+  // 글을 못 읽는 아이도 "동그라미 숫자 = 속도계 숫자를 그 밑으로"를 배운다.
+  const slowZone = state.slowZones?.[state.segIndex];
+  const slowActive = Boolean(state.slow);
+  const slowComing = Boolean(slowZone) && state.slowWarned && !state.zoneEntered &&
+    state.phase === "driving" &&
+    state.x / routeSegments(state)[state.segIndex].length < slowZone.until;
+  let slowMode = "off";
+  if (slowActive) {
+    slowMode = state.v <= state.slow.limit + state.slow.grace ? "calm" : "over";
+  } else if (slowComing) {
+    slowMode = "coming";
+  }
+  root.dataset.slow = slowMode;
+  const slowBadge = root.querySelector(".ktx-slow-badge");
+  const slowText = slowMode === "off" ? "" : String(slowZone.limit);
+  if (slowBadge && slowBadge.textContent !== slowText) {
+    slowBadge.textContent = slowText;
+  }
   root.dataset.zone = String(state.zoneEntered &&
     ["driving", "stopping", "correcting"].includes(state.phase));
   if (root.dataset.zone === "true") {
@@ -1138,6 +1158,14 @@ export function updateKtxScene(root, state, view, events = [], held = {}) {
     if (event.type === "milestone") {
       pulse(root.querySelector(".ktx-speedo"), "ktx-speed-pop");
       pulse(balloon, "ktx-balloon-pop");
+    }
+    if (event.type === "slow-wobble") {
+      // 무섭지 않은 통통 바운스 — 벌이 아니라 "속도를 봐 달라"는 신호
+      pulse(root, "ktx-wobble");
+      pulse(root.querySelector(".ktx-slow-badge"), "ktx-balloon-pop");
+    }
+    if (event.type === "slow-clear" && event.success) {
+      pulse(root.querySelector(".ktx-hud"), "ktx-stars-pop");
     }
     if (event.type === "finale") {
       showFinale(document, root, event, state);

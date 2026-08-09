@@ -19,6 +19,7 @@ import {
   distanceToMarker,
   ktxSummary,
   pressKtxSpace,
+  routeSegments,
   selectKtxRoute,
   tickKtx
 } from "../src/ktx-journey.mjs";
@@ -606,4 +607,185 @@ test("요약은 별 합계와 퍼펙트를 안다", () => {
   assert.equal(summary.stars, 12);
   assert.equal(summary.perfect, true);
   assert.equal(ktxSummary({ ...state, stars: [3, 1, 3, 3] }).perfect, false);
+});
+
+// ── 게임성 시스템(협회 게임 디자인 2026-08-10) — 서행·부드러운 도착·골드 ──
+
+test("서행 존은 난이도별 개수로 배치되고 0구간·접근 존·이벤트 창을 피한다", () => {
+  for (let seed = 0; seed <= 50; seed += 1) {
+    for (const [difficulty, expected] of [["easy", 1], ["steady", 1], ["challenge", 2]]) {
+      const state = createKtxJourney(seed, "srt", difficulty);
+      const zones = state.slowZones;
+      assert.equal(zones[0], null, `seed ${seed}: 0구간은 sprint300 몫`);
+      const placed = zones.filter(Boolean);
+      assert.ok(placed.length <= expected, `seed ${seed} ${difficulty}`);
+      zones.forEach((zone, segIndex) => {
+        if (!zone) return;
+        assert.ok([150, 100].includes(zone.limit), "제한은 음성 자산이 있는 150/100만");
+        assert.ok(zone.until <= 0.75 + 1e-9,
+          `seed ${seed}: 접근 존(마지막 25%) 침범 금지 — until ${zone.until}`);
+        for (const event of state.schedule[segIndex]) {
+          assert.ok(zone.until <= event.at || zone.at >= event.until,
+            `seed ${seed} 구간 ${segIndex}: 이벤트 ${event.type} 창과 겹침`);
+        }
+      });
+    }
+  }
+});
+
+test("서행 존은 예고→진입→종료 순서로 알리고 회복하면 성공한다", () => {
+  const state = createKtxJourney(7, "srt", "steady");
+  const zones = state.slowZones;
+  const segIndex = zones.findIndex(Boolean);
+  assert.ok(segIndex > 0, "시드 7에 서행 존이 있어야 한다");
+  const zone = zones[segIndex];
+  const seg = routeSegments(state)[segIndex];
+
+  let driving = {
+    ...state, phase: "driving", segIndex,
+    x: Math.max(0, zone.at * seg.length - 600), v: 300
+  };
+  const seen = [];
+  // 전반: 300으로 초과 상태 진입(덜컹), 존 안에서 100 아래로 회복
+  for (let guard = 0; guard < 600 && driving.phase === "driving"; guard += 1) {
+    const inZone = driving.x / seg.length >= zone.at;
+    const held = inZone && driving.v > zone.limit - 30 ? { down: true } : {};
+    const result = tickKtx(driving, held, 150);
+    driving = result.state;
+    for (const event of result.events) {
+      if (event.type.startsWith("slow-")) seen.push(event);
+    }
+    if (seen.some(event => event.type === "slow-clear")) break;
+  }
+  const order = seen.map(event => event.type);
+  assert.ok(order.indexOf("slow-warn") !== -1, "예고가 온다");
+  assert.ok(order.indexOf("slow-warn") < order.indexOf("slow-enter"), "예고가 진입보다 먼저");
+  const clear = seen.find(event => event.type === "slow-clear");
+  assert.ok(clear, "존 종료 판정이 온다");
+  assert.equal(clear.success, true, "초반 초과 후 회복하면 성공(비율제)");
+  assert.ok(driving.bonuses.some(bonus => bonus.type === "slow"), "성공은 배지가 된다");
+});
+
+test("서행 내내 과속하면 실패하고 덜컹은 존당 3회 상한이다", () => {
+  const state = createKtxJourney(7, "srt", "steady");
+  const segIndex = state.slowZones.findIndex(Boolean);
+  const zone = state.slowZones[segIndex];
+  const seg = routeSegments(state)[segIndex];
+  let driving = {
+    ...state, phase: "driving", segIndex,
+    x: Math.max(0, zone.at * seg.length - 600), v: 300
+  };
+  let wobbles = 0;
+  let clear = null;
+  for (let guard = 0; guard < 600 && !clear; guard += 1) {
+    const result = tickKtx(driving, { up: true }, 150);
+    driving = result.state;
+    wobbles += result.events.filter(event => event.type === "slow-wobble").length;
+    clear = result.events.find(event => event.type === "slow-clear") ?? null;
+  }
+  assert.ok(clear, "존을 통과했다");
+  assert.equal(clear.success, false, "내내 과속이면 실패");
+  assert.ok(wobbles >= 1 && wobbles <= 3, `덜컹 상한 3회: ${wobbles}`);
+  assert.equal(driving.bonuses.length, 0, "실패는 배지가 없다 — 벌점도 없다");
+});
+
+test("서행 예고 구간에서는 SRT 부스터가 안내와 함께 쉰다", () => {
+  const state = createKtxJourney(7, "srt", "steady");
+  const segIndex = state.slowZones.findIndex(Boolean);
+  const zone = state.slowZones[segIndex];
+  const seg = routeSegments(state)[segIndex];
+  const driving = {
+    ...state, phase: "driving", segIndex,
+    x: (zone.at + 0.02) * seg.length, v: 200
+  };
+  const result = pressKtxSpace(driving);
+  assert.deepEqual(result.events,
+    [{ type: "boost-unavailable", reason: "slow", remainingMs: 0 }]);
+  assert.equal(result.state.boostRemainingMs, 0, "부스터가 켜지지 않는다");
+});
+
+test("존 진입 속도가 임계 이하면 부드러운 도착 배지를 받는다", () => {
+  const run = entrySpeed => {
+    let state = {
+      ...createKtxJourney(3, "srt", "steady"),
+      phase: "driving",
+      x: KTX_SEGMENTS[0].length - ZONE_LENGTH - 5,
+      v: entrySpeed
+    };
+    // 존 진입 → 무장 → 딱 멈추기
+    for (let guard = 0; guard < 400 && state.phase === "driving"; guard += 1) {
+      state = tickKtx(state, {}, 150).state;
+      if (state.armed) break;
+    }
+    let result = pressKtxSpace(state);
+    state = result.state;
+    let stopped = null;
+    for (let guard = 0; guard < 200 && !stopped; guard += 1) {
+      const tick = tickKtx(state, {}, 150);
+      state = tick.state;
+      stopped = tick.events.find(event => event.type === "stopped") ?? null;
+    }
+    return { stopped, state };
+  };
+
+  const smooth = run(120);
+  assert.ok(smooth.stopped, "정차했다");
+  assert.equal(smooth.stopped.smooth, true, "120 진입 = 부드러운 도착(임계 140)");
+  assert.ok(smooth.state.bonuses.some(bonus => bonus.type === "smooth"));
+
+  const rough = run(300);
+  assert.ok(rough.stopped, "정차했다");
+  assert.equal(rough.stopped.smooth, false, "300 박치기 진입은 부드럽지 않다");
+});
+
+test("골드(±4m)는 도전 난이도에서만 판정되고 배지가 된다", () => {
+  const armAt = difficulty => {
+    let state = {
+      ...createKtxJourney(3, "srt", difficulty),
+      phase: "driving",
+      x: KTX_SEGMENTS[0].length - ZONE_LENGTH - 5,
+      v: 100
+    };
+    for (let guard = 0; guard < 400 && !state.armed; guard += 1) {
+      state = tickKtx(state, {}, 150).state;
+    }
+    return state;
+  };
+
+  // 무장 후 판정 속도는 35로 수렴 — 예측 정지점 오프셋은 결정적이다.
+  const challenge = pressKtxSpace(armAt("challenge"));
+  const stopping = challenge.events.find(event => event.type === "stopping");
+  assert.ok(stopping, "정지 판정이 났다");
+  if (Math.abs(stopping.offset) <= 4) {
+    assert.equal(stopping.gold, true, "±4m 안이면 골드");
+  } else {
+    assert.equal(stopping.gold, false);
+  }
+
+  const steady = pressKtxSpace(armAt("steady"));
+  const steadyStopping = steady.events.find(event => event.type === "stopping");
+  assert.equal(steadyStopping.gold, false, "차근차근에서는 골드를 숨긴다");
+});
+
+test("피날레는 반짝 배지 목록을 동봉하고 요약은 개수를 안다", () => {
+  let state = createKtxJourney(3, "srt", "steady");
+  state = {
+    ...state,
+    bonuses: [{ type: "slow", segIndex: 1 }, { type: "smooth", station: "대전" }]
+  };
+  assert.equal(ktxSummary(state).bonuses, 2);
+
+  const segs = routeSegments(state);
+  const atEnd = {
+    ...state,
+    phase: "stopped",
+    segIndex: segs.length - 1,
+    station: "부산",
+    stars: [3, 3, 3, 3],
+    queue: []
+  };
+  const result = pressKtxSpace(atEnd);
+  const finale = result.events.find(event => event.type === "finale");
+  assert.ok(finale, "피날레가 난다");
+  assert.equal(finale.bonuses.length, 2, "배지 목록 동봉");
 });

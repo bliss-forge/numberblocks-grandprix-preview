@@ -44,6 +44,9 @@ export function ktxBoosterCue(event) {
     };
   }
   if (event?.type === "boost-unavailable") {
+    if (event.reason === "slow") {
+      return { sfx: "key", hint: "서행 구간에서는 부스터를 쉬어요~" };
+    }
     const remainingMs = Number.isFinite(event.remainingMs)
       ? Math.max(0, event.remainingMs)
       : 0;

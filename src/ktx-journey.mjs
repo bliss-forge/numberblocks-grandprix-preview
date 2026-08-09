@@ -14,6 +14,7 @@ import {
   ARM_DISTANCE,
   BRAKE_KMH_PER_S,
   ENVELOPE_FLOOR,
+  GOLD_WINDOW,
   KTX_SEGMENTS,
   KTX_RANDOM_EVENTS,
   KTX_ROUTES,
@@ -22,6 +23,16 @@ import {
   KTX_TRAINS,
   MARKER_FROM_ZONE,
   MAX_SPEED,
+  SLOW_CALM_RATIO,
+  SLOW_WARN_DISTANCE,
+  SLOW_WOBBLE_MAX,
+  SLOW_WOBBLE_THROTTLE_MS,
+  SLOW_ZONE_APPROACH_GUARD,
+  SLOW_ZONE_AT_MAX,
+  SLOW_ZONE_AT_MIN,
+  SLOW_ZONE_LIMITS,
+  SLOW_ZONE_PRESETS,
+  SLOW_ZONE_SPAN,
   SPEED_MILESTONES,
   STAR2_WINDOW,
   STAR3_WINDOW,
@@ -117,17 +128,65 @@ function scheduleEvents(seed, route = "busan") {
   });
 }
 
-export function createKtxJourney(seed = 0, trainId = "srt") {
+// 서행 존 배치 — 주행 중반에 "↓로 속도를 맞추는" 두 번째 스킬 축(협회 게임
+// 디자인). 0구간(sprint300 몫)과 접근 존을 피하고, 그 구간의 이벤트 창과
+// 겹치면 안내 문구가 충돌하므로 비겹침 시작점만 고른다. 실패하면 그 구간은
+// 존 없이 간다 — 배치가 안 되는 판이 있어도 게임은 그대로 성립한다.
+function scheduleSlowZones(seed, route = "busan", difficulty = "steady") {
+  const preset = SLOW_ZONE_PRESETS[difficulty] ?? SLOW_ZONE_PRESETS.steady;
+  const random = mulberry(seed ^ 0x5157);   // 이벤트 뽑기와 시드 분리
+  const segs = KTX_ROUTES[route];
+  const schedule = scheduleEvents(seed, route);
+  const zones = segs.map(() => null);
+  const candidates = segs.map((_, index) => index).slice(1);
+
+  for (let placed = 0; placed < preset.zones && candidates.length > 0;) {
+    const segIndex = candidates.splice(
+      Math.floor(random() * candidates.length), 1)[0];
+    const atMax = Math.min(SLOW_ZONE_AT_MAX,
+      1 - SLOW_ZONE_APPROACH_GUARD - SLOW_ZONE_SPAN);
+    const grid = [];
+    for (let at = SLOW_ZONE_AT_MIN; at <= atMax + 1e-9; at += 0.05) {
+      grid.push(Number(at.toFixed(2)));
+    }
+    // 시드 셔플 후 첫 비겹침 시작점
+    for (let i = grid.length - 1; i > 0; i -= 1) {
+      const j = Math.floor(random() * (i + 1));
+      [grid[i], grid[j]] = [grid[j], grid[i]];
+    }
+    const events = schedule[segIndex];
+    const start = grid.find(at => events.every(event =>
+      at + SLOW_ZONE_SPAN <= event.at || at >= event.until));
+    if (start === undefined) continue;
+    zones[segIndex] = {
+      limit: SLOW_ZONE_LIMITS[Math.floor(random() * SLOW_ZONE_LIMITS.length)],
+      grace: preset.grace,
+      at: start,
+      until: Number((start + SLOW_ZONE_SPAN).toFixed(2))
+    };
+    placed += 1;
+  }
+  return zones;
+}
+
+export function createKtxJourney(seed = 0, trainId = "srt", difficulty = "steady") {
   const train = KTX_TRAINS.find(item => item.id === trainId) ?? KTX_TRAINS[0];
   const manifest = buildPassengerManifest(seed);
   return {
     seed,
     train,
+    difficulty: SLOW_ZONE_PRESETS[difficulty] ? difficulty : "steady",
     manifest,
     route: "busan",
     selectedRoute: "busan",
     routeChosen: false,
     schedule: scheduleEvents(seed),
+    slowZones: scheduleSlowZones(seed, "busan", difficulty),
+    slow: null,
+    slowWarned: false,
+    vAtZone: null,
+    pendingGold: false,
+    bonuses: [],
     segIndex: 0,
     station: KTX_STATIONS[0],
     phase: "boarding",           // 수서에서도 친구들이 탄다 — 첫 30초 안에 세기
@@ -201,6 +260,15 @@ function starsFor(offset) {
 
 function arriveStopped(state, stars, events, how) {
   const station = segment(state).to;
+  const preset = SLOW_ZONE_PRESETS[state.difficulty] ?? SLOW_ZONE_PRESETS.steady;
+  // 부드러운 도착 — 존 진입 속도가 임계 이하면 봉투가 깎을 게 없었다는 뜻.
+  // 스스로 미리 감속하는 "예측 제동"이 이 게임의 두 번째 정차 기술이다.
+  const smooth = how === "press" && Number.isFinite(state.vAtZone) &&
+    state.vAtZone <= preset.smoothEntry;
+  const gold = how === "press" && state.pendingGold === true;
+  let bonuses = state.bonuses;
+  if (smooth) bonuses = [...bonuses, { type: "smooth", station }];
+  if (gold) bonuses = [...bonuses, { type: "gold", station }];
   const next = {
     ...state,
     phase: "stopped",
@@ -210,10 +278,13 @@ function arriveStopped(state, stars, events, how) {
     // 다음에 몰 구간으로 넘어간다. 종착에서는 제자리(피날레 판정은 별 개수로).
     segIndex: Math.min(state.segIndex + 1, routeSegments(state).length - 1),
     stars: [...state.stars, stars],
+    bonuses,
+    vAtZone: null,
+    pendingGold: false,
     idleMs: 0,
     assist: false
   };
-  events.push({ type: "stopped", station, stars, how });
+  events.push({ type: "stopped", station, stars, how, smooth, gold });
   return next;
 }
 
@@ -227,6 +298,7 @@ function openDoors(state, events) {
       type: "finale",
       boarded: state.boarded,
       stars: state.stars,
+      bonuses: state.bonuses,
       perfect: state.stars.every(count => count === 3)
     });
     return { ...state, phase: "finale", doors: "open", done: true, idleMs: 0 };
@@ -319,6 +391,7 @@ function confirmRoute(state, events) {
     phase: "ready",
     idleMs: 0,
     schedule: scheduleEvents(state.seed, route),
+    slowZones: scheduleSlowZones(state.seed, route, state.difficulty),
     manifest: buildPassengerManifest(state.seed, KTX_ROUTE_STATIONS[route])
   };
   events.push({
@@ -342,6 +415,10 @@ function depart(state, events, auto = false) {
     milestones: [],
     firedEvents: [],
     hornCounts: {},
+    slow: null,
+    slowWarned: false,
+    vAtZone: null,
+    pendingGold: false,
     x: 0,
     v: 0
   };
@@ -381,6 +458,20 @@ export function pressKtxSpace(state) {
           state: { ...state, boostRemainingMs, boostCooldownMs },
           events: [{ type: "boost-unavailable", remainingMs }]
         };
+      }
+      // 서행 예고~존 종료 사이에는 부스터를 재우지 않는다 — 벌이 아니라
+      // 어포던스 게이팅. 500km/h 관성으로 서행을 스스로 망치는 함정 차단.
+      const zone = state.slowZones?.[state.segIndex];
+      if (zone) {
+        const segLength = segment(state).length;
+        const progress = state.x / segLength;
+        const warnAt = Math.max(0, zone.at - SLOW_WARN_DISTANCE / segLength);
+        if (progress >= warnAt && progress < zone.until) {
+          return {
+            state,
+            events: [{ type: "boost-unavailable", reason: "slow", remainingMs: 0 }]
+          };
+        }
       }
       const boostTarget = Math.min(state.v + BOOST_GAIN, BOOST_SPEED);
       return {
@@ -437,7 +528,10 @@ export function pressKtxSpace(state) {
   const stopAt = state.x + slide;
   const offset = stopAt - markerPosition(segment(state));
   const stars = starsFor(offset);
-  events.push({ type: "stopping", stars, offset });
+  // 골드(±4m) — 도전 난이도 전용 연출 등급. 별 계약(±10/±25)은 불변이다.
+  const gold = state.difficulty === "challenge" &&
+    Math.abs(offset) <= GOLD_WINDOW;
+  events.push({ type: "stopping", stars, offset, gold });
   return {
     state: {
       ...state,
@@ -445,6 +539,7 @@ export function pressKtxSpace(state) {
       phase: "stopping",
       stopTarget: stopAt,
       pendingStars: stars,
+      pendingGold: gold,
       idleMs: 0
     },
     events
@@ -598,6 +693,12 @@ export function tickKtx(state, held = {}, elapsedMs = 150) {
     ? ENVELOPE_FLOOR
     : envelopeSpeed(remaining);
   if (next.boostRemainingMs === 0 && next.v > cap) {
+    // 부드러운 도착 판정의 원본 — 접근 봉투가 "처음 잡은 순간"의 속도.
+    // 봉투는 존 밖 수백 m부터 깎기 시작하므로 존 경계 속도는 항상 낮다.
+    // 스스로 미리 감속한 기관사는 여기 걸리지 않거나 낮은 값으로 걸린다.
+    if (cap < MAX_SPEED && !next.zoneEntered && next.vAtZone === null) {
+      next.vAtZone = vStart;
+    }
     // 접근 봉투(<300)는 안전이라 즉시 준수. 300 상한 초과분(부스터 잔량)은
     // 급정거처럼 뚝 떨어뜨리지 않고 감쇠로 되돌린다.
     next.v = cap < MAX_SPEED
@@ -629,6 +730,55 @@ export function tickKtx(state, held = {}, elapsedMs = 150) {
     }
   }
 
+  // 서행 존 — 예고 → 진입 → 준수 집계 → 종료 판정. 강제 감속은 없다:
+  // 초과는 덜컹 안내(쓰로틀)뿐이고, 존 안에서 회복하면 성공(비율제)이라
+  // 한 번의 실수가 존 전체를 잠그지 않는다.
+  const slowZone = next.slowZones?.[next.segIndex];
+  if (slowZone && !next.zoneEntered) {
+    const segLength = segment(next).length;
+    const warnAt = Math.max(0, slowZone.at - SLOW_WARN_DISTANCE / segLength);
+    if (!next.slowWarned && progress >= warnAt) {
+      next.slowWarned = true;
+      events.push({ type: "slow-warn", limit: slowZone.limit });
+    }
+    const inside = progress >= slowZone.at && progress < slowZone.until;
+    if (inside && !next.slow) {
+      next.slow = {
+        limit: slowZone.limit, grace: slowZone.grace,
+        calm: 0, total: 0, wobbles: 0, wobbleCooldownMs: 0
+      };
+      events.push({ type: "slow-enter", limit: slowZone.limit });
+    }
+    if (next.slow && inside) {
+      const calmTick = next.v <= slowZone.limit + slowZone.grace;
+      const cooled = Math.max(0, next.slow.wobbleCooldownMs - elapsedMs);
+      let wobbles = next.slow.wobbles;
+      let wobbleCooldownMs = cooled;
+      if (!calmTick && cooled === 0 && wobbles < SLOW_WOBBLE_MAX) {
+        wobbles += 1;
+        wobbleCooldownMs = SLOW_WOBBLE_THROTTLE_MS;
+        events.push({ type: "slow-wobble", limit: slowZone.limit });
+      }
+      next.slow = {
+        ...next.slow,
+        total: next.slow.total + 1,
+        calm: next.slow.calm + (calmTick ? 1 : 0),
+        wobbles,
+        wobbleCooldownMs
+      };
+    }
+    if (next.slow && progress >= slowZone.until) {
+      const success =
+        next.slow.calm / Math.max(1, next.slow.total) >= SLOW_CALM_RATIO;
+      if (success) {
+        next.bonuses = [...next.bonuses,
+          { type: "slow", segIndex: next.segIndex }];
+      }
+      events.push({ type: "slow-clear", success, limit: slowZone.limit });
+      next.slow = null;
+    }
+  }
+
   // 밴드 경계 통과 → 배경 크로스페이드는 씬 몫, 여기서는 알림만
   const bandBefore = segmentBand(segment(next), Math.min(1, prevX / segment(next).length));
   const bandAfter = segmentBand(segment(next), Math.min(1, progress));
@@ -639,6 +789,8 @@ export function tickKtx(state, held = {}, elapsedMs = 150) {
   const zoneStart = segment(next).length - ZONE_LENGTH;
   if (!next.zoneEntered && next.x >= zoneStart) {
     next.zoneEntered = true;
+    // 봉투가 한 번도 안 잡았으면(스스로 충분히 감속) 존 경계 속도가 원본.
+    if (next.vAtZone === null) next.vAtZone = vStart;
     events.push({ type: "zone-enter", station: segment(next).to });
     if (next.boostRemainingMs > 0) {
       next.boostRemainingMs = 0;
@@ -687,6 +839,7 @@ export function ktxSummary(state) {
     speed: Math.round(state.v),
     boardedCount: state.boarded.length,
     stars: state.stars.reduce((sum, count) => sum + count, 0),
+    bonuses: state.bonuses?.length ?? 0,
     perfect: state.stars.length === routeSegments(state).length &&
       state.stars.every(count => count === 3)
   };

@@ -1157,7 +1157,7 @@ function startKtxPicker() {
 function startKtxJourney(trainId) {
   state.ktxPicking = false;
   const seed = Math.floor(Math.random() * 0x100000000);
-  state.ktx = createKtxJourney(seed, trainId);
+  state.ktx = createKtxJourney(seed, trainId, state.difficulty);
   // 밖에서 타고, 안에서 몬다 — 탑승은 바깥 뷰에서 시작한다.
   state.ktxView = "side";
   state.ktxHeld = { up: false, down: false };
@@ -1236,6 +1236,23 @@ function handleKtxEvents(events) {
     } else if (event.type === "event") {
       const hint = ktxEventHint(event.event);
       if (hint) showHint(hint);
+    } else if (event.type === "slow-warn") {
+      audio.playSfx("bell");
+      showHint(`🚧 저기 표지판! ${event.limit}까지 천천히~`);
+      audio.cancel();
+      void audio.playAnswer(event.limit);   // number-100/150 재사용
+    } else if (event.type === "slow-enter") {
+      showHint(`서행 구간이에요! ${event.limit} 밑으로 살살~`);
+    } else if (event.type === "slow-wobble") {
+      audio.playSfx("pop");
+      showHint("덜컹덜컹~ 조금만 천천히!");
+    } else if (event.type === "slow-clear") {
+      if (event.success) {
+        audio.playSfx("win");
+        showHint("✨ 부드럽게 지나갔어요! 반짝 배지!");
+      } else {
+        showHint("다음 서행은 살살 가 보자~");
+      }
     } else if (event.type === "zone-enter") {
       audio.playSfx("bell");
       showHint(`${event.station}역이 보여요! 천천히, 천천히~`);
@@ -1251,9 +1268,17 @@ function handleKtxEvents(events) {
       audio.playSfx("win");
       state.ktxView = "side";      // 도착 컷: 승강장의 친구들이 보인다
       const starText = "⭐".repeat(event.stars);
-      showHint(event.stars === 3
-        ? `${starText} 딱 멈췄어요! 최고, 기관사님!`
-        : `${starText} ${event.station}역이에요! ⎵ 눌러서 문 열기`);
+      if (event.gold) {
+        showHint(`👑 골드 정차! ${starText} 완벽해요, 기관사님!`);
+      } else if (event.stars === 3 && event.smooth) {
+        showHint(`${starText} 스르르~ 딱! 승객들이 편안해요`);
+      } else if (event.stars === 3) {
+        showHint(`${starText} 딱 멈췄어요! 최고, 기관사님!`);
+      } else if (event.smooth) {
+        showHint(`${starText} 부드러운 도착! ⎵ 눌러서 문 열기`);
+      } else {
+        showHint(`${starText} ${event.station}역이에요! ⎵ 눌러서 문 열기`);
+      }
       const voiceKey = SRT_STATION_VOICES[event.station];
       if (voiceKey) {
         audio.cancel();
@@ -1287,7 +1312,11 @@ function handleKtxEvents(events) {
 }
 
 function completeKtxJourney(event) {
-  const totalStars = event.stars.reduce((sum, count) => sum + count, 0);
+  // 반짝 배지(서행·부드러운 도착·골드) 1개 = 별 +1. 정차 별 계약은 불변,
+  // 보너스는 언제나 가산만 한다 — 4~6세 무벌점 세계 유지.
+  const bonusStars = event.bonuses?.length ?? 0;
+  const totalStars = event.stars.reduce((sum, count) => sum + count, 0) +
+    bonusStars;
   state.stars += totalStars;
   dom.stars.textContent = String(state.stars);
   const fresh = recordMetFriends(event.boarded);
