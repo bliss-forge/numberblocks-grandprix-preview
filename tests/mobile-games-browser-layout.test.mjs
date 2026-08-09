@@ -159,7 +159,8 @@ test("390×844 홈은 두 열과 넓은 마지막 홀수 카드로 잘림 없이
   assert.equal(metrics.columns, 2);
   assert.equal(metrics.horizontalOverflow, false);
   assert.equal(metrics.cardsInsideWidth, true);
-  assert.ok(metrics.seventhWidth >= metrics.firstWidth * 1.8);
+  // 카드 8장(짝수) — 넓은 홀수 마지막 카드 없이 모두 같은 폭의 2열이다
+  assert.ok(Math.abs(metrics.seventhWidth - metrics.firstWidth) <= 1);
   assert.ok(
     metrics.firstSixWidths.every(
       width => Math.abs(width - metrics.firstWidth) <= 1
@@ -468,8 +469,9 @@ test("최소·대형 휴대전화에서도 1~5 조작 화면이 뷰포트에 들
     assert.equal(homeMetrics.horizontalOverflow, false, `${viewport.width} home overflow`);
     assert.equal(homeMetrics.cardsInsideWidth, true, `${viewport.width} home cards`);
     assert.equal(homeMetrics.overlapsCredit, false, `${viewport.width} home credit`);
+    // 카드 8장(짝수) — 마지막 행도 2열 균등 폭
     assert.ok(
-      homeMetrics.seventhWidth >= homeMetrics.firstWidth * 1.8,
+      Math.abs(homeMetrics.seventhWidth - homeMetrics.firstWidth) <= 1,
       `${viewport.width} seventh card`
     );
     assert.ok(
@@ -586,6 +588,70 @@ test("가로 모바일 실사 모션은 사진 세 장 상한과 저비용 페�
     /@media\s*\(orientation:\s*landscape\)[\s\S]*\.ktx-motion-near[^\{]*\.ktx-motion-track[^\{]*\.ktx-motion-tunnel-lights\s*\{[^}]*filter:\s*none/s);
   assert.match(stylesCss,
     /@media\s*\(orientation:\s*landscape\)[\s\S]*\.ktx-motion-plate[^\{]*\.ktx-motion-near[^\{]*\.ktx-motion-track[^\{]*\.ktx-motion-train[^\{]*\.ktx-motion-cab-frame\s*\{[^}]*will-change:\s*auto/s);
+});
+
+// 감사(2026-08-06): 화면 숫자판이 폭 640px 이하에서만 켜져 있어서 768×1024
+// 태블릿에서는 키보드 없이 1~4번 게임을 한 문제도 풀 수 없었다.
+// 폭 구간(641~1024)과 터치 포인터를 함께 보게 고쳤고, 여기서 실제로 눌러 확인한다.
+test("768×1024 터치 태블릿에서 수학 게임 숫자판을 눌러 답을 넣을 수 있다", async t => {
+  const chromium = loadChromium();
+  if (!chromium) {
+    t.skip("Playwright is not installed globally");
+    return;
+  }
+
+  const { server, url } = await startStaticServer();
+  const browser = await chromium.launch({ headless: true });
+  t.after(async () => {
+    await browser.close();
+    await new Promise(resolveServer => server.close(resolveServer));
+  });
+
+  const page = await browser.newPage({
+    viewport: { width: 768, height: 1024 },
+    hasTouch: true
+  });
+  const errors = observeErrors(page);
+  await page.goto(url, { waitUntil: "networkidle" });
+
+  for (const mode of ["count", "add", "sub", "mul"]) {
+    await page.locator(`[data-mode="${mode}"]`).click();
+    await page.locator("#number-pad").waitFor({ state: "visible" });
+    const pad = await page.evaluate(() => {
+      const buttons = [...document.querySelectorAll("#number-pad button")];
+      return {
+        display: getComputedStyle(document.querySelector("#number-pad")).display,
+        visible: buttons.filter(button => {
+          const rect = button.getBoundingClientRect();
+          return rect.width >= 44 && rect.height >= 44 &&
+            rect.right <= innerWidth + 0.5;
+        }).length,
+        total: buttons.length
+      };
+    });
+    assert.equal(pad.display, "grid", mode);
+    assert.equal(pad.visible, pad.total, `${mode} 버튼이 모두 44px 이상`);
+
+    // 한 자리 답이면 누르는 즉시 채점되므로 "1"이 남아 있다고 단정할 수 없다 —
+    // 탭이 앱에 도달했다는 사실(답 칸 변화·오답 표시·축하 전환)만 확인한다.
+    await page.locator('#number-pad [data-digit="1"]').click();
+    const registered = await page.evaluate(() => {
+      const box = document.querySelector("#answer-box");
+      return {
+        text: box.textContent,
+        wrong: box.className.includes("wrong"),
+        state: document.body.dataset.state
+      };
+    });
+    assert.ok(
+      registered.text !== "?" || registered.wrong ||
+        registered.state === "celebrating",
+      `${mode} 숫자판 탭이 앱에 도달한다`
+    );
+    await page.keyboard.press("Escape");
+  }
+
+  assert.deepEqual(errors, { consoleErrors: [], pageErrors: [] });
 });
 
 test("844×390 실사 기관사 화면은 창과 조작부를 클리핑 없이 유지한다", async t => {

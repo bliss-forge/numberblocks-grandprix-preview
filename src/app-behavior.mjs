@@ -203,3 +203,13 @@ export function celebrationPresentation(problem) {
       : `${problem.operands[0]} ${operatorFor(problem.mode)} ${problem.operands[1]} = ${problem.answer}`
   };
 }
+
+// 안전 안내 음성 게이트 — 같은 문장을 취소·재생으로 잘라 먹지 않는다.
+// 감사(2026-08-06): 방향키를 누르고 있거나 연타하면 막힐 때마다 같은 mp3를
+// 새로 틀어서 문장이 0.15초만 반복됐다. 재생 중인 키와 같으면 건너뛰고,
+// 안내 없는 이동(cueKey 없음)은 상황이 바뀐 것이므로 잠금을 푼다.
+export function nextSafetyVoice(playingKey, cueKey) {
+  if (!cueKey) return { play: false, playingKey: null };
+  if (playingKey === cueKey) return { play: false, playingKey };
+  return { play: true, playingKey: cueKey };
+}

@@ -1,0 +1,378 @@
+/* "택배 왔어요!" 목업 공통 크롬 — 사용자 제시 4컷 레퍼런스(2026-08-08)를 그대로 옮긴 것.
+   한 컷의 뼈대: [하늘색 프레임]
+     · 상단 HUD  = 단계 배지 + 단계 알약 + 설명 알약 + (별) + 소리
+     · 본문 3열  = 좌 정보 카드 · 중앙 무대 · 우 조작 패널
+     · 하단 잔디 = 마스코트 + 게임 방법 말풍선 + 보조 정보
+   실제 구현 시 이 블록이 styles.css의 delivery 섹션으로 들어간다. */
+
+/* ── 목업 셸 ───────────────────────────────────────────────────────── */
+html, body { height: 100%; overflow: hidden; }
+
+body.dv-mock {
+  margin: 0;
+  padding: 0;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: #cfeeff;
+  font-family: var(--body-font);
+  color: var(--ink);
+}
+
+/* 개발용 설명 띠 — 실제 게임에는 없다. */
+.mock-note {
+  flex: none;
+  position: relative;
+  z-index: 30;
+  margin: 0;
+  background: #1f2b39;
+  color: #e7eef6;
+  padding: 7px 14px;
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+.mock-note b { color: #ffd23f; }
+
+/* ── 프레임: 하늘 + 구름 + 잔디 ───────────────────────────────────── */
+.dv-frame {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  gap: 9px;
+  margin: 6px;
+  padding: 11px 13px 9px;
+  border: 7px solid #fff;
+  border-radius: 26px;
+  overflow: hidden;
+  background:
+    radial-gradient(90px 46px at 16% 9%, rgba(255,255,255,.92), rgba(255,255,255,0) 70%),
+    radial-gradient(120px 54px at 62% 5%, rgba(255,255,255,.85), rgba(255,255,255,0) 70%),
+    radial-gradient(74px 38px at 88% 14%, rgba(255,255,255,.8), rgba(255,255,255,0) 70%),
+    linear-gradient(180deg, #8fd6fb 0%, #b6e6fd 46%, #d7f2ff 74%, #e9f9ff 100%);
+  box-shadow: 0 6px 0 rgba(37, 52, 93, .16);
+}
+
+/* 하단 잔디 띠 — 마스코트가 서는 바닥 */
+.dv-frame::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: clamp(74px, 15%, 122px);
+  background: linear-gradient(180deg, #a6e485 0%, #7ecd60 42%, #63bd52 100%);
+  border-top: 4px solid #c4f0a4;
+  z-index: 0;
+}
+
+.dv-frame > * { position: relative; z-index: 1; }
+
+/* ── 상단 HUD ─────────────────────────────────────────────────────── */
+.dv-head {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+}
+
+.dv-step {
+  display: grid;
+  place-items: center;
+  width: clamp(32px, 3.5vw, 44px);
+  aspect-ratio: 1;
+  flex: none;
+  border-radius: 50%;
+  border: 3px solid #fff;
+  background: radial-gradient(circle at 36% 28%, #7cc0f7, #2f7fdd 62%, #1e63b8);
+  box-shadow: 0 3px 0 rgba(20, 76, 148, .55);
+  color: #fff;
+  font-family: var(--display-font);
+  font-size: clamp(16px, 1.9vw, 23px);
+  font-weight: 900;
+}
+
+.dv-stepname {
+  flex: none;
+  padding: 7px 18px;
+  border-radius: 999px;
+  border: 3px solid #fff;
+  background: linear-gradient(180deg, #61b0f4, #2c79dc 62%, #1f66c2);
+  box-shadow: 0 3px 0 rgba(20, 76, 148, .5);
+  color: #fff;
+  font-family: var(--display-font);
+  font-size: clamp(14px, 1.75vw, 22px);
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.dv-headline {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 18px;
+  border-radius: 999px;
+  border: 3px solid #fff;
+  background: rgba(255, 253, 246, .97);
+  box-shadow: 0 3px 0 rgba(37, 52, 93, .16);
+  font-family: var(--display-font);
+  font-size: clamp(13px, 1.6vw, 20px);
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.dv-headline .dv-emoji { font-size: 1.2em; }
+
+.dv-chip {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border-radius: 999px;
+  border: 3px solid #fff;
+  background: rgba(255, 253, 246, .97);
+  box-shadow: 0 3px 0 rgba(37, 52, 93, .16);
+  font-family: var(--display-font);
+  font-size: clamp(13px, 1.55vw, 19px);
+  color: var(--ink);
+  white-space: nowrap;
+}
+.dv-chip-star b { color: #e07a12; font-size: 1.05em; }
+.dv-chip-sound { color: #d94f7a; }
+
+/* ── 본문 3열 ─────────────────────────────────────────────────────── */
+.dv-body {
+  display: grid;
+  grid-template-columns: clamp(104px, 11.5vw, 156px) minmax(0, 1fr) clamp(132px, 15.5vw, 218px);
+  gap: 9px;
+  min-height: 0;
+}
+.dv-body[data-cols="2"] { grid-template-columns: minmax(0, 1fr) clamp(140px, 16.5vw, 226px); }
+.dv-body[data-cols="2-left"] { grid-template-columns: clamp(104px, 11.5vw, 156px) minmax(0, 1fr); }
+
+.dv-side,
+.dv-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  min-height: 0;
+}
+
+/* ── 카드 ─────────────────────────────────────────────────────────── */
+.dv-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 7px;
+  padding: 9px 10px 11px;
+  border-radius: 18px;
+  border: 4px solid #fff;
+  background: linear-gradient(180deg, #fffefa, #f4f8fd);
+  box-shadow: 0 4px 0 rgba(37, 52, 93, .17);
+  min-height: 0;
+}
+
+.dv-card > b {
+  padding: 4px 13px;
+  border-radius: 999px;
+  border: 2px solid #fff;
+  background: linear-gradient(180deg, #61b0f4, #2c79dc);
+  box-shadow: 0 2px 0 rgba(20, 76, 148, .45);
+  color: #fff;
+  font-family: var(--display-font);
+  font-size: clamp(11px, 1.2vw, 15px);
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+/* 이 게임 전체를 관통하는 한 숫자 — 목표 호수·목표 층 */
+.dv-goal-num {
+  width: 100%;
+  text-align: center;
+  padding: 6px 10px;
+  border-radius: 13px;
+  background: linear-gradient(180deg, #fff8e8, #ffeecb);
+  border: 3px solid #f0c987;
+  box-shadow: inset 0 -2px 0 rgba(215, 165, 80, .3);
+  font-family: var(--display-font);
+  font-size: clamp(19px, 2.4vw, 31px);
+  font-weight: 900;
+  color: #e07a12;
+  line-height: 1.18;
+  white-space: nowrap;
+}
+.dv-goal-num.is-small { font-size: clamp(15px, 1.8vw, 22px); }
+
+.dv-progress {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-family: var(--display-font);
+  font-size: clamp(14px, 1.6vw, 19px);
+  color: var(--ink);
+}
+.dv-progress .dv-emoji { font-size: 1.3em; }
+
+/* ── 중앙 무대 ────────────────────────────────────────────────────── */
+.dv-stage {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  border-radius: 20px;
+  overflow: hidden;
+  border: 5px solid #fff;
+  box-shadow: 0 5px 0 rgba(37, 52, 93, .2), inset 0 0 0 2px rgba(37, 52, 93, .05);
+  background: #dfeaf3;
+}
+.dv-stage > svg { display: block; width: 100%; height: 100%; }
+
+/* ── 하단 잔디 위 안내 ────────────────────────────────────────────── */
+.dv-foot {
+  display: flex;
+  align-items: flex-end;
+  gap: 9px;
+  min-width: 0;
+}
+
+.dv-mascot {
+  width: clamp(54px, 6.2vw, 84px);
+  flex: none;
+  align-self: flex-end;
+  filter: drop-shadow(0 3px 3px rgba(30, 60, 30, .28));
+}
+
+.dv-tip {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 9px 15px;
+  border-radius: 19px;
+  background: linear-gradient(180deg, #fffdf3, #fdf3d8);
+  border: 3px solid #f4e2b4;
+  box-shadow: 0 3px 0 rgba(140, 112, 58, .3);
+}
+
+.dv-tip-q {
+  display: grid;
+  place-items: center;
+  width: 27px;
+  aspect-ratio: 1;
+  flex: none;
+  border-radius: 50%;
+  background: linear-gradient(180deg, #6bb6f6, #2c79dc);
+  color: #fff;
+  font-family: var(--display-font);
+  font-size: 16px;
+}
+
+.dv-tip-text {
+  font-family: var(--body-font);
+  font-size: clamp(11.5px, 1.22vw, 15px);
+  line-height: 1.5;
+  color: #6b5a38;
+}
+.dv-tip-text b { font-family: var(--display-font); color: #2879df; }
+.dv-tip-text strong { font-family: var(--display-font); color: #c8791b; }
+
+/* 하단 오른쪽 보조 정보(배달한 택배 · 연속 성공 보너스) */
+.dv-foot-extra {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 15px;
+  border-radius: 19px;
+  background: rgba(255, 253, 246, .97);
+  border: 3px solid #fff;
+  box-shadow: 0 3px 0 rgba(37, 52, 93, .17);
+  font-family: var(--display-font);
+  font-size: clamp(12px, 1.35vw, 16px);
+  color: var(--ink);
+  white-space: nowrap;
+}
+
+/* ── 공통 버튼 ────────────────────────────────────────────────────── */
+.dv-key {
+  display: grid;
+  place-items: center;
+  min-width: 44px;
+  min-height: 44px;
+  border-radius: 14px;
+  border: 3px solid #fff;
+  background: linear-gradient(180deg, #61b0f4, #2c79dc 65%, #1f66c2);
+  box-shadow: 0 4px 0 rgba(20, 76, 148, .6);
+  color: #fff;
+  font-family: var(--display-font);
+  font-size: clamp(17px, 2vw, 25px);
+  font-weight: 900;
+  cursor: pointer;
+}
+.dv-key:focus-visible { outline: 4px solid var(--gold); outline-offset: 3px; }
+
+.dv-key-go {
+  background: linear-gradient(180deg, #8ade6c, #4aa843 62%, #3a8c37);
+  box-shadow: 0 4px 0 #2c7332;
+  min-height: 50px;
+  gap: 7px;
+  font-size: clamp(15px, 1.7vw, 21px);
+}
+
+.dv-key-bell {
+  background: radial-gradient(circle at 36% 28%, #ffeaa2, #ffc61e 58%, #e8a00c);
+  box-shadow: 0 4px 0 #c9860c;
+  color: #7a4a05;
+}
+
+/* ── 별 ───────────────────────────────────────────────────────────── */
+.dv-stars { display: flex; gap: 3px; font-size: clamp(15px, 1.7vw, 21px); }
+.dv-stars span { color: #cfd6de; }
+.dv-stars span[data-on="true"] { color: #f7b715; }
+
+/* ── 키 안내 바 ───────────────────────────────────────────────────── */
+.dv-keyhint {
+  position: absolute;
+  left: 50%;
+  bottom: 6px;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 15px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, .9);
+  font-family: var(--display-font);
+  font-size: 13px;
+  color: var(--ink-soft);
+  z-index: 2;
+}
+.dv-keyhint kbd {
+  padding: 2px 7px;
+  border-radius: 7px;
+  background: #eef3f8;
+  border: 2px solid #d3dfe9;
+  font-family: var(--display-font);
+  font-size: 12px;
+}
+
+/* ── 모바일: 3열 → 세로 스택 (구조만 준비, PC 디자인은 그대로) ─────── */
+@media (max-width: 760px) {
+  .dv-body,
+  .dv-body[data-cols="2"],
+  .dv-body[data-cols="2-left"] {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto minmax(140px, 1fr) auto;
+  }
+  .dv-side { flex-direction: row; }
+  .dv-side .dv-card { flex: 1; flex-direction: row; justify-content: center; padding: 6px 8px; }
+  .dv-headline { display: none; }
+  .dv-frame::after { height: 92px; }
+  .dv-foot-extra { display: none; }
+}

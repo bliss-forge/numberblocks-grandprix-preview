@@ -1,0 +1,354 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>목업 STEP 1 — 단지 운전</title>
+<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="delivery-shared.css">
+<style>
+  /* ── 이동 명령 큐 ─────────────────────────────────────────────── */
+  .dv-queue { display: flex; gap: 6px; justify-content: center; }
+  .dv-slot {
+    display: grid;
+    place-items: center;
+    width: clamp(30px, 3.5vw, 41px);
+    aspect-ratio: 1;
+    border-radius: 11px;
+    border: 3px dashed #c4d0dc;
+    background: #eef4fa;
+    font-family: var(--display-font);
+    font-size: clamp(15px, 1.9vw, 22px);
+    color: #a7b7c6;
+  }
+  .dv-slot[data-filled="true"] {
+    border-style: solid;
+    border-color: #fff;
+    background: linear-gradient(180deg, #8ade6c, #4aa843);
+    box-shadow: 0 3px 0 #2c7332;
+    color: #fff;
+  }
+  .dv-slotnums {
+    display: flex;
+    gap: 6px;
+    justify-content: center;
+    font-family: var(--display-font);
+    font-size: clamp(10px, 1.1vw, 13px);
+    color: var(--ink-soft);
+  }
+  .dv-slotnums span { width: clamp(30px, 3.5vw, 41px); text-align: center; }
+  .dv-dirs { display: flex; gap: 7px; justify-content: center; }
+  .dv-dirs .dv-key { min-width: 42px; min-height: 44px; }
+  .dv-panel .dv-key-go { width: 100%; display: flex; align-items: center; justify-content: center; }
+</style>
+</head>
+<body class="dv-mock">
+
+<p class="mock-note"><b>목업 STEP 1 — 단지 운전.</b> 방향 버튼으로 <b>이동 명령을 4칸까지 쌓아 두고</b> ▶ 출발로 한 번에 실행하는 경로 만들기다.
+좌측에 <b>목표 호수 702호</b>와 배송 진행이 상주하고, 지도의 집은 601·503·702·401 호수를 단다. 목표 집만 초록 링 + 별 + “여기가 702호!” 말풍선.</p>
+
+<div class="dv-frame">
+
+  <header class="dv-head">
+    <span class="dv-step">1</span>
+    <span class="dv-stepname">단지 운전</span>
+    <p class="dv-headline">목표 호수로 택배차를 운전해요! <span class="dv-emoji">📦</span></p>
+    <span class="dv-chip dv-chip-sound">♪ 소리</span>
+  </header>
+
+  <div class="dv-body">
+
+    <aside class="dv-side">
+      <div class="dv-card">
+        <b>목표</b>
+        <span class="dv-goal-num">702호</span>
+      </div>
+      <div class="dv-card">
+        <b>배송한 택배</b>
+        <span class="dv-progress"><span class="dv-emoji">📦</span> 0 / 5</span>
+      </div>
+    </aside>
+
+    <div class="dv-stage">
+      <svg viewBox="-60 0 980 478" preserveAspectRatio="xMidYMid slice" role="img"
+           aria-label="아파트 단지 지도. 601호, 503호, 702호, 401호 집이 있고 목표는 702호. 택배차가 왼쪽 길에 서 있어요.">
+        <defs>
+          <linearGradient id="grassG" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#8ede6f"/><stop offset="1" stop-color="#63c055"/>
+          </linearGradient>
+          <linearGradient id="roadG" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#a3aeb7"/><stop offset="1" stop-color="#8d99a3"/>
+          </linearGradient>
+          <linearGradient id="pondG" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#79d6f5"/><stop offset="1" stop-color="#3aa9e0"/>
+          </linearGradient>
+          <linearGradient id="truckG" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#ffe07a"/><stop offset="1" stop-color="#f5b91d"/>
+          </linearGradient>
+          <filter id="goalGlow" x="-40%" y="-40%" width="180%" height="180%">
+            <feDropShadow dx="0" dy="0" stdDeviation="9" flood-color="#5cd06a" flood-opacity=".95"/>
+          </filter>
+        </defs>
+
+        <!-- 잔디 바닥 -->
+        <rect x="-60" width="980" height="478" fill="url(#grassG)"/>
+        <g fill="#7ed267" opacity=".55">
+          <ellipse cx="70" cy="60" rx="52" ry="22"/><ellipse cx="520" cy="40" rx="66" ry="24"/>
+          <ellipse cx="800" cy="420" rx="58" ry="26"/><ellipse cx="360" cy="462" rx="70" ry="20"/>
+        </g>
+
+        <!-- ── 도로 ──────────────────────────────────────────── -->
+        <g>
+          <rect x="226" y="0" width="100" height="478" fill="#e9ddc6"/>
+          <rect x="556" y="0" width="100" height="478" fill="#e9ddc6"/>
+          <rect x="-60" y="236" width="980" height="100" fill="#e9ddc6"/>
+          <rect x="236" y="0" width="80" height="478" fill="url(#roadG)"/>
+          <rect x="566" y="0" width="80" height="478" fill="url(#roadG)"/>
+          <rect x="-60" y="246" width="980" height="80" fill="url(#roadG)"/>
+          <g fill="#fff" opacity=".92">
+            <rect x="272" y="16" width="8" height="34" rx="4"/><rect x="272" y="70" width="8" height="34" rx="4"/>
+            <rect x="272" y="124" width="8" height="34" rx="4"/><rect x="272" y="178" width="8" height="34" rx="4"/>
+            <rect x="272" y="342" width="8" height="34" rx="4"/><rect x="272" y="396" width="8" height="34" rx="4"/>
+            <rect x="272" y="450" width="8" height="26" rx="4"/>
+            <rect x="602" y="16" width="8" height="34" rx="4"/><rect x="602" y="70" width="8" height="34" rx="4"/>
+            <rect x="602" y="124" width="8" height="34" rx="4"/><rect x="602" y="178" width="8" height="34" rx="4"/>
+            <rect x="602" y="342" width="8" height="34" rx="4"/><rect x="602" y="396" width="8" height="34" rx="4"/>
+            <rect x="602" y="450" width="8" height="26" rx="4"/>
+            <rect x="20" y="282" width="36" height="8" rx="4"/><rect x="76" y="282" width="36" height="8" rx="4"/>
+            <rect x="132" y="282" width="36" height="8" rx="4"/><rect x="336" y="282" width="36" height="8" rx="4"/>
+            <rect x="392" y="282" width="36" height="8" rx="4"/><rect x="448" y="282" width="36" height="8" rx="4"/>
+            <rect x="504" y="282" width="36" height="8" rx="4"/><rect x="666" y="282" width="36" height="8" rx="4"/>
+            <rect x="722" y="282" width="36" height="8" rx="4"/><rect x="778" y="282" width="36" height="8" rx="4"/>
+          </g>
+          <!-- 횡단보도 -->
+          <g fill="#fff" opacity=".95">
+            <rect x="356" y="252" width="15" height="68" rx="5"/><rect x="381" y="252" width="15" height="68" rx="5"/>
+            <rect x="406" y="252" width="15" height="68" rx="5"/><rect x="431" y="252" width="15" height="68" rx="5"/>
+            <rect x="456" y="252" width="15" height="68" rx="5"/>
+          </g>
+          <!-- 맨홀 -->
+          <circle cx="606" cy="286" r="14" fill="#7c8892" stroke="#69747d" stroke-width="3"/>
+          <circle cx="606" cy="286" r="7" fill="#6d7982"/>
+        </g>
+
+        <!-- ── 연못 + 벤치 ───────────────────────────────────── -->
+        <g>
+          <ellipse cx="112" cy="404" rx="92" ry="52" fill="#63b85a"/>
+          <ellipse cx="112" cy="402" rx="82" ry="44" fill="url(#pondG)" stroke="#2f97cf" stroke-width="4"/>
+          <ellipse cx="88" cy="388" rx="30" ry="12" fill="#a9e8fb" opacity=".8"/>
+          <ellipse cx="140" cy="414" rx="18" ry="7" fill="#a9e8fb" opacity=".55"/>
+          <g fill="#3f9a45">
+            <rect x="24" y="356" width="7" height="26" rx="3.5"/><rect x="36" y="350" width="7" height="32" rx="3.5"/>
+            <rect x="185" y="420" width="7" height="26" rx="3.5"/><rect x="196" y="414" width="7" height="32" rx="3.5"/>
+          </g>
+          <g transform="translate(56,436)">
+            <ellipse cx="26" cy="20" rx="34" ry="7" fill="rgba(0,0,0,.16)"/>
+            <rect x="-2" y="-14" width="56" height="9" rx="4.5" fill="#c08a4e"/>
+            <rect x="-2" y="0" width="56" height="9" rx="4.5" fill="#ab7740"/>
+            <rect x="2" y="9" width="7" height="12" rx="3" fill="#8a5f33"/>
+            <rect x="45" y="9" width="7" height="12" rx="3" fill="#8a5f33"/>
+          </g>
+        </g>
+
+        <!-- ── 나무 · 꽃 · 라바콘 ────────────────────────────── -->
+        <g>
+          <g transform="translate(48,150) scale(1.05)">
+            <ellipse cx="0" cy="48" rx="28" ry="9" fill="rgba(0,0,0,.16)"/>
+            <rect x="-6" y="16" width="12" height="32" rx="6" fill="#8a5a33"/>
+            <circle cx="0" cy="2" r="27" fill="#4fae4a"/><circle cx="-14" cy="16" r="18" fill="#5cbc52"/>
+            <circle cx="15" cy="15" r="17" fill="#43a044"/><circle cx="-6" cy="-10" r="17" fill="#74d162"/>
+          </g>
+          <g transform="translate(180,86) scale(.82)">
+            <ellipse cx="0" cy="48" rx="28" ry="9" fill="rgba(0,0,0,.16)"/>
+            <rect x="-6" y="16" width="12" height="32" rx="6" fill="#8a5a33"/>
+            <circle cx="0" cy="2" r="27" fill="#4fae4a"/><circle cx="-14" cy="16" r="18" fill="#5cbc52"/>
+            <circle cx="15" cy="15" r="17" fill="#43a044"/><circle cx="-6" cy="-10" r="17" fill="#74d162"/>
+          </g>
+          <g transform="translate(352,64) scale(.86)">
+            <ellipse cx="0" cy="48" rx="28" ry="9" fill="rgba(0,0,0,.16)"/>
+            <rect x="-6" y="16" width="12" height="32" rx="6" fill="#8a5a33"/>
+            <circle cx="0" cy="2" r="27" fill="#4fae4a"/><circle cx="-14" cy="16" r="18" fill="#5cbc52"/>
+            <circle cx="15" cy="15" r="17" fill="#43a044"/><circle cx="-6" cy="-10" r="17" fill="#74d162"/>
+          </g>
+          <g transform="translate(528,84) scale(.78)">
+            <ellipse cx="0" cy="48" rx="28" ry="9" fill="rgba(0,0,0,.16)"/>
+            <rect x="-6" y="16" width="12" height="32" rx="6" fill="#8a5a33"/>
+            <circle cx="0" cy="2" r="27" fill="#4fae4a"/><circle cx="-14" cy="16" r="18" fill="#5cbc52"/>
+            <circle cx="15" cy="15" r="17" fill="#43a044"/><circle cx="-6" cy="-10" r="17" fill="#74d162"/>
+          </g>
+          <g transform="translate(690,60) scale(.8)">
+            <ellipse cx="0" cy="48" rx="28" ry="9" fill="rgba(0,0,0,.16)"/>
+            <rect x="-6" y="16" width="12" height="32" rx="6" fill="#8a5a33"/>
+            <circle cx="0" cy="2" r="27" fill="#4fae4a"/><circle cx="-14" cy="16" r="18" fill="#5cbc52"/>
+            <circle cx="15" cy="15" r="17" fill="#43a044"/><circle cx="-6" cy="-10" r="17" fill="#74d162"/>
+          </g>
+          <g transform="translate(824,150) scale(.92)">
+            <ellipse cx="0" cy="48" rx="28" ry="9" fill="rgba(0,0,0,.16)"/>
+            <rect x="-6" y="16" width="12" height="32" rx="6" fill="#8a5a33"/>
+            <circle cx="0" cy="2" r="27" fill="#4fae4a"/><circle cx="-14" cy="16" r="18" fill="#5cbc52"/>
+            <circle cx="15" cy="15" r="17" fill="#43a044"/><circle cx="-6" cy="-10" r="17" fill="#74d162"/>
+          </g>
+          <g transform="translate(700,392) scale(1.1)">
+            <ellipse cx="0" cy="48" rx="28" ry="9" fill="rgba(0,0,0,.16)"/>
+            <rect x="-6" y="16" width="12" height="32" rx="6" fill="#8a5a33"/>
+            <circle cx="0" cy="2" r="27" fill="#4fae4a"/><circle cx="-14" cy="16" r="18" fill="#5cbc52"/>
+            <circle cx="15" cy="15" r="17" fill="#43a044"/><circle cx="-6" cy="-10" r="17" fill="#74d162"/>
+          </g>
+          <g transform="translate(806,398) scale(.85)">
+            <ellipse cx="0" cy="48" rx="28" ry="9" fill="rgba(0,0,0,.16)"/>
+            <rect x="-6" y="16" width="12" height="32" rx="6" fill="#8a5a33"/>
+            <circle cx="0" cy="2" r="27" fill="#4fae4a"/><circle cx="-14" cy="16" r="18" fill="#5cbc52"/>
+            <circle cx="15" cy="15" r="17" fill="#43a044"/><circle cx="-6" cy="-10" r="17" fill="#74d162"/>
+          </g>
+          <g>
+            <g fill="#fff"><circle cx="150" cy="214" r="4"/><circle cx="164" cy="220" r="4"/><circle cx="157" cy="206" r="4"/></g>
+            <g fill="#ff9ec4"><circle cx="196" cy="204" r="4"/><circle cx="208" cy="212" r="4"/><circle cx="202" cy="194" r="4"/></g>
+            <g fill="#ffd84d"><circle cx="482" cy="206" r="4"/><circle cx="494" cy="214" r="4"/><circle cx="488" cy="196" r="4"/></g>
+            <g fill="#fff"><circle cx="676" cy="212" r="4"/><circle cx="688" cy="220" r="4"/><circle cx="682" cy="202" r="4"/></g>
+            <g fill="#ff9ec4"><circle cx="336" cy="452" r="4"/><circle cx="348" cy="460" r="4"/><circle cx="342" cy="442" r="4"/></g>
+            <g fill="#ffd84d"><circle cx="666" cy="458" r="4"/><circle cx="678" cy="466" r="4"/><circle cx="672" cy="448" r="4"/></g>
+          </g>
+          <g transform="translate(548,424)">
+            <ellipse cx="0" cy="22" rx="17" ry="6" fill="rgba(0,0,0,.18)"/>
+            <rect x="-16" y="14" width="32" height="9" rx="4" fill="#e8722a"/>
+            <path d="M-11,14 L-2,-20 h4 L11,14 Z" fill="#ff8a3d"/>
+            <rect x="-8" y="-4" width="16" height="7" rx="2" fill="#fff"/>
+          </g>
+        </g>
+
+        <!-- ── 집 601 ────────────────────────────────────────── -->
+        <g transform="translate(38,72)">
+          <ellipse cx="80" cy="134" rx="76" ry="12" fill="rgba(0,0,0,.17)"/>
+          <path d="M4,58 L80,4 L156,58 Z" fill="#2fb3a6"/>
+          <path d="M80,4 L156,58 L80,58 Z" fill="#26978d"/>
+          <rect x="0" y="52" width="160" height="12" rx="6" fill="#1f8378"/>
+          <rect x="12" y="62" width="136" height="70" rx="9" fill="#f7ecd6" stroke="#d9c39f" stroke-width="3"/>
+          <rect x="26" y="74" width="108" height="34" rx="10" fill="#fffdf4" stroke="#c9b18d" stroke-width="3"/>
+          <text x="80" y="100" text-anchor="middle" font-size="27" font-weight="900" fill="#3b4c63">601</text>
+          <rect x="24" y="112" width="24" height="16" rx="4" fill="#a8d8f0" stroke="#7fb6d8" stroke-width="2"/>
+          <rect x="112" y="112" width="24" height="16" rx="4" fill="#a8d8f0" stroke="#7fb6d8" stroke-width="2"/>
+          <rect x="68" y="110" width="26" height="22" rx="4" fill="#a9743f" stroke="#8a5f33" stroke-width="2"/>
+        </g>
+
+        <!-- ── 집 503 ────────────────────────────────────────── -->
+        <g transform="translate(360,72)">
+          <ellipse cx="80" cy="134" rx="76" ry="12" fill="rgba(0,0,0,.17)"/>
+          <path d="M4,58 L80,4 L156,58 Z" fill="#e4744b"/>
+          <path d="M80,4 L156,58 L80,58 Z" fill="#c85f3b"/>
+          <rect x="0" y="52" width="160" height="12" rx="6" fill="#ac5130"/>
+          <rect x="12" y="62" width="136" height="70" rx="9" fill="#f7ecd6" stroke="#d9c39f" stroke-width="3"/>
+          <rect x="26" y="74" width="108" height="34" rx="10" fill="#fffdf4" stroke="#c9b18d" stroke-width="3"/>
+          <text x="80" y="100" text-anchor="middle" font-size="27" font-weight="900" fill="#3b4c63">503</text>
+          <rect x="24" y="112" width="24" height="16" rx="4" fill="#a8d8f0" stroke="#7fb6d8" stroke-width="2"/>
+          <rect x="112" y="112" width="24" height="16" rx="4" fill="#a8d8f0" stroke="#7fb6d8" stroke-width="2"/>
+          <rect x="68" y="110" width="26" height="22" rx="4" fill="#a9743f" stroke="#8a5f33" stroke-width="2"/>
+        </g>
+
+        <!-- ── 집 401 ────────────────────────────────────────── -->
+        <g transform="translate(360,326)">
+          <ellipse cx="80" cy="134" rx="76" ry="12" fill="rgba(0,0,0,.17)"/>
+          <path d="M4,58 L80,4 L156,58 Z" fill="#4d95e8"/>
+          <path d="M80,4 L156,58 L80,58 Z" fill="#3a7cc9"/>
+          <rect x="0" y="52" width="160" height="12" rx="6" fill="#2f69ad"/>
+          <rect x="12" y="62" width="136" height="70" rx="9" fill="#f7ecd6" stroke="#d9c39f" stroke-width="3"/>
+          <rect x="26" y="74" width="108" height="34" rx="10" fill="#fffdf4" stroke="#c9b18d" stroke-width="3"/>
+          <text x="80" y="100" text-anchor="middle" font-size="27" font-weight="900" fill="#3b4c63">401</text>
+          <rect x="24" y="112" width="24" height="16" rx="4" fill="#a8d8f0" stroke="#7fb6d8" stroke-width="2"/>
+          <rect x="112" y="112" width="24" height="16" rx="4" fill="#a8d8f0" stroke="#7fb6d8" stroke-width="2"/>
+          <rect x="68" y="110" width="26" height="22" rx="4" fill="#a9743f" stroke="#8a5f33" stroke-width="2"/>
+        </g>
+
+        <!-- ── 집 702 (목표) ─────────────────────────────────── -->
+        <g>
+          <rect x="656" y="62" width="188" height="162" rx="22" fill="#c9f5c0" opacity=".5"/>
+          <rect x="656" y="62" width="188" height="162" rx="22" fill="none" stroke="#4cc45c" stroke-width="7" filter="url(#goalGlow)"/>
+          <g transform="translate(670,74)">
+            <ellipse cx="80" cy="134" rx="76" ry="12" fill="rgba(0,0,0,.17)"/>
+            <path d="M4,58 L80,4 L156,58 Z" fill="#f0a63c"/>
+            <path d="M80,4 L156,58 L80,58 Z" fill="#d78a26"/>
+            <rect x="0" y="52" width="160" height="12" rx="6" fill="#bd761d"/>
+            <rect x="12" y="62" width="136" height="70" rx="9" fill="#fff5e0" stroke="#e2c495" stroke-width="3"/>
+            <rect x="26" y="74" width="108" height="34" rx="10" fill="#fffdf4" stroke="#e0a94f" stroke-width="3.5"/>
+            <text x="80" y="100" text-anchor="middle" font-size="27" font-weight="900" fill="#e07a12">702</text>
+            <rect x="24" y="112" width="24" height="16" rx="4" fill="#ffe3a8" stroke="#dfb46a" stroke-width="2"/>
+            <rect x="112" y="112" width="24" height="16" rx="4" fill="#ffe3a8" stroke="#dfb46a" stroke-width="2"/>
+            <rect x="68" y="110" width="26" height="22" rx="4" fill="#a9743f" stroke="#8a5f33" stroke-width="2"/>
+          </g>
+          <path transform="translate(750,48) scale(1.15)" d="M0,-19 L5.6,-6.2 L19.5,-4.6 L9.2,4.6 L12,18.4 L0,11.5 L-12,18.4 L-9.2,4.6 L-19.5,-4.6 L-5.6,-6.2 Z"
+                fill="#ffd23f" stroke="#e0a80f" stroke-width="3" stroke-linejoin="round"/>
+          <g transform="translate(596,10)">
+            <rect x="0" y="0" width="180" height="44" rx="16" fill="#fffdf4" stroke="#4cc45c" stroke-width="4"/>
+            <path d="M116,42 L132,42 L122,60 Z" fill="#fffdf4" stroke="#4cc45c" stroke-width="4" stroke-linejoin="round"/>
+            <rect x="112" y="37" width="26" height="8" fill="#fffdf4"/>
+            <text x="90" y="30" text-anchor="middle" font-size="21" font-weight="900" fill="#2f8a3c">여기가 702호!</text>
+          </g>
+        </g>
+
+        <!-- ── 위치 핀 ───────────────────────────────────────── -->
+        <g transform="translate(276,232)">
+          <ellipse cx="0" cy="8" rx="13" ry="4.5" fill="rgba(0,0,0,.25)"/>
+          <path d="M0,6 C-15,-14 -20,-25 -20,-34 A20,20 0 1 1 20,-34 C20,-25 15,-14 0,6 Z"
+                fill="#fff" stroke="#3f9a45" stroke-width="5" stroke-linejoin="round"/>
+          <circle cx="0" cy="-34" r="9" fill="#4aa843"/>
+        </g>
+
+        <!-- ── 택배차 ────────────────────────────────────────── -->
+        <g transform="translate(146,300) scale(1.12)">
+          <ellipse cx="0" cy="36" rx="66" ry="11" fill="rgba(0,0,0,.22)"/>
+          <rect x="-62" y="-38" width="66" height="58" rx="8" fill="url(#truckG)" stroke="#d79c14" stroke-width="3.5"/>
+          <rect x="-55" y="-30" width="52" height="16" rx="5" fill="#fff0bd" opacity=".85"/>
+          <rect x="-55" y="-8" width="52" height="4" rx="2" fill="#d79c14" opacity=".5"/>
+          <path d="M4,-30 h30 q13,0 18,11 l10,24 q3,7 -5,7 h-53 z" fill="url(#truckG)" stroke="#d79c14" stroke-width="3.5" stroke-linejoin="round"/>
+          <path d="M11,-23 h21 q8,0 11,8 l6,13 h-38 z" fill="#8fd8f7" stroke="#4fa8d8" stroke-width="3" stroke-linejoin="round"/>
+          <g>
+            <circle cx="21" cy="-9" r="7.5" fill="#fff"/><circle cx="38" cy="-9" r="7.5" fill="#fff"/>
+            <circle cx="23" cy="-8" r="4" fill="#2b3a4c"/><circle cx="40" cy="-8" r="4" fill="#2b3a4c"/>
+            <circle cx="24.5" cy="-9.5" r="1.5" fill="#fff"/><circle cx="41.5" cy="-9.5" r="1.5" fill="#fff"/>
+          </g>
+          <rect x="-4" y="8" width="60" height="9" rx="4.5" fill="#e8e9ec" stroke="#b8bcc3" stroke-width="2"/>
+          <path d="M18,4 q11,8 22,0" fill="none" stroke="#c8901a" stroke-width="3" stroke-linecap="round"/>
+          <circle cx="-40" cy="22" r="13" fill="#39424e"/><circle cx="-40" cy="22" r="5.5" fill="#cdd6de"/>
+          <circle cx="32" cy="22" r="13" fill="#39424e"/><circle cx="32" cy="22" r="5.5" fill="#cdd6de"/>
+        </g>
+      </svg>
+    </div>
+
+    <aside class="dv-panel">
+      <div class="dv-card">
+        <b>이동 명령</b>
+        <div class="dv-queue">
+          <span class="dv-slot" data-filled="true">↑</span>
+          <span class="dv-slot" data-filled="true">→</span>
+          <span class="dv-slot"></span>
+          <span class="dv-slot"></span>
+        </div>
+        <div class="dv-slotnums"><span>1</span><span>2</span><span>3</span><span>4</span></div>
+      </div>
+      <div class="dv-card">
+        <b>방향 버튼</b>
+        <div class="dv-dirs">
+          <button class="dv-key" type="button" aria-label="위로">↑</button>
+          <button class="dv-key" type="button" aria-label="오른쪽으로">→</button>
+          <button class="dv-key" type="button" aria-label="아래로">↓</button>
+        </div>
+      </div>
+      <button class="dv-key dv-key-go" type="button">▶ 출발! 🚚</button>
+    </aside>
+
+  </div>
+
+  <footer class="dv-foot">
+    <img class="dv-mascot" src="../assets/characters/nine.png" alt="">
+    <div class="dv-tip">
+      <span class="dv-tip-q">?</span>
+      <p class="dv-tip-text"><b>게임 방법</b><br>
+        방향 버튼으로 길을 만들고 <strong>출발</strong> 버튼을 눌러<br>
+        택배 차가 목표 호수에 도착하도록 도와주세요!</p>
+    </div>
+    <div class="dv-foot-extra">🚚 배달한 택배: 0 / 5</div>
+  </footer>
+
+</div>
+
+</body>
+</html>

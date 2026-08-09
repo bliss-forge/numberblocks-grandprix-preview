@@ -15,7 +15,34 @@ const subwayKeys = [
   "subway-place-zoo", "subway-place-lunapark", "subway-place-baseball",
   "subway-place-palace", "subway-place-namsan", "subway-place-hanriver",
   "subway-place-skypark", "subway-place-childpark", "subway-place-lake",
-  "subway-place-assembly"
+  "subway-place-assembly",
+  // 실음원이 없는 역 4곳의 이름 낭독 폴백
+  "subway-station-moran", "subway-station-gayang",
+  "subway-station-assembly", "subway-station-bongeunsa"
+];
+const paintKeys = [
+  "paint-intro", "paint-finale", "paint-rainbow",
+  ...[
+    "firetruck", "chick", "bus", "carrot", "car", "frog", "tractor",
+    "grape", "heli", "blossom", "boat", "bear", "rocket"
+  ].map(subject => `paint-order-${subject}`),
+  ...[
+    "orange", "green", "purple", "pink", "sky", "brown", "navy",
+    "lightyellow", "olive", "gray"
+  ].map(color => `paint-mix-${color}`),
+  ...[
+    "red", "yellow", "blue", "black", "white", "orange", "green",
+    "purple", "pink", "sky", "brown", "navy", "lightyellow", "olive", "gray"
+  ].map(color => `paint-made-${color}`)
+];
+// 택배 왔어요! — 진행 안내 12 + 상자 이름 3. 매니페스트와의 대조는
+// tests/delivery-voice.test.mjs 가 따로 본다.
+const deliveryKeys = [
+  "delivery-intro", "delivery-go", "delivery-blocked", "delivery-wrong-house",
+  "delivery-arrive", "delivery-floor-wrong", "delivery-floor-ok",
+  "delivery-door-wrong", "delivery-bell", "delivery-parcel-wrong",
+  "delivery-parcel-ok", "delivery-finale",
+  "delivery-parcel-fruit", "delivery-parcel-cosmetic", "delivery-parcel-toy"
 ];
 const ko = [
   "prompt-count", "prompt-add", "prompt-sub", "prompt-mul",
@@ -26,9 +53,11 @@ const ko = [
   "safety-red-light", "safety-manhole", "safety-construction",
   "safety-scooter", "safety-bicycle", "safety-car",
   "safety-wrong-order", "safety-finish",
-  "safety-look-both", "safety-tour",
+  "safety-look-both", "safety-tour", "safety-take-the-bus",
   ...srtKeys,
-  ...subwayKeys
+  ...subwayKeys,
+  ...paintKeys,
+  ...deliveryKeys
 ];
 const en = [
   "prompt-sub",
@@ -36,9 +65,11 @@ const en = [
   "safety-red-light", "safety-manhole", "safety-construction",
   "safety-scooter", "safety-bicycle", "safety-car",
   "safety-wrong-order", "safety-finish",
-  "safety-look-both", "safety-tour",
+  "safety-look-both", "safety-tour", "safety-take-the-bus",
   ...srtKeys,
   ...subwayKeys,
+  ...paintKeys,
+  ...deliveryKeys,
   ...Array.from({ length: 150 }, (_, i) => `number-${i + 1}`)
 ];
 

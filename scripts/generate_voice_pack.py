@@ -37,6 +37,7 @@ KO_SAFETY = {
     "safety-finish": "친구들을 모두 만났어요! 안전하게 도착했어요!",
     "safety-look-both": "멈춰요, 왼쪽 오른쪽을 봐요!",
     "safety-tour": "학교까지 안전하게 가 보자!",
+    "safety-take-the-bus": "여기는 버스를 타고 건너요! 정류장으로 가요.",
 }
 EN_SAFETY = {
     "safety-next-2": "Let's visit Numberblock Two at the nursery.",
@@ -58,6 +59,7 @@ EN_SAFETY = {
     "safety-finish": "We met all our friends and arrived safely!",
     "safety-look-both": "Stop! Look left and right!",
     "safety-tour": "Let's walk safely to school!",
+    "safety-take-the-bus": "We cross here by bus! Let's go to the bus stop.",
 }
 KO_SRT = {
     "srt-arrive": "수서역에 도착하였어요!",
@@ -107,6 +109,11 @@ KO_SUBWAY = {
     "subway-place-childpark": "어린이대공원에 가요!",
     "subway-place-lake": "석촌호수에 가요!",
     "subway-place-assembly": "국회의사당에 가요!",
+    # 실음원이 없는 역 4곳 — 실제 안내방송과 같은 형식으로 읽는다
+    "subway-station-moran": "이번 역은 모란역입니다.",
+    "subway-station-gayang": "이번 역은 가양역입니다.",
+    "subway-station-assembly": "이번 역은 국회의사당역입니다.",
+    "subway-station-bongeunsa": "이번 역은 봉은사역입니다.",
 }
 EN_SUBWAY = {
     "subway-board": "We are on the subway! Off we go!",
@@ -126,6 +133,10 @@ EN_SUBWAY = {
     "subway-place-childpark": "Let's go to the children's park!",
     "subway-place-lake": "Let's go to the lake!",
     "subway-place-assembly": "Let's go to the assembly hall!",
+    "subway-station-moran": "This stop is Moran.",
+    "subway-station-gayang": "This stop is Gayang.",
+    "subway-station-assembly": "This stop is the National Assembly.",
+    "subway-station-bongeunsa": "This stop is Bongeunsa.",
 }
 KO_ONES = ["", "일", "이", "삼", "사", "오", "육", "칠", "팔", "구"]
 EN_ONES = [
@@ -181,11 +192,134 @@ KO_RETRIES = {
     "retry-2": "천천히 생각해 볼까요?",
     "retry-3": "블록을 같이 세어 봐요.",
 }
+KO_PAINT = {
+    "paint-intro": "물감 두 개를 골라 섞어 봐요!",
+    "paint-order-firetruck": "소방차를 빨강으로 칠해 볼까?",
+    "paint-order-chick": "병아리를 노랑으로 칠해 볼까?",
+    "paint-order-bus": "버스를 파랑으로 칠해 볼까?",
+    "paint-order-carrot": "당근을 주황으로 칠해 볼까?",
+    "paint-order-car": "자동차를 주황으로 칠해 볼까?",
+    "paint-order-frog": "개구리를 초록으로 칠해 볼까?",
+    "paint-order-tractor": "트랙터를 초록으로 칠해 볼까?",
+    "paint-order-grape": "포도를 보라로 칠해 볼까?",
+    "paint-order-heli": "헬리콥터를 보라로 칠해 볼까?",
+    "paint-order-blossom": "벚꽃을 분홍으로 칠해 볼까?",
+    "paint-order-boat": "돛단배를 하늘색으로 칠해 볼까?",
+    "paint-order-bear": "곰돌이를 밤색으로 칠해 볼까?",
+    "paint-order-rocket": "로켓을 남색으로 칠해 볼까?",
+    "paint-mix-orange": "빨강과 노랑을 섞으면 주황!",
+    "paint-mix-green": "노랑과 파랑을 섞으면 초록!",
+    "paint-mix-purple": "빨강과 파랑을 섞으면 보라!",
+    "paint-mix-pink": "빨강과 하양을 섞으면 분홍!",
+    "paint-mix-sky": "파랑과 하양을 섞으면 하늘색!",
+    "paint-mix-brown": "빨강과 검정을 섞으면 밤색!",
+    "paint-mix-navy": "파랑과 검정을 섞으면 남색!",
+    "paint-mix-lightyellow": "노랑과 하양을 섞으면 연노랑!",
+    "paint-mix-olive": "노랑과 검정을 섞으면 올리브!",
+    "paint-mix-gray": "검정과 하양을 섞으면 회색!",
+    "paint-made-red": "우와, 빨강이 됐네!",
+    "paint-made-yellow": "우와, 노랑이 됐네!",
+    "paint-made-blue": "우와, 파랑이 됐네!",
+    "paint-made-black": "우와, 검정이 됐네!",
+    "paint-made-white": "우와, 하양이 됐네!",
+    "paint-made-orange": "우와, 주황이 됐네!",
+    "paint-made-green": "우와, 초록이 됐네!",
+    "paint-made-purple": "우와, 보라가 됐네!",
+    "paint-made-pink": "우와, 분홍이 됐네!",
+    "paint-made-sky": "우와, 하늘색이 됐네!",
+    "paint-made-brown": "우와, 밤색이 됐네!",
+    "paint-made-navy": "우와, 남색이 됐네!",
+    "paint-made-lightyellow": "우와, 연노랑이 됐네!",
+    "paint-made-olive": "우와, 올리브가 됐네!",
+    "paint-made-gray": "우와, 회색이 됐네!",
+    "paint-finale": "오늘의 그림을 다 그렸어요! 정말 멋진 화가예요!",
+    "paint-rainbow": "우와, 무지개 화가 탄생! 일곱 가지 색을 다 모았어요!",
+}
+EN_PAINT = {
+    "paint-intro": "Pick two paints and mix them!",
+    "paint-order-firetruck": "Let's paint the fire truck red!",
+    "paint-order-chick": "Let's paint the chick yellow!",
+    "paint-order-bus": "Let's paint the bus blue!",
+    "paint-order-carrot": "Let's paint the carrot orange!",
+    "paint-order-car": "Let's paint the car orange!",
+    "paint-order-frog": "Let's paint the frog green!",
+    "paint-order-tractor": "Let's paint the tractor green!",
+    "paint-order-grape": "Let's paint the grapes purple!",
+    "paint-order-heli": "Let's paint the helicopter purple!",
+    "paint-order-blossom": "Let's paint the blossom pink!",
+    "paint-order-boat": "Let's paint the sailboat sky blue!",
+    "paint-order-bear": "Let's paint the bear brown!",
+    "paint-order-rocket": "Let's paint the rocket navy blue!",
+    "paint-mix-orange": "Red and yellow make orange!",
+    "paint-mix-green": "Yellow and blue make green!",
+    "paint-mix-purple": "Red and blue make purple!",
+    "paint-mix-pink": "Red and white make pink!",
+    "paint-mix-sky": "Blue and white make sky blue!",
+    "paint-mix-brown": "Red and black make brown!",
+    "paint-mix-navy": "Blue and black make navy!",
+    "paint-mix-lightyellow": "Yellow and white make light yellow!",
+    "paint-mix-olive": "Yellow and black make olive!",
+    "paint-mix-gray": "Black and white make grey!",
+    "paint-made-red": "Wow, you made red!",
+    "paint-made-yellow": "Wow, you made yellow!",
+    "paint-made-blue": "Wow, you made blue!",
+    "paint-made-black": "Wow, you made black!",
+    "paint-made-white": "Wow, you made white!",
+    "paint-made-orange": "Wow, you made orange!",
+    "paint-made-green": "Wow, you made green!",
+    "paint-made-purple": "Wow, you made purple!",
+    "paint-made-pink": "Wow, you made pink!",
+    "paint-made-sky": "Wow, you made sky blue!",
+    "paint-made-brown": "Wow, you made brown!",
+    "paint-made-navy": "Wow, you made navy!",
+    "paint-made-lightyellow": "Wow, you made light yellow!",
+    "paint-made-olive": "Wow, you made olive!",
+    "paint-made-gray": "Wow, you made grey!",
+    "paint-finale": "You finished all the paintings! What a wonderful artist!",
+    "paint-rainbow": "Wow, a rainbow artist! You collected all seven colours!",
+}
+
 EN = {
     f"number-{number}": english_number(number)
     for number in range(1, 151)
 }
 
+
+KO_DELIVERY = {
+    "delivery-intro": "택배가 왔어요! 목표 호수로 배달해요.",
+    "delivery-go": "출발!",
+    "delivery-blocked": "그쪽은 길이 아니에요. 다시 만들어 봐요.",
+    "delivery-wrong-house": "여기가 아니에요. 목표 호수를 다시 봐요.",
+    "delivery-arrive": "도착했어요! 이제 엘리베이터를 타요.",
+    "delivery-floor-wrong": "그 층이 아니에요. 목표 층을 눌러요.",
+    "delivery-floor-ok": "다 왔어요! 문이 열려요.",
+    "delivery-door-wrong": "이 문이 아니에요. 라벨과 같은 호수를 찾아요.",
+    "delivery-bell": "딩동! 택배 왔어요.",
+    "delivery-parcel-wrong": "친구가 기다리는 물건이 아니에요. 다시 골라요.",
+    "delivery-parcel-ok": "고마워요! 잘 전달했어요.",
+    "delivery-finale": "오늘 배달을 모두 마쳤어요. 정말 잘했어요!",
+    "delivery-parcel-fruit": "과일 상자",
+    "delivery-parcel-cosmetic": "화장품 상자",
+    "delivery-parcel-toy": "장난감 상자",
+}
+
+EN_DELIVERY = {
+    "delivery-intro": "A parcel is here! Drive it to the right home.",
+    "delivery-go": "Let's go!",
+    "delivery-blocked": "That way is blocked. Try another path.",
+    "delivery-wrong-house": "This is not the one. Check the number again.",
+    "delivery-arrive": "We are here! Now take the elevator.",
+    "delivery-floor-wrong": "That is not the floor. Press the goal floor.",
+    "delivery-floor-ok": "Here we are! The doors are opening.",
+    "delivery-door-wrong": "Not this door. Find the same number as the label.",
+    "delivery-bell": "Ding dong! Delivery!",
+    "delivery-parcel-wrong": "That is not what your friend wants. Try again.",
+    "delivery-parcel-ok": "Thank you! Well delivered.",
+    "delivery-finale": "All parcels delivered. Great job today!",
+    "delivery-parcel-fruit": "fruit box",
+    "delivery-parcel-cosmetic": "lotion box",
+    "delivery-parcel-toy": "toy box",
+}
 
 async def render_pack(lang, lines, voice, rate, pitch):
     output = ROOT / lang
@@ -211,10 +345,14 @@ async def main():
     await render_pack("ko", KO_SAFETY, KO_VOICE, "-5%", "+2Hz")
     await render_pack("ko", KO_SRT, KO_VOICE, "-5%", "+2Hz")
     await render_pack("ko", KO_SUBWAY, KO_VOICE, "-5%", "+2Hz")
+    await render_pack("ko", KO_PAINT, KO_VOICE, "-4%", "+3Hz")
+    await render_pack("ko", KO_DELIVERY, KO_VOICE, "-4%", "+3Hz")
     await render_pack("en", EN_PROMPTS, EN_VOICE, "-4%", "+0Hz")
     await render_pack("en", EN_SAFETY, EN_VOICE, "-5%", "+2Hz")
     await render_pack("en", EN_SRT, EN_VOICE, "-5%", "+2Hz")
     await render_pack("en", EN_SUBWAY, EN_VOICE, "-5%", "+2Hz")
+    await render_pack("en", EN_PAINT, EN_VOICE, "-4%", "+3Hz")
+    await render_pack("en", EN_DELIVERY, EN_VOICE, "-4%", "+3Hz")
     await render_pack("en", EN, EN_VOICE, "+4%", "+7Hz")
 
 

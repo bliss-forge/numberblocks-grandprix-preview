@@ -23,7 +23,8 @@ const safety = Object.fromEntries(
     "safety-wrong-order",
     "safety-finish",
     "safety-look-both",
-    "safety-tour"
+    "safety-tour",
+    "safety-take-the-bus"
   ].map(key => [
     key,
     {
@@ -51,7 +52,13 @@ const subway = Object.fromEntries(
     "subway-place-skypark",
     "subway-place-childpark",
     "subway-place-lake",
-    "subway-place-assembly"
+    "subway-place-assembly",
+    // 실음원이 없는 역 4곳의 이름 안내 — subway_sound/에 파일이 생기면
+    // stationSoundSrc가 그쪽을 먼저 쓰고 이 키는 폴백으로만 남는다.
+    "subway-station-moran",
+    "subway-station-gayang",
+    "subway-station-assembly",
+    "subway-station-bongeunsa"
   ].map(key => [
     key,
     {
@@ -85,6 +92,58 @@ const srt = Object.fromEntries(
   ])
 );
 
+const paint = Object.fromEntries(
+  [
+    "paint-intro",
+    "paint-finale",
+    "paint-rainbow",
+    ...[
+      "firetruck", "chick", "bus", "carrot", "car", "frog", "tractor",
+      "grape", "heli", "blossom", "boat", "bear", "rocket"
+    ].map(subject => `paint-order-${subject}`),
+    ...[
+      "orange", "green", "purple", "pink", "sky", "brown", "navy",
+      "lightyellow", "olive", "gray"
+    ].map(color => `paint-mix-${color}`),
+    ...[
+      "red", "yellow", "blue", "black", "white", "orange", "green",
+      "purple", "pink", "sky", "brown", "navy", "lightyellow", "olive", "gray"
+    ].map(color => `paint-made-${color}`)
+  ].map(key => [
+    key,
+    {
+      ko: `assets/audio/voice/ko/${key}.mp3`,
+      en: `assets/audio/voice/en/${key}.mp3`
+    }
+  ])
+);
+
+const delivery = Object.fromEntries(
+  [
+    "delivery-intro",
+    "delivery-go",
+    "delivery-blocked",
+    "delivery-wrong-house",
+    "delivery-arrive",
+    "delivery-floor-wrong",
+    "delivery-floor-ok",
+    "delivery-door-wrong",
+    "delivery-bell",
+    "delivery-parcel-wrong",
+    "delivery-parcel-ok",
+    "delivery-finale",
+    "delivery-parcel-fruit",
+    "delivery-parcel-cosmetic",
+    "delivery-parcel-toy",
+  ].map(key => [
+    key,
+    {
+      ko: `assets/audio/voice/ko/${key}.mp3`,
+      en: `assets/audio/voice/en/${key}.mp3`
+    }
+  ])
+);
+
 export const VOICE = Object.freeze({
   "prompt-count": { ko: "assets/audio/voice/ko/prompt-count.mp3" },
   "prompt-add": { ko: "assets/audio/voice/ko/prompt-add.mp3" },
@@ -96,6 +155,8 @@ export const VOICE = Object.freeze({
   ...safety,
   ...srt,
   ...subway,
+  ...paint,
+  ...delivery,
   ...numbers,
   ...Object.fromEntries(
     Array.from({ length: 4 }, (_, index) => [

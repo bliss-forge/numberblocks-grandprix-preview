@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>목업 1 — 홈 화면에 9번 카드</title>
+<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="../mobile-games.css">
+<style>
+  /* 목업 전용: 두 뷰포트를 나란히 보기 위한 액자. 실제 게임에는 없다. */
+  body { overflow: auto; }
+  .mock-note {
+    font-family: var(--body-font);
+    background: #1f2b39; color: #e7eef6;
+    padding: 10px 16px; font-size: 14px; line-height: 1.5;
+  }
+  .mock-note b { color: #ffd23f; }
+  .mock-frame { border: 0; display: block; }
+</style>
+</head>
+<body data-state="home" data-mode="">
+<p class="mock-note">
+  <b>목업 1 — 홈 화면.</b> 기존 카드 8장은 위치·문구·이미지 그대로, <b>9번 "택배 왔어요!"만 그리드 끝에 가산</b>한다.
+  카드 그림은 계약대로 <code>nine.png</code>(넘버블록 9), 노란 트럭은 게임 안에서만 나온다.
+  숫자키 숏컷은 이 저장소에 원래 없다 — 진입은 ←/→ + Space. 새 카드에는 '새것' 배지가 붙는다.
+</p>
+
+<main>
+  <section id="home" class="screen active">
+    <div class="home-title">
+      <h1 class="logo">
+        <span>넘버블록스</span>
+        <em>놀이터</em>
+      </h1>
+    </div>
+
+    <div id="difficulty-picker" class="difficulty-picker" role="group" aria-label="난이도 선택">
+      <span class="difficulty-label">난이도</span>
+      <button class="difficulty-button" type="button" data-difficulty="easy">쉬움</button>
+      <button class="difficulty-button selected" type="button" data-difficulty="steady" aria-pressed="true">차근차근</button>
+      <button class="difficulty-button" type="button" data-difficulty="challenge">도전</button>
+    </div>
+
+    <div class="mode-grid" aria-label="놀이 선택">
+      <button class="mode-card" type="button" data-mode="count">
+        <span class="card-number">1</span>
+        <img src="../assets/characters/one.png" alt="">
+        <span class="card-copy"><strong>몇 개일까?</strong><small>블록을 세어요</small></span>
+      </button>
+      <button class="mode-card" type="button" data-mode="add">
+        <span class="card-number">2</span>
+        <img src="../assets/characters/two.png" alt="">
+        <span class="card-copy"><strong>더하기 합체</strong><small>친구를 더해요</small></span>
+      </button>
+      <button class="mode-card" type="button" data-mode="sub">
+        <span class="card-number">3</span>
+        <img src="../assets/characters/three.png" alt="">
+        <span class="card-copy"><strong>빼기 블록</strong><small>블록을 빼요</small></span>
+      </button>
+      <button class="mode-card" type="button" data-mode="mul">
+        <span class="card-number">4</span>
+        <img src="../assets/characters/four.png" alt="">
+        <span class="card-copy"><strong>곱하기 블록</strong><small>줄과 칸을 세어요</small></span>
+      </button>
+      <button class="mode-card safety-mode-card" type="button" data-mode="safety">
+        <span class="card-number">5</span>
+        <img src="../assets/characters/five.png" alt="">
+        <span class="card-copy"><strong>안전한 길찾기</strong><small>신호를 지켜요</small></span>
+      </button>
+      <button class="mode-card subway-mode-card" type="button" data-mode="subway">
+        <span class="card-number">6</span>
+        <img src="../assets/characters/six.png" alt="">
+        <span class="card-copy"><strong>지하철 여행</strong><small>갈아타고 가요</small></span>
+      </button>
+      <button class="mode-card ktx-mode-card" type="button" data-mode="ktx">
+        <span class="card-number">7</span>
+        <img src="../assets/characters/seven.png" alt="">
+        <span class="card-copy"><strong>칙칙폭폭 기관사</strong><small>기차를 운전해요</small></span>
+      </button>
+      <button class="mode-card paint-mode-card" type="button" data-mode="paint">
+        <span class="card-number">8</span>
+        <img src="../assets/characters/eight.png" alt="">
+        <span class="card-copy"><strong>알록달록 물감 놀이</strong><small>색을 섞어 그림을 칠해요</small></span>
+      </button>
+
+      <!-- ▼ 신규: 9번 카드. 나머지 8장은 위 그대로 손대지 않는다. -->
+      <button class="mode-card delivery-mode-card is-new" type="button" data-mode="delivery">
+        <span class="card-number">9</span>
+        <span class="new-badge" aria-label="새 놀이">새것</span>
+        <img src="../assets/characters/nine.png" alt="">
+        <span class="card-copy"><strong>택배 왔어요!</strong><small>딩동, 배달 가요</small></span>
+      </button>
+    </div>
+
+    <p class="creator-credit">crafted by <b>bliss</b> © 2026</p>
+  </section>
+</main>
+
+<style>
+  /* ── 9번 카드 신규 스타일 (실제 구현에서 styles.css로 이관) ───────────── */
+  .delivery-mode-card {
+    --card-color: #ffe9b0;   /* 택배 상자 크라프트 톤 — 기존 8장과 겹치지 않는 색 */
+    --card-accent: #c8791b;  /* 배지·강조 (물감 8번 #d9822b보다 진해 구분됨) */
+    position: relative;
+  }
+
+  /* '새것' 배지 — 발견성 보상. 숏컷이 없으므로 눈에 띄어야 한다. */
+  .new-badge {
+    position: absolute;
+    top: 10px;
+    right: 12px;
+    padding: 4px 11px;
+    border-radius: 999px;
+    background: var(--red);
+    color: #fff;
+    font-family: var(--display-font);
+    font-size: 15px;
+    font-weight: 900;
+    letter-spacing: .02em;
+    box-shadow: 0 3px 0 rgba(150, 30, 40, .5);
+    animation: new-badge-bob 1.8s ease-in-out infinite;
+  }
+
+  @keyframes new-badge-bob {
+    0%, 100% { transform: translateY(0) rotate(-3deg); }
+    50% { transform: translateY(-3px) rotate(3deg); }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .new-badge { animation: none; }
+  }
+</style>
+</body>
+</html>

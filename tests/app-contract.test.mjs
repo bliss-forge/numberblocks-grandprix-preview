@@ -13,20 +13,25 @@ test("정적 셸이 스타일과 앱 모듈을 로드한다", () => {
 
 test("1~5 모바일 보정 스타일은 기본 스타일 뒤에 로드된다", () => {
   const baseIndex = html.indexOf(
-    'href="styles.css?v=20260726-pc-route-visual"'
+    'href="styles.css?v=20260808-delivery"'
   );
   const mobileIndex = html.indexOf(
-    'href="mobile-games.css?v=20260802-games-1-5"'
+    'href="mobile-games.css?v=20260808-delivery-home"'
   );
 
   assert.ok(baseIndex >= 0);
   assert.ok(mobileIndex > baseIndex);
 });
 
-test("PC 안전길 시각 개선은 새 CSS 캐시 주소를 사용한다", () => {
+test("스타일 시트는 최신 캐시 주소를 달고 나간다", () => {
+  // 배포 후 옛 CSS 가 그대로 쓰이지 않도록, 내용이 바뀌면 이 값을 함께 올린다.
   assert.match(
     html,
-    /<link rel="stylesheet" href="styles\.css\?v=20260726-pc-route-visual">/
+    /<link rel="stylesheet" href="styles\.css\?v=20260808-delivery">/
+  );
+  assert.match(
+    html,
+    /<link rel="stylesheet" href="mobile-games\.css\?v=20260808-delivery-home">/
   );
 });
 
@@ -50,11 +55,13 @@ test("게임 화면은 화면 전환 뒤 프로그램 방식으로 포커스를 
   );
 });
 
-test("홈은 번호 배지가 있는 일곱 가지 놀이를 제공한다", () => {
-  assert.equal((html.match(/class="mode-card(?: [^"]*)?"/g) ?? []).length, 7);
+test("홈은 번호 배지가 있는 아홉 가지 놀이를 제공한다", () => {
+  assert.equal((html.match(/class="mode-card(?: [^"]*)?"/g) ?? []).length, 9);
   assert.match(html, /안전한 길찾기/);
   assert.match(html, /지하철 여행/);
   assert.match(html, /칙칙폭폭 기관사/);
+  assert.match(html, /알록달록 물감 놀이/);
+  assert.match(html, /택배 왔어요!/);
 });
 
 test("홈 카드 번호는 같은 번호의 블럭 친구를 사용한다", () => {
@@ -65,7 +72,9 @@ test("홈 카드 번호는 같은 번호의 블럭 친구를 사용한다", () =
     ["mul", "4", "four"],
     ["safety", "5", "five"],
     ["subway", "6", "six"],
-    ["ktx", "7", "seven"]
+    ["ktx", "7", "seven"],
+    ["paint", "8", "eight"],
+    ["delivery", "9", "nine"]
   ]) {
     const card = html.match(
       new RegExp(
@@ -303,4 +312,68 @@ test("오른쪽 아래에 bliss 제작자 서명을 표시한다", () => {
     css,
     /\.creator-credit\s*\{[^}]*position:\s*fixed;[^}]*right:/s
   );
+});
+
+// 감사(2026-08-06) 회귀 가드 — 둘 다 app.mjs 결선이라 소스 계약으로 지킨다
+// (실동작은 브라우저 검증으로 확인했고, 여정 41스텝 자동 플레이는 스위트에 넣기엔 무겁다).
+test("곱하기 문제는 피연산자 캐릭터 대신 줄·칸 블록판을 그린다", () => {
+  assert.match(app, /multiplicationBoard/);
+  const render = app.slice(
+    app.indexOf("function renderProblem("),
+    app.indexOf("function newProblem(")
+  );
+  const mulBranch = render.indexOf('problem.mode === "mul"');
+  assert.ok(mulBranch >= 0, "renderProblem에 mul 분기가 있다");
+  assert.ok(
+    mulBranch < render.indexOf("operandScene("),
+    "mul 분기가 피연산자 장면보다 먼저 온다"
+  );
+  assert.ok(render.includes("multiplicationBoard(document, problem)"));
+});
+
+test("지하철 도착지 사진은 화면 패드 입력으로도 움직인다", () => {
+  // 패드 pointerdown·클릭은 moveSubway 한 곳으로만 들어온다 — 사진 분기가 그 안에
+  // 있어야 마우스·터치만 쓰는 아이도 사진을 찍고 여정을 끝낼 수 있다.
+  const body = app.slice(app.indexOf("function moveSubway("));
+  const photoBranch = body.indexOf("movePhoto(direction)");
+  assert.ok(photoBranch >= 0, "moveSubway가 사진 입력을 movePhoto로 보낸다");
+  assert.ok(
+    photoBranch < body.indexOf("attemptSubwayMove("),
+    "사진 단계 분기가 이동 판정보다 앞에 온다"
+  );
+});
+
+// 감사(2026-08-06) B2-1 회귀 가드 — 결선이 app.mjs에 있어 소스 계약으로 지킨다.
+test("안전 안내 음성은 게이트를 지나서만 재생된다", () => {
+  assert.match(app, /nextSafetyVoice\(state\.safetyVoiceKey, voiceKey\)/);
+  const move = app.slice(
+    app.indexOf("function moveSafetyRoute("),
+    app.indexOf("function playSafetyCueVoice(")
+  );
+  // cue 재생 경로에 audio.cancel()+playPrompt 직접 호출이 남아 있으면 안 된다
+  assert.ok(
+    !/cue\.voiceKey\)/.test(move),
+    "cue 음성은 playSafetyCueVoice 한 곳만 지난다"
+  );
+  assert.match(move, /playSafetyCueVoice\(cue\?\.voiceKey \?\? null\)/);
+});
+
+test("물감 혼합 수식 자막은 채색·낭독이 끝날 때까지 유지된다", () => {
+  const hold = app.match(/const PAINT_EQUATION_HOLD_MS = (\d+);/);
+  assert.ok(hold, "혼합 자막 유지 시간 상수");
+  const auto = app.match(/const PAINT_AUTO_MS = (\d+);/);
+  assert.ok(Number(hold[1]) > Number(auto[1]), "채색 시작보다 오래 남는다");
+  assert.match(app, /showHint\(equation, PAINT_EQUATION_HOLD_MS\)/);
+  // 기본 토스트는 그대로 1.3초
+  assert.match(app, /const HINT_HOLD_MS = 1300;/);
+  assert.match(app, /function showHint\(message, holdMs = HINT_HOLD_MS\)/);
+});
+
+test("실음원이 없는 역은 이름 낭독 폴백을 거친다", () => {
+  const play = app.slice(
+    app.indexOf("function playStationSound("),
+    app.indexOf("function startSubwayRide(")
+  );
+  assert.match(play, /stationVoiceKey\(station\)/);
+  assert.match(play, /playPrompt\(nameKey\)/);
 });

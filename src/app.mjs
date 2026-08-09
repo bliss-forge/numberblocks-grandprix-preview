@@ -21,6 +21,7 @@ import {
   formatProblemText,
   focusPhase,
   ktxBoosterCue,
+  nextSafetyVoice,
   playPromptCue,
   playRetryCue,
   quantityParts,
@@ -37,6 +38,7 @@ import {
 } from "./character-layout.mjs";
 import {
   countCharacterValues,
+  multiplicationBoard,
   operandScene,
   operatorFor
 } from "./problem-scene.mjs";
@@ -96,6 +98,7 @@ import {
 } from "./subway-scene.mjs";
 import {
   stationSoundSrc,
+  stationVoiceKey,
   subwaySoundSrc
 } from "./subway-sound-manifest.mjs";
 import { lineForKey, stationLabel } from "./subway-map-data.mjs";
@@ -120,6 +123,35 @@ import {
   movePhotoFrame,
   shootPhoto
 } from "./photo-hunt.mjs";
+import {
+  createPaintPlay,
+  currentRound as currentPaintRound,
+  currentSubject as currentPaintSubject,
+  equationFor as paintEquationFor,
+  movePaintFocus,
+  paintCanvas as paintPlayCanvas,
+  rinseJar as paintRinseJar,
+  squeezeTube as paintSqueezeTube
+} from "./paint-play.mjs";
+import {
+  paintCanvasNode,
+  renderPaintPlay,
+  updatePaintPlay
+} from "./paint-play-scene.mjs";
+import { PAINT_COLORS, PAINT_TUBES, josa } from "./paint-play-data.mjs";
+import {
+  clearCommands as clearDeliveryCommands,
+  createDelivery,
+  deliverParcel,
+  moveCorridorFocus,
+  moveTrayFocus,
+  parcelById,
+  pressFloor,
+  pushCommand as pushDeliveryCommand,
+  ringBell as ringDeliveryBell,
+  runCommands as runDeliveryCommands
+} from "./delivery-model.mjs";
+import { deliveryCaption, renderDelivery } from "./delivery-scene.mjs";
 
 const WALK_REPEAT_MS = 110;
 const audio = new AudioManager();
@@ -154,6 +186,7 @@ const state = {
   problem: null,
   safety: null,
   safetyView: null,
+  safetyVoiceKey: null,  // 재생 중인 안전 안내 — 같은 문장 재발화를 막는다
   buffer: "",
   stars: 0,
   streak: { count: 0, add: 0, sub: 0, mul: 0, safety: 0, subway: 0 },
@@ -169,6 +202,13 @@ const state = {
   ktxPicking: false,
   ktxPickIndex: 0,
   ktxViewMs: 0,
+  paint: null,
+  paintScene: null,
+  paintBusy: false,   // 자동 혼합→채색 연출 동안 입력 잠금
+  delivery: null,
+  deliveryScene: null,
+  deliveryBusy: false,   // 주행 연출·도착 여운 동안 입력 잠금
+  paintFinaleAt: 0,   // 피날레 화면이 뜬 시각(최소 체류 계산용)
   wrongCount: 0,
   round: 0,
   hintTimer: 0,
@@ -439,6 +479,14 @@ function renderProblem(problem) {
   }
 
   dom.problem.textContent = formatProblemText(problem);
+
+  if (problem.mode === "mul") {
+    // 곱하기는 "블록판에는 모두 몇 개가 있을까요?"를 묻는다 — 캐릭터 두 장이
+    // 아니라 줄×칸 블록판을 그려야 아이가 세어 답을 구할 수 있다.
+    dom.stage.append(multiplicationBoard(document, problem));
+    return;
+  }
+
   const scene = operandScene(
     document,
     problem,
@@ -573,6 +621,7 @@ function startSafetyRoute() {
   state.round += 1;
   state.problem = null;
   state.buffer = "";
+  state.safetyVoiceKey = null;
   const seed = Math.floor(Math.random() * 0x100000000);
   state.safety = createSafetyRouteState(state.difficulty, {
     seed,
@@ -653,7 +702,12 @@ function endSafetyTour() {
   scheduleSafetyWorldTick(performance.now());
 }
 
-function showHint(message) {
+// 토스트 기본 유지 시간. 물감 혼합 수식처럼 그림·소리와 함께 읽어야 하는 문장은
+// holdMs로 늘린다 — 감사(2026-08-06): 자막이 1.25초에 사라지는데 채색은 1.5초,
+// 낭독은 3.2초까지 이어져 아이가 세 채널 중 어느 둘도 같이 못 받았다.
+const HINT_HOLD_MS = 1300;
+
+function showHint(message, holdMs = HINT_HOLD_MS) {
   if (state.hintTimer) {
     clearTimeout(state.hintTimer);
     state.timers.delete(state.hintTimer);
@@ -665,7 +719,7 @@ function showHint(message) {
   state.hintTimer = schedule(() => {
     state.hintTimer = 0;
     dom.hint.classList.remove("show");
-  }, 1300);
+  }, holdMs);
 }
 
 async function completeSafetyRoute() {
@@ -780,13 +834,25 @@ function moveSafetyRoute(direction) {
   }
 
   const cue = safetyCueForEvent(result.event, state.safety.nextFriend);
+  playSafetyCueVoice(cue?.voiceKey ?? null);
   if (!cue) return result.event;
   showHint(cue.message);
-  if (cue.voiceKey) {
-    audio.cancel();
-    void audio.playPrompt(cue.voiceKey);
-  }
   return result.event;
+}
+
+// 같은 안내를 연달아 취소·재생하지 않는다. 감사(2026-08-06): 방향키를 누르고
+// 있거나 연타하면 막힐 때마다 audio.cancel() 후 같은 mp3를 새로 틀어서
+// "먼저 4 친구를 만나고 횡단보도로 가요" 같은 문장이 0.15초만 19번 반복됐다.
+// 잠금은 (1) 재생이 끝나거나 (2) 안내 없는 이동(상황 변화)에서 풀린다 —
+// 그래서 잠시 뒤 다시 막히면 아이는 문장을 처음부터 끝까지 듣는다.
+function playSafetyCueVoice(voiceKey) {
+  const gate = nextSafetyVoice(state.safetyVoiceKey, voiceKey);
+  state.safetyVoiceKey = gate.playingKey;
+  if (!gate.play) return;
+  audio.cancel();
+  void audio.playPrompt(voiceKey).then(() => {
+    if (state.safetyVoiceKey === voiceKey) state.safetyVoiceKey = null;
+  });
 }
 
 const SRT_SPLASH_VOICES = ["srt-arrive", "srt-board", "srt-seat"];
@@ -967,7 +1033,16 @@ function playSubwayReal(key, fallback, nextKey = null) {
 function playStationSound(station, followUpKey = null) {
   const src = stationSoundSrc(station);
   if (!src) {
-    if (followUpKey) void audio.playPrompt(followUpKey);
+    // 실음원이 없는 역은 이름만 TTS로 부른다 — 통과역이 통째로 무음이 되지
+    // 않게(감사 2026-08-06). 가족역은 폴백 키가 없어 예전처럼 조용히 지나간다.
+    const nameKey = stationVoiceKey(station);
+    if (nameKey && followUpKey) {
+      void audio.playPrompt(nameKey).then(() => void audio.playPrompt(followUpKey));
+    } else if (nameKey) {
+      void audio.playPrompt(nameKey);
+    } else if (followUpKey) {
+      void audio.playPrompt(followUpKey);
+    }
     return;
   }
   const playback = audio.playFile(src);
@@ -1348,6 +1423,13 @@ function moveSubway(direction) {
   ) {
     return;
   }
+  // 도착지 사진 단계에서는 같은 조작이 사진 프레임을 움직인다. 키보드 분기는
+  // 위에서 먼저 걸러지지만 화면 패드(pointerdown·클릭)는 여기로만 들어오므로,
+  // 마우스·터치만 쓰는 아이가 사진을 못 찍고 여정이 끝나지 않는 문제를 막는다.
+  if (state.subway.photo && !state.subway.photo.taken) {
+    movePhoto(direction);
+    return;
+  }
   if (state.subway.phase === "arriving" && state.subwayTickMs) {
     // Sync the marker to the wall clock before judging the jump, so the
     // judgement matches what the CSS-animated marker is showing.
@@ -1621,6 +1703,555 @@ function deleteDigit() {
   dom.answer.textContent = state.buffer || "?";
 }
 
+// ── 알록달록 물감 놀이 ────────────────────────────────────────────────────
+
+const PAINT_MIX_VOICES = new Set([
+  "orange", "green", "purple", "pink", "sky", "brown", "navy",
+  "lightyellow", "olive", "gray"
+]);
+
+// 물감을 다 고른 뒤 병이 섞이는 걸 보여주고 자동으로 칠하기까지의 간격.
+// 혼합 낭독(한국어 약 3.2초)이 시작된 뒤라 그림은 문장 끝에 맞춰 차오른다.
+const PAINT_AUTO_MS = 1600;
+
+// 완성한 그림을 보여주는 시간 — 사용자 요청(2026-08-05)으로 1.5초에서 2초 늘렸다.
+// "색이 완성될 때 너무 빨리 지나간다" — 이 게임의 보상 장면이라 넉넉히 둔다.
+const PAINT_HOLD_MS = 3500;
+
+// 색이 어긋났을 때 병에 든 그 색을 이름과 함께 잠깐 더 보여준다(즉시 헹굼 금지).
+const PAINT_MISS_HOLD_MS = 1600;
+
+// 혼합 수식 자막 유지 — 한국어 낭독(약 3.2초)이 끝나고 채색까지 본 뒤 사라진다.
+const PAINT_EQUATION_HOLD_MS = 3400;
+
+// 피날레 화면 최소 체류(완성 그림 3.5초 + 축하 3.7초)와 안전망 상한.
+// 낭독이 먼저 끝나면 최소 체류 시각에, 소리가 없으면 상한에서 홈으로 간다.
+const PAINT_FINALE_FLOOR_MS = PAINT_HOLD_MS + 3700;
+const PAINT_FINALE_LIMIT_MS = 15000;
+
+function leavePaintFinale(round) {
+  if (state.round !== round || state.phase !== "celebrating") return;
+  const remain = PAINT_FINALE_FLOOR_MS -
+    (performance.now() - (state.paintFinaleAt || 0));
+  if (remain > 0) {
+    schedule(() => leavePaintFinale(round), remain);
+    return;
+  }
+  goHome();
+}
+
+// 물감 놀이 낭독 줄 세우기 — 혼합 문장("빨강과 노랑을 섞으면 주황!")이
+// 이 게임 학습의 본체라 끝까지 들려주고, 그 다음 문장을 이어 붙인다.
+let paintVoice = Promise.resolve(true);
+let paintVoiceSeq = 0;
+
+function speakPaint(key) {
+  paintVoiceSeq += 1;
+  const seq = paintVoiceSeq;
+  paintVoice = audio.playPrompt(key).then(() => seq === paintVoiceSeq);
+  return paintVoice;
+}
+
+// 앞 문장이 끝나면(중간에 다른 낭독이 끼어들지 않았을 때만) 이어서 실행.
+function afterPaintVoice(round, run) {
+  void paintVoice.then(fresh => {
+    if (fresh && state.round === round && state.paint) run();
+  });
+}
+
+// 현재 라운드 주문을 낭독한다 — 색 이름 호명이 이 게임 학습의 절반.
+function playPaintOrder() {
+  const subject = currentPaintSubject(state.paint ?? {});
+  if (subject) speakPaint(`paint-order-${subject.id}`);
+}
+
+function paintOrderCaption() {
+  const round = currentPaintRound(state.paint);
+  if (!round) return "🎨 알록달록 물감 놀이";
+  const color = PAINT_COLORS[round.colorId].ko;
+  return `🎨 ${color}${josa(color, "을", "를")} 만들어 칠해요!`;
+}
+
+function refreshPaintScene() {
+  if (!state.paint || !state.paintScene) return;
+  updatePaintPlay(state.paintScene, state.paint, document);
+}
+
+function startPaintPlay() {
+  stopSafetyHold();
+  clearTimers();
+  audio.cancel();
+  state.round += 1;
+  state.problem = null;
+  state.buffer = "";
+  const seed = Math.floor(Math.random() * 0x100000000);
+  state.paint = createPaintPlay(state.difficulty, seed);
+  state.paintBusy = false;
+  state.paintScene = renderPaintPlay(document, state.paint);
+  dom.stage.setAttribute("aria-live", "off");
+  dom.stage.replaceChildren(state.paintScene);
+  dom.problem.textContent = paintOrderCaption();
+  dom.cheer.classList.remove("show");
+  dom.hint.className = "toast";
+  dom.hint.textContent = "";
+  setPhase("playing");
+  audio.playSfx("win");
+  showHint("물감을 고르면 저절로 섞여요! ← → 로 고르고 ⎵");
+  audio.cancel();
+  const introRound = state.round;
+  speakPaint("paint-intro");
+  afterPaintVoice(introRound, playPaintOrder);
+}
+
+// 성공·불일치·혼합 이벤트를 소리·자막·연출로 옮긴다.
+// 수식 낭독("빨강과 노랑을 섞으면 주황!")이 학습의 핵심 채널이다.
+function handlePaintEvents(events) {
+  if (!state.paint) return;
+  const round = state.round;
+  // 마지막 라운드는 성공 배너를 지우지 않는다 — 곧바로 피날레 문구가 들어온다
+  const hasFinale = events.some(event => event.type === "finale");
+  for (const event of events) {
+    if (event.type === "squeeze") {
+      audio.playSfx("pop");
+    } else if (event.type === "locked") {
+      audio.playSfx("key");
+      if (event.reason === "same-color") {
+        const already = PAINT_COLORS[event.color].ko;
+        showHint(`${already}${josa(already, "은", "는")} 이미 담았어요! 다른 색을 골라 봐요`);
+      } else {
+        showHint("잠깐만요, 색을 섞는 중이에요!");
+      }
+    } else if (event.type === "mixed") {
+      // 혼합 순간이 학습의 본체 — 수식 자막 + 색 이름 낭독을 먼저 깔고,
+      // 칠하기는 PAINT_AUTO_MS 뒤 저절로 이어진다(확인 버튼 없음).
+      audio.playSfx("win");
+      const equation = state.paint ? paintEquationText() : "";
+      // 자막을 채색(1.6초 뒤)과 낭독(약 3.2초)이 끝날 때까지 붙잡는다 —
+      // 글자·소리·그림 세 채널이 같은 문장을 동시에 전한다.
+      if (equation) showHint(equation, PAINT_EQUATION_HOLD_MS);
+      audio.cancel();
+      speakPaint(
+        PAINT_MIX_VOICES.has(event.color)
+          ? `paint-mix-${event.color}`
+          : `paint-made-${event.color}`
+      );
+    } else if (event.type === "rinsed") {
+      audio.playSfx("key");
+    } else if (event.type === "mismatch") {
+      // 색 이름은 방금 혼합 낭독이 말했다 — 여기선 격려만 이어 붙인다.
+      const made = PAINT_COLORS[event.color].ko;
+      const wanted = PAINT_COLORS[event.wantedColor].ko;
+      const retryKey = `retry-${Math.min(state.paint.tries, 3)}`;
+      afterPaintVoice(round, () => playRetryCue(audio, retryKey));
+      showHint(`우와, ${made}${josa(made, "이", "가")} 됐네! 이번엔 ${wanted}${josa(wanted, "을", "를")} 만들어 보자`);
+    } else if (event.type === "success") {
+      state.stars += 1;
+      dom.stars.textContent = String(state.stars);
+      audio.playSfx("win");
+      const parts = event.equation;
+      dom.cheer.textContent = parts.b
+        ? `${parts.a} + ${parts.b} = ${parts.result}!`
+        : `${parts.result} 완성!`;
+      dom.cheer.classList.add("show");
+      if (!hasFinale) {
+        schedule(() => {
+          if (state.round === round) dom.cheer.classList.remove("show");
+        }, PAINT_HOLD_MS - 500);
+      }
+    } else if (event.type === "finale") {
+      setPhase("celebrating");
+      audio.playSfx("win");
+      dom.cheer.textContent = event.rainbow
+        ? "🌈 무지개 화가 탄생!"
+        : "오늘의 그림을 다 그렸어요!";
+      dom.cheer.classList.add("show");
+      // 마지막 라운드의 혼합 문장을 끊지 않는다 — 그게 이 게임의 학습 문장이다.
+      // 문장이 끝나면 피날레를 이어 붙이고, 홈 복귀는 피날레 낭독이 끝난 뒤
+      // (최소 체류 시간은 지키고, 소리가 없으면 안전망 타이머가 데려간다).
+      state.paintFinaleAt = performance.now();
+      afterPaintVoice(round, () => {
+        void speakPaint(event.rainbow ? "paint-rainbow" : "paint-finale")
+          .then(fresh => {
+            if (fresh) leavePaintFinale(round);
+          });
+      });
+      schedule(() => leavePaintFinale(round), PAINT_FINALE_LIMIT_MS);
+    }
+  }
+  // 성공 순간엔 칠해진 그림을 PAINT_HOLD_MS 동안 붙잡은 뒤 다음 라운드로 —
+  // "내가 만든 색으로 칠했다"가 이 게임의 핵심 보상이다.
+  const success = events.find(event => event.type === "success");
+  if (success) {
+    const canvas = state.paintScene?.querySelector?.(".pp-canvas");
+    if (canvas) paintCanvasNode(canvas, PAINT_COLORS[success.color].hex);
+    state.paintBusy = true;
+    schedule(() => {
+      state.paintBusy = false;
+      if (state.round !== round || !state.paint) return;
+      dom.problem.textContent = paintOrderCaption();
+      refreshPaintScene();
+      // 다음 주문은 혼합 문장이 끝난 뒤에 — 두 낭독이 겹치지 않게 한다.
+      if (!state.paint.finale) afterPaintVoice(round, playPaintOrder);
+    }, PAINT_HOLD_MS);
+    return;
+  }
+
+  // 어긋난 색도 이름을 부르는 동안 병에 그대로 남긴다 — 모델은 이미 헹궜지만
+  // 다시 그리지 않으면 화면에는 방금 만든 색이 남는다.
+  if (events.some(event => event.type === "mismatch")) {
+    state.paintBusy = true;
+    schedule(() => {
+      state.paintBusy = false;
+      if (state.round !== round || !state.paint) return;
+      dom.problem.textContent = paintOrderCaption();
+      refreshPaintScene();
+    }, PAINT_MISS_HOLD_MS);
+    return;
+  }
+
+  if (state.paint) dom.problem.textContent = paintOrderCaption();
+  refreshPaintScene();
+
+  // 색이 섞였으면 확인 버튼 없이 그대로 칠한다(사용자 결정 2026-08-05).
+  // 연출이 끝날 때까지 입력을 잠가 도중에 헹궈지거나 겹치지 않게 한다.
+  if (events.some(event => event.type === "mixed")) {
+    state.paintBusy = true;
+    schedule(() => {
+      state.paintBusy = false;
+      if (state.round !== round || !state.paint) return;
+      handlePaintEvents(paintPlayCanvas(state.paint));
+    }, PAINT_AUTO_MS);
+  }
+}
+
+// 혼합 완료 자막 — "빨강과 노랑을 섞으면 주황!" (수식 학습의 문장형)
+function paintEquationText() {
+  const parts = paintEquationFor(state.paint);
+  if (!parts?.result) return "";
+  return parts.b
+    ? `${parts.a}${josa(parts.a, "과", "와")} ${parts.b}${josa(parts.b, "을", "를")} 섞으면 ${parts.result}!`
+    : `${parts.result} 물감이 준비됐어요!`;
+}
+
+// ⎵ 실행 — 0..4 튜브 고르기, 5 헹구기. 섞기·칠하기는 자동이라 버튼이 없다.
+function activatePaintFocus() {
+  if (!state.paint || state.paintBusy) return;
+  const index = state.paint.focusIndex;
+  if (index < PAINT_TUBES.length) {
+    handlePaintEvents(paintSqueezeTube(state.paint, PAINT_TUBES[index].id));
+    return;
+  }
+  handlePaintEvents(paintRinseJar(state.paint));
+}
+
+/* ── 택배 왔어요! ─────────────────────────────────────────────────────
+   네 단계(운전 → 엘리베이터 → 호수 찾기 → 전달)를 모델이 판정하고, 여기서는
+   그 이벤트를 소리·자막·연출로 옮긴다. 벌점은 어디에도 없다 — 틀리면 다시
+   알려 주고 다시 시킨다. 연출 중에는 deliveryBusy 로 입력을 잠근다. */
+
+const DRIVE_STEP_MS = 420;      // 한 칸 굴러가는 시간
+const DELIVERY_ARRIVE_MS = 1000; // 도착 여운
+const DELIVERY_HANDOFF_MS = 1400; // 전달 성공 여운
+
+// 조작할 때마다 씬을 통째로 갈아 끼우므로, 누르고 있던 버튼과 같은 버튼에
+// 포커스를 되돌려 준다. 안 그러면 키보드 사용자의 포커스가 매번 사라진다.
+const DELIVERY_FOCUS_KEYS = ["dvDir", "dvGo", "dvFloor", "dvBell", "dvMove", "dvClear", "dvHome"];
+
+function deliveryFocusMark() {
+  const active = document.activeElement;
+  if (!active || !dom.stage.contains(active)) return null;
+  const key = DELIVERY_FOCUS_KEYS.find(name => active.dataset?.[name] !== undefined);
+  return key ? { key, value: active.dataset[key] } : null;
+}
+
+function restoreDeliveryFocus(mark) {
+  if (!mark) return;
+  const attribute = mark.key.replace(/[A-Z]/g, letter => `-${letter.toLowerCase()}`);
+  const next = dom.stage.querySelector(`[data-${attribute}="${mark.value}"]`);
+  if (next) next.focus();
+}
+
+function refreshDeliveryScene() {
+  if (!state.delivery) return;
+  const mark = deliveryFocusMark();
+  state.deliveryScene = renderDelivery(document, state.delivery);
+  dom.stage.replaceChildren(state.deliveryScene);
+  dom.problem.textContent = deliveryCaption(state.delivery);
+  restoreDeliveryFocus(mark);
+}
+
+// 모델은 이미 다음 단계로 넘어가 있을 수 있다. 연출을 위해 잠시 이전 단계 화면을 그린다.
+function renderDeliveryAs(phase) {
+  const model = state.delivery;
+  if (!model) return;
+  const real = model.phase;
+  model.phase = phase;
+  refreshDeliveryScene();
+  model.phase = real;
+}
+
+function holdDelivery(delayMs) {
+  const round = state.round;
+  state.deliveryBusy = true;
+  schedule(() => {
+    if (state.round !== round || state.mode !== "delivery" || !state.delivery) return;
+    state.deliveryBusy = false;
+    refreshDeliveryScene();
+  }, delayMs);
+}
+
+function startDeliveryRun() {
+  stopSafetyHold();
+  clearTimers();
+  audio.cancel();
+  state.round += 1;
+  state.problem = null;
+  state.buffer = "";
+  const seed = Math.floor(Math.random() * 0x100000000);
+  state.delivery = createDelivery(state.difficulty, seed);
+  state.deliveryBusy = false;
+  dom.stage.setAttribute("aria-live", "off");
+  refreshDeliveryScene();
+  dom.cheer.classList.remove("show");
+  dom.hint.className = "toast";
+  dom.hint.textContent = "";
+  setPhase("playing");
+  audio.playSfx("win");
+  void audio.playPrompt("delivery-intro");
+  showHint(`${state.delivery.order.unit}호로 택배를 배달해요!`, 2200);
+}
+
+// 쌓아 둔 명령을 한 칸씩 굴린다. 판정은 모델이 이미 끝냈고 여기선 보여 주기만 한다.
+function animateDrive(path, onDone) {
+  const model = state.delivery;
+  const round = state.round;
+  const finalCell = { ...model.drive.truck };
+  const finalFacing = model.drive.facing;
+  let index = 0;
+
+  state.deliveryBusy = true;
+
+  const step = () => {
+    if (state.round !== round || state.mode !== "delivery" || !state.delivery) return;
+    if (index >= path.length) {
+      model.drive.truck = finalCell;
+      model.drive.facing = finalFacing;
+      renderDeliveryAs("drive");
+      onDone();
+      return;
+    }
+    const point = path[index];
+    index += 1;
+    model.drive.truck = { x: point.x, y: point.y };
+    model.drive.facing = point.facing;
+    renderDeliveryAs("drive");
+    audio.playSfx("pop");
+    schedule(step, DRIVE_STEP_MS);
+  };
+
+  // 움직임을 줄이겠다고 한 기기에서는 칸칸이 굴리지 않고 도착 자리만 보여 준다.
+  if (path.length === 0 || prefersReducedMotion()) {
+    model.drive.truck = finalCell;
+    model.drive.facing = finalFacing;
+    renderDeliveryAs("drive");
+    onDone();
+    return;
+  }
+  step();
+}
+
+function finishDrive(events) {
+  const arrived = events.find(event => event.type === "drive-arrived");
+  if (arrived) {
+    audio.playSfx("win");
+    void audio.playPrompt("delivery-arrive");
+    showHint(`${arrived.unit}호에 도착! 이제 ${arrived.floor}층으로 올라가요.`, 2000);
+    holdDelivery(DELIVERY_ARRIVE_MS);
+    return;
+  }
+
+  state.deliveryBusy = false;
+  const miss = events.find(event => event.type === "drive-miss");
+  if (miss) {
+    audio.playSfx("pop");
+    void audio.playPrompt("delivery-wrong-house");
+    showHint(`여기는 ${miss.unit}호예요. 목표는 ${miss.want}호!`, 1900);
+    return;
+  }
+  if (events.some(event => event.type === "drive-blocked")) {
+    audio.playSfx("pop");
+    void audio.playPrompt("delivery-blocked");
+    showHint("그쪽은 길이 아니에요. 다시 만들어 봐요!", 1800);
+    return;
+  }
+  showHint("집 앞까지 가 볼까요?", 1600);
+}
+
+function handleDeliveryEvents(events) {
+  if (events.length === 0) return;
+
+  const path = events.find(event => event.type === "drive-path");
+  if (path) {
+    animateDrive(path.path, () => finishDrive(events));
+    return;
+  }
+
+  for (const event of events) {
+    switch (event.type) {
+      case "command-added":
+        audio.playSfx("key");
+        break;
+      case "command-cleared":
+        audio.playSfx("pop");
+        break;
+      case "command-full":
+        audio.playSfx("pop");
+        showHint("명령은 네 칸까지 담을 수 있어요.", 1500);
+        break;
+      case "command-empty":
+        audio.playSfx("pop");
+        showHint("방향 버튼으로 길을 먼저 만들어요!", 1600);
+        break;
+      case "floor-wrong":
+        audio.playSfx("pop");
+        void audio.playPrompt("delivery-floor-wrong");
+        showHint(`${event.digit}층이 아니에요. ${event.target}층을 눌러요!`, 1900);
+        break;
+      case "elevator-arrived":
+        audio.playSfx("door");
+        void audio.playPrompt("delivery-floor-ok");
+        showHint(`${event.to}층이에요! 문이 열려요.`, 1800);
+        break;
+      case "corridor-focus":
+        audio.playSfx("key");
+        showHint(`${event.unit}호 문`, 900);
+        break;
+      case "corridor-edge":
+      case "tray-edge":
+        audio.playSfx("pop");
+        break;
+      case "corridor-wrong":
+        audio.playSfx("bell");
+        void audio.playPrompt("delivery-door-wrong");
+        showHint(`여기는 ${event.unit}호예요. ${event.want}호를 찾아요!`, 1900);
+        break;
+      case "corridor-correct": {
+        audio.playSfx("bell");
+        const asked = parcelById(state.delivery.order.parcel);
+        const askedRound = state.round;
+        const askedUnit = state.delivery.order.unit;
+        void audio.playPrompt("delivery-bell").then(() => {
+          // 낭독이 끝났을 때 이미 다음 배송으로 넘어갔다면 이어 읽지 않는다.
+          const still = state.mode === "delivery" && state.round === askedRound &&
+            state.delivery?.order.unit === askedUnit;
+          if (still && asked) void audio.playPrompt(`delivery-parcel-${asked.id}`);
+        });
+        showHint("딩동! 문이 열려요.", 1600);
+        break;
+      }
+      case "tray-focus": {
+        audio.playSfx("key");
+        const picked = parcelById(event.parcel);
+        if (picked) showHint(picked.label, 900);
+        break;
+      }
+      case "parcel-wrong": {
+        const wanted = parcelById(event.want);
+        audio.playSfx("pop");
+        void audio.playPrompt("delivery-parcel-wrong");
+        showHint(`친구는 ${wanted ? wanted.label : "다른 물건"}를 기다려요!`, 2000);
+        break;
+      }
+      case "parcel-correct":
+        audio.playSfx("win");
+        void audio.playPrompt("delivery-parcel-ok");
+        break;
+      case "delivered":
+        state.stars += 1;
+        dom.stars.textContent = String(state.stars);
+        showHint(`고마워요! 택배 ${event.delivered}개 전달했어요.`, 2000);
+        break;
+      case "next-order":
+        showHint(`다음은 ${event.unit}호예요!`, 2000);
+        void audio.playPrompt("delivery-intro");
+        break;
+      case "finale":
+        audio.playSfx("jingle");
+        void audio.playPrompt("delivery-finale");
+        break;
+      default:
+        break;
+    }
+  }
+
+  // 초인종·전달 성공은 그 장면을 잠깐 남겨 둔다. 나머지는 곧바로 새로 그린다.
+  if (events.some(event => event.type === "corridor-correct")) {
+    holdDelivery(DELIVERY_ARRIVE_MS);
+    return;
+  }
+  if (events.some(event => event.type === "parcel-correct")) {
+    holdDelivery(DELIVERY_HANDOFF_MS);
+    return;
+  }
+  if (events.some(event => event.type === "elevator-arrived")) {
+    renderDeliveryAs("elevator");
+    holdDelivery(DELIVERY_ARRIVE_MS);
+    return;
+  }
+  refreshDeliveryScene();
+}
+
+function deliveryActionable() {
+  return state.phase === "playing" && state.mode === "delivery" &&
+    Boolean(state.delivery) && !state.deliveryBusy;
+}
+
+function deliveryPush(direction) {
+  if (!deliveryActionable()) return;
+  handleDeliveryEvents(pushDeliveryCommand(state.delivery, direction));
+}
+
+function deliveryGo() {
+  if (!deliveryActionable()) return;
+  if (state.delivery.drive.queue.length > 0) void audio.playPrompt("delivery-go");
+  handleDeliveryEvents(runDeliveryCommands(state.delivery));
+}
+
+function deliveryClear() {
+  if (!deliveryActionable()) return;
+  handleDeliveryEvents(clearDeliveryCommands(state.delivery));
+}
+
+function deliveryFloor(digit) {
+  if (!deliveryActionable()) return;
+  handleDeliveryEvents(pressFloor(state.delivery, digit));
+}
+
+function deliveryMove(delta) {
+  if (!deliveryActionable()) return;
+  const model = state.delivery;
+  if (model.phase === "corridor") {
+    handleDeliveryEvents(moveCorridorFocus(model, delta));
+  } else if (model.phase === "handover") {
+    handleDeliveryEvents(moveTrayFocus(model, delta));
+  }
+}
+
+function deliveryBell() {
+  if (!deliveryActionable()) return;
+  const model = state.delivery;
+  if (model.phase === "corridor") {
+    handleDeliveryEvents(ringDeliveryBell(model));
+  } else if (model.phase === "handover") {
+    handleDeliveryEvents(deliverParcel(model));
+  } else if (model.phase === "elevator") {
+    audio.playSfx("bell");
+    showHint(`${model.elevator.target}층 버튼을 눌러요!`, 1600);
+  } else if (model.phase === "finale") {
+    goHome();
+  }
+}
+
 function startMode(mode) {
   if (!isModeAvailable(mode, state.difficulty)) {
     showHint("도전에서는 더하기, 빼기와 곱하기를 해요.");
@@ -1636,6 +2267,12 @@ function startMode(mode) {
   state.ktx = null;
   state.ktxScene = null;
   state.ktxPicking = false;
+  state.paint = null;
+  state.paintScene = null;
+  state.paintBusy = false;
+  state.delivery = null;
+  state.deliveryScene = null;
+  state.deliveryBusy = false;
   if (mode === "safety") {
     startSafetyRoute();
   } else if (mode === "subway") {
@@ -1646,6 +2283,14 @@ function startMode(mode) {
     state.safety = null;
     state.safetyView = null;
     startKtxPicker();
+  } else if (mode === "paint") {
+    state.safety = null;
+    state.safetyView = null;
+    startPaintPlay();
+  } else if (mode === "delivery") {
+    state.safety = null;
+    state.safetyView = null;
+    startDeliveryRun();
   } else {
     state.safety = null;
     state.safetyView = null;
@@ -1665,6 +2310,7 @@ function goHome() {
   state.problem = null;
   state.safety = null;
   state.safetyView = null;
+  state.safetyVoiceKey = null;
   state.srt = null;
   state.srtScene = null;
   state.subway = null;
@@ -1674,6 +2320,12 @@ function goHome() {
   state.ktxScene = null;
   state.ktxPicking = false;
   state.ktxHeld = { up: false, down: false };
+  state.paint = null;
+  state.paintScene = null;
+  state.paintBusy = false;
+  state.delivery = null;
+  state.deliveryScene = null;
+  state.deliveryBusy = false;
   dom.stage.setAttribute("aria-live", "polite");
   state.buffer = "";
   setMode(null);
@@ -1738,6 +2390,44 @@ document.addEventListener("keyup", event => {
 });
 
 dom.stage.addEventListener("click", event => {
+  // 택배 왔어요! — 방향·출발·층·벨·좌우 버튼을 한자리에서 받는다.
+  if (state.mode === "delivery" && state.delivery && state.phase === "playing" &&
+      !state.deliveryBusy) {
+    const control = event.target.closest(
+      "[data-dv-dir],[data-dv-go],[data-dv-floor],[data-dv-bell],[data-dv-move]," +
+      "[data-dv-clear],[data-dv-home]"
+    );
+    if (control) {
+      const data = control.dataset;
+      if (data.dvDir) deliveryPush(data.dvDir);
+      else if (data.dvGo) deliveryGo();
+      else if (data.dvFloor) deliveryFloor(Number(data.dvFloor));
+      else if (data.dvMove) deliveryMove(Number(data.dvMove));
+      else if (data.dvClear) deliveryClear();
+      else if (data.dvHome) goHome();
+      else if (data.dvBell) deliveryBell();
+      return;
+    }
+  }
+  if (state.mode === "paint" && state.paint && state.phase === "playing" &&
+      !state.paintBusy) {
+    const tubeButton = event.target.closest(".pp-tube");
+    if (tubeButton) {
+      const index = PAINT_TUBES.findIndex(
+        entry => entry.id === tubeButton.dataset.tube
+      );
+      if (index >= 0) {
+        state.paint.focusIndex = index;
+        handlePaintEvents(paintSqueezeTube(state.paint, tubeButton.dataset.tube));
+      }
+      return;
+    }
+    if (event.target.closest(".pp-rinse")) {
+      state.paint.focusIndex = PAINT_TUBES.length;
+      handlePaintEvents(paintRinseJar(state.paint));
+      return;
+    }
+  }
   const branchChoice = event.target.closest(".ktx-branch-choice");
   if (branchChoice && state.mode === "ktx" && state.ktx?.phase === "branch") {
     const picked = selectKtxRoute(state.ktx, branchChoice.dataset.route);
@@ -1803,6 +2493,134 @@ document.addEventListener("keydown", event => {
     if (!event.repeat) {
       audio.playSfx("key");
       startFamilyLine();
+    }
+    return;
+  }
+
+  // 물감 놀이 — ←/→ 포커스, ⎵ 고르기, 숫자키 = 튜브. 섞기·칠하기는 자동.
+  if (state.phase === "playing" && state.mode === "paint" && state.paint) {
+    // 자동 혼합·채색 연출 중엔 조작 키를 먹는다(Esc는 위에서 이미 처리)
+    if (state.paintBusy) {
+      if (event.key === " " || event.key === "Spacebar" ||
+          event.key === "Enter" || event.key === "ArrowLeft" ||
+          event.key === "ArrowRight" || /^[0-9]$/.test(event.key)) {
+        event.preventDefault();
+      }
+      return;
+    }
+    if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
+      event.preventDefault();
+      if (!event.repeat) {
+        movePaintFocus(state.paint, event.key === "ArrowRight" ? 1 : -1);
+        audio.playSfx("key");
+        refreshPaintScene();
+      }
+      return;
+    }
+    if (event.key === " " || event.key === "Spacebar" || event.key === "Enter") {
+      event.preventDefault();
+      if (!event.repeat) activatePaintFocus();
+      return;
+    }
+    if (/^[0-9]$/.test(event.key)) {
+      event.preventDefault();
+      if (event.repeat) return;
+      const tube = PAINT_TUBES.find(entry => entry.keyDigit === event.key);
+      if (tube) {
+        const index = PAINT_TUBES.indexOf(tube);
+        state.paint.focusIndex = index;
+        handlePaintEvents(paintSqueezeTube(state.paint, tube.id));
+      } else {
+        audio.playSfx("pop");
+      }
+      return;
+    }
+    return;
+  }
+
+  // 택배 왔어요! — 단계마다 쓰는 키가 다르다. 새 키는 없다(숫자·화살표·Space·Esc).
+  if (state.phase === "playing" && state.mode === "delivery" && state.delivery) {
+    // 버튼에 포커스가 있으면 브라우저가 눌러 주게 둔다 — 여기서 가로채면
+    // HUD 의 처음·소리 버튼까지 키보드로 못 누르게 된다.
+    const onButton = typeof event.target?.closest === "function" &&
+      Boolean(event.target.closest("button"));
+    const isSpace = !onButton &&
+      (event.key === " " || event.key === "Spacebar" || event.key === "Enter");
+    const isDigit = /^[0-9]$/.test(event.key);
+    const direction = directionForKey(event.key);
+
+    // 연출 중에는 조작 키를 먹는다(Esc는 위에서 이미 처리했다).
+    if (state.deliveryBusy) {
+      if (isSpace || isDigit || direction) event.preventDefault();
+      return;
+    }
+
+    const model = state.delivery;
+
+    if (model.phase === "drive") {
+      if (direction) {
+        event.preventDefault();
+        if (!event.repeat) deliveryPush(direction);
+        return;
+      }
+      if (isSpace) {
+        event.preventDefault();
+        if (!event.repeat) deliveryGo();
+        return;
+      }
+      if (event.key === "Backspace") {
+        event.preventDefault();
+        if (!event.repeat) deliveryClear();
+        return;
+      }
+      if (isDigit) {
+        event.preventDefault();
+        audio.playSfx("pop");
+      }
+      return;
+    }
+
+    if (model.phase === "elevator") {
+      if (/^[1-9]$/.test(event.key)) {
+        event.preventDefault();
+        if (!event.repeat) deliveryFloor(Number(event.key));
+        return;
+      }
+      if (isSpace) {
+        event.preventDefault();
+        if (!event.repeat) deliveryBell();
+        return;
+      }
+      if (isDigit || direction || event.key === "Backspace") event.preventDefault();
+      return;
+    }
+
+    if (model.phase === "corridor" || model.phase === "handover") {
+      if (direction === "left" || direction === "right") {
+        event.preventDefault();
+        if (!event.repeat) deliveryMove(direction === "right" ? 1 : -1);
+        return;
+      }
+      if (isSpace) {
+        event.preventDefault();
+        if (!event.repeat) deliveryBell();
+        return;
+      }
+      if (isDigit || direction || event.key === "Backspace") {
+        event.preventDefault();
+        audio.playSfx("pop");
+      }
+      return;
+    }
+
+    if (model.phase === "finale") {
+      if (isSpace) {
+        event.preventDefault();
+        if (!event.repeat) goHome();
+        return;
+      }
+      if (isDigit || direction || event.key === "Backspace") event.preventDefault();
+      return;
     }
     return;
   }

@@ -1,0 +1,255 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>목업 STEP 4 — 문 앞 전달 (전달 순간)</title>
+<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="delivery-shared.css">
+<style>
+  /* 무대 위에 얹히는 "받는 친구" 카드 — 레퍼런스의 좌상단 작은 카드 */
+  .dv-who {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    z-index: 2;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    padding: 6px 13px 8px;
+    border-radius: 16px;
+    border: 4px solid #fff;
+    background: rgba(255, 253, 246, .97);
+    box-shadow: 0 4px 0 rgba(37, 52, 93, .2);
+  }
+  .dv-who span {
+    font-family: var(--display-font);
+    font-size: clamp(11px, 1.2vw, 14px);
+    color: var(--ink-soft);
+  }
+  .dv-who b {
+    font-family: var(--display-font);
+    font-size: clamp(17px, 2vw, 26px);
+    font-weight: 900;
+    color: #e07a12;
+  }
+
+  /* 컨베이어 앞 조작 버튼 */
+  .dv-controls {
+    position: absolute;
+    left: 42%;
+    bottom: 7px;
+    transform: translateX(-50%);
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+  .dv-controls .dv-key { min-width: 56px; min-height: 44px; }
+  .dv-controls .dv-key-bell { min-width: 56px; min-height: 56px; border-radius: 50%; font-size: 24px; }
+
+  /* 조작 방법 카드 */
+  .dv-howto { display: flex; flex-direction: column; gap: 8px; width: 100%; }
+  .dv-howto-row { display: flex; align-items: center; justify-content: center; gap: 8px; }
+  .dv-howto-row .dv-key { min-width: 40px; min-height: 40px; font-size: clamp(14px, 1.6vw, 19px); }
+  .dv-howto-row .dv-key.is-space { min-width: 80px; border-radius: 12px; font-size: clamp(12px, 1.3vw, 16px); }
+  .dv-howto-row em {
+    font-style: normal;
+    font-family: var(--display-font);
+    font-size: clamp(11px, 1.25vw, 15px);
+    color: var(--ink-soft);
+  }
+
+  /* 전달한 수 진행 점 */
+  .dv-dots { display: flex; align-items: center; gap: 6px; }
+  .dv-dots i { width: 9px; height: 9px; border-radius: 50%; background: #cfd8e2; display: block; }
+  .dv-dots span { font-size: 17px; }
+</style>
+</head>
+<body class="dv-mock">
+
+<p class="mock-note"><b>목업 STEP 4 — 문 앞 전달(전달 순간).</b> 문이 열리면 친구가 <b>어떤 물건을 기다렸는지</b> 말한다. 컨베이어의 상자 3개는 과일·화장품·장난감이고,
+<b>←/→로 고르고 Space로 건넨다</b>(복도와 같은 키, 새 키 0개). 틀려도 벌점 없이 친구가 다시 알려 준다.</p>
+
+<div class="dv-frame">
+
+  <header class="dv-head">
+    <span class="dv-step">4</span>
+    <span class="dv-stepname">문 앞 전달 (전달 순간)</span>
+    <p class="dv-headline">올바른 물건을 골라 전달해요!</p>
+    <span class="dv-chip dv-chip-star">⭐ <b>0</b></span>
+  </header>
+
+  <div class="dv-body" data-cols="2">
+
+    <div class="dv-stage">
+      <div class="dv-who"><span>받는 친구</span><b>702호</b></div>
+
+      <svg viewBox="0 0 1100 460" preserveAspectRatio="xMidYMid slice" role="img"
+           aria-label="702호 문이 열리고 빨간 숫자블록 친구가 과일 상자를 기다린다고 말해요. 앞에는 과일, 화장품, 장난감 상자가 놓여 있어요.">
+        <defs>
+          <linearGradient id="wallH" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#f0dcb6"/><stop offset="1" stop-color="#ddc59a"/>
+          </linearGradient>
+          <linearGradient id="floorH" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#d7c098"/><stop offset="1" stop-color="#bda379"/>
+          </linearGradient>
+          <linearGradient id="roomH" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#f8e2b2"/><stop offset="1" stop-color="#c99a63"/>
+          </linearGradient>
+          <linearGradient id="doorH" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0" stop-color="#a06a34"/><stop offset="1" stop-color="#78471f"/>
+          </linearGradient>
+          <linearGradient id="crateH" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#f2dfb8"/><stop offset="1" stop-color="#d8ba86"/>
+          </linearGradient>
+          <linearGradient id="beltH" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#8d98a4"/><stop offset="1" stop-color="#5b6672"/>
+          </linearGradient>
+          <filter id="pickGlow" x="-45%" y="-45%" width="190%" height="190%">
+            <feDropShadow dx="0" dy="0" stdDeviation="12" flood-color="#ffcc3d" flood-opacity="1"/>
+          </filter>
+        </defs>
+
+        <rect width="1100" height="460" fill="url(#wallH)"/>
+        <rect x="0" y="0" width="1100" height="14" fill="#e2cba2"/>
+        <line x1="0" y1="104" x2="1100" y2="104" stroke="#dcc59c" stroke-width="3" opacity=".8"/>
+
+        <!-- 바닥 -->
+        <rect x="0" y="338" width="1100" height="122" fill="url(#floorH)"/>
+        <g stroke="#ab9268" stroke-width="2.5" opacity=".55">
+          <line x1="0" y1="386" x2="1100" y2="386"/><line x1="0" y1="428" x2="1100" y2="428"/>
+          <line x1="150" y1="338" x2="110" y2="460"/><line x1="420" y1="338" x2="400" y2="460"/>
+          <line x1="690" y1="338" x2="720" y2="460"/><line x1="950" y1="338" x2="1010" y2="460"/>
+        </g>
+
+        <!-- 열린 문 · 집 안 -->
+        <g>
+          <rect x="100" y="52" width="252" height="286" rx="8" fill="#68401f"/>
+          <rect x="112" y="62" width="228" height="276" fill="url(#roomH)"/>
+          <polygon points="112,62 340,62 296,128 158,128" fill="#fff2cf" opacity=".55"/>
+          <rect x="152" y="168" width="44" height="62" rx="6" fill="#b98a56" opacity=".5"/>
+          <rect x="248" y="168" width="44" height="62" rx="6" fill="#b98a56" opacity=".42"/>
+          <polygon points="112,338 340,338 402,460 50,460" fill="#ffeec4" opacity=".36"/>
+          <!-- 열린 문짝 -->
+          <polygon points="100,52 12,84 12,372 100,338" fill="url(#doorH)" stroke="#5f3d1c" stroke-width="4" stroke-linejoin="round"/>
+          <polygon points="28,118 86,98 86,200 28,214" fill="none" stroke="#5f3d1c" stroke-width="4"/>
+          <polygon points="28,240 86,228 86,322 28,332" fill="none" stroke="#5f3d1c" stroke-width="4"/>
+          <circle cx="92" cy="226" r="8" fill="#e8bb4f" stroke="#b8892a" stroke-width="3"/>
+          <!-- 호수 문패 -->
+          <rect x="248" y="12" width="106" height="34" rx="9" fill="#fffaea" stroke="#e0b45c" stroke-width="3.5"/>
+          <text x="301" y="38" text-anchor="middle" font-size="23" font-weight="900" fill="#c8791b">702</text>
+        </g>
+
+        <!-- 받는 친구(빨강 숫자블록) -->
+        <g transform="translate(890,338)">
+          <ellipse cx="0" cy="6" rx="62" ry="13" fill="#8a7047" opacity=".4"/>
+          <rect x="-24" y="-30" width="14" height="34" rx="7" fill="#3f4a5a"/>
+          <rect x="10" y="-30" width="14" height="34" rx="7" fill="#3f4a5a"/>
+          <rect x="-46" y="-112" width="92" height="86" rx="11" fill="#f4544a" stroke="#cd382f" stroke-width="4"/>
+          <rect x="-46" y="-198" width="92" height="90" rx="11" fill="#f4544a" stroke="#cd382f" stroke-width="4"/>
+          <path d="M46,-172 q38,-8 48,-46" stroke="#3f4a5a" stroke-width="13" fill="none" stroke-linecap="round"/>
+          <path d="M-46,-160 q-30,10 -32,38" stroke="#3f4a5a" stroke-width="13" fill="none" stroke-linecap="round"/>
+          <g>
+            <ellipse cx="-17" cy="-162" rx="15" ry="17" fill="#fff" stroke="#3f4a5a" stroke-width="4"/>
+            <ellipse cx="17" cy="-162" rx="15" ry="17" fill="#fff" stroke="#3f4a5a" stroke-width="4"/>
+            <circle cx="-14" cy="-160" r="6.5" fill="#1f2733"/><circle cx="20" cy="-160" r="6.5" fill="#1f2733"/>
+            <circle cx="-11.8" cy="-163" r="2.2" fill="#fff"/><circle cx="22.2" cy="-163" r="2.2" fill="#fff"/>
+            <path d="M-16,-132 q16,19 32,0 z" fill="#2b1416" stroke="#3f4a5a" stroke-width="4" stroke-linejoin="round"/>
+          </g>
+        </g>
+
+        <!-- 말풍선 -->
+        <g>
+          <rect x="576" y="14" width="440" height="112" rx="26" fill="#fffdf4" stroke="#e2d4b4" stroke-width="5"/>
+          <path d="M812,122 L858,122 L830,164 Z" fill="#fffdf4" stroke="#e2d4b4" stroke-width="5" stroke-linejoin="round"/>
+          <rect x="808" y="114" width="56" height="14" fill="#fffdf4"/>
+          <text x="796" y="60" text-anchor="middle" font-size="27" font-weight="900" fill="#4a4034">나는 과일 상자를</text>
+          <text x="796" y="99" text-anchor="middle" font-size="27" font-weight="900" fill="#4a4034">기다리고 있었어!</text>
+        </g>
+
+        <!-- 컨베이어 -->
+        <g>
+          <rect x="132" y="374" width="672" height="48" rx="17" fill="url(#beltH)" stroke="#4c5661" stroke-width="4"/>
+          <g fill="#aeb8c3">
+            <circle cx="160" cy="398" r="11"/><circle cx="212" cy="398" r="11"/><circle cx="264" cy="398" r="11"/>
+            <circle cx="316" cy="398" r="11"/><circle cx="368" cy="398" r="11"/><circle cx="420" cy="398" r="11"/>
+            <circle cx="472" cy="398" r="11"/><circle cx="524" cy="398" r="11"/><circle cx="576" cy="398" r="11"/>
+            <circle cx="628" cy="398" r="11"/><circle cx="680" cy="398" r="11"/><circle cx="740" cy="398" r="11"/>
+          </g>
+          <rect x="160" y="422" width="17" height="28" rx="7" fill="#4c5661"/>
+          <rect x="748" y="422" width="17" height="28" rx="7" fill="#4c5661"/>
+          <ellipse cx="450" cy="452" rx="340" ry="11" fill="#8a7047" opacity=".26"/>
+        </g>
+
+        <!-- 상자 3종 -->
+        <g transform="translate(304,366)">
+          <rect x="-82" y="-150" width="164" height="148" rx="17" fill="none" stroke="#ffc93d" stroke-width="7" filter="url(#pickGlow)"/>
+          <rect x="-73" y="-142" width="146" height="134" rx="12" fill="url(#crateH)" stroke="#c49b62" stroke-width="4"/>
+          <rect x="-61" y="-132" width="122" height="76" rx="10" fill="#fffaee" stroke="#dcbd8c" stroke-width="3"/>
+          <text x="0" y="-74" text-anchor="middle" font-size="46">🍓</text>
+          <rect x="-63" y="-48" width="126" height="32" rx="10" fill="#fff6e2" stroke="#dcbd8c" stroke-width="3"/>
+          <text x="0" y="-24" text-anchor="middle" font-size="19" font-weight="900" fill="#7a5f34">과일 상자</text>
+        </g>
+        <g transform="translate(466,374)">
+          <rect x="-73" y="-142" width="146" height="134" rx="12" fill="url(#crateH)" stroke="#c49b62" stroke-width="4"/>
+          <rect x="-61" y="-132" width="122" height="76" rx="10" fill="#fdf3f7" stroke="#dcbd8c" stroke-width="3"/>
+          <text x="0" y="-74" text-anchor="middle" font-size="46">🧴</text>
+          <rect x="-63" y="-48" width="126" height="32" rx="10" fill="#fff6e2" stroke="#dcbd8c" stroke-width="3"/>
+          <text x="0" y="-24" text-anchor="middle" font-size="19" font-weight="900" fill="#7a5f34">화장품 상자</text>
+        </g>
+        <g transform="translate(628,374)">
+          <rect x="-73" y="-142" width="146" height="134" rx="12" fill="url(#crateH)" stroke="#c49b62" stroke-width="4"/>
+          <rect x="-61" y="-132" width="122" height="76" rx="10" fill="#f6f2ff" stroke="#dcbd8c" stroke-width="3"/>
+          <text x="0" y="-74" text-anchor="middle" font-size="46">🧸</text>
+          <rect x="-63" y="-48" width="126" height="32" rx="10" fill="#fff6e2" stroke="#dcbd8c" stroke-width="3"/>
+          <text x="0" y="-24" text-anchor="middle" font-size="19" font-weight="900" fill="#7a5f34">장난감 상자</text>
+        </g>
+      </svg>
+
+      <div class="dv-controls">
+        <button class="dv-key" type="button" aria-label="왼쪽 상자">←</button>
+        <button class="dv-key dv-key-bell" type="button" aria-label="전달하기">🔔</button>
+        <button class="dv-key" type="button" aria-label="오른쪽 상자">→</button>
+      </div>
+    </div>
+
+    <aside class="dv-panel">
+      <div class="dv-card">
+        <b>조작 방법</b>
+        <div class="dv-howto">
+          <div class="dv-howto-row">
+            <span class="dv-key">←</span><span class="dv-key">→</span><em>선택</em>
+          </div>
+          <div class="dv-howto-row">
+            <span class="dv-key is-space">Space</span><em>전달</em>
+          </div>
+        </div>
+      </div>
+      <div class="dv-card">
+        <b>전달한 수</b>
+        <span class="dv-goal-num">0 / 5</span>
+        <div class="dv-dots"><span>🚚</span><i></i><i></i><i></i><i></i></div>
+      </div>
+    </aside>
+
+  </div>
+
+  <footer class="dv-foot">
+    <img class="dv-mascot" src="../assets/characters/nine.png" alt="">
+    <div class="dv-tip">
+      <span class="dv-tip-q">?</span>
+      <p class="dv-tip-text"><b>게임 방법</b><br>
+        ← → 로 상자를 고르고, <strong>Space</strong> 로 전달하세요!<br>
+        친구가 말한 물건을 맞히면 상자가 열려요.</p>
+    </div>
+    <div class="dv-foot-extra">
+      🏆 연속 성공 보너스!
+      <span class="dv-stars"><span data-on="true">★</span><span>★</span><span>★</span><span>★</span></span>
+    </div>
+  </footer>
+</div>
+
+</body>
+</html>

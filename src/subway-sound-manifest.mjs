@@ -22,7 +22,25 @@ export function subwaySoundSrc(key) {
   return src ? encodeURI(src) : null;
 }
 
+// 실음원을 아직 못 구한 역. 경로를 만들면 404만 받고 그동안 아이는 역 이름을
+// 못 듣는다 — 없다고 답해서 TTS 폴백(STATION_VOICE_KEYS)이 대신 나오게 한다.
+// 여기 목록은 tests/subway-station-sound.test.mjs가 실제 파일 목록과 대조한다.
+const STATIONS_WITHOUT_RECORDING = Object.freeze({
+  모란: "subway-station-moran",
+  가양: "subway-station-gayang",
+  국회의사당: "subway-station-assembly",
+  봉은사: "subway-station-bongeunsa"
+});
+
 export function stationSoundSrc(station) {
   if (SILENT_STATIONS.has(station)) return null;
+  if (station in STATIONS_WITHOUT_RECORDING) return null;
   return encodeURI(`subway_sound/${station}.mp3`);
 }
+
+// 실음원이 없을 때 대신 낭독할 음성 키. 가족역은 지어낸 역이라 폴백도 없다.
+export function stationVoiceKey(station) {
+  return STATIONS_WITHOUT_RECORDING[station] ?? null;
+}
+
+export { STATIONS_WITHOUT_RECORDING };
