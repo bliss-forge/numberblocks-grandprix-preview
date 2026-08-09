@@ -44,7 +44,43 @@ export const BOARD_LOCK_MS = 1200;     // 마지막 승객 후 합계 연출 잠
 export const DOOR_COUNTDOWN_MS = 6000; // 대기열 0 → 자동 문닫기 카운트다운(앞 3초는 감상 유예)
 export const ASSIST_TARGET = 80;       // 자동 크리프 목표 속도
 export const CORRECT_SPEED = 22;       // 오버런 복귀 후진 속도
+export const BOOST_SPEED = 500;        // SRT 일반 주행 Space 부스터
+export const BOOST_DURATION_MS = 5000;
+export const BOOST_COOLDOWN_MS = 10000;
 export const BASELINE_RESPONSES = Object.freeze(["magpie", "scarecrow", "wave"]);
+
+function boostCounter(value) {
+  return Number.isFinite(value) && value > 0 ? value : 0;
+}
+
+function advanceBoostClock(state, elapsedMs, events) {
+  let boostRemainingMs = boostCounter(state.boostRemainingMs);
+  let boostCooldownMs = boostCounter(state.boostCooldownMs);
+  let elapsed = Number.isFinite(elapsedMs) && elapsedMs > 0 ? elapsedMs : 0;
+  const boostElapsedMs = Math.min(boostRemainingMs, elapsed);
+
+  if (boostElapsedMs > 0) {
+    boostRemainingMs -= boostElapsedMs;
+    elapsed -= boostElapsedMs;
+    if (boostRemainingMs === 0) {
+      boostCooldownMs = BOOST_COOLDOWN_MS;
+      events.push({ type: "boost-end", reason: "expired" });
+    }
+  }
+
+  if (boostRemainingMs === 0 && boostCooldownMs > 0 && elapsed > 0) {
+    const before = boostCooldownMs;
+    boostCooldownMs = Math.max(0, boostCooldownMs - elapsed);
+    if (before > 0 && boostCooldownMs === 0) {
+      events.push({ type: "boost-ready" });
+    }
+  }
+
+  return {
+    state: { ...state, boostRemainingMs, boostCooldownMs },
+    boostElapsedMs
+  };
+}
 
 function segment(state) {
   return KTX_ROUTES[state.route ?? "busan"][state.segIndex];
@@ -92,6 +128,8 @@ export function createKtxJourney(seed = 0, trainId = "srt") {
     doors: "open",
     x: 0,
     v: 0,
+    boostRemainingMs: 0,
+    boostCooldownMs: 0,
     queue: manifest.stops[KTX_STATIONS[0]] ?? [],
     boarded: [],
     metThisStop: 0,
@@ -302,7 +340,8 @@ function depart(state, events, auto = false) {
   };
 }
 
-// Space — 문맥이 전부다. 주행 밖 경적, 존 안 딱 멈추기, 정차 중 문·탑승.
+// Space — SRT 일반 주행은 부스터, KTX는 경적. 존 안은 딱 멈추기,
+// 정차 중에는 문·탑승으로 기존 문맥을 보존한다.
 export function pressKtxSpace(state) {
   const events = [];
   if (state.done) return { state, events };
@@ -326,6 +365,27 @@ export function pressKtxSpace(state) {
   if (state.phase !== "driving") return { state, events };
 
   if (!state.zoneEntered) {
+    if (state.train.id === "srt") {
+      const boostRemainingMs = boostCounter(state.boostRemainingMs);
+      const boostCooldownMs = boostCounter(state.boostCooldownMs);
+      const remainingMs = boostRemainingMs || boostCooldownMs;
+      if (remainingMs > 0) {
+        return {
+          state: { ...state, boostRemainingMs, boostCooldownMs },
+          events: [{ type: "boost-unavailable", remainingMs }]
+        };
+      }
+      return {
+        state: {
+          ...state,
+          v: BOOST_SPEED,
+          boostRemainingMs: BOOST_DURATION_MS,
+          boostCooldownMs: 0,
+          idleMs: 0
+        },
+        events: [{ type: "boost-start" }]
+      };
+    }
     // 경적 — 눌러서 재미없는 순간 0 (베이스라인 보장 + 이벤트 3단 에스컬레이션)
     const event = activeEvent(state);
     if (event) {
@@ -386,7 +446,11 @@ export function pressKtxSpace(state) {
 export function tickKtx(state, held = {}, elapsedMs = 150) {
   const events = [];
   if (state.done) return { state, events };
-  let next = { ...state };
+  const boostClock = advanceBoostClock(state, elapsedMs, events);
+  let next = boostClock.state;
+  const boostElapsedMs = state.phase === "driving" && state.train.id === "srt"
+    ? boostClock.boostElapsedMs
+    : 0;
   const dt = elapsedMs / 1000;
   const anyInput = Boolean(held.up || held.down);
   next.idleMs = anyInput ? 0 : next.idleMs + elapsedMs;
@@ -498,9 +562,13 @@ export function tickKtx(state, held = {}, elapsedMs = 150) {
 
   // phase === "driving"
   const vStart = state.v;
-  if (held.up) next.v += ACCEL_KMH_PER_S * dt;
-  else if (held.down) next.v -= BRAKE_KMH_PER_S * dt;
-  else if (next.assist && next.v < ASSIST_TARGET) next.v += ACCEL_KMH_PER_S * dt;
+  const normalDt = Math.max(0, elapsedMs - boostElapsedMs) / 1000;
+  next.v = Math.min(MAX_SPEED, Math.max(0, next.v));
+  if (held.up) next.v += ACCEL_KMH_PER_S * normalDt;
+  else if (held.down) next.v -= BRAKE_KMH_PER_S * normalDt;
+  else if (next.assist && next.v < ASSIST_TARGET) {
+    next.v += ACCEL_KMH_PER_S * normalDt;
+  }
   // 코스트 순항: 놓아도 감속하지 않는다(감쇠 0)
 
   next.v = Math.max(0, Math.min(MAX_SPEED, next.v));
@@ -512,13 +580,16 @@ export function tickKtx(state, held = {}, elapsedMs = 150) {
   const cap = remaining <= ARM_DISTANCE
     ? ENVELOPE_FLOOR
     : envelopeSpeed(remaining);
-  if (next.v > cap) next.v = cap;
+  if (next.boostRemainingMs === 0 && next.v > cap) next.v = cap;
   // 봉투 바닥: 존에 들어온 열차는 35 밑으로 못 내려가 반드시 앞으로 간다 —
   // 어떤 입력이든 유한 시간 안에 정지 또는 오버런에 닿는 무스톨 보장.
   if (next.zoneEntered && next.v < ENVELOPE_FLOOR) next.v = ENVELOPE_FLOOR;
 
   const prevX = next.x;
-  next.x += (next.v / 3.6) * dt;
+  const boostDistance = (BOOST_SPEED / 3.6) * (boostElapsedMs / 1000);
+  const normalDistance = (next.v / 3.6) * normalDt;
+  next.x += boostDistance + normalDistance;
+  if (next.boostRemainingMs > 0) next.v = BOOST_SPEED;
 
   // 속도 마일스톤 — 구간당 각 1회
   for (const milestone of SPEED_MILESTONES) {
@@ -549,6 +620,13 @@ export function tickKtx(state, held = {}, elapsedMs = 150) {
   if (!next.zoneEntered && next.x >= zoneStart) {
     next.zoneEntered = true;
     events.push({ type: "zone-enter", station: segment(next).to });
+    if (next.boostRemainingMs > 0) {
+      next.boostRemainingMs = 0;
+      next.boostCooldownMs = BOOST_COOLDOWN_MS;
+      next.v = Math.min(MAX_SPEED,
+        envelopeSpeed(Math.max(0, marker - next.x)));
+      events.push({ type: "boost-end", reason: "station-approach" });
+    }
   }
   if (next.zoneEntered && !next.armed && marker - next.x <= ARM_DISTANCE) {
     next.armed = true;

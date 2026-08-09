@@ -1,0 +1,430 @@
+{
+  "schemaVersion": 3,
+  "method": "SHA-256-bound native plate dimensions and offline RGB comparison metrics; runtime tests use Node built-ins only",
+  "comparisonMethod": "mean absolute RGB delta on 160x90 decoded WebP thumbnails; second image also checked horizontally mirrored",
+  "assets": {
+    "city-a.webp": {
+      "role": "scene",
+      "source": "exec-d3eafdd6-ca13-4f79-9c7f-565e2613b10f.png",
+      "sourceWidth": 1672,
+      "sourceHeight": 941,
+      "width": 1672,
+      "height": 941,
+      "transform": "encode-only",
+      "seamFree": true,
+      "bytes": 120432,
+      "sha256": "40401529e8a6d7484cbf42ce18390e84bfc49a647845356e7225fa22e6819552",
+      "land": "city",
+      "variant": "a"
+    },
+    "city-b.webp": {
+      "role": "scene",
+      "source": "exec-52cfb23c-16dc-41a1-a4cc-1d9ea3c404b3.png",
+      "sourceWidth": 1672,
+      "sourceHeight": 941,
+      "width": 1672,
+      "height": 941,
+      "transform": "encode-only",
+      "seamFree": true,
+      "bytes": 131402,
+      "sha256": "986b39e8d22b32dd2c6733e97c6161b3c13e681dce42461cdf4a1f9485a74706",
+      "land": "city",
+      "variant": "b"
+    },
+    "city-c.webp": {
+      "role": "scene",
+      "source": "exec-f8f9e11b-e385-4584-b429-bb5118785489.png",
+      "sourceWidth": 1672,
+      "sourceHeight": 941,
+      "width": 1672,
+      "height": 941,
+      "transform": "encode-only",
+      "seamFree": true,
+      "bytes": 146462,
+      "sha256": "39a2618142ace09478388b4e0dd67eb28a965fe0c15cadb10952a47f28f45dd0",
+      "land": "city",
+      "variant": "c"
+    },
+    "field-a.webp": {
+      "role": "scene",
+      "source": "exec-2fad01c2-169d-4b44-9082-9b9e5fa6e0a1.png",
+      "sourceWidth": 1672,
+      "sourceHeight": 941,
+      "width": 1672,
+      "height": 941,
+      "transform": "encode-only",
+      "seamFree": true,
+      "bytes": 104810,
+      "sha256": "480ce911337b0316517bd3f51b4d804d92542fb5e69f8eb6b90a730330c4bbda",
+      "land": "field",
+      "variant": "a"
+    },
+    "field-b.webp": {
+      "role": "scene",
+      "source": "exec-88feb6cd-3703-4ab6-ad5f-9fb5854395da.png",
+      "sourceWidth": 1672,
+      "sourceHeight": 941,
+      "width": 1672,
+      "height": 941,
+      "transform": "encode-only",
+      "seamFree": true,
+      "bytes": 123046,
+      "sha256": "68f92b3da148b11c2f96e449a94e952790640fa08965d8227d05925df7ac48d1",
+      "land": "field",
+      "variant": "b"
+    },
+    "field-c.webp": {
+      "role": "scene",
+      "source": "exec-d286fb40-b7e3-49a3-a443-7040db3ed4dc.png",
+      "sourceWidth": 1672,
+      "sourceHeight": 941,
+      "width": 1672,
+      "height": 941,
+      "transform": "encode-only",
+      "seamFree": true,
+      "bytes": 124796,
+      "sha256": "83beaccb1f5f4aea1eb277cd7e3a7023cbffa93d0826a367e10a75bb729c7ae8",
+      "land": "field",
+      "variant": "c"
+    },
+    "mountain-a.webp": {
+      "role": "scene",
+      "source": "exec-47fea3d4-8919-4458-9162-0c74234fe630.png",
+      "sourceWidth": 1672,
+      "sourceHeight": 941,
+      "width": 1672,
+      "height": 941,
+      "transform": "encode-only",
+      "seamFree": true,
+      "bytes": 126982,
+      "sha256": "75891d1b4069f1f43659454a23a0a12ac1ab3dd704175afe70e547045c5bd642",
+      "land": "mountain",
+      "variant": "a"
+    },
+    "mountain-b.webp": {
+      "role": "scene",
+      "source": "exec-bdd096ea-42e5-4567-a514-faa2fa95cd3c.png",
+      "sourceWidth": 1672,
+      "sourceHeight": 941,
+      "width": 1672,
+      "height": 941,
+      "transform": "encode-only",
+      "seamFree": true,
+      "bytes": 162624,
+      "sha256": "254c178799d67b05d7b63cd5357b1e3f123fef885b1d8275150258d970a06faa",
+      "land": "mountain",
+      "variant": "b"
+    },
+    "mountain-c.webp": {
+      "role": "scene",
+      "source": "exec-f2c83a88-16d6-49a3-9d4a-eef22453e5a7.png",
+      "sourceWidth": 1672,
+      "sourceHeight": 941,
+      "width": 1672,
+      "height": 941,
+      "transform": "encode-only",
+      "seamFree": true,
+      "bytes": 117622,
+      "sha256": "4203b6ebfd22b009ac61b5bb30786669e81a7b64eee6ecbcf8fa56b3513f4a12",
+      "land": "mountain",
+      "variant": "c"
+    },
+    "river-a.webp": {
+      "role": "scene",
+      "source": "exec-3d086103-f2f0-4799-9069-c639e0814b99.png",
+      "sourceWidth": 1672,
+      "sourceHeight": 941,
+      "width": 1672,
+      "height": 941,
+      "transform": "encode-only",
+      "seamFree": true,
+      "bytes": 96262,
+      "sha256": "b77c458e68595e61081a0deef147d4b8017f7454fe9d45a44e23e1aa1ca1c48c",
+      "land": "river",
+      "variant": "a"
+    },
+    "river-b.webp": {
+      "role": "scene",
+      "source": "exec-dc1846ce-c567-4c14-a4e3-d6745a8b7e03.png",
+      "sourceWidth": 1672,
+      "sourceHeight": 941,
+      "width": 1672,
+      "height": 941,
+      "transform": "encode-only",
+      "seamFree": true,
+      "bytes": 90946,
+      "sha256": "c1486e35d3d555b778a7a0461e67b896fd9d80c64e52719a95f38d87caea81a2",
+      "land": "river",
+      "variant": "b"
+    },
+    "river-c.webp": {
+      "role": "scene",
+      "source": "exec-1ede90af-d4b1-4aaa-b75f-da45513f15ee.png",
+      "sourceWidth": 1672,
+      "sourceHeight": 941,
+      "width": 1672,
+      "height": 941,
+      "transform": "encode-only",
+      "seamFree": true,
+      "bytes": 84218,
+      "sha256": "489c48cf144d3e3b8c92c3a303e8f537a7df28c64c73faff8d6eeefad494aef5",
+      "land": "river",
+      "variant": "c"
+    },
+    "sea-a.webp": {
+      "role": "scene",
+      "source": "exec-5976827c-905f-45c9-9b75-2ed259a109f9.png",
+      "sourceWidth": 1672,
+      "sourceHeight": 941,
+      "width": 1672,
+      "height": 941,
+      "transform": "encode-only",
+      "seamFree": true,
+      "bytes": 101512,
+      "sha256": "47510aee432ecc0d53f2721ff139fb6ef98f95fc3456cdb8adb5922231c9b9bf",
+      "land": "sea",
+      "variant": "a"
+    },
+    "sea-b.webp": {
+      "role": "scene",
+      "source": "exec-092d1f89-9637-40fe-bdbb-79db3d4e3b0e.png",
+      "sourceWidth": 1672,
+      "sourceHeight": 941,
+      "width": 1672,
+      "height": 941,
+      "transform": "encode-only",
+      "seamFree": true,
+      "bytes": 87462,
+      "sha256": "596a97779bcf3398d0b001ca6412bf2a435054a1cb1226fd40c6934f1b2ca451",
+      "land": "sea",
+      "variant": "b"
+    },
+    "sea-c.webp": {
+      "role": "scene",
+      "source": "exec-e2f00a59-3dfe-4641-aad4-44ef8187feda.png",
+      "sourceWidth": 1672,
+      "sourceHeight": 941,
+      "width": 1672,
+      "height": 941,
+      "transform": "encode-only",
+      "seamFree": true,
+      "bytes": 103176,
+      "sha256": "7130eb0edc0e54d2fe760ddabe1829a0feb45c65c09189bcbd0eb4dde16e0cef",
+      "land": "sea",
+      "variant": "c"
+    },
+    "station-platform-a.webp": {
+      "role": "station",
+      "source": "exec-e309b20b-c5d5-4867-a7de-aa0a988ae8d7.png",
+      "sourceWidth": 1672,
+      "sourceHeight": 941,
+      "width": 1672,
+      "height": 941,
+      "transform": "encode-only",
+      "seamFree": true,
+      "bytes": 154718,
+      "sha256": "041b65b89f356cbb3f376cd92c2349d4bb3317ea0d1307dc17d70da4481d313b",
+      "variant": "a"
+    },
+    "tunnel-a.webp": {
+      "role": "scene",
+      "source": "exec-145701fb-cf40-4d27-9d96-747913b66b2f.png",
+      "sourceWidth": 1672,
+      "sourceHeight": 941,
+      "width": 1672,
+      "height": 941,
+      "transform": "encode-only",
+      "seamFree": true,
+      "bytes": 28902,
+      "sha256": "2b1911fe1820575d3c10e7bac8171243d72a7a0839436aa43301567e0793ec0e",
+      "land": "tunnel",
+      "variant": "a"
+    },
+    "tunnel-b.webp": {
+      "role": "scene",
+      "source": "exec-2966c76e-568b-4d8e-b18b-b0b2dc4206dc.png",
+      "sourceWidth": 1672,
+      "sourceHeight": 941,
+      "width": 1672,
+      "height": 941,
+      "transform": "encode-only",
+      "seamFree": true,
+      "bytes": 65386,
+      "sha256": "f81af2c40340a222f1fe31e5db5eeaeda0435cf60961a64e703dd2c6dfe39900",
+      "land": "tunnel",
+      "variant": "b"
+    },
+    "tunnel-c.webp": {
+      "role": "scene",
+      "source": "exec-fcbb668a-2947-432b-bfb8-aab74618f71f.png",
+      "sourceWidth": 1672,
+      "sourceHeight": 941,
+      "width": 1672,
+      "height": 941,
+      "transform": "encode-only",
+      "seamFree": true,
+      "bytes": 25300,
+      "sha256": "7c0805e56994c06e8d4f2c6101f1c9b4497a257aa969cb5625efed09a2b37cb2",
+      "land": "tunnel",
+      "variant": "c"
+    }
+  },
+  "comparisons": {
+    "city": [
+      {
+        "variants": [
+          "a",
+          "b"
+        ],
+        "meanDelta": 20.976,
+        "mirroredMeanDelta": 21.06
+      },
+      {
+        "variants": [
+          "a",
+          "c"
+        ],
+        "meanDelta": 23.565,
+        "mirroredMeanDelta": 26.179
+      },
+      {
+        "variants": [
+          "b",
+          "c"
+        ],
+        "meanDelta": 22.309,
+        "mirroredMeanDelta": 22.384
+      }
+    ],
+    "field": [
+      {
+        "variants": [
+          "a",
+          "b"
+        ],
+        "meanDelta": 20.941,
+        "mirroredMeanDelta": 21.795
+      },
+      {
+        "variants": [
+          "a",
+          "c"
+        ],
+        "meanDelta": 18.469,
+        "mirroredMeanDelta": 21.954
+      },
+      {
+        "variants": [
+          "b",
+          "c"
+        ],
+        "meanDelta": 19.307,
+        "mirroredMeanDelta": 20.456
+      }
+    ],
+    "mountain": [
+      {
+        "variants": [
+          "a",
+          "b"
+        ],
+        "meanDelta": 29.497,
+        "mirroredMeanDelta": 29.591
+      },
+      {
+        "variants": [
+          "a",
+          "c"
+        ],
+        "meanDelta": 26.518,
+        "mirroredMeanDelta": 26.88
+      },
+      {
+        "variants": [
+          "b",
+          "c"
+        ],
+        "meanDelta": 25.223,
+        "mirroredMeanDelta": 25.734
+      }
+    ],
+    "river": [
+      {
+        "variants": [
+          "a",
+          "b"
+        ],
+        "meanDelta": 26.795,
+        "mirroredMeanDelta": 24.591
+      },
+      {
+        "variants": [
+          "a",
+          "c"
+        ],
+        "meanDelta": 49.415,
+        "mirroredMeanDelta": 52.327
+      },
+      {
+        "variants": [
+          "b",
+          "c"
+        ],
+        "meanDelta": 42.203,
+        "mirroredMeanDelta": 41.707
+      }
+    ],
+    "sea": [
+      {
+        "variants": [
+          "a",
+          "b"
+        ],
+        "meanDelta": 18.757,
+        "mirroredMeanDelta": 16.061
+      },
+      {
+        "variants": [
+          "a",
+          "c"
+        ],
+        "meanDelta": 19.818,
+        "mirroredMeanDelta": 21.724
+      },
+      {
+        "variants": [
+          "b",
+          "c"
+        ],
+        "meanDelta": 21.278,
+        "mirroredMeanDelta": 22.218
+      }
+    ],
+    "tunnel": [
+      {
+        "variants": [
+          "a",
+          "b"
+        ],
+        "meanDelta": 31.992,
+        "mirroredMeanDelta": 32.026
+      },
+      {
+        "variants": [
+          "a",
+          "c"
+        ],
+        "meanDelta": 17.975,
+        "mirroredMeanDelta": 16.85
+      },
+      {
+        "variants": [
+          "b",
+          "c"
+        ],
+        "meanDelta": 27.267,
+        "mirroredMeanDelta": 28.111
+      }
+    ]
+  }
+}

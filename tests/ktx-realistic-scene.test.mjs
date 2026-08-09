@@ -1,11 +1,20 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { createKtxJourney } from "../src/ktx-journey.mjs";
+import { createKtxJourney, distanceToMarker } from "../src/ktx-journey.mjs";
 import { renderKtxScene, updateKtxScene } from "../src/ktx-scene.mjs";
+import { updateRealisticMotionScene } from "../src/ktx-realistic-motion-scene.mjs";
 
 class FakeStyle {
+  constructor() {
+    this.values = new Map();
+  }
+
   setProperty(name, value) {
-    this[name] = String(value);
+    this.values.set(name, String(value));
+  }
+
+  getPropertyValue(name) {
+    return this.values.get(name) ?? "";
   }
 }
 
@@ -140,6 +149,885 @@ test("운전실과 바깥 뷰는 실사 이미지와 기존 SVG 폴백을 함께
   assert.ok(root.querySelector(".ktx-real-exterior-image"));
   assert.ok(root.querySelector(".ktx-cab-backdrop"), "기존 폴백 유지");
   assert.ok(root.querySelector(".ktx-side-train"), "기존 폴백 유지");
+});
+
+test("SRT 부스터 HUD는 준비·작동·충전을 두 뷰에서 같은 상태로 보인다", () => {
+  const initial = {
+    ...createKtxJourney(3, "srt"),
+    phase: "driving"
+  };
+  const root = renderKtxScene(fakeDocument(), initial, "cab");
+  const badge = root.querySelector(".ktx-boost-badge");
+
+  assert.ok(badge, "운전실과 바깥 뷰가 공유하는 HUD 배지");
+  assert.equal(root.dataset.boost, "ready");
+  assert.equal(badge.textContent, "BOOST 준비");
+
+  updateKtxScene(root, {
+    ...initial,
+    v: 500,
+    boostRemainingMs: 4200,
+    boostCooldownMs: 0
+  }, "side");
+  assert.equal(root.dataset.view, "side");
+  assert.equal(root.dataset.boost, "active");
+  assert.equal(badge.textContent, "BOOST 5");
+  assert.equal(root.querySelector(".ktx-speed-number").textContent, "500");
+  assert.equal(root.style.getPropertyValue("--needle-deg"), "120.0deg",
+    "300 눈금 바늘은 끝에 고정되고 디지털만 500을 표시");
+
+  updateKtxScene(root, {
+    ...initial,
+    v: 300,
+    boostRemainingMs: 0,
+    boostCooldownMs: 5200
+  }, "cab");
+  assert.equal(root.dataset.boost, "cooldown");
+  assert.equal(badge.textContent, "충전 6");
+
+  const ktxRoot = renderKtxScene(fakeDocument(), {
+    ...createKtxJourney(3, "ktx"),
+    phase: "driving"
+  }, "cab");
+  assert.equal(ktxRoot.dataset.boost, "unavailable");
+  assert.equal(ktxRoot.querySelector(".ktx-boost-badge").textContent, "BOOST 없음");
+});
+
+test("SRT는 분리 실사 모션 리그와 정적 폴백을 함께 마운트한다", () => {
+  const root = renderKtxScene(fakeDocument(), createKtxJourney(3, "srt"), "side");
+
+  assert.ok(root.querySelector(".ktx-motion-scene"));
+  assert.equal(root.querySelectorAll(".ktx-motion-plate").length, 2);
+  assert.ok(root.querySelector(".ktx-motion-track"));
+  assert.ok(root.querySelector(".ktx-motion-near"));
+  assert.ok(root.querySelector(".ktx-motion-train"));
+  assert.ok(root.querySelector(".ktx-motion-cab-frame"));
+  assert.ok(root.querySelector(".ktx-motion-station"));
+  assert.ok(root.querySelector(".ktx-real-exterior-image"), "정적 실사 폴백 유지");
+});
+
+test("SRT 모션 리그는 운전실 전면창 투영과 역·터널 장면 객체를 마운트한다", () => {
+  const root = renderKtxScene(fakeDocument(), createKtxJourney(3, "srt"), "cab");
+
+  assert.ok(root.querySelector(".ktx-motion-cab-window"));
+  assert.equal(root.querySelectorAll(".ktx-motion-cab-rail").length, 2);
+  assert.ok(root.querySelector(".ktx-motion-cab-sleepers"));
+  assert.ok(root.querySelector(".ktx-motion-cab-catenary"));
+  assert.ok(root.querySelector(".ktx-motion-tunnel"));
+  assert.ok(root.querySelector(".ktx-motion-tunnel-lights"));
+  const stationViewport = root.querySelector(".ktx-motion-station-viewport");
+  assert.ok(stationViewport);
+  assert.ok(stationViewport.querySelector(".ktx-motion-station"),
+    "역 완성 장면은 전체 화면 레이어 안에 포함됨");
+  assert.ok(root.querySelector(".ktx-motion-station-sign"));
+});
+
+test("KTX는 분리 실사 모션 리그와 모션 자산 요청을 만들지 않는다", () => {
+  const document = fakeDocument();
+  const root = renderKtxScene(document, createKtxJourney(3, "ktx"), "side");
+
+  assert.equal(root.querySelector(".ktx-motion-scene"), null);
+  assert.equal(document.createdElements.some(element =>
+    element.tagName === "IMG" &&
+    element.src.includes("/assets/train-realistic/motion/")), false);
+  assert.equal(root.dataset.motionRealistic, "fallback");
+});
+
+function loadMotionSideAssets(root) {
+  root.querySelectorAll(".ktx-motion-plate").forEach(plate => plate.dispatch("load"));
+  root.querySelector(".ktx-motion-station").dispatch("load");
+  root.querySelector(".ktx-motion-train").dispatch("load");
+}
+
+test("현재 바깥 뷰 필수 모션 자산이 모두 로드된 뒤에만 ready가 된다", () => {
+  const root = renderKtxScene(fakeDocument(), createKtxJourney(3, "srt"), "side");
+  const plates = root.querySelectorAll(".ktx-motion-plate");
+
+  assert.equal(root.dataset.motionRealistic, "pending");
+  plates[0].dispatch("load");
+  plates[1].dispatch("load");
+  root.querySelector(".ktx-motion-station").dispatch("load");
+  assert.equal(root.dataset.motionRealistic, "pending", "열차가 남으면 대기");
+  root.querySelector(".ktx-motion-train").dispatch("load");
+  assert.equal(root.dataset.motionRealistic, "ready");
+  assert.equal(plates[0].dataset.active, "true");
+  assert.equal(plates[1].dataset.active, "false", "두 번째 슬롯은 선로드 전용");
+  assert.equal(plates[1].hidden, true, "교차 전환 전에는 비활성 장면을 표시하지 않음");
+});
+
+test("필수 모션 플레이트 오류는 정적 실사 상태를 보존한 채 폴백한다", () => {
+  const root = renderKtxScene(fakeDocument(), createKtxJourney(3, "srt"), "side");
+  root.querySelector(".ktx-real-cab-image").dispatch("load");
+  root.querySelector(".ktx-real-exterior-image").dispatch("load");
+  assert.equal(root.dataset.realistic, "ready");
+
+  root.querySelectorAll(".ktx-motion-plate")[0].dispatch("error");
+
+  assert.equal(root.dataset.motionRealistic, "fallback");
+  assert.equal(root.dataset.realistic, "ready", "정상 정적 실사 폴백 상태는 변경하지 않음");
+  assert.ok(root.querySelector(".ktx-side-train"), "최종 SVG 폴백도 유지");
+});
+
+test("환경 변경은 활성·비활성 플레이트를 모두 선로드한 뒤 교체한다", () => {
+  const document = fakeDocument();
+  const initial = createKtxJourney(3, "srt");
+  const root = renderKtxScene(document, initial, "side");
+  const plates = root.querySelectorAll(".ktx-motion-plate");
+  loadMotionSideAssets(root);
+  assert.equal(root.dataset.motionRealistic, "ready");
+
+  const field = { ...initial, phase: "driving", x: 2000, v: 80 };
+  updateKtxScene(root, field, "side");
+
+  assert.equal(root.dataset.motionRealistic, "pending");
+  assert.ok(plates[0].src.endsWith("/city-a.webp"), "선로드 중 현재 장면 유지");
+  assert.ok(plates[1].src.endsWith("/city-b.webp"), "비활성 현재 장면도 유지");
+  const fieldPreloads = document.createdElements.filter(element =>
+    element.tagName === "IMG" && /\/field-[ab]\.webp$/.test(element.src) &&
+    !element.className.includes("ktx-motion-plate"));
+  assert.equal(fieldPreloads.length, 2, "다음 활성 장면과 비활성 장면을 함께 선로드");
+
+  fieldPreloads[0].dispatch("load");
+  assert.equal(root.dataset.motionRealistic, "pending", "한 장만 준비되면 교체하지 않음");
+  assert.ok(plates[0].src.endsWith("/city-a.webp"));
+  fieldPreloads[1].dispatch("load");
+
+  assert.equal(root.dataset.motionRealistic, "ready");
+  assert.ok(plates[0].src.endsWith("/field-a.webp"));
+  assert.ok(plates[1].src.endsWith("/field-b.webp"));
+});
+
+test("새 환경 대기 중 무관한 고정 프레임 로드는 pending을 해제하지 않는다", () => {
+  const document = fakeDocument();
+  const initial = createKtxJourney(3, "srt");
+  const root = renderKtxScene(document, initial, "side");
+  loadMotionSideAssets(root);
+  assert.equal(root.dataset.motionRealistic, "ready");
+
+  const field = { ...initial, phase: "driving", x: 2000, v: 80 };
+  updateKtxScene(root, field, "side");
+  assert.equal(root.dataset.motionRealistic, "pending");
+
+  root.querySelector(".ktx-motion-cab-frame").dispatch("load");
+
+  assert.equal(root.dataset.motionRealistic, "pending",
+    "요청한 field 플레이트가 끝나기 전 city 준비 상태로 돌아가지 않음");
+});
+
+test("로드된 환경으로 복귀하거나 재진입하면 중복 선로드하지 않는다", () => {
+  const document = fakeDocument();
+  const initial = createKtxJourney(3, "srt");
+  const root = renderKtxScene(document, initial, "side");
+  loadMotionSideAssets(root);
+  const field = { ...initial, phase: "driving", x: 2000, v: 80 };
+
+  updateKtxScene(root, field, "side");
+  const fieldPreloads = document.createdElements.filter(element =>
+    element.tagName === "IMG" && /\/field-[ab]\.webp$/.test(element.src) &&
+    !element.className.includes("ktx-motion-plate"));
+  fieldPreloads.forEach(image => image.dispatch("load"));
+  assert.equal(root.dataset.motionRealistic, "ready");
+
+  updateKtxScene(root, initial, "side");
+  assert.equal(root.dataset.motionRealistic, "ready");
+  assert.ok(root.querySelectorAll(".ktx-motion-plate")[0].src.endsWith("/city-a.webp"));
+  updateKtxScene(root, field, "side");
+
+  const afterReturn = document.createdElements.filter(element =>
+    element.tagName === "IMG" && /\/(city|field)-[ab]\.webp$/.test(element.src) &&
+    !element.className.includes("ktx-motion-plate"));
+  assert.equal(afterReturn.length, 2, "두 환경 모두 캐시되어 새 선로드 없음");
+  assert.equal(root.dataset.motionRealistic, "ready");
+});
+
+test("실패한 환경은 정상 환경 복귀 후 다시 선로드할 수 있다", () => {
+  const document = fakeDocument();
+  const initial = createKtxJourney(3, "srt");
+  const root = renderKtxScene(document, initial, "side");
+  loadMotionSideAssets(root);
+  const field = { ...initial, phase: "driving", x: 2000, v: 80 };
+
+  updateKtxScene(root, field, "side");
+  let attempts = document.createdElements.filter(element =>
+    element.tagName === "IMG" && /\/field-[ab]\.webp$/.test(element.src) &&
+    !element.className.includes("ktx-motion-plate"));
+  attempts[0].dispatch("error");
+  assert.equal(root.dataset.motionRealistic, "fallback");
+
+  updateKtxScene(root, initial, "side");
+  assert.equal(root.dataset.motionRealistic, "ready");
+  updateKtxScene(root, field, "side");
+  attempts = document.createdElements.filter(element =>
+    element.tagName === "IMG" && /\/field-[ab]\.webp$/.test(element.src) &&
+    !element.className.includes("ktx-motion-plate"));
+  assert.equal(attempts.length, 4, "실패한 두 장을 새 이미지 요청으로 재시도");
+  attempts.slice(-2).forEach(image => image.dispatch("load"));
+  assert.equal(root.dataset.motionRealistic, "ready");
+});
+
+test("실패 환경은 같은 밴드에서 고정되고 정상 환경을 거친 뒤 한 번만 재시도한다", () => {
+  const document = fakeDocument();
+  const initial = createKtxJourney(3, "srt");
+  const root = renderKtxScene(document, initial, "side");
+  loadMotionSideAssets(root);
+  const field = { ...initial, phase: "driving", x: 2000, v: 80 };
+  const fieldPreloads = () => document.createdElements.filter(element =>
+    element.tagName === "IMG" && /\/field-[ab]\.webp$/.test(element.src) &&
+    !element.className.includes("ktx-motion-plate"));
+
+  updateKtxScene(root, field, "side");
+  assert.equal(fieldPreloads().length, 2);
+  fieldPreloads()[0].dispatch("error");
+  assert.equal(root.dataset.motionRealistic, "fallback");
+
+  updateKtxScene(root, field, "side");
+  assert.equal(fieldPreloads().length, 2, "같은 실패 밴드는 즉시 다시 요청하지 않음");
+  assert.equal(root.dataset.motionRealistic, "fallback");
+
+  updateKtxScene(root, initial, "side");
+  assert.equal(root.dataset.motionRealistic, "ready");
+  updateKtxScene(root, field, "side");
+
+  assert.equal(fieldPreloads().length, 4, "정상 city를 거친 뒤 새 두 장만 재시도");
+  assert.equal(root.dataset.motionRealistic, "pending");
+});
+
+test("늦게 ready가 된 정상 환경도 실패 환경 재시도를 다시 허용한다", () => {
+  const document = fakeDocument();
+  const initial = createKtxJourney(3, "srt");
+  const root = renderKtxScene(document, initial, "side");
+  const field = { ...initial, phase: "driving", x: 2000, v: 80 };
+  const fieldPreloads = () => document.createdElements.filter(element =>
+    element.tagName === "IMG" && /\/field-[ab]\.webp$/.test(element.src) &&
+    !element.className.includes("ktx-motion-plate"));
+
+  assert.equal(root.dataset.motionRealistic, "pending", "city가 아직 로드되지 않음");
+  updateKtxScene(root, field, "side");
+  assert.equal(fieldPreloads().length, 2);
+  fieldPreloads()[0].dispatch("error");
+  assert.equal(root.dataset.motionRealistic, "fallback");
+
+  updateKtxScene(root, initial, "side");
+  assert.equal(root.dataset.motionRealistic, "pending");
+  loadMotionSideAssets(root);
+  assert.equal(root.dataset.motionRealistic, "ready", "돌아온 city가 뒤늦게 준비됨");
+
+  updateKtxScene(root, field, "side");
+
+  assert.equal(fieldPreloads().length, 4, "field에 정확히 한 쌍의 재시도 요청 추가");
+  assert.equal(root.dataset.motionRealistic, "pending");
+});
+
+test("환경 선로드 중 원래 장면으로 돌아오면 늦은 요청이 화면을 덮지 않는다", () => {
+  const document = fakeDocument();
+  const initial = createKtxJourney(3, "srt");
+  const root = renderKtxScene(document, initial, "side");
+  loadMotionSideAssets(root);
+  const field = { ...initial, phase: "driving", x: 2000, v: 80 };
+
+  updateKtxScene(root, field, "side");
+  const stalePreloads = document.createdElements.filter(element =>
+    element.tagName === "IMG" && /\/field-[ab]\.webp$/.test(element.src) &&
+    !element.className.includes("ktx-motion-plate"));
+  assert.equal(stalePreloads.length, 2);
+
+  updateKtxScene(root, initial, "side");
+  assert.equal(root.dataset.motionRealistic, "ready");
+  stalePreloads.forEach(image => image.dispatch("load"));
+
+  const plates = root.querySelectorAll(".ktx-motion-plate");
+  assert.ok(plates[0].src.endsWith("/city-a.webp"));
+  assert.ok(plates[1].src.endsWith("/city-b.webp"));
+  assert.equal(root.querySelector(".ktx-motion-scene").dataset.land, "city");
+});
+
+test("뷰가 바뀌면 그 뷰의 고정 프레임 준비 상태를 사용한다", () => {
+  const initial = createKtxJourney(3, "srt");
+  const root = renderKtxScene(fakeDocument(), initial, "side");
+  loadMotionSideAssets(root);
+  assert.equal(root.dataset.motionRealistic, "ready");
+
+  updateKtxScene(root, initial, "cab");
+  assert.equal(root.dataset.motionRealistic, "pending", "운전실 프레임이 아직 로드 전");
+  root.querySelector(".ktx-motion-cab-frame").dispatch("load");
+  assert.equal(root.dataset.motionRealistic, "ready");
+});
+
+test("모션 리그 갱신은 실제 속도·단계·환경·마커 거리를 모델에 전달한다", () => {
+  const initial = createKtxJourney(3, "srt");
+  const root = renderKtxScene(fakeDocument(), initial, "side");
+  const markerX = distanceToMarker(initial) + initial.x;
+  const stopping = {
+    ...initial,
+    phase: "stopping",
+    x: markerX - 100,
+    v: 240
+  };
+
+  updateKtxScene(root, stopping, "side");
+  const scene = root.querySelector(".ktx-motion-scene");
+
+  assert.equal(scene.dataset.speedBand, "very-fast");
+  assert.equal(scene.dataset.stationStage, "detail");
+  assert.equal(scene.dataset.moving, "true");
+  assert.equal(scene.dataset.land, root.dataset.land);
+});
+
+test("실사 외부 모션은 위치·속도를 정확한 CSS 변수로 동기화한다", () => {
+  const initial = createKtxJourney(3, "srt");
+  const root = renderKtxScene(fakeDocument(), initial, "side");
+  const moving = { ...initial, phase: "driving", x: 2000, v: 240 };
+
+  updateRealisticMotionScene(root, moving, { land: "city" });
+  const scene = root.querySelector(".ktx-motion-scene");
+
+  assert.equal(scene.style.getPropertyValue("--motion-scene-x"), "-120px");
+  assert.equal(scene.style.getPropertyValue("--motion-near-x"), "-1700px");
+  assert.equal(scene.style.getPropertyValue("--motion-track-x"), "-2000px");
+  assert.equal(scene.style.getPropertyValue("--motion-speed"), "0.8");
+  assert.ok(Number.parseFloat(scene.style.getPropertyValue("--motion-blur")) > 0);
+  assert.equal(scene.dataset.motionMoving, "true");
+});
+
+test("정차한 실사 외부 모션은 모든 보간 효과를 즉시 멈춘다", () => {
+  const initial = createKtxJourney(3, "srt");
+  const root = renderKtxScene(fakeDocument(), initial, "side");
+  const stopped = { ...initial, phase: "stopped", x: 2000, v: 0 };
+
+  updateRealisticMotionScene(root, stopped, { land: "city" });
+  const scene = root.querySelector(".ktx-motion-scene");
+
+  assert.equal(scene.dataset.motionMoving, "false");
+  assert.equal(scene.style.getPropertyValue("--motion-speed"), "0");
+  assert.equal(scene.style.getPropertyValue("--motion-blur"), "0px");
+  assert.equal(scene.style.getPropertyValue("--motion-brake-pitch"), "0");
+});
+
+test("역 접근·정차·출발은 진행률과 근경 억제를 하나의 수명주기로 동기화한다", () => {
+  const initial = createKtxJourney(3, "srt");
+  const root = renderKtxScene(fakeDocument(), initial, "side");
+  const scene = root.querySelector(".ktx-motion-scene");
+  const station = root.querySelector(".ktx-motion-station");
+
+  updateRealisticMotionScene(root,
+    { ...initial, phase: "driving", x: 100, v: 120, markerDistance: 600 },
+    { land: "city" });
+  assert.equal(scene.style.getPropertyValue("--station-progress"), "0");
+  assert.equal(scene.style.getPropertyValue("--station-opacity"), "0",
+    "600m 경계에서는 전체 프레임 교차가 투명도 0에서 시작");
+  const approachStartX = Number.parseFloat(scene.style.getPropertyValue("--station-offset-x"));
+  const approachStartY = Number.parseFloat(scene.style.getPropertyValue("--station-object-y"));
+  assert.ok(approachStartX > 0);
+  assert.equal(approachStartY, 50);
+  assert.equal(Number.parseFloat(scene.style.getPropertyValue("--station-cover-scale")), 1);
+  assert.equal(scene.dataset.nearSuppressed, "false");
+
+  updateRealisticMotionScene(root,
+    { ...initial, phase: "stopping", x: 400, v: 80, markerDistance: 320 },
+    { land: "city" });
+  assert.equal(scene.style.getPropertyValue("--station-progress"), "0.47");
+  assert.equal(scene.style.getPropertyValue("--station-opacity"), "0.47",
+    "320m에서는 전체 역 장면이 일반 풍경과 절반가량 교차");
+
+  updateRealisticMotionScene(root,
+    { ...initial, phase: "stopping", x: 500, v: 40, markerDistance: 100 },
+    { land: "city" });
+  assert.equal(scene.style.getPropertyValue("--station-progress"), "0.83");
+  assert.equal(scene.style.getPropertyValue("--station-opacity"), "0.83");
+  const approachDetailX = Number.parseFloat(scene.style.getPropertyValue("--station-offset-x"));
+  assert.ok(approachDetailX < approachStartX);
+  assert.ok(Number.parseFloat(scene.style.getPropertyValue("--station-object-y")) > approachStartY,
+    "접근할수록 승강장 선형이 열차 바퀴 높이로 올라옴");
+  assert.ok(Number.parseFloat(scene.style.getPropertyValue("--station-cover-scale")) > 1,
+    "접근할수록 역 장면이 소실점에서 확대됨");
+  assert.equal(scene.dataset.nearSuppressed, "true");
+  assert.equal(scene.dataset.stationVisible, "true");
+
+  updateRealisticMotionScene(root,
+    { ...initial, phase: "stopped", x: 600, v: 0, markerDistance: 0 },
+    { land: "city" });
+  const stoppedProgress = scene.style.getPropertyValue("--station-progress");
+  assert.equal(stoppedProgress, "1");
+  assert.equal(scene.style.getPropertyValue("--station-opacity"), "1");
+  const stoppedX = Number.parseFloat(scene.style.getPropertyValue("--station-offset-x"));
+  assert.equal(stoppedX, 0);
+  assert.equal(Number.parseFloat(scene.style.getPropertyValue("--station-object-y")), 80);
+  assert.equal(Number.parseFloat(scene.style.getPropertyValue("--station-cover-scale")), 1.06);
+  assert.equal(scene.dataset.motionMoving, "false");
+  assert.equal(station.dataset.lifecycle, "stopped");
+
+  updateRealisticMotionScene(root,
+    { ...initial, phase: "driving", x: 300, v: 80, markerDistance: 5000 },
+    { land: "field" });
+  assert.equal(scene.style.getPropertyValue("--station-progress"), "0.5");
+  const departureMiddleX = Number.parseFloat(scene.style.getPropertyValue("--station-offset-x"));
+  assert.ok(departureMiddleX < stoppedX, "출발 시 역은 열차 뒤쪽인 왼쪽으로 밀려야 함");
+  assert.equal(station.dataset.lifecycle, "departing");
+
+  updateRealisticMotionScene(root,
+    { ...initial, phase: "driving", x: 599, v: 80, markerDistance: 4401 },
+    { land: "field" });
+  const departureEndX = Number.parseFloat(scene.style.getPropertyValue("--station-offset-x"));
+  assert.ok(departureEndX < departureMiddleX,
+    "접근→정차→출발의 역 이동은 오른쪽으로 되감기지 않음");
+  assert.ok(Number.parseFloat(scene.style.getPropertyValue("--station-opacity")) < 0.01);
+
+  updateRealisticMotionScene(root,
+    { ...initial, phase: "driving", x: 600, v: 80, markerDistance: 4400 },
+    { land: "field" });
+  assert.equal(scene.dataset.stationVisible, "false");
+  assert.equal(station.dataset.lifecycle, "hidden");
+});
+
+test("1280×720 역 사진은 사진 경계 없이 전체 모션 월드를 항상 덮는다", () => {
+  const initial = createKtxJourney(3, "srt");
+  const root = renderKtxScene(fakeDocument(), initial, "side");
+  const scene = root.querySelector(".ktx-motion-scene");
+
+  updateRealisticMotionScene(root,
+    { ...initial, phase: "driving", x: 100, v: 120, markerDistance: 600 },
+    { land: "city" });
+
+  const scale = Number.parseFloat(scene.style.getPropertyValue("--station-cover-scale"));
+  const sourceWidth = (1280 + 240) * scale;
+  const sourceHeight = 720 * scale;
+  assert.ok(scale >= 1, "커버 이미지는 어떤 접근 단계에서도 축소 금지");
+  assert.ok(sourceWidth >= 1280 && sourceHeight >= 720,
+    "안전 여백을 포함한 이미지가 1280×720 뷰포트를 덮음");
+  assert.ok(Math.abs(Number.parseFloat(scene.style.getPropertyValue("--station-offset-x"))) <= 120,
+    "역 사진 이동은 좌우 120px 안전 크롭 여백을 넘지 않음");
+  assert.equal(scene.style.getPropertyValue("--station-clip-side"), "");
+  assert.equal(scene.style.getPropertyValue("--station-clip-top"), "");
+});
+
+test("역 표지는 주행 중 목적지와 정차한 현재 역 이름을 표시한다", () => {
+  const initial = createKtxJourney(3, "srt");
+  const root = renderKtxScene(fakeDocument(), initial, "side");
+  const sign = root.querySelector(".ktx-motion-station-sign");
+
+  updateRealisticMotionScene(root,
+    { ...initial, phase: "stopping", x: 4000, v: 40, markerDistance: 100 },
+    { land: "field" });
+  assert.equal(sign.textContent, "동탄");
+
+  updateRealisticMotionScene(root,
+    { ...initial, phase: "stopped", segIndex: 1, station: "동탄", x: 0, v: 0,
+      markerDistance: 0 }, { land: "field" });
+  assert.equal(sign.textContent, "동탄", "정차 직후 다음 구간 목적지로 먼저 바뀌지 않음");
+});
+
+test("운전실 선로 위상은 큰 실제 위치에서도 반복 범위 안에 있고 정차 시 멈춘다", () => {
+  const initial = createKtxJourney(3, "srt");
+  const root = renderKtxScene(fakeDocument(), initial, "cab");
+  const scene = root.querySelector(".ktx-motion-scene");
+
+  updateRealisticMotionScene(root,
+    { ...initial, phase: "driving", x: 2530, v: 80, markerDistance: 900 },
+    { land: "field" });
+  const slowTrack = Number.parseFloat(scene.style.getPropertyValue("--cab-track-phase"));
+  const slowSleeperGap = Number.parseFloat(scene.style.getPropertyValue("--cab-sleeper-gap"));
+  const slowCatenaryGap = Number.parseFloat(scene.style.getPropertyValue("--cab-catenary-gap"));
+  const slowTunnelGap = Number.parseFloat(scene.style.getPropertyValue("--tunnel-light-gap"));
+  assert.ok(slowTrack <= 0 && slowTrack > -slowSleeperGap);
+
+  updateRealisticMotionScene(root,
+    { ...initial, phase: "driving", x: 2640, v: 240, markerDistance: 700 },
+    { land: "field" });
+  const fastSleeperGap = Number.parseFloat(scene.style.getPropertyValue("--cab-sleeper-gap"));
+  const fastCatenaryGap = Number.parseFloat(scene.style.getPropertyValue("--cab-catenary-gap"));
+  assert.ok(Number.parseFloat(scene.style.getPropertyValue("--cab-track-phase")) <= 0);
+  assert.ok(Number.parseFloat(scene.style.getPropertyValue("--cab-track-phase")) > -fastSleeperGap);
+  assert.ok(Number.parseFloat(scene.style.getPropertyValue("--cab-sleeper-gap")) < slowSleeperGap);
+  assert.ok(fastCatenaryGap < slowCatenaryGap);
+  assert.ok(Number.parseFloat(scene.style.getPropertyValue("--tunnel-light-gap")) < slowTunnelGap);
+  assert.equal(scene.dataset.cabTrackLoopReset, "true",
+    "속도로 반복 밀도가 바뀌는 프레임은 역방향 보간을 금지");
+  assert.equal(scene.dataset.cabCatenaryLoopReset, "true");
+
+  updateRealisticMotionScene(root,
+    { ...initial, phase: "driving", x: 5000, v: 240, markerDistance: 700 },
+    { land: "field" });
+  assert.ok(Number.parseFloat(scene.style.getPropertyValue("--cab-track-phase")) <= 0);
+  assert.ok(Number.parseFloat(scene.style.getPropertyValue("--cab-track-phase")) > -fastSleeperGap,
+    "유한 요소가 화면 밖으로 누적 이동하지 않음");
+
+  const speed = 120;
+  updateRealisticMotionScene(root,
+    { ...initial, phase: "driving", x: 0, v: speed, markerDistance: 700 },
+    { land: "field" });
+  const sleeperGap = Number.parseFloat(scene.style.getPropertyValue("--cab-sleeper-gap"));
+  updateRealisticMotionScene(root,
+    { ...initial, phase: "driving", x: sleeperGap - 1, v: speed, markerDistance: 700 },
+    { land: "field" });
+  assert.equal(Number.parseFloat(scene.style.getPropertyValue("--cab-track-phase")), -(sleeperGap - 1));
+  updateRealisticMotionScene(root,
+    { ...initial, phase: "driving", x: sleeperGap, v: speed, markerDistance: 700 },
+    { land: "field" });
+  assert.equal(Number.parseFloat(scene.style.getPropertyValue("--cab-track-phase")), 0);
+  assert.equal(scene.dataset.cabTrackLoopReset, "true");
+  updateRealisticMotionScene(root,
+    { ...initial, phase: "driving", x: sleeperGap + 1, v: speed, markerDistance: 700 },
+    { land: "field" });
+  assert.equal(Number.parseFloat(scene.style.getPropertyValue("--cab-track-phase")), -1,
+    "반복 경계 다음 프레임도 순방향으로 한 픽셀 진행");
+
+  const catenaryGap = Number.parseFloat(scene.style.getPropertyValue("--cab-catenary-gap"));
+  updateRealisticMotionScene(root,
+    { ...initial, phase: "driving", x: catenaryGap - 1, v: speed, markerDistance: 700 },
+    { land: "field" });
+  assert.equal(Number.parseFloat(scene.style.getPropertyValue("--cab-catenary-phase")), -(catenaryGap - 1));
+  updateRealisticMotionScene(root,
+    { ...initial, phase: "driving", x: catenaryGap, v: speed, markerDistance: 700 },
+    { land: "field" });
+  assert.equal(Number.parseFloat(scene.style.getPropertyValue("--cab-catenary-phase")), 0);
+  assert.equal(scene.dataset.cabCatenaryLoopReset, "true");
+  updateRealisticMotionScene(root,
+    { ...initial, phase: "driving", x: catenaryGap + 1, v: speed, markerDistance: 700 },
+    { land: "field" });
+  assert.equal(Number.parseFloat(scene.style.getPropertyValue("--cab-catenary-phase")), -1);
+
+  const stoppedTrack = scene.style.getPropertyValue("--cab-track-phase");
+  const stoppedCatenary = scene.style.getPropertyValue("--cab-catenary-phase");
+  updateRealisticMotionScene(root,
+    { ...initial, phase: "stopped", x: catenaryGap + 1, v: 0, markerDistance: 0 },
+    { land: "field" });
+  assert.equal(scene.style.getPropertyValue("--cab-track-phase"), stoppedTrack);
+  assert.equal(scene.style.getPropertyValue("--cab-catenary-phase"), stoppedCatenary);
+});
+
+test("터널 벽과 조명은 각 CSS 반복 간격과 같은 위상 주기로 이음새 없이 순환한다", () => {
+  const initial = createKtxJourney(3, "srt");
+  const root = renderKtxScene(fakeDocument(), initial, "cab");
+  const scene = root.querySelector(".ktx-motion-scene");
+  const speed = 120;
+
+  updateRealisticMotionScene(root,
+    { ...initial, phase: "driving", x: 0, v: speed, markerDistance: 700 },
+    { land: "tunnel" });
+  const lightGap = Number.parseFloat(scene.style.getPropertyValue("--tunnel-light-gap"));
+  const wallGap = Number.parseFloat(scene.style.getPropertyValue("--tunnel-wall-gap"));
+
+  for (const pattern of [
+    { gap: lightGap, phase: "--tunnel-light-phase", reset: "tunnelLightLoopReset" },
+    { gap: wallGap, phase: "--tunnel-wall-phase", reset: "tunnelWallLoopReset" }
+  ]) {
+    updateRealisticMotionScene(root,
+      { ...initial, phase: "driving", x: pattern.gap - 1, v: speed, markerDistance: 700 },
+      { land: "tunnel" });
+    assert.equal(Number.parseFloat(scene.style.getPropertyValue(pattern.phase)), -(pattern.gap - 1));
+    updateRealisticMotionScene(root,
+      { ...initial, phase: "driving", x: pattern.gap, v: speed, markerDistance: 700 },
+      { land: "tunnel" });
+    assert.equal(Number.parseFloat(scene.style.getPropertyValue(pattern.phase)), 0);
+    assert.equal(scene.dataset[pattern.reset], "true");
+    updateRealisticMotionScene(root,
+      { ...initial, phase: "driving", x: pattern.gap + 1, v: speed, markerDistance: 700 },
+      { land: "tunnel" });
+    assert.equal(Number.parseFloat(scene.style.getPropertyValue(pattern.phase)), -1);
+  }
+
+  updateRealisticMotionScene(root,
+    { ...initial, phase: "driving", x: 5000, v: 240, markerDistance: 700 },
+    { land: "tunnel" });
+  const fastLightGap = Number.parseFloat(scene.style.getPropertyValue("--tunnel-light-gap"));
+  assert.ok(Number.parseFloat(scene.style.getPropertyValue("--tunnel-light-phase")) <= 0);
+  assert.ok(Number.parseFloat(scene.style.getPropertyValue("--tunnel-light-phase")) > -fastLightGap);
+  assert.equal(scene.dataset.tunnelLightLoopReset, "true",
+    "속도 변화로 조명 밀도가 바뀔 때 역방향 보간하지 않음");
+});
+
+for (const routeCase of [
+  { route: "busan", entryX: 2640, beforeLand: "mountain" },
+  { route: "mokpo", entryX: 2530, beforeLand: "field" }
+]) {
+  test(`${routeCase.route} 터널 포털은 야외 600m 전부터 다가오고 진입 뒤 내부로 전환된다`, () => {
+    const initial = { ...createKtxJourney(3, "srt"), route: routeCase.route,
+      selectedRoute: routeCase.route, segIndex: 2 };
+    const root = renderKtxScene(fakeDocument(), initial, "cab");
+    const scene = root.querySelector(".ktx-motion-scene");
+
+    updateRealisticMotionScene(root,
+      { ...initial, phase: "driving", x: routeCase.entryX - 600, v: 180 },
+      { land: routeCase.beforeLand });
+    assert.equal(scene.style.getPropertyValue("--tunnel-progress"), "0");
+    assert.equal(scene.dataset.tunnelPortalVisible, "true");
+    assert.equal(scene.dataset.tunnel, "false", "야외에서는 내부 벽을 아직 표시하지 않음");
+    assert.ok(Number.parseFloat(scene.style.getPropertyValue("--tunnel-scale")) >= .3,
+      "600m에서도 소실점의 작은 입구가 식별 가능함");
+
+    updateRealisticMotionScene(root,
+      { ...initial, phase: "driving", x: routeCase.entryX - 300, v: 180 },
+      { land: routeCase.beforeLand });
+    assert.equal(scene.style.getPropertyValue("--tunnel-progress"), "0.5");
+    assert.equal(scene.dataset.tunnelPortalVisible, "true");
+    assert.ok(Number.parseFloat(scene.style.getPropertyValue("--tunnel-scale")) >= .9,
+      "300m에서는 운전실 표지 뒤로도 입구 윤곽이 식별 가능함");
+
+    updateRealisticMotionScene(root,
+      { ...initial, phase: "driving", x: routeCase.entryX, v: 180 },
+      { land: "tunnel" });
+    assert.equal(scene.style.getPropertyValue("--tunnel-progress"), "1");
+    assert.equal(scene.dataset.tunnelPortalVisible, "true");
+    assert.equal(scene.dataset.tunnel, "true", "진입 시점부터 내부 벽과 조명을 표시");
+
+    updateRealisticMotionScene(root,
+      { ...initial, phase: "driving", x: routeCase.entryX + 121, v: 180 },
+      { land: "tunnel" });
+    assert.equal(scene.dataset.tunnelPortalVisible, "false");
+    assert.equal(scene.dataset.tunnel, "true", "포털 뒤에도 벽과 조명은 유지");
+  });
+}
+
+test("고속 진동은 160km/h 위에서만 생기고 1.5px를 넘지 않는다", () => {
+  const initial = createKtxJourney(3, "srt");
+  const root = renderKtxScene(fakeDocument(), initial, "side");
+  const scene = root.querySelector(".ktx-motion-scene");
+
+  updateRealisticMotionScene(root,
+    { ...initial, phase: "driving", x: 2000, v: 160 }, { land: "city" });
+  assert.equal(scene.style.getPropertyValue("--motion-vibration-y"), "0px");
+
+  updateRealisticMotionScene(root,
+    { ...initial, phase: "driving", x: 2000, v: 300 }, { land: "city" });
+  const vibration = Math.abs(Number.parseFloat(scene.style.getPropertyValue("--motion-vibration-y")));
+  assert.ok(vibration > 0);
+  assert.ok(vibration <= 1.5);
+
+  updateRealisticMotionScene(root,
+    { ...initial, phase: "stopping", x: 2000, v: 240 }, { land: "city" });
+  assert.ok(Number.parseFloat(scene.style.getPropertyValue("--motion-brake-pitch")) > 0);
+});
+
+test("사진 팬은 큰 주행 위치에서도 안전 크롭 범위 안에 머문다", () => {
+  const initial = createKtxJourney(3, "srt");
+  const root = renderKtxScene(fakeDocument(), initial, "side");
+
+  for (const x of [0, 2000, 20_000, 200_000]) {
+    updateRealisticMotionScene(root,
+      { ...initial, phase: "driving", x, v: 240 }, { land: "city" });
+    const pan = Number.parseFloat(
+      root.querySelector(".ktx-motion-scene").style
+        .getPropertyValue("--motion-scene-x")
+    );
+    assert.ok(pan >= -120 && pan <= 120, `${x}m의 팬 ${pan}px가 안전 범위 안`);
+  }
+});
+
+test("사진 팬은 같은 활성 플레이트에서 되감기 없이 왼쪽으로만 가고 교차할 새 슬롯만 원점에서 시작한다", () => {
+  const initial = createKtxJourney(3, "srt");
+  const root = renderKtxScene(fakeDocument(), initial, "side");
+  loadMotionSideAssets(root);
+  const scene = root.querySelector(".ktx-motion-scene");
+  const plates = root.querySelectorAll(".ktx-motion-plate");
+  const pans = [];
+
+  for (const x of [0, 1000, 2000, 3000, 3999]) {
+    updateRealisticMotionScene(root,
+      { ...initial, phase: "driving", x, v: 240 }, { land: "city" });
+    pans.push(Number.parseFloat(scene.style.getPropertyValue("--motion-scene-x")));
+  }
+
+  assert.equal(pans[2], -120, "기존 x=2000 계약 유지");
+  pans.slice(1).forEach((pan, index) => {
+    assert.ok(pan <= pans[index], `${pans[index]}px 다음 ${pan}px는 오른쪽으로 되감기면 안 됨`);
+  });
+  assert.equal(plates[0].style.getPropertyValue("--motion-plate-x"), "-120px");
+
+  updateRealisticMotionScene(root,
+    { ...initial, phase: "driving", x: 4000, v: 240 }, { land: "city" });
+
+  assert.equal(plates[0].style.getPropertyValue("--motion-plate-x"), "-120px", "나가는 완성 장면은 위치 고정");
+  assert.equal(plates[1].style.getPropertyValue("--motion-plate-x"), "0px", "들어오는 완성 장면만 안전 원점으로 재설정");
+});
+
+test("주행 위치가 플레이트 구간을 넘으면 준비된 다음 완성 장면으로 교차한다", () => {
+  const initial = createKtxJourney(3, "srt");
+  const root = renderKtxScene(fakeDocument(), initial, "side");
+  loadMotionSideAssets(root);
+  const plates = root.querySelectorAll(".ktx-motion-plate");
+
+  updateRealisticMotionScene(root,
+    { ...initial, phase: "driving", x: 4500, v: 240 }, { land: "city" });
+
+  assert.equal(plates[0].dataset.active, "false");
+  assert.equal(plates[1].dataset.active, "true");
+  assert.equal(plates[0].hidden, false, "이전 완성 장면은 교차 페이드 동안만 함께 마운트");
+  assert.equal(plates[1].hidden, false);
+  assert.ok(Number.parseFloat(
+    root.querySelector(".ktx-motion-scene").style
+      .getPropertyValue("--motion-crossfade-ms")
+  ) >= 450);
+});
+
+test("완성 장면 교차는 정차와 다른 속도 재출발에도 시작 시간축을 유지하고 다음 교차만 새 속도를 쓴다", () => {
+  const initial = createKtxJourney(3, "srt");
+  const root = renderKtxScene(fakeDocument(), initial, "side");
+  loadMotionSideAssets(root);
+  const scene = root.querySelector(".ktx-motion-scene");
+  const plates = root.querySelectorAll(".ktx-motion-plate");
+  const moving = { ...initial, phase: "driving", x: 4500, v: 240 };
+
+  updateRealisticMotionScene(root, moving, { land: "city" });
+  assert.equal(plates[0].dataset.crossfade, "out");
+  assert.equal(plates[1].dataset.crossfade, "in");
+  assert.equal(scene.style.getPropertyValue("--motion-crossfade-play-state"), "running");
+  const duration = scene.style.getPropertyValue("--motion-crossfade-ms");
+
+  updateRealisticMotionScene(root,
+    { ...moving, phase: "stopped", v: 0 }, { land: "city" });
+  assert.equal(plates[0].dataset.crossfade, "out", "나가는 장면의 중간 진행 상태 유지");
+  assert.equal(plates[1].dataset.crossfade, "in", "들어오는 장면의 중간 진행 상태 유지");
+  assert.equal(scene.style.getPropertyValue("--motion-crossfade-play-state"), "paused");
+  assert.equal(scene.style.getPropertyValue("--motion-crossfade-ms"), duration,
+    "정차 중 애니메이션 시간축도 바꾸지 않아 불투명도 진행률 유지");
+
+  const resumedSlow = { ...moving, v: 40 };
+  updateRealisticMotionScene(root, resumedSlow, { land: "city" });
+  assert.equal(plates[0].dataset.crossfade, "out");
+  assert.equal(plates[1].dataset.crossfade, "in");
+  assert.equal(scene.style.getPropertyValue("--motion-crossfade-play-state"), "running");
+  assert.equal(scene.style.getPropertyValue("--motion-crossfade-ms"), duration,
+    "진행 중 교차는 재출발 속도가 달라도 시작할 때의 540ms 유지");
+
+  plates[0].dispatch("animationend");
+  plates[1].dispatch("animationend");
+  updateRealisticMotionScene(root,
+    { ...resumedSlow, x: 1000 }, { land: "city" });
+
+  assert.equal(scene.style.getPropertyValue("--motion-crossfade-ms"), "840ms",
+    "끝난 뒤 시작한 새 교차부터 현재 저속 시간을 사용");
+  assert.equal(plates[0].dataset.crossfade, "in");
+  assert.equal(plates[1].dataset.crossfade, "out");
+});
+
+test("다음 플레이트는 비활성 슬롯 교체 전에 별도 이미지로 선로드된다", () => {
+  const document = fakeDocument();
+  const initial = createKtxJourney(3, "srt");
+  const root = renderKtxScene(document, initial, "side");
+  loadMotionSideAssets(root);
+
+  updateRealisticMotionScene(root,
+    { ...initial, phase: "driving", x: 4500, v: 240 }, { land: "city" });
+  updateRealisticMotionScene(root,
+    { ...initial, phase: "driving", x: 5000, v: 240 }, { land: "city" });
+
+  const preload = document.createdElements.find(element =>
+    element.tagName === "IMG" &&
+    element.src.endsWith("/assets/train-realistic/motion/city-c.webp") &&
+    !element.className.includes("ktx-motion-plate"));
+  assert.ok(preload, "다음 city-c 완성 장면을 화면 밖에서 먼저 읽음");
+  assert.ok(root.querySelectorAll(".ktx-motion-plate")[0].src.endsWith("/city-a.webp"),
+    "로드 전 비활성 슬롯의 현재 장면은 보존");
+
+  preload.dispatch("load");
+  assert.ok(root.querySelectorAll(".ktx-motion-plate")[0].src.endsWith("/city-c.webp"));
+});
+
+test("다음 플레이트가 즉시 로드돼도 현재 교차 중인 이전 슬롯을 덮지 않는다", () => {
+  const document = fakeDocument();
+  const initial = createKtxJourney(3, "srt");
+  const root = renderKtxScene(document, initial, "side");
+  loadMotionSideAssets(root);
+  const plates = root.querySelectorAll(".ktx-motion-plate");
+
+  updateRealisticMotionScene(root,
+    { ...initial, phase: "driving", x: 4500, v: 240 }, { land: "city" });
+  const preload = document.createdElements.find(element =>
+    element.tagName === "IMG" && element.src.endsWith("/city-c.webp") &&
+    !element.className.includes("ktx-motion-plate"));
+  preload.dispatch("load");
+
+  assert.ok(plates[0].src.endsWith("/city-a.webp"), "A→B 교차가 끝날 때까지 A 유지");
+  updateRealisticMotionScene(root,
+    { ...initial, phase: "driving", x: 4900, v: 240 }, { land: "city" });
+  assert.ok(plates[0].src.endsWith("/city-c.webp"), "충분히 진행한 뒤 비활성 슬롯 교체");
+});
+
+test("선택형 다음 플레이트 오류는 같은 환경의 상태 틱마다 재요청하지 않는다", () => {
+  const document = fakeDocument();
+  const initial = createKtxJourney(3, "srt");
+  const root = renderKtxScene(document, initial, "side");
+  loadMotionSideAssets(root);
+  const moving = { ...initial, phase: "driving", x: 4500, v: 240 };
+  const optionalPreloads = () => document.createdElements.filter(element =>
+    element.tagName === "IMG" && element.src.endsWith("/city-c.webp") &&
+    !element.className.includes("ktx-motion-plate"));
+
+  updateRealisticMotionScene(root, moving, { land: "city" });
+  optionalPreloads()[0].dispatch("error");
+  updateRealisticMotionScene(root, moving, { land: "city" });
+  updateRealisticMotionScene(root, moving, { land: "city" });
+
+  assert.equal(optionalPreloads().length, 1);
+  assert.equal(root.dataset.motionRealistic, "ready", "현재 A/B 장면은 계속 정상 표시");
+});
+
+test("주행 위치를 건너뛰어도 해당 구간의 플레이트를 결정적으로 준비한다", () => {
+  const document = fakeDocument();
+  const initial = createKtxJourney(3, "srt");
+  const root = renderKtxScene(document, initial, "side");
+  loadMotionSideAssets(root);
+  const jumped = { ...initial, phase: "driving", x: 8500, v: 240 };
+
+  updateRealisticMotionScene(root, jumped, { land: "city" });
+  const preload = document.createdElements.find(element =>
+    element.tagName === "IMG" &&
+    element.src.endsWith("/assets/train-realistic/motion/city-c.webp") &&
+    !element.className.includes("ktx-motion-plate"));
+  assert.ok(preload, "현재 위치가 가리키는 city-c를 직접 준비");
+
+  preload.dispatch("load");
+  updateRealisticMotionScene(root, jumped, { land: "city" });
+  const active = root.querySelectorAll(".ktx-motion-plate")
+    .find(plate => plate.dataset.active === "true");
+  assert.ok(active.src.endsWith("/city-c.webp"));
+});
+
+test("빠를수록 완성 장면 교차 시간은 짧아지되 450ms 아래로 내려가지 않는다", () => {
+  const initial = createKtxJourney(3, "srt");
+  const root = renderKtxScene(fakeDocument(), initial, "side");
+  const scene = root.querySelector(".ktx-motion-scene");
+
+  updateRealisticMotionScene(root,
+    { ...initial, phase: "driving", x: 1000, v: 80 }, { land: "city" });
+  const slow = Number.parseFloat(scene.style.getPropertyValue("--motion-crossfade-ms"));
+  updateRealisticMotionScene(root,
+    { ...initial, phase: "driving", x: 1000, v: 300 }, { land: "city" });
+  const fast = Number.parseFloat(scene.style.getPropertyValue("--motion-crossfade-ms"));
+
+  assert.ok(fast < slow);
+  assert.ok(fast >= 450);
+  assert.ok(slow <= 900);
+});
+
+test("선로·근경·속도선은 각 CSS 무늬 주기 경계 전후에 같은 위상으로 이어진다", () => {
+  const initial = createKtxJourney(3, "srt");
+  const root = renderKtxScene(fakeDocument(), initial, "side");
+  const scene = root.querySelector(".ktx-motion-scene");
+  const cases = [
+    { layer: "track", period: 144, xs: [143, 144, 145] },
+    { layer: "near", period: 720, xs: [719 / .85, 720 / .85, 721 / .85] },
+    { layer: "streak", period: 310, xs: [309, 310, 311] }
+  ];
+  const wrappedDelta = (from, to, period) => {
+    const half = period / 2;
+    return ((to - from + half + period) % period) - half;
+  };
+
+  for (const { layer, period, xs } of cases) {
+    const phases = xs.map(x => {
+      updateRealisticMotionScene(root,
+        { ...initial, phase: "driving", x, v: 240 }, { land: "city" });
+      return Number.parseFloat(
+        scene.style.getPropertyValue(`--motion-${layer}-phase-x`)
+      );
+    });
+    assert.ok(phases.every(Number.isFinite), `${layer} 전용 위상 변수가 있어야 함`);
+    assert.ok(Math.abs(wrappedDelta(phases[0], phases[1], period) + 1) < .01,
+      `${layer} boundary-1 → boundary 위상 연속`);
+    assert.ok(Math.abs(wrappedDelta(phases[1], phases[2], period) + 1) < .01,
+      `${layer} boundary → boundary+1 위상 연속`);
+  }
 });
 
 test("KTX 선택은 SRT 사진을 마운트하지 않고 전용 SVG 장면을 유지한다", () => {

@@ -7431,6 +7431,33 @@ body[data-mode="ktx"] .stage-lights {
 
 .ktx-stars-pop { animation: ktx-speed-pop-kf .5s ease; }
 
+.ktx-boost-badge {
+  min-width: 104px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  color: #fff;
+  background: #9aa7b5;
+  box-shadow: inset 0 -3px rgba(25, 49, 70, .2);
+  font-size: 14px;
+  font-weight: 900;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.ktx-game[data-boost="ready"] .ktx-boost-badge { background: #168f82; }
+
+.ktx-game[data-boost="active"] .ktx-boost-badge {
+  background: linear-gradient(135deg, #00aeca, #2479e7);
+  animation: ktx-boost-pulse .7s ease-in-out infinite;
+}
+
+.ktx-game[data-boost="cooldown"] .ktx-boost-badge { background: #718196; }
+.ktx-game[data-boost="unavailable"] .ktx-boost-badge { background: #9aa7b5; }
+
+@keyframes ktx-boost-pulse {
+  50% { transform: scale(1.04); filter: brightness(1.2); }
+}
+
 .ktx-view-keys { display: flex; gap: 8px; }
 
 .ktx-view-key {
@@ -9281,13 +9308,8 @@ body[data-mode="delivery"] #stage {
    크롭만 천천히 이동시키고, 속도감은 별도 전경 레이어가 담당한다. */
 .ktx-game[data-realistic="ready"][data-moving="true"] .ktx-real-cab-image,
 .ktx-game[data-realistic="ready"][data-moving="true"] .ktx-real-exterior-image {
-  animation: ktx-real-camera-drift 9s ease-in-out infinite alternate;
-  will-change: transform;
-}
-
-@keyframes ktx-real-camera-drift {
-  from { transform: scale(1.01) translate3d(.15%, 0, 0); }
-  to { transform: scale(1.01) translate3d(-.35%, -.12%, 0); }
+  animation: none;
+  will-change: auto;
 }
 
 /* 로드 전(pending)과 오류(fallback)에는 절대 적용되지 않는 폴백 스위치. */
@@ -9336,6 +9358,12 @@ body[data-mode="delivery"] #stage {
   height: 236px;
   margin-left: -118px;
   filter: drop-shadow(0 9px 18px rgba(0, 0, 0, .42));
+}
+
+.ktx-game[data-realistic="ready"][data-view="cab"] .ktx-speedo {
+  width: 188px;
+  height: 188px;
+  margin-left: -94px;
 }
 
 .ktx-game[data-realistic="ready"] .ktx-lever {
@@ -9443,4 +9471,487 @@ body[data-mode="delivery"] #stage {
   }
 
   .ktx-game[data-realistic="ready"] .ktx-side-near { filter: none; }
+}
+
+/* ── SRT 실사 모션 리그 — 완성 장면 교차 + 독립 선로/근경 모션 ───────── */
+
+.ktx-motion-scene {
+  position: absolute;
+  inset: 0 0 29%;
+  z-index: 2;
+  overflow: hidden;
+  background: #b9d5df;
+  opacity: 0;
+  pointer-events: none;
+  isolation: isolate;
+}
+
+.ktx-game[data-motion-realistic="ready"][data-view="side"] .ktx-motion-scene {
+  opacity: 1;
+}
+
+.ktx-game[data-motion-realistic="ready"][data-view="cab"] .ktx-motion-scene {
+  inset: 0;
+  opacity: 1;
+}
+
+/* 모든 사진 슬롯은 같은 화면을 완전히 덮는다. 120px 오버스캔 안에서만
+   팬하므로 어떤 위치에서도 사진 모서리나 사진끼리 맞닿은 경계가 보이지 않는다. */
+.ktx-motion-plate {
+  position: absolute;
+  top: 0;
+  width: calc(100% + 240px);
+  height: 100%;
+  left: -120px;
+  z-index: 1;
+  object-fit: cover;
+  object-position: center center;
+  opacity: 0;
+  transform: translate3d(var(--motion-plate-x, var(--motion-scene-x)), 0, 0);
+  transition: transform 120ms linear;
+  will-change: transform, opacity;
+}
+
+.ktx-motion-plate[data-active="true"] { opacity: 1; }
+.ktx-motion-plate[data-active="false"] { opacity: 0; }
+
+@keyframes ktx-motion-plate-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes ktx-motion-plate-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+.ktx-motion-plate[data-crossfade="in"],
+.ktx-motion-plate[data-crossfade="out"] {
+  animation-duration: var(--motion-crossfade-ms, 900ms);
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: 1;
+  animation-fill-mode: both;
+  animation-play-state: var(--motion-crossfade-play-state, running);
+}
+
+.ktx-motion-plate[data-crossfade="in"] {
+  animation-name: ktx-motion-plate-in;
+}
+
+.ktx-motion-plate[data-crossfade="out"] {
+  animation-name: ktx-motion-plate-out;
+}
+
+.ktx-motion-track {
+  position: absolute;
+  left: 0;
+  bottom: -2%;
+  width: calc(100% + 144px);
+  height: 30%;
+  z-index: 3;
+  background:
+    repeating-linear-gradient(90deg,
+      transparent 0 66px, rgba(64, 65, 68, .74) 66px 78px, transparent 78px 144px),
+    linear-gradient(to bottom,
+      transparent 0 18%, #777f85 19% 24%, #d0d4d5 25% 39%,
+      #63696c 40% 46%, #c8bca6 47% 100%);
+  transform: translate3d(var(--motion-track-phase-x), 0, 0);
+  filter: blur(var(--motion-blur));
+  transform-origin: left center;
+  will-change: transform;
+}
+
+.ktx-motion-near {
+  position: absolute;
+  left: 0;
+  bottom: 13%;
+  width: calc(100% + 720px);
+  height: 58%;
+  z-index: 4;
+  background:
+    repeating-linear-gradient(90deg,
+      transparent 0 360px,
+      rgba(48, 55, 59, .72) 360px 368px,
+      rgba(204, 210, 211, .72) 368px 374px,
+      transparent 374px 720px);
+  transform: translate3d(var(--motion-near-phase-x), 0, 0);
+  filter: blur(var(--motion-blur));
+  transform-origin: left center;
+  will-change: transform;
+}
+
+/* 고속 스트릭은 근경 이동값을 함께 쓰며 별도 시간 애니메이션을 만들지 않는다. */
+.ktx-motion-near::after {
+  position: absolute;
+  top: 48%;
+  bottom: 8%;
+  left: 0;
+  width: calc(100% + 310px);
+  background: repeating-linear-gradient(90deg,
+    transparent 0 130px, rgba(255, 255, 255, .55) 130px 156px,
+    transparent 156px 310px);
+  opacity: 0;
+  transform: translate3d(calc(var(--motion-streak-phase-x) - var(--motion-near-phase-x)), 0, 0);
+  content: "";
+}
+
+.ktx-motion-scene[data-speed-band="fast"] .ktx-motion-near::after,
+.ktx-motion-scene[data-speed-band="very-fast"] .ktx-motion-near::after {
+  opacity: calc(.18 + var(--motion-speed, 0) * .36);
+}
+
+.ktx-game[data-boost="active"] .ktx-motion-near::after { opacity: .9; }
+
+.ktx-motion-train {
+  position: absolute;
+  left: 50%;
+  top: 68%;
+  width: min(78%, 1120px);
+  height: auto;
+  z-index: 6;
+  object-fit: contain;
+  filter: none;
+  transform: translate3d(-50%, calc(-50% + var(--motion-vibration-y, 0px)), 0)
+    rotate(calc(var(--motion-brake-pitch, 0) * 1deg));
+  transform-origin: center 72%;
+  transition: transform 120ms linear;
+  will-change: transform;
+}
+
+.ktx-motion-cab-frame {
+  position: absolute;
+  inset: 0;
+  z-index: 7;
+  display: none;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: none;
+  pointer-events: none;
+}
+
+.ktx-motion-station-viewport {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  overflow: hidden;
+  opacity: 0;
+  transition: opacity 120ms linear;
+  will-change: opacity;
+}
+
+.ktx-motion-station {
+  position: absolute;
+  left: -120px;
+  top: 0;
+  display: block;
+  width: calc(100% + 240px);
+  height: 100%;
+  object-fit: cover;
+  object-position: center var(--station-object-y, 50%);
+  transform: translate3d(var(--station-offset-x, 120px), 0, 0)
+    scale(var(--station-cover-scale, 1));
+  transform-origin: center center;
+  transition: transform 120ms linear;
+  will-change: transform;
+}
+
+.ktx-motion-scene[data-station-visible="true"] .ktx-motion-station-viewport {
+  opacity: var(--station-opacity, 1);
+}
+
+.ktx-motion-station-sign {
+  position: absolute;
+  left: 50%;
+  top: 21%;
+  z-index: 5;
+  min-width: 144px;
+  padding: 9px 18px;
+  border: 4px solid #f7f8f9;
+  border-radius: 7px;
+  color: #fff;
+  font: 900 clamp(17px, 2vw, 28px)/1.1 var(--display-font);
+  text-align: center;
+  background: #24475f;
+  box-shadow: 0 5px 14px rgba(0, 0, 0, .3);
+  opacity: 0;
+  transform: translateX(-50%);
+}
+
+.ktx-motion-scene[data-station-stage="detail"] .ktx-motion-station-sign,
+.ktx-motion-scene[data-station-stage="stopped"] .ktx-motion-station-sign {
+  opacity: 1;
+}
+
+.ktx-motion-scene[data-near-suppressed="true"] .ktx-motion-near {
+  opacity: 0;
+}
+
+/* 실제 투명 전면창의 위쪽 소실점에서 선로가 계기판 경계까지 다가온다. */
+.ktx-motion-cab-window {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: none;
+  overflow: hidden;
+  clip-path: polygon(13% 7%, 87% 7%, 78% 42%, 22% 42%);
+  pointer-events: none;
+}
+
+.ktx-motion-cab-rail {
+  position: absolute;
+  left: 50%;
+  top: 22%;
+  width: 9px;
+  height: 78%;
+  border-radius: 999px;
+  background: repeating-linear-gradient(to bottom,
+    #aeb5ba 0 9px, #454b50 9px 15px, #7d858b 15px 24px);
+  background-position: center var(--cab-track-phase, 0px);
+  box-shadow: 0 0 8px rgba(255, 255, 255, .45);
+  transform-origin: 50% 0;
+  transition: background-position 120ms linear;
+}
+
+.ktx-motion-cab-rail-left {
+  left: 38%;
+  transform: translateX(-50%) rotate(58deg);
+}
+
+.ktx-motion-cab-rail-right {
+  left: 62%;
+  transform: translateX(-50%) rotate(-58deg);
+}
+
+.ktx-motion-cab-sleepers {
+  position: absolute;
+  left: 19%;
+  right: 19%;
+  top: 22%;
+  bottom: -12%;
+  background: repeating-linear-gradient(to bottom,
+    transparent 0 calc(var(--cab-sleeper-gap, 42px) - 7px),
+    rgba(64, 54, 45, .92) calc(var(--cab-sleeper-gap, 42px) - 7px)
+      var(--cab-sleeper-gap, 42px));
+  background-position: center var(--cab-track-phase, 0px);
+  clip-path: polygon(48% 0, 52% 0, 100% 100%, 0 100%);
+  filter: drop-shadow(0 1px 1px rgba(255, 255, 255, .5));
+  transform: none;
+  transform-origin: 50% 0;
+  transition: background-position 120ms linear;
+}
+
+.ktx-motion-cab-catenary {
+  position: absolute;
+  left: 50%;
+  top: 16%;
+  width: 84%;
+  height: 32%;
+  background:
+    linear-gradient(90deg,
+      transparent 49.4%, rgba(54, 60, 65, .82) 49.7% 50.3%, transparent 50.6%),
+    repeating-linear-gradient(to bottom,
+      transparent 0 calc(var(--cab-catenary-gap, 76px) - 5px),
+      rgba(91, 98, 104, .8) calc(var(--cab-catenary-gap, 76px) - 4px)
+        var(--cab-catenary-gap, 76px));
+  background-position: center 0, center var(--cab-catenary-phase, 0px);
+  clip-path: polygon(46% 0, 54% 0, 100% 100%, 0 100%);
+  filter: drop-shadow(0 1px 1px rgba(255, 255, 255, .5));
+  transform: translateX(-50%);
+  transform-origin: 50% 0;
+  transition: background-position 120ms linear;
+}
+
+.ktx-motion-tunnel {
+  --tunnel-wall-offset: var(--tunnel-wall-phase, 0px);
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  overflow: hidden;
+  background: transparent;
+  background-position: center var(--tunnel-wall-offset);
+  opacity: 0;
+  pointer-events: none;
+  transition: background-position 120ms linear;
+}
+
+.ktx-motion-scene[data-tunnel-portal-visible="true"] .ktx-motion-tunnel,
+.ktx-motion-scene[data-tunnel="true"] .ktx-motion-tunnel { opacity: 1; }
+
+.ktx-motion-scene[data-tunnel="true"] .ktx-motion-tunnel {
+  background: repeating-linear-gradient(to bottom,
+    #171a1e 0 calc(var(--tunnel-wall-gap, 50px) - 4px),
+    #2b3036 calc(var(--tunnel-wall-gap, 50px) - 3px)
+      var(--tunnel-wall-gap, 50px));
+}
+
+.ktx-motion-tunnel-portal {
+  position: absolute;
+  left: 50%;
+  top: 29%;
+  width: 58%;
+  height: 42%;
+  border: clamp(12px, 2.4vw, 34px) solid #7d858c;
+  border-bottom-width: clamp(16px, 3.4vw, 48px);
+  border-radius: 50% 50% 12% 12%;
+  background: rgba(8, 11, 14, .94);
+  box-shadow: 0 0 0 6px rgba(36, 40, 45, .9), 0 8px 18px rgba(0, 0, 0, .45);
+  transform: translate(-50%, -50%) scale(var(--tunnel-scale, .18));
+  transform-origin: 50% 40%;
+  transition: transform 120ms linear;
+}
+
+.ktx-motion-scene[data-tunnel-portal-visible="false"] .ktx-motion-tunnel-portal {
+  opacity: 0;
+}
+
+.ktx-motion-tunnel-lights {
+  position: absolute;
+  inset: 0 4%;
+  background:
+    repeating-linear-gradient(to bottom,
+      transparent 0 calc(var(--tunnel-light-gap, 98px) - 6px),
+      rgba(255, 241, 174, .92) calc(var(--tunnel-light-gap, 98px) - 6px)
+        var(--tunnel-light-gap, 98px));
+  background-position: center var(--tunnel-light-phase, 0px);
+  filter: drop-shadow(0 0 7px rgba(255, 224, 124, .7));
+  opacity: 0;
+  transition: background-position 120ms linear;
+}
+
+.ktx-motion-scene[data-tunnel="true"] .ktx-motion-tunnel-lights { opacity: 1; }
+
+.ktx-game[data-view="cab"] .ktx-motion-cab-window,
+.ktx-game[data-view="cab"] .ktx-motion-cab-frame {
+  display: block;
+}
+
+.ktx-game[data-view="cab"] .ktx-motion-cab-frame {
+  position: absolute;
+  pointer-events: none;
+}
+
+.ktx-game[data-view="cab"] .ktx-motion-train,
+.ktx-game[data-view="cab"] .ktx-motion-track,
+.ktx-game[data-view="cab"] .ktx-motion-near {
+  display: none;
+}
+
+.ktx-game[data-view="side"] .ktx-motion-cab-window,
+.ktx-game[data-view="side"] .ktx-motion-cab-frame {
+  display: none;
+}
+
+.ktx-motion-scene[data-motion-moving="true"] .ktx-motion-near,
+.ktx-motion-scene[data-motion-moving="true"] .ktx-motion-track {
+  transition: transform 120ms linear;
+}
+
+.ktx-motion-scene[data-near-loop-reset="true"] .ktx-motion-near,
+.ktx-motion-scene[data-track-loop-reset="true"] .ktx-motion-track {
+  transition: none;
+}
+
+.ktx-motion-scene[data-cab-track-loop-reset="true"] .ktx-motion-cab-sleepers,
+.ktx-motion-scene[data-cab-catenary-loop-reset="true"] .ktx-motion-cab-catenary,
+.ktx-motion-scene[data-tunnel-wall-loop-reset="true"] .ktx-motion-tunnel,
+.ktx-motion-scene[data-tunnel-light-loop-reset="true"] .ktx-motion-tunnel-lights {
+  transition: none;
+}
+
+.ktx-motion-scene[data-motion-moving="false"] .ktx-motion-plate,
+.ktx-motion-scene[data-motion-moving="false"] .ktx-motion-near,
+.ktx-motion-scene[data-motion-moving="false"] .ktx-motion-track,
+.ktx-motion-scene[data-motion-moving="false"] .ktx-motion-station-viewport,
+.ktx-motion-scene[data-motion-moving="false"] .ktx-motion-station,
+.ktx-motion-scene[data-motion-moving="false"] .ktx-motion-cab-sleepers,
+.ktx-motion-scene[data-motion-moving="false"] .ktx-motion-cab-catenary,
+.ktx-motion-scene[data-motion-moving="false"] .ktx-motion-tunnel,
+.ktx-motion-scene[data-motion-moving="false"] .ktx-motion-tunnel-portal,
+.ktx-motion-scene[data-motion-moving="false"] .ktx-motion-tunnel-lights {
+  transition: none;
+  will-change: auto;
+}
+
+.ktx-motion-scene[data-motion-moving="false"] .ktx-motion-train {
+  transition: none;
+  will-change: auto;
+}
+
+/* 모션 장면이 준비되면 정적 사진은 뒤에 폴백으로 남기되 페인트하지 않는다. */
+.ktx-game[data-motion-realistic="ready"][data-view="side"] .ktx-real-scene {
+  opacity: 0;
+}
+
+.ktx-game[data-motion-realistic="ready"][data-view="cab"] .ktx-real-scene {
+  opacity: 0;
+}
+
+/* 모션 자산이 먼저 준비돼도 뒤늦은 정적/SVG 폴백이 전면창을 덮지 않는다.
+   실제 계기와 조작부는 이 목록에 넣지 않아 계속 고정·상호작용 가능하다. */
+.ktx-game[data-motion-realistic="ready"] .ktx-view-cab .ktx-cab-backdrop,
+.ktx-game[data-motion-realistic="ready"] .ktx-view-cab .ktx-cab-world,
+.ktx-game[data-motion-realistic="ready"] .ktx-view-cab .ktx-cab-frame,
+.ktx-game[data-motion-realistic="ready"] .ktx-view-cab .ktx-cab-dash {
+  opacity: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ktx-motion-scene { --motion-vibration-y: 0px; }
+
+  .ktx-boost-badge { animation: none !important; }
+
+  .ktx-motion-plate[data-crossfade] {
+    animation: none !important;
+    transition: none !important;
+  }
+
+  .ktx-motion-plate,
+  .ktx-motion-near,
+  .ktx-motion-track,
+  .ktx-motion-station-viewport,
+  .ktx-motion-station,
+  .ktx-motion-cab-sleepers,
+  .ktx-motion-cab-catenary,
+  .ktx-motion-tunnel,
+  .ktx-motion-tunnel-portal,
+  .ktx-motion-tunnel-lights,
+  .ktx-motion-train {
+    animation: none !important;
+    transition: none !important;
+  }
+
+  .ktx-motion-near,
+  .ktx-motion-track,
+  .ktx-motion-tunnel-lights { filter: none !important; }
+
+  .ktx-motion-near::after { display: none; }
+
+  .ktx-motion-train {
+    transform: translate3d(-50%, -50%, 0)
+      rotate(calc(var(--motion-brake-pitch, 0) * 1deg));
+  }
+
+}
+
+/* 가로 휴대전화에서는 사진 교차의 나가는 슬롯을 즉시 내려 큰 래스터를
+   장면 1장 + 역 1장 + 고정 열차/운전실 1장, 최대 세 장으로 제한한다. */
+@media (orientation: landscape) and (max-width: 900px) and (max-height: 500px) {
+  .ktx-motion-plate[data-crossfade="out"] {
+    display: none !important;
+  }
+
+  .ktx-motion-near,
+  .ktx-motion-track,
+  .ktx-motion-tunnel-lights {
+    filter: none;
+  }
+
+  .ktx-motion-plate,
+  .ktx-motion-near,
+  .ktx-motion-track,
+  .ktx-motion-train,
+  .ktx-motion-cab-frame {
+    will-change: auto;
+  }
 }

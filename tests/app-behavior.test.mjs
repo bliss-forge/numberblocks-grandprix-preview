@@ -66,6 +66,30 @@ function audioHarness() {
   return { manager, audios, ramps };
 }
 
+test("SRT 부스터 이벤트를 짧은 효과음과 자연스러운 안내로 바꾼다", () => {
+  assert.equal(typeof appBehavior.ktxBoosterCue, "function");
+  assert.deepEqual(appBehavior.ktxBoosterCue({ type: "boost-start" }), {
+    sfx: "win",
+    hint: "🚄 부스터 출발! 5초 동안 500!"
+  });
+  assert.deepEqual(appBehavior.ktxBoosterCue({
+    type: "boost-unavailable",
+    remainingMs: 5200
+  }), {
+    sfx: "key",
+    hint: "충전 중이에요! 6초"
+  });
+  assert.deepEqual(appBehavior.ktxBoosterCue({ type: "boost-end" }), {
+    sfx: "pop",
+    hint: "부스터 끝! 안전 운전해요"
+  });
+  assert.deepEqual(appBehavior.ktxBoosterCue({ type: "boost-ready" }), {
+    sfx: "key",
+    hint: "부스터 준비 완료!"
+  });
+  assert.equal(appBehavior.ktxBoosterCue({ type: "horn" }), null);
+});
+
 test("게임으로 전환하면 숨김이 해제된 게임 화면으로 포커스를 옮긴다", () => {
   const calls = [];
   const game = { focus: options => calls.push({ target: "game", options }) };
