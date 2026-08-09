@@ -221,16 +221,16 @@ test("존 진입 후 너무 이른 Space는 크리프 + 코칭(벌 없음)", () 
   assert.equal(early.state.phase, "driving", "달리기는 계속");
 });
 
-test("존에서는 경적이 아니라 정지 조작이다", () => {
+test("SRT는 존 밖에서 부스터, 존 안에서는 정지 조작이다", () => {
   let state = readyToDrive(createKtxJourney(3));
-  const horn = pressKtxSpace({ ...state, phase: "driving" });
-  assert.equal(horn.events[0]?.type, "horn", "존 밖에서는 경적");
+  const boost = pressKtxSpace({ ...state, phase: "driving" });
+  assert.equal(boost.events[0]?.type, "boost-start", "존 밖에서는 부스터");
 
   for (let guard = 0; guard < 3000 && !state.zoneEntered; guard += 1) {
     state = tickKtx(state, { up: true }, TICK).state;
   }
   const inZone = pressKtxSpace(state);
-  assert.notEqual(inZone.events[0]?.type, "horn", "존 안에서는 경적 금지");
+  assert.notEqual(inZone.events[0]?.type, "boost-start", "존 안에서는 부스터 금지");
 });
 
 test("아무것도 누르지 않으면 오버런 → 통통 복귀 → 별 1개", () => {
@@ -376,7 +376,7 @@ test("속도 마일스톤은 구간당 한 번씩만 부른다", () => {
 });
 
 test("경적은 이벤트 안에서 3단 에스컬레이션, 밖에서는 베이스라인 로테이션", () => {
-  let state = readyToDrive(createKtxJourney(3));
+  let state = readyToDrive(createKtxJourney(3, "ktx"));
   state = { ...state, phase: "driving" };
   const responses = [];
   for (let index = 0; index < 4; index += 1) {
@@ -398,6 +398,120 @@ test("경적은 이벤트 안에서 3단 에스컬레이션, 밖에서는 베이
     levels.push(result.events[0].level);
   }
   assert.deepEqual(levels, [1, 2, 3, 1, 2], "3단 뒤 반복");
+});
+
+test("SRT 일반 주행 Space는 500km/h 부스터를 5초 시작한다", () => {
+  const driving = {
+    ...readyToDrive(createKtxJourney(3, "srt")),
+    phase: "driving"
+  };
+
+  const result = pressKtxSpace(driving);
+
+  assert.equal(result.state.v, 500);
+  assert.equal(result.state.boostRemainingMs, 5000);
+  assert.equal(result.state.boostCooldownMs, 0);
+  assert.deepEqual(result.events, [{ type: "boost-start" }]);
+});
+
+test("활성 중 Space는 시간을 늘리지 않고 종료 뒤 10초를 기다려야 다시 쓴다", () => {
+  const driving = {
+    ...readyToDrive(createKtxJourney(3, "srt")),
+    phase: "driving"
+  };
+  let state = pressKtxSpace(driving).state;
+  state = tickKtx(state, {}, 1000).state;
+  const repeated = pressKtxSpace(state);
+  assert.equal(repeated.state.boostRemainingMs, 4000);
+  assert.deepEqual(repeated.events, [{
+    type: "boost-unavailable",
+    remainingMs: 4000
+  }]);
+
+  const expired = tickKtx(repeated.state, {}, 4000);
+  assert.equal(expired.state.boostRemainingMs, 0);
+  assert.equal(expired.state.boostCooldownMs, 10000);
+  assert.ok(expired.events.some(event => event.type === "boost-end"));
+
+  const almostReady = tickKtx(expired.state, {}, 9999);
+  assert.equal(almostReady.state.boostCooldownMs, 1);
+  assert.equal(pressKtxSpace(almostReady.state).events[0].type,
+    "boost-unavailable");
+  const ready = tickKtx(almostReady.state, {}, 1);
+  assert.equal(ready.state.boostCooldownMs, 0);
+  assert.ok(ready.events.some(event => event.type === "boost-ready"));
+  assert.equal(pressKtxSpace(ready.state).events[0].type, "boost-start");
+});
+
+test("15초 큰 틱은 부스터와 쿨다운을 순서대로 모두 소비한다", () => {
+  const driving = {
+    ...readyToDrive(createKtxJourney(3, "srt")),
+    phase: "driving"
+  };
+  const boosted = pressKtxSpace(driving).state;
+
+  const result = tickKtx(boosted, {},
+    15000);
+
+  assert.equal(result.state.boostRemainingMs, 0);
+  assert.equal(result.state.boostCooldownMs, 0);
+  assert.deepEqual(
+    result.events.filter(event => event.type.startsWith("boost-")).map(event => event.type),
+    ["boost-end", "boost-ready"]
+  );
+});
+
+test("잘못되거나 빠진 부스터 카운터는 0으로 보정한다", () => {
+  const driving = {
+    ...readyToDrive(createKtxJourney(3, "srt")),
+    phase: "driving",
+    boostRemainingMs: Number.NaN,
+    boostCooldownMs: -20
+  };
+
+  const result = pressKtxSpace(driving);
+
+  assert.equal(result.events[0].type, "boost-start");
+  assert.equal(result.state.boostRemainingMs, 5000);
+});
+
+test("쿨다운은 정차 중에도 흐르고 SRT 외 열차는 기존 경적을 쓴다", () => {
+  const stopped = {
+    ...createKtxJourney(3, "srt"),
+    phase: "stopped",
+    boostRemainingMs: 0,
+    boostCooldownMs: 5000
+  };
+  const cooled = tickKtx(stopped, {}, 2000);
+  assert.equal(cooled.state.boostCooldownMs, 3000);
+
+  const ktxDriving = {
+    ...readyToDrive(createKtxJourney(3, "ktx")),
+    phase: "driving"
+  };
+  assert.equal(pressKtxSpace(ktxDriving).events[0].type, "horn");
+});
+
+test("역 진입 틱은 부스터를 즉시 끝내고 기존 정차 봉투로 낮춘다", () => {
+  const zoneStart = KTX_SEGMENTS[0].length - ZONE_LENGTH;
+  const driving = {
+    ...readyToDrive(createKtxJourney(3, "srt")),
+    phase: "driving",
+    x: zoneStart - 10
+  };
+  const boosted = pressKtxSpace(driving).state;
+
+  const result = tickKtx(boosted, {}, 150);
+
+  assert.equal(result.state.zoneEntered, true);
+  assert.equal(result.state.boostRemainingMs, 0);
+  assert.equal(result.state.boostCooldownMs, 10000);
+  assert.ok(result.state.v < 500);
+  assert.ok(result.events.some(event =>
+    event.type === "boost-end" && event.reason === "station-approach"));
+
+  const spaceAtStation = pressKtxSpace(result.state);
+  assert.notEqual(spaceAtStation.events[0].type, "boost-start");
 });
 
 test("배경 밴드가 진행률에 따라 바뀌고 알림이 온다", () => {
