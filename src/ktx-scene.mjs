@@ -14,6 +14,7 @@ import {
   KTX_STATIONS,
   KTX_TRAINS,
   MARKER_FROM_ZONE,
+  MAX_SPEED,
   SPEED_MILESTONES
 } from "./ktx-route-data.mjs";
 import {
@@ -533,6 +534,7 @@ export function renderKtxScene(document, state, view = "cab") {
   score.append(el(document, "span", "ktx-star-total", "⭐ 0"));
   score.append(el(document, "span", "ktx-boarded-total", "친구 0"));
   hud.append(score);
+  hud.append(el(document, "span", "ktx-boost-badge", ""));
   const viewKeys = el(document, "div", "ktx-view-keys");
   const cabKey = el(document, "span", "ktx-view-key", "1 운전실");
   cabKey.dataset.viewKey = "cab";
@@ -845,6 +847,31 @@ export function updateKtxScene(root, state, view, events = [], held = {}) {
   root.dataset.speedTier = String(speedTier(state.v));
   root.dataset.lever = leverPosition(state, held);
   root.dataset.camera = cameraModeFor(state);
+  const boostRemainingMs = Number.isFinite(state.boostRemainingMs)
+    ? Math.max(0, state.boostRemainingMs)
+    : 0;
+  const boostCooldownMs = Number.isFinite(state.boostCooldownMs)
+    ? Math.max(0, state.boostCooldownMs)
+    : 0;
+  let boostMode = "unavailable";
+  let boostText = "BOOST 없음";
+  if (state.train.id === "srt") {
+    if (boostRemainingMs > 0) {
+      boostMode = "active";
+      boostText = `BOOST ${Math.ceil(boostRemainingMs / 1000)}`;
+    } else if (boostCooldownMs > 0) {
+      boostMode = "cooldown";
+      boostText = `충전 ${Math.ceil(boostCooldownMs / 1000)}`;
+    } else {
+      boostMode = "ready";
+      boostText = "BOOST 준비";
+    }
+  }
+  root.dataset.boost = boostMode;
+  const boostBadge = root.querySelector(".ktx-boost-badge");
+  if (boostBadge && boostBadge.textContent !== boostText) {
+    boostBadge.textContent = boostText;
+  }
   root.dataset.zone = String(state.zoneEntered &&
     ["driving", "stopping", "correcting"].includes(state.phase));
   if (root.dataset.zone === "true") {
@@ -882,7 +909,8 @@ export function updateKtxScene(root, state, view, events = [], held = {}) {
   if (speedNode.textContent !== String(speed)) {
     speedNode.textContent = String(speed);
   }
-  root.style.setProperty("--needle-deg", `${(state.v * 0.8 - 120).toFixed(1)}deg`);
+  const needleSpeed = Math.min(MAX_SPEED, Math.max(0, state.v));
+  root.style.setProperty("--needle-deg", `${(needleSpeed * 0.8 - 120).toFixed(1)}deg`);
 
   // 계기 텍스트 — 전광판·다음 키 필
   const destText = root.querySelector(".ktx-dest-text");

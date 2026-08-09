@@ -143,6 +143,48 @@ test("운전실과 바깥 뷰는 실사 이미지와 기존 SVG 폴백을 함께
   assert.ok(root.querySelector(".ktx-side-train"), "기존 폴백 유지");
 });
 
+test("SRT 부스터 HUD는 준비·작동·충전을 두 뷰에서 같은 상태로 보인다", () => {
+  const initial = {
+    ...createKtxJourney(3, "srt"),
+    phase: "driving"
+  };
+  const root = renderKtxScene(fakeDocument(), initial, "cab");
+  const badge = root.querySelector(".ktx-boost-badge");
+
+  assert.ok(badge, "운전실과 바깥 뷰가 공유하는 HUD 배지");
+  assert.equal(root.dataset.boost, "ready");
+  assert.equal(badge.textContent, "BOOST 준비");
+
+  updateKtxScene(root, {
+    ...initial,
+    v: 500,
+    boostRemainingMs: 4200,
+    boostCooldownMs: 0
+  }, "side");
+  assert.equal(root.dataset.view, "side");
+  assert.equal(root.dataset.boost, "active");
+  assert.equal(badge.textContent, "BOOST 5");
+  assert.equal(root.querySelector(".ktx-speed-number").textContent, "500");
+  assert.equal(root.style["--needle-deg"], "120.0deg",
+    "300 눈금 바늘은 끝에 고정되고 디지털만 500을 표시");
+
+  updateKtxScene(root, {
+    ...initial,
+    v: 300,
+    boostRemainingMs: 0,
+    boostCooldownMs: 5200
+  }, "cab");
+  assert.equal(root.dataset.boost, "cooldown");
+  assert.equal(badge.textContent, "충전 6");
+
+  const ktxRoot = renderKtxScene(fakeDocument(), {
+    ...createKtxJourney(3, "ktx"),
+    phase: "driving"
+  }, "cab");
+  assert.equal(ktxRoot.dataset.boost, "unavailable");
+  assert.equal(ktxRoot.querySelector(".ktx-boost-badge").textContent, "BOOST 없음");
+});
+
 test("SRT는 분리 실사 모션 리그와 정적 폴백을 함께 마운트한다", () => {
   const root = renderKtxScene(fakeDocument(), createKtxJourney(3, "srt"), "side");
 

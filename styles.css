@@ -7335,6 +7335,33 @@ body[data-mode="ktx"] .stage-lights {
 
 .ktx-stars-pop { animation: ktx-speed-pop-kf .5s ease; }
 
+.ktx-boost-badge {
+  min-width: 104px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  color: #fff;
+  background: #9aa7b5;
+  box-shadow: inset 0 -3px rgba(25, 49, 70, .2);
+  font-size: 14px;
+  font-weight: 900;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.ktx-game[data-boost="ready"] .ktx-boost-badge { background: #168f82; }
+
+.ktx-game[data-boost="active"] .ktx-boost-badge {
+  background: linear-gradient(135deg, #00aeca, #2479e7);
+  animation: ktx-boost-pulse .7s ease-in-out infinite;
+}
+
+.ktx-game[data-boost="cooldown"] .ktx-boost-badge { background: #718196; }
+.ktx-game[data-boost="unavailable"] .ktx-boost-badge { background: #9aa7b5; }
+
+@keyframes ktx-boost-pulse {
+  50% { transform: scale(1.04); filter: brightness(1.2); }
+}
+
 .ktx-view-keys { display: flex; gap: 8px; }
 
 .ktx-view-key {
@@ -8148,6 +8175,8 @@ body[data-mode="ktx"] .stage-lights {
   opacity: calc(.18 + var(--motion-speed, 0) * .36);
 }
 
+.ktx-game[data-boost="active"] .ktx-motion-near::after { opacity: .9; }
+
 .ktx-motion-train {
   position: absolute;
   left: 50%;
@@ -8444,6 +8473,8 @@ body[data-mode="ktx"] .stage-lights {
 
 @media (prefers-reduced-motion: reduce) {
   .ktx-motion-scene { --motion-vibration-y: 0px; }
+
+  .ktx-boost-badge { animation: none !important; }
 
   .ktx-motion-plate[data-crossfade] {
     animation: none !important;

@@ -27,6 +27,24 @@ test("실사 바깥 뷰는 71% 월드와 기존 실시간 운전 계기를 함�
     /data-realistic="ready"\]\[data-view="cab"\][^\{]*\.ktx-next-key\s*\{[^}]*left:\s*190px/s);
 });
 
+test("부스터 HUD는 준비·작동·충전 상태를 읽기 쉽게 구분한다", () => {
+  assert.match(css,
+    /\.ktx-boost-badge\s*\{[^}]*min-width:[^}]*border-radius:[^}]*font-weight:\s*900/s,
+    "HUD 안에서 짧고 읽기 쉬운 배지");
+  assert.match(css,
+    /data-boost="active"[^\{]*\.ktx-boost-badge\s*\{[^}]*background:[^}]*animation:\s*ktx-boost-pulse/s,
+    "활성 상태는 청록색 펄스");
+  assert.match(css,
+    /data-boost="cooldown"[^\{]*\.ktx-boost-badge\s*\{[^}]*background:/s,
+    "쿨다운은 별도 중립색");
+  assert.match(css,
+    /data-boost="active"[^\{]*\.ktx-motion-near::after\s*\{[^}]*opacity:/s,
+    "500km\/h는 기존 속도선을 더 강하게 표시");
+  assert.match(css,
+    /prefers-reduced-motion:\s*reduce[\s\S]*\.ktx-boost-badge\s*\{[^}]*animation:\s*none\s*!important/s,
+    "동작 줄이기는 배지 애니메이션만 제거");
+});
+
 test("실사 준비 상태에서는 승강장 구조물만 숨기고 정차 단서는 남긴다", () => {
   assert.match(css,
     /data-realistic="ready"[^\{]*\.ktx-platform-roof[^\{]*\.ktx-platform-pillar[^\{]*\.ktx-platform-sign\s*\{[^}]*display:\s*none/s);
