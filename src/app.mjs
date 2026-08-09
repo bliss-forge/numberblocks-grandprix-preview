@@ -1121,6 +1121,22 @@ const KTX_EVENT_HINTS = Object.freeze({
   cows: "소 떼예요! 빵빵 하면 음머~"
 });
 
+// SRT는 주행 중 ⎵가 경적이 아니라 부스터다. 위 안내를 그대로 쓰면 "빵빵 해
+// 볼까?"를 보고 누른 아이에게 500km/h가 터진다 — 있지도 않은 버튼을 시키는
+// 셈이라 SRT에서는 구경만 하는 문구로 바꾼다. KTX는 경적이 살아 있어 그대로다.
+const SRT_EVENT_HINTS = Object.freeze({
+  river: "강이에요! 오리들이 헤엄쳐요",
+  tunnel: "터널로 들어가요! 깜깜해요",
+  seagull: "바다다! 갈매기가 날아요",
+  passing: "반대편 기차가 지나가요!",
+  cows: "소 떼예요! 음머~"
+});
+
+function ktxEventHint(event) {
+  const srt = state.ktx?.train?.id === "srt";
+  return (srt && SRT_EVENT_HINTS[event]) || KTX_EVENT_HINTS[event];
+}
+
 function startKtxPicker() {
   stopSafetyHold();
   clearTimers();
@@ -1218,7 +1234,7 @@ function handleKtxEvents(events) {
         showHint("삼백!! 최고 속도예요!!");
       }
     } else if (event.type === "event") {
-      const hint = KTX_EVENT_HINTS[event.event];
+      const hint = ktxEventHint(event.event);
       if (hint) showHint(hint);
     } else if (event.type === "zone-enter") {
       audio.playSfx("bell");

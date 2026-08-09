@@ -377,3 +377,22 @@ test("실음원이 없는 역은 이름 낭독 폴백을 거친다", () => {
   assert.match(play, /stationVoiceKey\(station\)/);
   assert.match(play, /playPrompt\(nameKey\)/);
 });
+
+// SRT는 주행 중 ⎵가 경적이 아니라 부스터다. 두 기차가 안내 문구를 공유하던
+// 시절엔 "빵빵 해볼까?"를 보고 누른 아이에게 500km/h가 터졌다.
+test("SRT 주행 안내는 없는 경적을 누르라고 시키지 않는다", () => {
+  const block = app.slice(
+    app.indexOf("const SRT_EVENT_HINTS"),
+    app.indexOf("function ktxEventHint(")
+  );
+  assert.ok(block.length > 0, "SRT 전용 안내 문구가 없다");
+  assert.doesNotMatch(block, /빵빵/, "SRT 안내가 여전히 경적을 시킨다");
+
+  for (const event of ["river", "tunnel", "seagull", "passing", "cows"]) {
+    assert.match(block, new RegExp(`${event}:`), `${event} 안내가 빠졌다`);
+  }
+
+  // 안내를 고르는 지점이 실제로 기차를 구분해야 한다 — 상수만 두면 무용지물이다.
+  assert.match(app, /const hint = ktxEventHint\(event\.event\)/);
+  assert.match(app, /state\.ktx\?\.train\?\.id === "srt"/);
+});

@@ -682,8 +682,11 @@ function nextKeyFor(state) {
   if (state.phase === "ready") return { key: "↑", word: "출발!", tone: "go" };
   if (state.phase === "stopped") return { key: "⎵", word: "문열기", tone: "act" };
   if (state.phase === "driving") {
-    return state.armed
-      ? { key: "⎵", word: "딱 멈추기", tone: "press" }
+    if (state.armed) return { key: "⎵", word: "딱 멈추기", tone: "press" };
+    // SRT는 일반 주행 스페이스가 경적이 아니라 부스터다. 라벨이 동작과 어긋나면
+    // 글을 못 읽는 아이는 그림과 소리로만 배우므로 끝까지 오해한 채로 논다.
+    return state.train.id === "srt"
+      ? { key: "⎵", word: "부스터", tone: "dim" }
       : { key: "⎵", word: "빵빵", tone: "dim" };
   }
   return null;
@@ -854,17 +857,18 @@ export function updateKtxScene(root, state, view, events = [], held = {}) {
     ? Math.max(0, state.boostCooldownMs)
     : 0;
   let boostMode = "unavailable";
-  let boostText = "BOOST 없음";
+  // 배지 문구는 전부 한글이다 — 이 게임을 하는 나이대는 영어를 못 읽는다.
+  let boostText = "부스터 없음";
   if (state.train.id === "srt") {
     if (boostRemainingMs > 0) {
       boostMode = "active";
-      boostText = `BOOST ${Math.ceil(boostRemainingMs / 1000)}`;
+      boostText = `부스터 ${Math.ceil(boostRemainingMs / 1000)}`;
     } else if (boostCooldownMs > 0) {
       boostMode = "cooldown";
       boostText = `충전 ${Math.ceil(boostCooldownMs / 1000)}`;
     } else {
       boostMode = "ready";
-      boostText = "BOOST 준비";
+      boostText = "부스터 준비";
     }
   }
   root.dataset.boost = boostMode;

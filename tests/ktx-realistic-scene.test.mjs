@@ -161,7 +161,7 @@ test("SRT 부스터 HUD는 준비·작동·충전을 두 뷰에서 같은 상태
 
   assert.ok(badge, "운전실과 바깥 뷰가 공유하는 HUD 배지");
   assert.equal(root.dataset.boost, "ready");
-  assert.equal(badge.textContent, "BOOST 준비");
+  assert.equal(badge.textContent, "부스터 준비");
 
   updateKtxScene(root, {
     ...initial,
@@ -171,7 +171,7 @@ test("SRT 부스터 HUD는 준비·작동·충전을 두 뷰에서 같은 상태
   }, "side");
   assert.equal(root.dataset.view, "side");
   assert.equal(root.dataset.boost, "active");
-  assert.equal(badge.textContent, "BOOST 5");
+  assert.equal(badge.textContent, "부스터 5");
   assert.equal(root.querySelector(".ktx-speed-number").textContent, "500");
   assert.equal(root.style.getPropertyValue("--needle-deg"), "120.0deg",
     "300 눈금 바늘은 끝에 고정되고 디지털만 500을 표시");
@@ -190,7 +190,43 @@ test("SRT 부스터 HUD는 준비·작동·충전을 두 뷰에서 같은 상태
     phase: "driving"
   }, "cab");
   assert.equal(ktxRoot.dataset.boost, "unavailable");
-  assert.equal(ktxRoot.querySelector(".ktx-boost-badge").textContent, "BOOST 없음");
+  assert.equal(ktxRoot.querySelector(".ktx-boost-badge").textContent, "부스터 없음");
+});
+
+// 라벨이 실제 동작과 어긋나면 글 못 읽는 아이는 끝까지 오해한 채로 논다.
+// SRT 주행 중 ⎵는 부스터인데 버튼에 "빵빵"이 적혀 있던 적이 있어 못을 박는다.
+test("주행 중 ⎵ 라벨은 SRT가 부스터, KTX가 빵빵으로 갈린다", () => {
+  const label = trainId => {
+    const root = renderKtxScene(fakeDocument(), {
+      ...createKtxJourney(3, trainId),
+      phase: "driving",
+      armed: false
+    }, "cab");
+    return root.querySelector(".ktx-next-word").textContent;
+  };
+
+  assert.equal(label("srt"), "부스터", "SRT ⎵는 경적이 아니라 부스터다");
+  assert.equal(label("ktx"), "빵빵", "KTX는 경적을 그대로 쓴다");
+});
+
+test("HUD 배지 문구에 영어를 쓰지 않는다", () => {
+  // 이 게임을 하는 나이대는 영어를 못 읽는다. BOOST 로 되돌아가면 여기서 걸린다.
+  const root = renderKtxScene(fakeDocument(), {
+    ...createKtxJourney(3, "srt"),
+    phase: "driving"
+  }, "cab");
+  const badge = root.querySelector(".ktx-boost-badge");
+
+  for (const boost of [
+    { boostRemainingMs: 0, boostCooldownMs: 0 },
+    { boostRemainingMs: 4200, boostCooldownMs: 0 },
+    { boostRemainingMs: 0, boostCooldownMs: 5200 }
+  ]) {
+    updateKtxScene(root, {
+      ...createKtxJourney(3, "srt"), phase: "driving", ...boost
+    }, "cab");
+    assert.doesNotMatch(badge.textContent, /[A-Za-z]/, badge.textContent);
+  }
 });
 
 test("SRT는 분리 실사 모션 리그와 정적 폴백을 함께 마운트한다", () => {
