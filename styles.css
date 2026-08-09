@@ -9891,15 +9891,19 @@ body[data-mode="delivery"] #stage {
     transparent 0 calc(var(--cab-sleeper-gap, 42px) - 8px),
     rgba(55, 45, 38, .96) calc(var(--cab-sleeper-gap, 42px) - 8px)
       var(--cab-sleeper-gap, 42px));
-  background-position: center var(--cab-sleeper-phase, 0px);
+  /* 위상은 setLoopPhase(cabTrack)가 gap 정수배로 되감는 --cab-track-phase.
+     예전 --cab-sleeper-phase(주기 120 고정)는 가변 gap과 어긋나 주기적으로
+     역행 점프를 만들었다 — 협회 P0 정합. 원근 평면 도입 후 보조 레이어로
+     강등(opacity ↓). */
+  background-position: center var(--cab-track-phase, var(--cab-sleeper-phase, 0px));
   clip-path: polygon(48% 0, 52% 0, 96% 100%, 4% 100%);
   perspective: 600px;
   filter: drop-shadow(0 2px 1px rgba(0, 0, 0, .55));
   mix-blend-mode: multiply;
-  opacity: .34;
+  opacity: .18;
   transform: rotateX(5deg);
   transform-origin: 50% 0;
-  transition: background-position 90ms linear;
+  transition: background-position 165ms linear;
 }
 
 .ktx-motion-cab-poles {
@@ -9911,13 +9915,15 @@ body[data-mode="delivery"] #stage {
   bottom: -6%;
   background:
     repeating-linear-gradient(to bottom,
-      transparent 0 82px, rgba(47, 53, 58, .86) 83px 90px, transparent 91px 180px),
+      transparent 0 72px, rgba(47, 53, 58, .86) 73px 80px, transparent 81px 160px),
     linear-gradient(77deg, transparent 0 19%, rgba(57, 63, 67, .8) 19.3% 20%, transparent 20.3%),
     linear-gradient(-77deg, transparent 0 19%, rgba(57, 63, 67, .8) 19.3% 20%, transparent 20.3%);
+  /* 패턴 주기 160 = 위상 주기 480의 정수배 — 되감기 점프가 패턴과 정확히
+     겹쳐 무봉합(협회 P0). 예전 180은 480과 안 맞아 565m마다 역행했다. */
   background-position: center var(--cab-pole-phase, 0px), center, center;
   clip-path: polygon(40% 0, 60% 0, 100% 100%, 0 100%);
   opacity: .34;
-  transition: background-position 90ms linear;
+  transition: background-position 165ms linear;
 }
 
 .ktx-motion-cab-catenary {
@@ -9939,8 +9945,138 @@ body[data-mode="delivery"] #stage {
   filter: drop-shadow(0 1px 1px rgba(255, 255, 255, .5));
   transform: translateX(-50%);
   transform-origin: 50% 0;
-  transition: background-position 120ms linear;
+  transition: background-position 165ms linear;
   opacity: .36;
+}
+
+/* ── 운전실 카메라 리그 · 원근 선로 평면 (협회 모션 설계 2026-08-10) ────
+   창 내용과 프레임이 한 몸으로 흔들리고, 침목은 진짜 3D 투영 평면 위를
+   흐른다 — 소실점에서 느리고 앞에서 빠른 광학 흐름이 전진감의 본체다. */
+
+.ktx-motion-cab-rig {
+  position: absolute;
+  inset: 0;
+  z-index: 7;
+  pointer-events: none;
+  transform: scale(1.01) rotate(var(--cab-cant, 0deg));
+}
+
+@keyframes ktx-cab-rumble {
+  0%, 100% {
+    transform: scale(1.01) translate3d(0, 0, 0) rotate(var(--cab-cant, 0deg));
+  }
+  23% {
+    transform: scale(1.01)
+      translate3d(calc(var(--rumble-amp, 0px) * -.6), var(--rumble-amp, 0px), 0)
+      rotate(var(--cab-cant, 0deg));
+  }
+  47% {
+    transform: scale(1.01)
+      translate3d(var(--rumble-amp, 0px), calc(var(--rumble-amp, 0px) * -.4), 0)
+      rotate(var(--cab-cant, 0deg));
+  }
+  71% {
+    transform: scale(1.01)
+      translate3d(calc(var(--rumble-amp, 0px) * -.3), calc(var(--rumble-amp, 0px) * .7), 0)
+      rotate(var(--cab-cant, 0deg));
+  }
+}
+
+/* 진폭은 v 비례(160km/h부터, 300에서 ≈2px — 4~6세 배려 상한), 주파수는
+   밴드 2단 고정 — duration을 매 틱 바꾸면 재매핑 점프가 난다. */
+.ktx-game[data-view="cab"] .ktx-motion-scene[data-speed-band="fast"] .ktx-motion-cab-rig,
+.ktx-game[data-view="cab"] .ktx-motion-scene[data-speed-band="very-fast"] .ktx-motion-cab-rig {
+  --rumble-amp: calc(max(0px, (var(--motion-speed, 0) - .53) * 4.3px));
+  animation: ktx-cab-rumble 700ms linear infinite;
+}
+
+.ktx-game[data-view="cab"] .ktx-motion-scene[data-speed-band="very-fast"] .ktx-motion-cab-rig {
+  animation-duration: 450ms;
+}
+
+/* 3D 투영 평면 — 소실점(창 높이 39%)에 top을 정렬한 perspective 안에서
+   rotateX 84° 평면이 관찰자 밑으로 깔린다. 침목은 평면 로컬 8px/m로 흘러
+   투영에 의해 하단에서 지수 가속해 보인다. */
+.ktx-motion-cab-persp {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 39%;
+  bottom: -30%;
+  z-index: 4;
+  perspective: 500px;
+  perspective-origin: 50% 0;
+  overflow: hidden;
+}
+
+.ktx-motion-cab-plane {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: 2000px;
+  height: 620px;
+  margin-left: -1000px;
+  transform: rotateX(84deg);
+  transform-origin: 50% 0;
+}
+
+.ktx-motion-cab-ties {
+  position: absolute;
+  left: calc(50% - 74px);
+  width: 148px;
+  top: -64px;
+  height: 760px;
+  background:
+    /* 레일 2줄 — 침목과 같은 평면이라 원근이 자동 정합 */
+    linear-gradient(90deg,
+      transparent 0 14px, rgba(214, 219, 221, .85) 14px 22px, transparent 22px 126px,
+      rgba(214, 219, 221, .85) 126px 134px, transparent 134px),
+    repeating-linear-gradient(to bottom,
+      rgba(52, 42, 34, .88) 0 8px, rgba(96, 84, 70, .25) 8px 12px,
+      transparent 12px 64px);
+  opacity: .58;
+  transform: translate3d(0, var(--cab-tie-px, 0px), 0);
+  transition: transform 165ms linear;
+}
+
+.ktx-motion-scene[data-cab-ties-loop-reset="true"] .ktx-motion-cab-ties {
+  transition: none;
+}
+
+/* 대비 역전 — 사진에 구워진 정지 침목이 지배 자극이 되지 않도록 창 하단의
+   사진 대비를 낮춘다. 합성 평면이 위(z4), 이 장막은 사진 바로 위(z3). */
+.ktx-motion-cab-window::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+  background: linear-gradient(to top, rgba(20, 24, 28, .42), transparent 46%);
+}
+
+/* 고속 전용 가장자리 스피드 스트릭 — 광학 흐름이 최대인 창 좌우에만.
+   very-fast·부스터에서만 나타나 평시 합성 비용 0 (협회 P4). */
+.ktx-motion-cab-window::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  opacity: 0;
+  pointer-events: none;
+  background:
+    repeating-linear-gradient(112deg,
+      transparent 0 46px, rgba(255, 255, 255, .14) 46px 50px, transparent 50px 96px),
+    repeating-linear-gradient(68deg,
+      transparent 0 46px, rgba(255, 255, 255, .14) 46px 50px, transparent 50px 96px);
+  -webkit-mask: linear-gradient(90deg, #000 0 16%, transparent 28% 72%, #000 84% 100%);
+  mask: linear-gradient(90deg, #000 0 16%, transparent 28% 72%, #000 84% 100%);
+  transform: translate3d(0, var(--cab-tie-px, 0px), 0);
+  transition: transform 165ms linear, opacity 400ms ease;
+}
+
+.ktx-motion-scene[data-speed-band="very-fast"] .ktx-motion-cab-window::before,
+.ktx-game[data-boost="active"] .ktx-motion-cab-window::before {
+  opacity: calc(.1 + var(--motion-speed, 0) * .28);
 }
 
 .ktx-motion-tunnel {
@@ -9953,7 +10089,7 @@ body[data-mode="delivery"] #stage {
   background-position: center var(--tunnel-wall-offset);
   opacity: 0;
   pointer-events: none;
-  transition: background-position 120ms linear;
+  transition: background-position 165ms linear;
 }
 
 .ktx-motion-scene[data-tunnel-portal-visible="true"] .ktx-motion-tunnel,
@@ -9979,7 +10115,7 @@ body[data-mode="delivery"] #stage {
   box-shadow: 0 0 0 6px rgba(36, 40, 45, .9), 0 8px 18px rgba(0, 0, 0, .45);
   transform: translate(-50%, -50%) scale(var(--tunnel-scale, .18));
   transform-origin: 50% 40%;
-  transition: transform 120ms linear;
+  transition: transform 165ms linear;
 }
 
 .ktx-motion-scene[data-tunnel-portal-visible="false"] .ktx-motion-tunnel-portal {
@@ -9997,14 +10133,43 @@ body[data-mode="delivery"] #stage {
   background-position: center var(--tunnel-light-phase, 0px);
   filter: drop-shadow(0 0 7px rgba(255, 224, 124, .7));
   opacity: 0;
-  transition: background-position 120ms linear;
+  transition: background-position 165ms linear;
 }
 
 .ktx-motion-scene[data-tunnel="true"] .ktx-motion-tunnel-lights { opacity: 1; }
 
+/* 터널 조명 맥동 — 조명 띠 통과 리듬에 맞춰 창이 은은히 밝아진다.
+   광과민 안전: JS가 주기를 400ms(2.5Hz) 밑으로 절대 안 내리고, 피크
+   불투명도 .26 상한(협회 P5). */
+.ktx-motion-tunnel-lights::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  background: radial-gradient(ellipse 90% 55% at 50% 12%,
+    rgba(255, 240, 190, .26), transparent 60%);
+}
+
+@keyframes ktx-tunnel-strobe {
+  0%, 70% { opacity: 0; }
+  80% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+.ktx-motion-scene[data-tunnel="true"][data-motion-moving="true"] .ktx-motion-tunnel-lights::after {
+  animation: ktx-tunnel-strobe var(--strobe-period, 800ms) linear infinite;
+}
+
 .ktx-game[data-view="cab"] .ktx-motion-cab-window,
 .ktx-game[data-view="cab"] .ktx-motion-cab-frame {
   display: block;
+}
+
+/* 운전실 뷰에서 사진 플레이트 2장은 프레임에 완전히 가려진다 — 보이지 않는
+   대형 래스터 합성 낭비를 끊는다. display:none이 아니라 visibility인 이유:
+   크로스페이드 animationend가 와야 플레이트 상태 머신이 안 멈춘다. */
+.ktx-game[data-view="cab"] .ktx-motion-plate {
+  visibility: hidden;
 }
 
 .ktx-game[data-view="cab"] .ktx-motion-cab-frame {
@@ -10121,6 +10286,18 @@ body[data-mode="delivery"] #stage {
       rotate(calc(var(--motion-brake-pitch, 0) * 1deg));
   }
 
+  /* 운전실 리그·평면·스트릭·스트로브 — 움직임 감축에서는 흔들림과 맥동을
+     전부 끄고 위치는 150ms 이산 스냅으로만 갱신한다(기존 철학 동일). */
+  .ktx-motion-cab-rig {
+    animation: none !important;
+    transform: scale(1.01) !important;
+  }
+
+  .ktx-motion-cab-ties { transition: none !important; }
+
+  .ktx-motion-cab-window::before { display: none; }
+
+  .ktx-motion-tunnel-lights::after { animation: none !important; }
 }
 
 /* 가로 휴대전화에서는 사진 교차의 나가는 슬롯을 즉시 내려 큰 래스터를

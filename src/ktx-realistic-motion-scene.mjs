@@ -125,6 +125,14 @@ function applyFrame(scene, state, band, controller = null) {
     76 - frame.speedRatio * 20, frame.moving);
   const tunnelLightGap = patternGap(scene, "--tunnel-light-gap",
     98 - frame.speedRatio * 42, frame.moving);
+  // 터널 조명 맥동 주기 — 조명 간격을 실제 통과 시간으로 환산. 4~6세 광과민
+  // 안전 상한: 최소 400ms(2.5Hz) 밑으로 절대 내리지 않는다. 100ms 양자화로
+  // 값이 진짜 변할 때만 써서 애니메이션 재시작 점프를 막는다.
+  const strobeMs = Math.round(Math.min(2000, Math.max(400,
+    (tunnelLightGap * 3600) / Math.max(state.v, 1))) / 100) * 100;
+  if (scene.style.getPropertyValue("--strobe-period") !== `${strobeMs}ms`) {
+    scene.style.setProperty("--strobe-period", `${strobeMs}ms`);
+  }
   scene.style.setProperty("--tunnel-wall-gap", `${TUNNEL_WALL_GAP_PX}px`);
   setLoopPhase(scene, "cabTrack", "--cab-track-phase",
     frame.offsets.track, cabSleeperGap, frame.moving);
@@ -133,6 +141,13 @@ function applyFrame(scene, state, band, controller = null) {
   scene.style.setProperty("--cab-sleeper-phase", `${frame.cab.sleeperPhase}px`);
   scene.style.setProperty("--cab-pole-phase", `${frame.cab.polePhase}px`);
   scene.style.setProperty("--cab-ground-ratio", String(frame.cab.groundRatio));
+  // 원근 평면 침목 — 평면 로컬 8px/m, 패턴 주기 64px의 정수배(512)로 무봉합.
+  setLoopPhase(scene, "cabTies", "--cab-tie-px",
+    frame.offsets.track * 8, 512, frame.moving);
+  // 의사 곡선 캔트 — 시뮬에 곡선 데이터가 없어 위치 기반 저주파 사인.
+  // 상한 0.8°(멀미 배려), 900m 주기라 체감은 "가끔 완만한 곡선".
+  scene.style.setProperty("--cab-cant",
+    `${(Math.sin(state.x / 900) * 0.8).toFixed(2)}deg`);
   scene.dataset.doors = state.doors === "open" && STATION_PHASES.has(state.phase)
     ? "open" : "closed";
   const tunnelPortal = tunnelPortalState(state, frame.land);
@@ -488,12 +503,20 @@ export function buildRealisticMotionScene(document, state, onStateChange) {
   const cabSleepers = el(document, "div", "ktx-motion-cab-sleepers");
   const cabPoles = el(document, "div", "ktx-motion-cab-poles");
   const cabCatenary = el(document, "div", "ktx-motion-cab-catenary");
+  // 원근 선로 평면 — 사진 위 평면 크롤이 아니라 진짜 CSS 3D 투영(rotateX 84°).
+  // 소실점에서 느리고 관찰자 앞에서 지수 가속하는 광학 흐름이 투영에서 공짜로
+  // 나온다(협회 모션 설계 2026-08-10 P1). 기존 크롤 침목은 보조로 강등.
+  const cabPersp = el(document, "div", "ktx-motion-cab-persp");
+  const cabPlane = el(document, "div", "ktx-motion-cab-plane");
+  const cabTies = el(document, "div", "ktx-motion-cab-ties");
+  cabPlane.append(cabTies);
+  cabPersp.append(cabPlane);
   const tunnel = el(document, "div", "ktx-motion-tunnel");
   const tunnelPortal = el(document, "div", "ktx-motion-tunnel-portal");
   const tunnelLights = el(document, "div", "ktx-motion-tunnel-lights");
   tunnel.append(tunnelPortal, tunnelLights);
   cabWindow.append(cabBase, cabGround, cabBallast, cabSleepers,
-    cabRailLeft, cabRailRight, cabPoles, cabCatenary, tunnel);
+    cabRailLeft, cabRailRight, cabPersp, cabPoles, cabCatenary, tunnel);
   const train = motionImage(document, "ktx-motion-train",
     pack.train, "실사 SRT 열차", controller);
   const trainRig = el(document, "div", "ktx-motion-train-rig");
@@ -507,10 +530,14 @@ export function buildRealisticMotionScene(document, state, onStateChange) {
   trainRig.append(train, wheelShadow, door);
   const cabFrame = motionImage(document, "ktx-motion-cab-frame",
     pack.cabMask, "실사 SRT 운전실", controller);
+  // 창 내용과 프레임을 한 몸으로 묶는 카메라 리그 — 진동을 따로 주면 세계와
+  // 프레임이 분리돼 보인다. 흔들림은 리그 하나에만 건다(협회 P3).
+  const cabRig = el(document, "div", "ktx-motion-cab-rig");
+  cabRig.append(cabWindow, cabFrame);
   Object.assign(controller, { station, stationSign, train, cabFrame });
 
   scene.append(...plates, stationViewport, stationSign,
-    mid, track, near, cabWindow, trainRig, cabFrame);
+    mid, track, near, cabRig, trainRig);
   scene.dataset.readiness = "pending";
   applyFrame(scene, state, { sky: state.sky, land: state.land }, controller);
   controllers.set(scene, controller);
