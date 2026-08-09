@@ -5,8 +5,16 @@ import { renderKtxScene, updateKtxScene } from "../src/ktx-scene.mjs";
 import { updateRealisticMotionScene } from "../src/ktx-realistic-motion-scene.mjs";
 
 class FakeStyle {
+  constructor() {
+    this.values = new Map();
+  }
+
   setProperty(name, value) {
-    this[name] = String(value);
+    this.values.set(name, String(value));
+  }
+
+  getPropertyValue(name) {
+    return this.values.get(name) ?? "";
   }
 }
 
@@ -165,7 +173,7 @@ test("SRT 부스터 HUD는 준비·작동·충전을 두 뷰에서 같은 상태
   assert.equal(root.dataset.boost, "active");
   assert.equal(badge.textContent, "BOOST 5");
   assert.equal(root.querySelector(".ktx-speed-number").textContent, "500");
-  assert.equal(root.style["--needle-deg"], "120.0deg",
+  assert.equal(root.style.getPropertyValue("--needle-deg"), "120.0deg",
     "300 눈금 바늘은 끝에 고정되고 디지털만 500을 표시");
 
   updateKtxScene(root, {
@@ -473,11 +481,11 @@ test("실사 외부 모션은 위치·속도를 정확한 CSS 변수로 동기�
   updateRealisticMotionScene(root, moving, { land: "city" });
   const scene = root.querySelector(".ktx-motion-scene");
 
-  assert.equal(scene.style["--motion-scene-x"], "-120px");
-  assert.equal(scene.style["--motion-near-x"], "-1700px");
-  assert.equal(scene.style["--motion-track-x"], "-2000px");
-  assert.equal(scene.style["--motion-speed"], "0.8");
-  assert.ok(Number.parseFloat(scene.style["--motion-blur"]) > 0);
+  assert.equal(scene.style.getPropertyValue("--motion-scene-x"), "-120px");
+  assert.equal(scene.style.getPropertyValue("--motion-near-x"), "-1700px");
+  assert.equal(scene.style.getPropertyValue("--motion-track-x"), "-2000px");
+  assert.equal(scene.style.getPropertyValue("--motion-speed"), "0.8");
+  assert.ok(Number.parseFloat(scene.style.getPropertyValue("--motion-blur")) > 0);
   assert.equal(scene.dataset.motionMoving, "true");
 });
 
@@ -490,9 +498,9 @@ test("정차한 실사 외부 모션은 모든 보간 효과를 즉시 멈춘다
   const scene = root.querySelector(".ktx-motion-scene");
 
   assert.equal(scene.dataset.motionMoving, "false");
-  assert.equal(scene.style["--motion-speed"], "0");
-  assert.equal(scene.style["--motion-blur"], "0px");
-  assert.equal(scene.style["--motion-brake-pitch"], "0");
+  assert.equal(scene.style.getPropertyValue("--motion-speed"), "0");
+  assert.equal(scene.style.getPropertyValue("--motion-blur"), "0px");
+  assert.equal(scene.style.getPropertyValue("--motion-brake-pitch"), "0");
 });
 
 test("역 접근·정차·출발은 진행률과 근경 억제를 하나의 수명주기로 동기화한다", () => {
@@ -504,33 +512,33 @@ test("역 접근·정차·출발은 진행률과 근경 억제를 하나의 수�
   updateRealisticMotionScene(root,
     { ...initial, phase: "driving", x: 100, v: 120, markerDistance: 600 },
     { land: "city" });
-  assert.equal(scene.style["--station-progress"], "0");
-  assert.equal(scene.style["--station-opacity"], "0",
+  assert.equal(scene.style.getPropertyValue("--station-progress"), "0");
+  assert.equal(scene.style.getPropertyValue("--station-opacity"), "0",
     "600m 경계에서는 전체 프레임 교차가 투명도 0에서 시작");
-  const approachStartX = Number.parseFloat(scene.style["--station-offset-x"]);
-  const approachStartY = Number.parseFloat(scene.style["--station-object-y"]);
+  const approachStartX = Number.parseFloat(scene.style.getPropertyValue("--station-offset-x"));
+  const approachStartY = Number.parseFloat(scene.style.getPropertyValue("--station-object-y"));
   assert.ok(approachStartX > 0);
   assert.equal(approachStartY, 50);
-  assert.equal(Number.parseFloat(scene.style["--station-cover-scale"]), 1);
+  assert.equal(Number.parseFloat(scene.style.getPropertyValue("--station-cover-scale")), 1);
   assert.equal(scene.dataset.nearSuppressed, "false");
 
   updateRealisticMotionScene(root,
     { ...initial, phase: "stopping", x: 400, v: 80, markerDistance: 320 },
     { land: "city" });
-  assert.equal(scene.style["--station-progress"], "0.47");
-  assert.equal(scene.style["--station-opacity"], "0.47",
+  assert.equal(scene.style.getPropertyValue("--station-progress"), "0.47");
+  assert.equal(scene.style.getPropertyValue("--station-opacity"), "0.47",
     "320m에서는 전체 역 장면이 일반 풍경과 절반가량 교차");
 
   updateRealisticMotionScene(root,
     { ...initial, phase: "stopping", x: 500, v: 40, markerDistance: 100 },
     { land: "city" });
-  assert.equal(scene.style["--station-progress"], "0.83");
-  assert.equal(scene.style["--station-opacity"], "0.83");
-  const approachDetailX = Number.parseFloat(scene.style["--station-offset-x"]);
+  assert.equal(scene.style.getPropertyValue("--station-progress"), "0.83");
+  assert.equal(scene.style.getPropertyValue("--station-opacity"), "0.83");
+  const approachDetailX = Number.parseFloat(scene.style.getPropertyValue("--station-offset-x"));
   assert.ok(approachDetailX < approachStartX);
-  assert.ok(Number.parseFloat(scene.style["--station-object-y"]) > approachStartY,
+  assert.ok(Number.parseFloat(scene.style.getPropertyValue("--station-object-y")) > approachStartY,
     "접근할수록 승강장 선형이 열차 바퀴 높이로 올라옴");
-  assert.ok(Number.parseFloat(scene.style["--station-cover-scale"]) > 1,
+  assert.ok(Number.parseFloat(scene.style.getPropertyValue("--station-cover-scale")) > 1,
     "접근할수록 역 장면이 소실점에서 확대됨");
   assert.equal(scene.dataset.nearSuppressed, "true");
   assert.equal(scene.dataset.stationVisible, "true");
@@ -538,31 +546,31 @@ test("역 접근·정차·출발은 진행률과 근경 억제를 하나의 수�
   updateRealisticMotionScene(root,
     { ...initial, phase: "stopped", x: 600, v: 0, markerDistance: 0 },
     { land: "city" });
-  const stoppedProgress = scene.style["--station-progress"];
+  const stoppedProgress = scene.style.getPropertyValue("--station-progress");
   assert.equal(stoppedProgress, "1");
-  assert.equal(scene.style["--station-opacity"], "1");
-  const stoppedX = Number.parseFloat(scene.style["--station-offset-x"]);
+  assert.equal(scene.style.getPropertyValue("--station-opacity"), "1");
+  const stoppedX = Number.parseFloat(scene.style.getPropertyValue("--station-offset-x"));
   assert.equal(stoppedX, 0);
-  assert.equal(Number.parseFloat(scene.style["--station-object-y"]), 80);
-  assert.equal(Number.parseFloat(scene.style["--station-cover-scale"]), 1.06);
+  assert.equal(Number.parseFloat(scene.style.getPropertyValue("--station-object-y")), 80);
+  assert.equal(Number.parseFloat(scene.style.getPropertyValue("--station-cover-scale")), 1.06);
   assert.equal(scene.dataset.motionMoving, "false");
   assert.equal(station.dataset.lifecycle, "stopped");
 
   updateRealisticMotionScene(root,
     { ...initial, phase: "driving", x: 300, v: 80, markerDistance: 5000 },
     { land: "field" });
-  assert.equal(scene.style["--station-progress"], "0.5");
-  const departureMiddleX = Number.parseFloat(scene.style["--station-offset-x"]);
+  assert.equal(scene.style.getPropertyValue("--station-progress"), "0.5");
+  const departureMiddleX = Number.parseFloat(scene.style.getPropertyValue("--station-offset-x"));
   assert.ok(departureMiddleX < stoppedX, "출발 시 역은 열차 뒤쪽인 왼쪽으로 밀려야 함");
   assert.equal(station.dataset.lifecycle, "departing");
 
   updateRealisticMotionScene(root,
     { ...initial, phase: "driving", x: 599, v: 80, markerDistance: 4401 },
     { land: "field" });
-  const departureEndX = Number.parseFloat(scene.style["--station-offset-x"]);
+  const departureEndX = Number.parseFloat(scene.style.getPropertyValue("--station-offset-x"));
   assert.ok(departureEndX < departureMiddleX,
     "접근→정차→출발의 역 이동은 오른쪽으로 되감기지 않음");
-  assert.ok(Number.parseFloat(scene.style["--station-opacity"]) < 0.01);
+  assert.ok(Number.parseFloat(scene.style.getPropertyValue("--station-opacity")) < 0.01);
 
   updateRealisticMotionScene(root,
     { ...initial, phase: "driving", x: 600, v: 80, markerDistance: 4400 },
@@ -580,16 +588,16 @@ test("1280×720 역 사진은 사진 경계 없이 전체 모션 월드를 항�
     { ...initial, phase: "driving", x: 100, v: 120, markerDistance: 600 },
     { land: "city" });
 
-  const scale = Number.parseFloat(scene.style["--station-cover-scale"]);
+  const scale = Number.parseFloat(scene.style.getPropertyValue("--station-cover-scale"));
   const sourceWidth = (1280 + 240) * scale;
   const sourceHeight = 720 * scale;
   assert.ok(scale >= 1, "커버 이미지는 어떤 접근 단계에서도 축소 금지");
   assert.ok(sourceWidth >= 1280 && sourceHeight >= 720,
     "안전 여백을 포함한 이미지가 1280×720 뷰포트를 덮음");
-  assert.ok(Math.abs(Number.parseFloat(scene.style["--station-offset-x"])) <= 120,
+  assert.ok(Math.abs(Number.parseFloat(scene.style.getPropertyValue("--station-offset-x"))) <= 120,
     "역 사진 이동은 좌우 120px 안전 크롭 여백을 넘지 않음");
-  assert.equal(scene.style["--station-clip-side"], undefined);
-  assert.equal(scene.style["--station-clip-top"], undefined);
+  assert.equal(scene.style.getPropertyValue("--station-clip-side"), "");
+  assert.equal(scene.style.getPropertyValue("--station-clip-top"), "");
 });
 
 test("역 표지는 주행 중 목적지와 정차한 현재 역 이름을 표시한다", () => {
@@ -616,22 +624,22 @@ test("운전실 선로 위상은 큰 실제 위치에서도 반복 범위 안에
   updateRealisticMotionScene(root,
     { ...initial, phase: "driving", x: 2530, v: 80, markerDistance: 900 },
     { land: "field" });
-  const slowTrack = Number.parseFloat(scene.style["--cab-track-phase"]);
-  const slowSleeperGap = Number.parseFloat(scene.style["--cab-sleeper-gap"]);
-  const slowCatenaryGap = Number.parseFloat(scene.style["--cab-catenary-gap"]);
-  const slowTunnelGap = Number.parseFloat(scene.style["--tunnel-light-gap"]);
+  const slowTrack = Number.parseFloat(scene.style.getPropertyValue("--cab-track-phase"));
+  const slowSleeperGap = Number.parseFloat(scene.style.getPropertyValue("--cab-sleeper-gap"));
+  const slowCatenaryGap = Number.parseFloat(scene.style.getPropertyValue("--cab-catenary-gap"));
+  const slowTunnelGap = Number.parseFloat(scene.style.getPropertyValue("--tunnel-light-gap"));
   assert.ok(slowTrack <= 0 && slowTrack > -slowSleeperGap);
 
   updateRealisticMotionScene(root,
     { ...initial, phase: "driving", x: 2640, v: 240, markerDistance: 700 },
     { land: "field" });
-  const fastSleeperGap = Number.parseFloat(scene.style["--cab-sleeper-gap"]);
-  const fastCatenaryGap = Number.parseFloat(scene.style["--cab-catenary-gap"]);
-  assert.ok(Number.parseFloat(scene.style["--cab-track-phase"]) <= 0);
-  assert.ok(Number.parseFloat(scene.style["--cab-track-phase"]) > -fastSleeperGap);
-  assert.ok(Number.parseFloat(scene.style["--cab-sleeper-gap"]) < slowSleeperGap);
+  const fastSleeperGap = Number.parseFloat(scene.style.getPropertyValue("--cab-sleeper-gap"));
+  const fastCatenaryGap = Number.parseFloat(scene.style.getPropertyValue("--cab-catenary-gap"));
+  assert.ok(Number.parseFloat(scene.style.getPropertyValue("--cab-track-phase")) <= 0);
+  assert.ok(Number.parseFloat(scene.style.getPropertyValue("--cab-track-phase")) > -fastSleeperGap);
+  assert.ok(Number.parseFloat(scene.style.getPropertyValue("--cab-sleeper-gap")) < slowSleeperGap);
   assert.ok(fastCatenaryGap < slowCatenaryGap);
-  assert.ok(Number.parseFloat(scene.style["--tunnel-light-gap"]) < slowTunnelGap);
+  assert.ok(Number.parseFloat(scene.style.getPropertyValue("--tunnel-light-gap")) < slowTunnelGap);
   assert.equal(scene.dataset.cabTrackLoopReset, "true",
     "속도로 반복 밀도가 바뀌는 프레임은 역방향 보간을 금지");
   assert.equal(scene.dataset.cabCatenaryLoopReset, "true");
@@ -639,52 +647,52 @@ test("운전실 선로 위상은 큰 실제 위치에서도 반복 범위 안에
   updateRealisticMotionScene(root,
     { ...initial, phase: "driving", x: 5000, v: 240, markerDistance: 700 },
     { land: "field" });
-  assert.ok(Number.parseFloat(scene.style["--cab-track-phase"]) <= 0);
-  assert.ok(Number.parseFloat(scene.style["--cab-track-phase"]) > -fastSleeperGap,
+  assert.ok(Number.parseFloat(scene.style.getPropertyValue("--cab-track-phase")) <= 0);
+  assert.ok(Number.parseFloat(scene.style.getPropertyValue("--cab-track-phase")) > -fastSleeperGap,
     "유한 요소가 화면 밖으로 누적 이동하지 않음");
 
   const speed = 120;
   updateRealisticMotionScene(root,
     { ...initial, phase: "driving", x: 0, v: speed, markerDistance: 700 },
     { land: "field" });
-  const sleeperGap = Number.parseFloat(scene.style["--cab-sleeper-gap"]);
+  const sleeperGap = Number.parseFloat(scene.style.getPropertyValue("--cab-sleeper-gap"));
   updateRealisticMotionScene(root,
     { ...initial, phase: "driving", x: sleeperGap - 1, v: speed, markerDistance: 700 },
     { land: "field" });
-  assert.equal(Number.parseFloat(scene.style["--cab-track-phase"]), -(sleeperGap - 1));
+  assert.equal(Number.parseFloat(scene.style.getPropertyValue("--cab-track-phase")), -(sleeperGap - 1));
   updateRealisticMotionScene(root,
     { ...initial, phase: "driving", x: sleeperGap, v: speed, markerDistance: 700 },
     { land: "field" });
-  assert.equal(Number.parseFloat(scene.style["--cab-track-phase"]), 0);
+  assert.equal(Number.parseFloat(scene.style.getPropertyValue("--cab-track-phase")), 0);
   assert.equal(scene.dataset.cabTrackLoopReset, "true");
   updateRealisticMotionScene(root,
     { ...initial, phase: "driving", x: sleeperGap + 1, v: speed, markerDistance: 700 },
     { land: "field" });
-  assert.equal(Number.parseFloat(scene.style["--cab-track-phase"]), -1,
+  assert.equal(Number.parseFloat(scene.style.getPropertyValue("--cab-track-phase")), -1,
     "반복 경계 다음 프레임도 순방향으로 한 픽셀 진행");
 
-  const catenaryGap = Number.parseFloat(scene.style["--cab-catenary-gap"]);
+  const catenaryGap = Number.parseFloat(scene.style.getPropertyValue("--cab-catenary-gap"));
   updateRealisticMotionScene(root,
     { ...initial, phase: "driving", x: catenaryGap - 1, v: speed, markerDistance: 700 },
     { land: "field" });
-  assert.equal(Number.parseFloat(scene.style["--cab-catenary-phase"]), -(catenaryGap - 1));
+  assert.equal(Number.parseFloat(scene.style.getPropertyValue("--cab-catenary-phase")), -(catenaryGap - 1));
   updateRealisticMotionScene(root,
     { ...initial, phase: "driving", x: catenaryGap, v: speed, markerDistance: 700 },
     { land: "field" });
-  assert.equal(Number.parseFloat(scene.style["--cab-catenary-phase"]), 0);
+  assert.equal(Number.parseFloat(scene.style.getPropertyValue("--cab-catenary-phase")), 0);
   assert.equal(scene.dataset.cabCatenaryLoopReset, "true");
   updateRealisticMotionScene(root,
     { ...initial, phase: "driving", x: catenaryGap + 1, v: speed, markerDistance: 700 },
     { land: "field" });
-  assert.equal(Number.parseFloat(scene.style["--cab-catenary-phase"]), -1);
+  assert.equal(Number.parseFloat(scene.style.getPropertyValue("--cab-catenary-phase")), -1);
 
-  const stoppedTrack = scene.style["--cab-track-phase"];
-  const stoppedCatenary = scene.style["--cab-catenary-phase"];
+  const stoppedTrack = scene.style.getPropertyValue("--cab-track-phase");
+  const stoppedCatenary = scene.style.getPropertyValue("--cab-catenary-phase");
   updateRealisticMotionScene(root,
     { ...initial, phase: "stopped", x: catenaryGap + 1, v: 0, markerDistance: 0 },
     { land: "field" });
-  assert.equal(scene.style["--cab-track-phase"], stoppedTrack);
-  assert.equal(scene.style["--cab-catenary-phase"], stoppedCatenary);
+  assert.equal(scene.style.getPropertyValue("--cab-track-phase"), stoppedTrack);
+  assert.equal(scene.style.getPropertyValue("--cab-catenary-phase"), stoppedCatenary);
 });
 
 test("터널 벽과 조명은 각 CSS 반복 간격과 같은 위상 주기로 이음새 없이 순환한다", () => {
@@ -696,8 +704,8 @@ test("터널 벽과 조명은 각 CSS 반복 간격과 같은 위상 주기로 �
   updateRealisticMotionScene(root,
     { ...initial, phase: "driving", x: 0, v: speed, markerDistance: 700 },
     { land: "tunnel" });
-  const lightGap = Number.parseFloat(scene.style["--tunnel-light-gap"]);
-  const wallGap = Number.parseFloat(scene.style["--tunnel-wall-gap"]);
+  const lightGap = Number.parseFloat(scene.style.getPropertyValue("--tunnel-light-gap"));
+  const wallGap = Number.parseFloat(scene.style.getPropertyValue("--tunnel-wall-gap"));
 
   for (const pattern of [
     { gap: lightGap, phase: "--tunnel-light-phase", reset: "tunnelLightLoopReset" },
@@ -706,24 +714,24 @@ test("터널 벽과 조명은 각 CSS 반복 간격과 같은 위상 주기로 �
     updateRealisticMotionScene(root,
       { ...initial, phase: "driving", x: pattern.gap - 1, v: speed, markerDistance: 700 },
       { land: "tunnel" });
-    assert.equal(Number.parseFloat(scene.style[pattern.phase]), -(pattern.gap - 1));
+    assert.equal(Number.parseFloat(scene.style.getPropertyValue(pattern.phase)), -(pattern.gap - 1));
     updateRealisticMotionScene(root,
       { ...initial, phase: "driving", x: pattern.gap, v: speed, markerDistance: 700 },
       { land: "tunnel" });
-    assert.equal(Number.parseFloat(scene.style[pattern.phase]), 0);
+    assert.equal(Number.parseFloat(scene.style.getPropertyValue(pattern.phase)), 0);
     assert.equal(scene.dataset[pattern.reset], "true");
     updateRealisticMotionScene(root,
       { ...initial, phase: "driving", x: pattern.gap + 1, v: speed, markerDistance: 700 },
       { land: "tunnel" });
-    assert.equal(Number.parseFloat(scene.style[pattern.phase]), -1);
+    assert.equal(Number.parseFloat(scene.style.getPropertyValue(pattern.phase)), -1);
   }
 
   updateRealisticMotionScene(root,
     { ...initial, phase: "driving", x: 5000, v: 240, markerDistance: 700 },
     { land: "tunnel" });
-  const fastLightGap = Number.parseFloat(scene.style["--tunnel-light-gap"]);
-  assert.ok(Number.parseFloat(scene.style["--tunnel-light-phase"]) <= 0);
-  assert.ok(Number.parseFloat(scene.style["--tunnel-light-phase"]) > -fastLightGap);
+  const fastLightGap = Number.parseFloat(scene.style.getPropertyValue("--tunnel-light-gap"));
+  assert.ok(Number.parseFloat(scene.style.getPropertyValue("--tunnel-light-phase")) <= 0);
+  assert.ok(Number.parseFloat(scene.style.getPropertyValue("--tunnel-light-phase")) > -fastLightGap);
   assert.equal(scene.dataset.tunnelLightLoopReset, "true",
     "속도 변화로 조명 밀도가 바뀔 때 역방향 보간하지 않음");
 });
@@ -741,24 +749,24 @@ for (const routeCase of [
     updateRealisticMotionScene(root,
       { ...initial, phase: "driving", x: routeCase.entryX - 600, v: 180 },
       { land: routeCase.beforeLand });
-    assert.equal(scene.style["--tunnel-progress"], "0");
+    assert.equal(scene.style.getPropertyValue("--tunnel-progress"), "0");
     assert.equal(scene.dataset.tunnelPortalVisible, "true");
     assert.equal(scene.dataset.tunnel, "false", "야외에서는 내부 벽을 아직 표시하지 않음");
-    assert.ok(Number.parseFloat(scene.style["--tunnel-scale"]) >= .3,
+    assert.ok(Number.parseFloat(scene.style.getPropertyValue("--tunnel-scale")) >= .3,
       "600m에서도 소실점의 작은 입구가 식별 가능함");
 
     updateRealisticMotionScene(root,
       { ...initial, phase: "driving", x: routeCase.entryX - 300, v: 180 },
       { land: routeCase.beforeLand });
-    assert.equal(scene.style["--tunnel-progress"], "0.5");
+    assert.equal(scene.style.getPropertyValue("--tunnel-progress"), "0.5");
     assert.equal(scene.dataset.tunnelPortalVisible, "true");
-    assert.ok(Number.parseFloat(scene.style["--tunnel-scale"]) >= .9,
+    assert.ok(Number.parseFloat(scene.style.getPropertyValue("--tunnel-scale")) >= .9,
       "300m에서는 운전실 표지 뒤로도 입구 윤곽이 식별 가능함");
 
     updateRealisticMotionScene(root,
       { ...initial, phase: "driving", x: routeCase.entryX, v: 180 },
       { land: "tunnel" });
-    assert.equal(scene.style["--tunnel-progress"], "1");
+    assert.equal(scene.style.getPropertyValue("--tunnel-progress"), "1");
     assert.equal(scene.dataset.tunnelPortalVisible, "true");
     assert.equal(scene.dataset.tunnel, "true", "진입 시점부터 내부 벽과 조명을 표시");
 
@@ -777,17 +785,17 @@ test("고속 진동은 160km/h 위에서만 생기고 1.5px를 넘지 않는다"
 
   updateRealisticMotionScene(root,
     { ...initial, phase: "driving", x: 2000, v: 160 }, { land: "city" });
-  assert.equal(scene.style["--motion-vibration-y"], "0px");
+  assert.equal(scene.style.getPropertyValue("--motion-vibration-y"), "0px");
 
   updateRealisticMotionScene(root,
     { ...initial, phase: "driving", x: 2000, v: 300 }, { land: "city" });
-  const vibration = Math.abs(Number.parseFloat(scene.style["--motion-vibration-y"]));
+  const vibration = Math.abs(Number.parseFloat(scene.style.getPropertyValue("--motion-vibration-y")));
   assert.ok(vibration > 0);
   assert.ok(vibration <= 1.5);
 
   updateRealisticMotionScene(root,
     { ...initial, phase: "stopping", x: 2000, v: 240 }, { land: "city" });
-  assert.ok(Number.parseFloat(scene.style["--motion-brake-pitch"]) > 0);
+  assert.ok(Number.parseFloat(scene.style.getPropertyValue("--motion-brake-pitch")) > 0);
 });
 
 test("사진 팬은 큰 주행 위치에서도 안전 크롭 범위 안에 머문다", () => {
@@ -798,7 +806,8 @@ test("사진 팬은 큰 주행 위치에서도 안전 크롭 범위 안에 머�
     updateRealisticMotionScene(root,
       { ...initial, phase: "driving", x, v: 240 }, { land: "city" });
     const pan = Number.parseFloat(
-      root.querySelector(".ktx-motion-scene").style["--motion-scene-x"]
+      root.querySelector(".ktx-motion-scene").style
+        .getPropertyValue("--motion-scene-x")
     );
     assert.ok(pan >= -120 && pan <= 120, `${x}m의 팬 ${pan}px가 안전 범위 안`);
   }
@@ -815,20 +824,20 @@ test("사진 팬은 같은 활성 플레이트에서 되감기 없이 왼쪽으�
   for (const x of [0, 1000, 2000, 3000, 3999]) {
     updateRealisticMotionScene(root,
       { ...initial, phase: "driving", x, v: 240 }, { land: "city" });
-    pans.push(Number.parseFloat(scene.style["--motion-scene-x"]));
+    pans.push(Number.parseFloat(scene.style.getPropertyValue("--motion-scene-x")));
   }
 
   assert.equal(pans[2], -120, "기존 x=2000 계약 유지");
   pans.slice(1).forEach((pan, index) => {
     assert.ok(pan <= pans[index], `${pans[index]}px 다음 ${pan}px는 오른쪽으로 되감기면 안 됨`);
   });
-  assert.equal(plates[0].style["--motion-plate-x"], "-120px");
+  assert.equal(plates[0].style.getPropertyValue("--motion-plate-x"), "-120px");
 
   updateRealisticMotionScene(root,
     { ...initial, phase: "driving", x: 4000, v: 240 }, { land: "city" });
 
-  assert.equal(plates[0].style["--motion-plate-x"], "-120px", "나가는 완성 장면은 위치 고정");
-  assert.equal(plates[1].style["--motion-plate-x"], "0px", "들어오는 완성 장면만 안전 원점으로 재설정");
+  assert.equal(plates[0].style.getPropertyValue("--motion-plate-x"), "-120px", "나가는 완성 장면은 위치 고정");
+  assert.equal(plates[1].style.getPropertyValue("--motion-plate-x"), "0px", "들어오는 완성 장면만 안전 원점으로 재설정");
 });
 
 test("주행 위치가 플레이트 구간을 넘으면 준비된 다음 완성 장면으로 교차한다", () => {
@@ -845,7 +854,8 @@ test("주행 위치가 플레이트 구간을 넘으면 준비된 다음 완성 
   assert.equal(plates[0].hidden, false, "이전 완성 장면은 교차 페이드 동안만 함께 마운트");
   assert.equal(plates[1].hidden, false);
   assert.ok(Number.parseFloat(
-    root.querySelector(".ktx-motion-scene").style["--motion-crossfade-ms"]
+    root.querySelector(".ktx-motion-scene").style
+      .getPropertyValue("--motion-crossfade-ms")
   ) >= 450);
 });
 
@@ -860,23 +870,23 @@ test("완성 장면 교차는 정차와 다른 속도 재출발에도 시작 시
   updateRealisticMotionScene(root, moving, { land: "city" });
   assert.equal(plates[0].dataset.crossfade, "out");
   assert.equal(plates[1].dataset.crossfade, "in");
-  assert.equal(scene.style["--motion-crossfade-play-state"], "running");
-  const duration = scene.style["--motion-crossfade-ms"];
+  assert.equal(scene.style.getPropertyValue("--motion-crossfade-play-state"), "running");
+  const duration = scene.style.getPropertyValue("--motion-crossfade-ms");
 
   updateRealisticMotionScene(root,
     { ...moving, phase: "stopped", v: 0 }, { land: "city" });
   assert.equal(plates[0].dataset.crossfade, "out", "나가는 장면의 중간 진행 상태 유지");
   assert.equal(plates[1].dataset.crossfade, "in", "들어오는 장면의 중간 진행 상태 유지");
-  assert.equal(scene.style["--motion-crossfade-play-state"], "paused");
-  assert.equal(scene.style["--motion-crossfade-ms"], duration,
+  assert.equal(scene.style.getPropertyValue("--motion-crossfade-play-state"), "paused");
+  assert.equal(scene.style.getPropertyValue("--motion-crossfade-ms"), duration,
     "정차 중 애니메이션 시간축도 바꾸지 않아 불투명도 진행률 유지");
 
   const resumedSlow = { ...moving, v: 40 };
   updateRealisticMotionScene(root, resumedSlow, { land: "city" });
   assert.equal(plates[0].dataset.crossfade, "out");
   assert.equal(plates[1].dataset.crossfade, "in");
-  assert.equal(scene.style["--motion-crossfade-play-state"], "running");
-  assert.equal(scene.style["--motion-crossfade-ms"], duration,
+  assert.equal(scene.style.getPropertyValue("--motion-crossfade-play-state"), "running");
+  assert.equal(scene.style.getPropertyValue("--motion-crossfade-ms"), duration,
     "진행 중 교차는 재출발 속도가 달라도 시작할 때의 540ms 유지");
 
   plates[0].dispatch("animationend");
@@ -884,7 +894,7 @@ test("완성 장면 교차는 정차와 다른 속도 재출발에도 시작 시
   updateRealisticMotionScene(root,
     { ...resumedSlow, x: 1000 }, { land: "city" });
 
-  assert.equal(scene.style["--motion-crossfade-ms"], "840ms",
+  assert.equal(scene.style.getPropertyValue("--motion-crossfade-ms"), "840ms",
     "끝난 뒤 시작한 새 교차부터 현재 저속 시간을 사용");
   assert.equal(plates[0].dataset.crossfade, "in");
   assert.equal(plates[1].dataset.crossfade, "out");
@@ -980,10 +990,10 @@ test("빠를수록 완성 장면 교차 시간은 짧아지되 450ms 아래로 �
 
   updateRealisticMotionScene(root,
     { ...initial, phase: "driving", x: 1000, v: 80 }, { land: "city" });
-  const slow = Number.parseFloat(scene.style["--motion-crossfade-ms"]);
+  const slow = Number.parseFloat(scene.style.getPropertyValue("--motion-crossfade-ms"));
   updateRealisticMotionScene(root,
     { ...initial, phase: "driving", x: 1000, v: 300 }, { land: "city" });
-  const fast = Number.parseFloat(scene.style["--motion-crossfade-ms"]);
+  const fast = Number.parseFloat(scene.style.getPropertyValue("--motion-crossfade-ms"));
 
   assert.ok(fast < slow);
   assert.ok(fast >= 450);
@@ -1008,7 +1018,9 @@ test("선로·근경·속도선은 각 CSS 무늬 주기 경계 전후에 같은
     const phases = xs.map(x => {
       updateRealisticMotionScene(root,
         { ...initial, phase: "driving", x, v: 240 }, { land: "city" });
-      return Number.parseFloat(scene.style[`--motion-${layer}-phase-x`]);
+      return Number.parseFloat(
+        scene.style.getPropertyValue(`--motion-${layer}-phase-x`)
+      );
     });
     assert.ok(phases.every(Number.isFinite), `${layer} 전용 위상 변수가 있어야 함`);
     assert.ok(Math.abs(wrappedDelta(phases[0], phases[1], period) + 1) < .01,

@@ -163,7 +163,7 @@ function monotonicPhotoPan(x) {
 function setPatternMotion(scene, layer, offset, period) {
   const phaseProperty = `--motion-${layer}-phase-x`;
   const phase = rounded(-(offset % period));
-  const previous = Number.parseFloat(scene.style[phaseProperty]);
+  const previous = Number.parseFloat(scene.style.getPropertyValue(phaseProperty));
   scene.dataset[`${layer}LoopReset`] = String(
     Number.isFinite(previous) && Math.abs(phase - previous) > period / 2
   );
@@ -172,14 +172,14 @@ function setPatternMotion(scene, layer, offset, period) {
 }
 
 function patternGap(scene, property, nextGap, moving) {
-  const previous = Number.parseFloat(scene.style[property]);
+  const previous = Number.parseFloat(scene.style.getPropertyValue(property));
   const gap = !moving && Number.isFinite(previous) ? previous : rounded(nextGap);
   scene.style.setProperty(property, `${gap}px`);
   return gap;
 }
 
 function setLoopPhase(scene, loop, property, offset, period, moving) {
-  const previous = Number.parseFloat(scene.style[property]);
+  const previous = Number.parseFloat(scene.style.getPropertyValue(property));
   if (!moving && Number.isFinite(previous)) {
     scene.dataset[`${loop}LoopReset`] = "false";
     return;
@@ -347,7 +347,7 @@ function syncPlateMotion(controller, state, frame) {
     controller.plates[desiredSlot].dataset.crossfade = "in";
     controller.crossfade = {
       durationMs: Number.parseFloat(
-        controller.scene.style["--motion-crossfade-ms"]),
+        controller.scene.style.getPropertyValue("--motion-crossfade-ms")),
       remainingSlots: new Set([outgoingSlot, desiredSlot])
     };
     controller.activeSlot = desiredSlot;
@@ -358,7 +358,8 @@ function syncPlateMotion(controller, state, frame) {
     controller.activeCatalogIndex = desiredIndex;
   }
   controller.plates[controller.activeSlot].style.setProperty(
-    "--motion-plate-x", controller.scene.style["--motion-scene-x"]);
+    "--motion-plate-x",
+    controller.scene.style.getPropertyValue("--motion-scene-x"));
   preloadPlate(controller,
     (controller.activeCatalogIndex + 1) % controller.catalog.length,
     controller.currentX + (switched ? PLATE_SWAP_GUARD : 0));
