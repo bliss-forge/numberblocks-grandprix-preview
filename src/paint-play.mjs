@@ -75,7 +75,7 @@ export function createPaintPlay(difficulty = "easy", seed = 0) {
     mixed: false,       // 필요한 튜브를 다 골라 색이 섞였다(자동)
     tries: 0,           // 현재 라운드 실패 횟수
     stars: 0,
-    gallery: [],        // 완성한 색 id 순서대로 (액자)
+    gallery: [],        // 완성 순서대로 { colorId, subjectId } (액자·전시회 벽)
     finale: false,
     rainbow: false,
     focusIndex: 0       // 0..4 튜브, 5 헹구기 (씬·앱 공용 인덱스)
@@ -102,22 +102,23 @@ export function jarColor(state) {
   if (!state.mixed) return null;
   if (state.jar.length === 1) return state.jar[0];
   if (state.jar.length === 2) return mixResult(state.jar[0], state.jar[1]);
+  if (state.jar.length === 3) {
+    return mixResult(state.jar[0], state.jar[1], state.jar[2]);
+  }
   return null;
 }
 
 // 수식 칩 문자열 조각 — 씬·자막이 같은 원본을 쓴다. 섞이기 전 result는 null.
-// 예: { a: "빨강", b: "노랑", result: "주황" | null }
+// 예: { a: "빨강", b: "노랑", c: null, result: "주황" | null }
 export function equationFor(state) {
   const round = currentRound(state);
   if (!round) return null;
   const need = recipeFor(round.colorId).length;
   const name = id => (id ? PAINT_COLORS[id].ko : null);
-  if (need === 1) {
-    return { a: name(state.jar[0]), b: null, result: name(jarColor(state)) };
-  }
   return {
     a: name(state.jar[0]),
-    b: name(state.jar[1]),
+    b: need >= 2 ? name(state.jar[1]) : null,
+    c: need >= 3 ? name(state.jar[2]) : null,
     result: name(jarColor(state))
   };
 }
@@ -129,20 +130,21 @@ export function squeezeTube(state, tubeId) {
   if (!round || state.finale) return [];
   const need = recipeFor(round.colorId).length;
   if (state.mixed || state.jar.length >= need) {
-    // 2색 제한(사용자 결정): 가득 찬 병에는 더 담을 수 없다 — 잠금 이벤트만
+    // 레시피 정원 제한(사용자 결정): 가득 찬 병에는 더 담을 수 없다 — 잠금만
     return [{ type: "locked", reason: "full" }];
   }
   if (state.jar.includes(tubeId)) {
-    // 더블탭 방어: 같은 색 두 번째는 무른다. 2재료 레시피는 모두 서로 다른
-    // 두 색이라 이걸로 잃는 조작이 없다(같은 색 혼합은 학습 내용이 아니다).
+    // 더블탭 방어: 같은 색 두 번째는 무른다. 2·3재료 레시피는 모두 서로 다른
+    // 색이라 이걸로 잃는 조작이 없다(같은 색 혼합은 학습 내용이 아니다).
     return [{ type: "locked", reason: "same-color", color: tubeId }];
   }
   state.jar.push(tubeId);
   const events = [{ type: "squeeze", color: tubeId }];
   if (state.jar.length >= need) {
-    // 필요한 만큼 고르면 그 자리에서 섞인다 — 젓기 단계 없음
+    // 필요한 만큼 고르면 그 자리에서 섞인다 — 젓기 단계 없음.
+    // jar 스냅샷은 앱이 혼합 낭독(정식 레시피 문장 vs 실명 호명)을 고를 때 쓴다.
     state.mixed = true;
-    events.push({ type: "mixed", color: jarColor(state) });
+    events.push({ type: "mixed", color: jarColor(state), jar: [...state.jar] });
   }
   return events;
 }
@@ -162,7 +164,8 @@ export function paintCanvas(state) {
   const result = jarColor(state);
   if (result === round.colorId) {
     state.stars += 1;
-    state.gallery.push(result);
+    // 색+그림을 함께 기억한다 — 피날레 전시회 벽이 그림째로 건다.
+    state.gallery.push({ colorId: result, subjectId: round.subjectId });
     const events = [{
       type: "success",
       color: result,
@@ -175,7 +178,8 @@ export function paintCanvas(state) {
     state.tries = 0;
     if (state.roundIndex >= state.rounds.length) {
       state.finale = true;
-      state.rainbow = new Set(state.gallery).size >= RAINBOW_COUNT;
+      state.rainbow =
+        new Set(state.gallery.map(entry => entry.colorId)).size >= RAINBOW_COUNT;
       events.push({ type: "finale", rainbow: state.rainbow, stars: state.stars });
     } else {
       events.push({ type: "next-round" });

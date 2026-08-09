@@ -138,7 +138,12 @@ import {
   renderPaintPlay,
   updatePaintPlay
 } from "./paint-play-scene.mjs";
-import { PAINT_COLORS, PAINT_TUBES, josa } from "./paint-play-data.mjs";
+import {
+  CANONICAL_MIX as PAINT_CANONICAL_MIX,
+  PAINT_COLORS,
+  PAINT_TUBES,
+  josa
+} from "./paint-play-data.mjs";
 import {
   clearCommands as clearDeliveryCommands,
   createDelivery,
@@ -1721,10 +1726,16 @@ function deleteDigit() {
 
 // ── 알록달록 물감 놀이 ────────────────────────────────────────────────────
 
-const PAINT_MIX_VOICES = new Set([
-  "orange", "green", "purple", "pink", "sky", "brown", "navy",
-  "lightyellow", "olive", "gray"
-]);
+// 혼합 문장("A와 B를 섞으면 C!")은 CANONICAL_MIX의 재료를 말한다.
+// 병 내용이 그 재료와 일치할 때만 혼합 문장을 틀고, 다른 조합으로 같은 색이
+// 나온 경우(빨+노+검→밤색)는 "우와, C가 됐네!"로 실명만 호명한다.
+function paintMixVoiceKey(event) {
+  const canonical = PAINT_CANONICAL_MIX[event.color];
+  const jar = event.jar ?? [];
+  const matches = canonical && canonical.length === jar.length &&
+    canonical.every(part => jar.includes(part));
+  return matches ? `paint-mix-${event.color}` : `paint-made-${event.color}`;
+}
 
 // 물감을 다 고른 뒤 병이 섞이는 걸 보여주고 자동으로 칠하기까지의 간격.
 // 혼합 낭독(한국어 약 3.2초)이 시작된 뒤라 그림은 문장 끝에 맞춰 차오른다.
@@ -1846,11 +1857,7 @@ function handlePaintEvents(events) {
       // 글자·소리·그림 세 채널이 같은 문장을 동시에 전한다.
       if (equation) showHint(equation, PAINT_EQUATION_HOLD_MS);
       audio.cancel();
-      speakPaint(
-        PAINT_MIX_VOICES.has(event.color)
-          ? `paint-mix-${event.color}`
-          : `paint-made-${event.color}`
-      );
+      speakPaint(paintMixVoiceKey(event));
     } else if (event.type === "rinsed") {
       audio.playSfx("key");
     } else if (event.type === "mismatch") {
@@ -1865,8 +1872,9 @@ function handlePaintEvents(events) {
       dom.stars.textContent = String(state.stars);
       audio.playSfx("win");
       const parts = event.equation;
-      dom.cheer.textContent = parts.b
-        ? `${parts.a} + ${parts.b} = ${parts.result}!`
+      const mixParts = [parts.a, parts.b, parts.c].filter(Boolean);
+      dom.cheer.textContent = mixParts.length >= 2
+        ? `${mixParts.join(" + ")} = ${parts.result}!`
         : `${parts.result} 완성!`;
       dom.cheer.classList.add("show");
       if (!hasFinale) {
@@ -1941,12 +1949,18 @@ function handlePaintEvents(events) {
 }
 
 // 혼합 완료 자막 — "빨강과 노랑을 섞으면 주황!" (수식 학습의 문장형)
+// 3색 라운드는 재료가 하나 늘어난다: "빨강과 노랑과 하양을 섞으면 살구색!"
 function paintEquationText() {
   const parts = paintEquationFor(state.paint);
   if (!parts?.result) return "";
-  return parts.b
-    ? `${parts.a}${josa(parts.a, "과", "와")} ${parts.b}${josa(parts.b, "을", "를")} 섞으면 ${parts.result}!`
-    : `${parts.result} 물감이 준비됐어요!`;
+  const items = [parts.a, parts.b, parts.c].filter(Boolean);
+  if (items.length < 2) return `${parts.result} 물감이 준비됐어요!`;
+  const listed = items
+    .map((name, index) => index < items.length - 1
+      ? `${name}${josa(name, "과", "와")}`
+      : `${name}${josa(name, "을", "를")}`)
+    .join(" ");
+  return `${listed} 섞으면 ${parts.result}!`;
 }
 
 // ⎵ 실행 — 0..4 튜브 고르기, 5 헹구기. 섞기·칠하기는 자동이라 버튼이 없다.
