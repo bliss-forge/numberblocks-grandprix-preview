@@ -536,6 +536,7 @@ export function renderKtxScene(document, state, view = "cab") {
   score.append(el(document, "span", "ktx-boarded-total", "친구 0"));
   hud.append(score);
   hud.append(el(document, "span", "ktx-boost-badge", ""));
+  hud.append(el(document, "span", "ktx-slow-badge", ""));
   const viewKeys = el(document, "div", "ktx-view-keys");
   const cabKey = el(document, "span", "ktx-view-key", "1 운전실");
   cabKey.dataset.viewKey = "cab";
@@ -877,6 +878,25 @@ export function updateKtxScene(root, state, view, events = [], held = {}) {
   if (boostBadge && boostBadge.textContent !== boostText) {
     boostBadge.textContent = boostText;
   }
+  // 서행 표지 배지 — 예고 순간부터 존 종료까지 제한 숫자를 계속 보여 준다.
+  // 글을 못 읽는 아이도 "동그라미 숫자 = 속도계 숫자를 그 밑으로"를 배운다.
+  const slowZone = state.slowZones?.[state.segIndex];
+  const slowActive = Boolean(state.slow);
+  const slowComing = Boolean(slowZone) && state.slowWarned && !state.zoneEntered &&
+    state.phase === "driving" &&
+    state.x / routeSegments(state)[state.segIndex].length < slowZone.until;
+  let slowMode = "off";
+  if (slowActive) {
+    slowMode = state.v <= state.slow.limit + state.slow.grace ? "calm" : "over";
+  } else if (slowComing) {
+    slowMode = "coming";
+  }
+  root.dataset.slow = slowMode;
+  const slowBadge = root.querySelector(".ktx-slow-badge");
+  const slowText = slowMode === "off" ? "" : String(slowZone.limit);
+  if (slowBadge && slowBadge.textContent !== slowText) {
+    slowBadge.textContent = slowText;
+  }
   root.dataset.zone = String(state.zoneEntered &&
     ["driving", "stopping", "correcting"].includes(state.phase));
   if (root.dataset.zone === "true") {
@@ -1055,11 +1075,14 @@ export function updateKtxScene(root, state, view, events = [], held = {}) {
     boardedNode.textContent = boardedText;
   }
 
-  // 속도 풍선 — 존 안에서는 억제(시선 깔때기, 아이 렌즈 §6)
+  // 속도 풍선 — 존 안에서는 억제(시선 깔때기, 아이 렌즈 §6).
+  // 300 링은 뺀다 — 최고속 부근에서 "300" 동그라미가 경고판처럼 읽힌다는
+  // 피드백(2026-08-10). 세기 놀이용 낮은 마일스톤(50~250)만 띄운다.
   const nextMilestone = SPEED_MILESTONES.find(milestone =>
     !state.milestones.includes(milestone) && milestone > state.v - 1);
   const balloon = root.querySelector(".ktx-speed-balloon");
   const balloonOn = state.phase === "driving" && nextMilestone !== undefined &&
+    nextMilestone < 300 &&
     nextMilestone - state.v <= 20 && !state.zoneEntered;
   balloon.dataset.on = String(balloonOn);
   if (balloonOn) {
@@ -1110,9 +1133,8 @@ export function updateKtxScene(root, state, view, events = [], held = {}) {
     if (event.type === "zone-enter") {
       spawnObj(root, "speed35", "l", "", state.v);
     }
-    if (event.type === "event" && event.event === "sprint300") {
-      spawnObj(root, "sign300", "r", "", state.v);
-    }
+    // sprint300의 "300" 경고판 소환은 뺐다 — 실사 배경 위에 뜬 표지판이
+    // 경고처럼 읽힌다는 피드백(2026-08-10). 문구 힌트("300까지 가 볼까?")만 남긴다.
     if (event.type === "boarded") {
       const pop = root.querySelector(".ktx-board-pop");
       const face = root.querySelector(".ktx-board-face");
@@ -1136,6 +1158,14 @@ export function updateKtxScene(root, state, view, events = [], held = {}) {
     if (event.type === "milestone") {
       pulse(root.querySelector(".ktx-speedo"), "ktx-speed-pop");
       pulse(balloon, "ktx-balloon-pop");
+    }
+    if (event.type === "slow-wobble") {
+      // 무섭지 않은 통통 바운스 — 벌이 아니라 "속도를 봐 달라"는 신호
+      pulse(root, "ktx-wobble");
+      pulse(root.querySelector(".ktx-slow-badge"), "ktx-balloon-pop");
+    }
+    if (event.type === "slow-clear" && event.success) {
+      pulse(root.querySelector(".ktx-hud"), "ktx-stars-pop");
     }
     if (event.type === "finale") {
       showFinale(document, root, event, state);
