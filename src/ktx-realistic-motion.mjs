@@ -3,12 +3,19 @@ export const REALISTIC_PARALLAX = Object.freeze({
 });
 
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
+const round = value => Number(value.toFixed(2));
+const CAB_PERIOD = Object.freeze({ sleeper: 120, pole: 480 });
 const STATION_PHASES = new Set(["stopped", "boarding", "ready", "branch", "finale"]);
 
 export function realisticMotionFrame({ x, v, phase, markerDistance, land }) {
   const speedRatio = clamp(v / 300, 0, 1);
   const offsets = Object.fromEntries(Object.entries(REALISTIC_PARALLAX)
     .map(([name, ratio]) => [name, x * ratio]));
+  const cab = Object.freeze({
+    sleeperPhase: round(-(offsets.track % CAB_PERIOD.sleeper)),
+    polePhase: round(-(offsets.near % CAB_PERIOD.pole)),
+    groundRatio: round(speedRatio)
+  });
   const atStation = STATION_PHASES.has(phase);
   const departing = phase === "driving" && markerDistance > 1200 && x >= 0 && x < 600;
   const approachProgress = clamp((600 - markerDistance) / 600, 0, 1);
@@ -26,6 +33,7 @@ export function realisticMotionFrame({ x, v, phase, markerDistance, land }) {
     speedBand: speedRatio >= .8 ? "very-fast" : speedRatio >= .533 ? "fast"
       : speedRatio >= .267 ? "cruise" : speedRatio > 0 ? "slow" : "stopped",
     offsets,
+    cab,
     stationStage,
     stationProgress: Number(stationProgress.toFixed(2)),
     departing,
