@@ -20,6 +20,7 @@ import {
   formatCountHint,
   formatProblemText,
   focusPhase,
+  ktxBoosterCue,
   playPromptCue,
   playRetryCue,
   quantityParts,
@@ -1081,7 +1082,11 @@ function startKtxJourney(trainId) {
 function handleKtxEvents(events) {
   const journey = state.ktx;
   for (const event of events) {
-    if (event.type === "boarded") {
+    const boosterCue = ktxBoosterCue(event);
+    if (boosterCue) {
+      audio.playSfx(boosterCue.sfx);
+      showHint(boosterCue.hint);
+    } else if (event.type === "boarded") {
       audio.playSfx("pop");
       audio.cancel();
       if (event.guest) {

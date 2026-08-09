@@ -32,6 +32,28 @@ export function subwayArrivingCue(kind, travelSide) {
   };
 }
 
+export function ktxBoosterCue(event) {
+  if (event?.type === "boost-start") {
+    return { sfx: "win", hint: "🚄 부스터 출발! 5초 동안 500!" };
+  }
+  if (event?.type === "boost-unavailable") {
+    const remainingMs = Number.isFinite(event.remainingMs)
+      ? Math.max(0, event.remainingMs)
+      : 0;
+    return {
+      sfx: "key",
+      hint: `충전 중이에요! ${Math.ceil(remainingMs / 1000)}초`
+    };
+  }
+  if (event?.type === "boost-end") {
+    return { sfx: "pop", hint: "부스터 끝! 안전 운전해요" };
+  }
+  if (event?.type === "boost-ready") {
+    return { sfx: "key", hint: "부스터 준비 완료!" };
+  }
+  return null;
+}
+
 export function retireAnimationClass(node, className) {
   node.addEventListener(
     "animationend",
