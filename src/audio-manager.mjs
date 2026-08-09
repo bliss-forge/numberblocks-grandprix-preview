@@ -72,6 +72,7 @@ export class AudioManager {
     this.voicePlaying = false;
     this.warned = new Set();
     this.muted = false;
+    this.engine = null;
 
     try {
       this.storage = storage === undefined ? globalThis.localStorage : storage;
@@ -270,9 +271,113 @@ export class AudioManager {
     }
   }
 
+  // ── 주행음 — 새 에셋 없이 WebAudio 합성 ─────────────────────────────────
+  // 노이즈(레일 구름소리) + 저역 험(차체 울림) 두 층. 속도 비율(0~1.67,
+  // 부스터 포함)이 필터 컷오프·게인을 밀어 "밟는 맛"이 소리로 난다.
+  // 게인 램프 0.4s — 즉시 변속이 아니라 가속의 변화가 들리게(협회 관찰 보고).
+
+  startEngine() {
+    if (this.muted || this.engine) return;
+    if (!this.context) {
+      try {
+        this.context = this.audioContextFactory();
+        if (!this.context) throw new Error("AudioContext unavailable");
+      } catch (error) {
+        this.context = null;
+        this.warnOnce("engine:context", error);
+        return;
+      }
+    }
+    try {
+      if (this.context.state === "suspended") {
+        Promise.resolve(this.context.resume?.()).catch(() => {});
+      }
+      const context = this.context;
+      const seconds = 2;
+      const buffer = context.createBuffer(
+        1, context.sampleRate * seconds, context.sampleRate);
+      const channel = buffer.getChannelData(0);
+      for (let i = 0; i < channel.length; i += 1) {
+        channel[i] = Math.random() * 2 - 1;
+      }
+      const noise = context.createBufferSource();
+      noise.buffer = buffer;
+      noise.loop = true;
+      const filter = context.createBiquadFilter();
+      filter.type = "lowpass";
+      filter.frequency.value = 140;
+      filter.Q.value = 0.6;
+      const noiseGain = context.createGain();
+      noiseGain.gain.value = 0.0001;
+      noise.connect(filter);
+      filter.connect(noiseGain);
+      noiseGain.connect(context.destination);
+      noise.start();
+
+      const hum = context.createOscillator();
+      hum.type = "sine";
+      hum.frequency.value = 46;
+      const humGain = context.createGain();
+      humGain.gain.value = 0.0001;
+      hum.connect(humGain);
+      humGain.connect(context.destination);
+      hum.start();
+
+      this.engine = { noise, filter, noiseGain, hum, humGain };
+    } catch (error) {
+      this.engine = null;
+      this.warnOnce("engine:start", error);
+    }
+  }
+
+  setEngineSpeed(ratio) {
+    if (!this.engine) return;
+    try {
+      const context = this.context;
+      const clamped = Math.max(0, Math.min(1.7, Number.isFinite(ratio) ? ratio : 0));
+      const now = context.currentTime;
+      const at = now + 0.4;
+      // 정지 = 무음. 저속은 낮게 웅웅, 고속은 컷오프가 열리며 쏴아 커진다.
+      // 매번 cancel 후 현재값에서 다시 램프 — 미래에 남은 이전 램프가 나중에
+      // 되살아나는 것(정지 후 유령 소리)을 원천 차단한다.
+      const level = clamped === 0 ? 0.0001 : 0.008 + clamped * 0.03;
+      const retarget = (param, target) => {
+        param.cancelScheduledValues(now);
+        param.setValueAtTime(param.value, now);
+        param.linearRampToValueAtTime(target, at);
+      };
+      retarget(this.engine.noiseGain.gain, this.muted ? 0.0001 : level);
+      retarget(this.engine.filter.frequency, 140 + clamped * 720);
+      retarget(this.engine.humGain.gain,
+        this.muted || clamped === 0 ? 0.0001 : 0.004 + clamped * 0.014);
+      retarget(this.engine.hum.frequency, 46 + clamped * 34);
+    } catch (error) {
+      this.warnOnce("engine:speed", error);
+    }
+  }
+
+  stopEngine() {
+    if (!this.engine) return;
+    try {
+      const { noise, hum, noiseGain, humGain } = this.engine;
+      const at = this.context.currentTime;
+      for (const param of [noiseGain.gain, humGain.gain]) {
+        param.cancelScheduledValues(at);
+        param.setValueAtTime(param.value, at);
+        param.linearRampToValueAtTime(0.0001, at + 0.25);
+      }
+      noise.stop(at + 0.35);
+      hum.stop(at + 0.35);
+    } catch (error) {
+      this.warnOnce("engine:stop", error);
+    }
+    this.engine = null;
+  }
+
   toggleMuted() {
     this.muted = !this.muted;
     if (this.muted) this.cancel();
+    if (this.muted) this.stopEngine();
     try {
       this.storage?.setItem("numberblocks-muted", String(this.muted));
     } catch (error) {

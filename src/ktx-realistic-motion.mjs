@@ -38,7 +38,7 @@ export function realisticMotionFrame({ x, v, phase, markerDistance, land }) {
     stationProgress: Number(stationProgress.toFixed(2)),
     departing,
     brakePitch: phase === "stopping" ? clamp(speedRatio * 1.8, 0, 1.8) : 0,
-    blurPx: speedRatio < .533 ? 0 : Number(((speedRatio - .533) * 5.6).toFixed(2)),
+    blurPx: speedRatio < .533 ? 0 : Number(((speedRatio - .533) * 1.6).toFixed(2)),
     land
   };
 }

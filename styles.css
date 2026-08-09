@@ -9608,12 +9608,12 @@ body[data-mode="delivery"] #stage {
   height: 34%;
   z-index: 2;
   background:
-    radial-gradient(ellipse at 5% 100%, rgba(31, 73, 47, .34) 0 5%, transparent 5.4%),
-    radial-gradient(ellipse at 18% 100%, rgba(43, 86, 54, .28) 0 8%, transparent 8.5%),
-    radial-gradient(ellipse at 36% 100%, rgba(29, 70, 43, .3) 0 6.5%, transparent 7%),
-    radial-gradient(ellipse at 58% 100%, rgba(54, 94, 60, .24) 0 10%, transparent 10.5%),
-    radial-gradient(ellipse at 77% 100%, rgba(34, 77, 48, .3) 0 7%, transparent 7.6%),
-    radial-gradient(ellipse at 94% 100%, rgba(47, 89, 56, .26) 0 9%, transparent 9.5%),
+    radial-gradient(ellipse at 5% 100%, rgba(31, 73, 47, .17) 0 5%, transparent 5.4%),
+    radial-gradient(ellipse at 18% 100%, rgba(43, 86, 54, .14) 0 8%, transparent 8.5%),
+    radial-gradient(ellipse at 36% 100%, rgba(29, 70, 43, .15) 0 6.5%, transparent 7%),
+    radial-gradient(ellipse at 58% 100%, rgba(54, 94, 60, .12) 0 10%, transparent 10.5%),
+    radial-gradient(ellipse at 77% 100%, rgba(34, 77, 48, .15) 0 7%, transparent 7.6%),
+    radial-gradient(ellipse at 94% 100%, rgba(47, 89, 56, .13) 0 9%, transparent 9.5%),
     linear-gradient(to top,
       rgba(38, 68, 47, .26) 0 12%,
       rgba(74, 105, 72, .14) 13% 19%,
@@ -9668,8 +9668,9 @@ body[data-mode="delivery"] #stage {
     repeating-linear-gradient(90deg,
       transparent 0 66px, rgba(64, 65, 68, .74) 66px 78px, transparent 78px 144px),
     linear-gradient(to bottom,
-      transparent 0 18%, #777f85 19% 24%, #d0d4d5 25% 39%,
-      #63696c 40% 46%, #c8bca6 47% 100%);
+      transparent 0 18%, rgba(97, 104, 110, .85) 19% 24%,
+      rgba(176, 181, 183, .8) 25% 39%,
+      rgba(74, 79, 82, .85) 40% 46%, rgba(109, 104, 95, .82) 47% 100%);
   transform: translate3d(var(--motion-track-phase-x), 0, 0);
   filter: blur(var(--motion-blur));
   transform-origin: left center;
@@ -9686,8 +9687,8 @@ body[data-mode="delivery"] #stage {
   background:
     repeating-linear-gradient(90deg,
       transparent 0 360px,
-      rgba(48, 55, 59, .72) 360px 368px,
-      rgba(204, 210, 211, .72) 368px 374px,
+      rgba(48, 55, 59, .45) 360px 368px,
+      rgba(150, 156, 159, .35) 368px 374px,
       transparent 374px 720px);
   transform: translate3d(var(--motion-near-phase-x), 0, 0);
   filter: blur(var(--motion-blur));
@@ -9884,7 +9885,7 @@ body[data-mode="delivery"] #stage {
   z-index: 5;
   display: none;
   overflow: hidden;
-  clip-path: polygon(5.5% 0, 94.5% 0, 80% 49%, 20% 49%);
+  clip-path: polygon(0 0, 100% 0, 82% 53%, 18% 53%);
   pointer-events: none;
 }
 
