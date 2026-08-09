@@ -128,8 +128,8 @@ test("운전실 모션은 고정 프레임의 투명 전면창 안에서만 소�
   assert.match(css,
     /data-view="cab"\][^\{]*\.ktx-motion-scene\s*\{[^}]*inset:\s*0[^}]*opacity:\s*1/s);
   assert.match(css,
-    /\.ktx-motion-cab-window\s*\{[^}]*position:\s*absolute[^}]*z-index:\s*8[^}]*overflow:\s*hidden[^}]*clip-path:\s*polygon\([^)]*42%[^)]*\)/s,
-    "절차적 선로는 운전실 프레임 위지만 실제 전면창 경계 안에만 표시됨");
+    /\.ktx-motion-cab-window\s*\{[^}]*position:\s*absolute[^}]*z-index:\s*5[^}]*overflow:\s*hidden[^}]*clip-path:\s*polygon\([^)]*42%[^)]*\)/s,
+    "절차적 선로는 실제 투명 전면창을 마스크로 쓰도록 운전실 프레임 아래에 표시됨");
   assert.match(css,
     /\.ktx-motion-cab-rail\s*\{[^}]*top:\s*22%[^}]*background-position:[^}]*--cab-track-phase[^}]*transform-origin:\s*50%\s+0/s,
     "선로 소실점은 불투명 계기판 위의 실제 투명창 안에 있어야 함");
