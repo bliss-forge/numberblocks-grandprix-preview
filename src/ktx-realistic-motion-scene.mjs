@@ -3,10 +3,11 @@ import { realisticMotionFrame } from "./ktx-realistic-motion.mjs";
 import { routeSegments } from "./ktx-journey.mjs";
 
 const controllers = new WeakMap();
-const PLATE_SPAN = 4000;
-const PLATE_SWAP_GUARD = 400;
-const PHOTO_SAFE_PAN_PX = 120;
-const PATTERN_PERIOD_PX = Object.freeze({ near: 720, track: 144, streak: 310 });
+const PLATE_SPAN = 1200;
+const PLATE_SWAP_GUARD = 160;
+const PHOTO_SAFE_PAN_PX = 320;
+const STATION_SAFE_PAN_PX = 120;
+const PATTERN_PERIOD_PX = Object.freeze({ mid: 960, near: 720, track: 144, streak: 310 });
 const TUNNEL_WALL_GAP_PX = 50;
 const TUNNEL_PORTAL_DISTANCE = 600;
 const STATION_PHASES = new Set(["stopped", "boarding", "ready", "branch", "finale"]);
@@ -84,6 +85,7 @@ function applyFrame(scene, state, band, controller = null) {
     land: band.land
   });
   scene.dataset.land = frame.land;
+  scene.dataset.sky = band.sky ?? "day";
   scene.dataset.speedBand = frame.speedBand;
   scene.dataset.stationStage = frame.stationStage;
   scene.dataset.stationVisible = String(frame.stationStage !== "hidden");
@@ -93,8 +95,14 @@ function applyFrame(scene, state, band, controller = null) {
   scene.dataset.tunnel = String(frame.land === "tunnel");
   scene.dataset.moving = String(frame.moving);
   scene.dataset.motionMoving = String(frame.moving);
-  scene.style.setProperty("--motion-scene-x",
-    `${monotonicPhotoPan(state.x)}px`);
+  const photoX = monotonicPhotoPan(state.x);
+  scene.style.setProperty("--motion-scene-x", `${photoX}px`);
+  scene.style.setProperty("--motion-far-x", `${photoX}px`);
+  const cabProgress = cabForwardProgress(state.x);
+  scene.style.setProperty("--cab-base-scale",
+    (1.035 + cabProgress * .035).toFixed(4));
+  scene.style.setProperty("--cab-base-y", `${rounded(cabProgress * 5)}px`);
+  setPatternMotion(scene, "mid", frame.offsets.mid, PATTERN_PERIOD_PX.mid);
   setPatternMotion(scene, "near", frame.offsets.near, PATTERN_PERIOD_PX.near);
   setPatternMotion(scene, "track", frame.offsets.track, PATTERN_PERIOD_PX.track);
   setPatternMotion(scene, "streak", frame.offsets.track, PATTERN_PERIOD_PX.streak);
@@ -103,8 +111,8 @@ function applyFrame(scene, state, band, controller = null) {
   scene.style.setProperty("--motion-brake-pitch", String(frame.brakePitch));
   scene.style.setProperty("--station-progress", String(frame.stationProgress));
   const stationOffsetX = frame.departing
-    ? -PHOTO_SAFE_PAN_PX * (1 - frame.stationProgress)
-    : PHOTO_SAFE_PAN_PX * (1 - frame.stationProgress);
+    ? -STATION_SAFE_PAN_PX * (1 - frame.stationProgress)
+    : STATION_SAFE_PAN_PX * (1 - frame.stationProgress);
   scene.style.setProperty("--station-offset-x", `${rounded(stationOffsetX)}px`);
   scene.style.setProperty("--station-cover-scale",
     String(rounded(1 + frame.stationProgress * .06)));
@@ -122,6 +130,11 @@ function applyFrame(scene, state, band, controller = null) {
     frame.offsets.track, cabSleeperGap, frame.moving);
   setLoopPhase(scene, "cabCatenary", "--cab-catenary-phase",
     frame.offsets.track, cabCatenaryGap, frame.moving);
+  scene.style.setProperty("--cab-sleeper-phase", `${frame.cab.sleeperPhase}px`);
+  scene.style.setProperty("--cab-pole-phase", `${frame.cab.polePhase}px`);
+  scene.style.setProperty("--cab-ground-ratio", String(frame.cab.groundRatio));
+  scene.dataset.doors = state.doors === "open" && STATION_PHASES.has(state.phase)
+    ? "open" : "closed";
   const tunnelPortal = tunnelPortalState(state, frame.land);
   setLoopPhase(scene, "tunnelWall", "--tunnel-wall-phase",
     frame.land === "tunnel" ? frame.offsets.track : 0,
@@ -156,8 +169,13 @@ function rounded(value) {
 
 function monotonicPhotoPan(x) {
   const distanceInPlate = Math.max(0, x) % PLATE_SPAN;
-  return rounded(-Math.min(PHOTO_SAFE_PAN_PX,
-    distanceInPlate * (PHOTO_SAFE_PAN_PX / (PLATE_SPAN / 2))));
+  const progress = distanceInPlate / PLATE_SPAN;
+  return rounded(PHOTO_SAFE_PAN_PX / 2 - progress * PHOTO_SAFE_PAN_PX);
+}
+
+function cabForwardProgress(x) {
+  const distance = Math.max(0, Number.isFinite(x) ? x : 0);
+  return Math.min(1, distance / 5000);
 }
 
 function setPatternMotion(scene, layer, offset, period) {
@@ -451,8 +469,10 @@ export function buildRealisticMotionScene(document, state, onStateChange) {
       finishPlateCrossfade(controller, index));
   });
 
+  const mid = el(document, "div", "ktx-motion-mid");
   const track = el(document, "div", "ktx-motion-track");
   const near = el(document, "div", "ktx-motion-near");
+  const wheelShadow = el(document, "div", "ktx-motion-wheel-shadow");
   const station = motionImage(document, "ktx-motion-station",
     pack.station[0], "", controller);
   const stationViewport = el(document, "div", "ktx-motion-station-viewport");
@@ -460,24 +480,39 @@ export function buildRealisticMotionScene(document, state, onStateChange) {
   const stationSign = el(document, "div", "ktx-motion-station-sign");
   stationSign.textContent = stationName(state);
   const cabWindow = el(document, "div", "ktx-motion-cab-window");
+  const cabBase = el(document, "div", "ktx-motion-cab-base");
+  const cabGround = el(document, "div", "ktx-motion-cab-ground");
+  const cabBallast = el(document, "div", "ktx-motion-cab-ballast");
   const cabRailLeft = el(document, "div", "ktx-motion-cab-rail ktx-motion-cab-rail-left");
   const cabRailRight = el(document, "div", "ktx-motion-cab-rail ktx-motion-cab-rail-right");
   const cabSleepers = el(document, "div", "ktx-motion-cab-sleepers");
+  const cabPoles = el(document, "div", "ktx-motion-cab-poles");
   const cabCatenary = el(document, "div", "ktx-motion-cab-catenary");
   const tunnel = el(document, "div", "ktx-motion-tunnel");
   const tunnelPortal = el(document, "div", "ktx-motion-tunnel-portal");
   const tunnelLights = el(document, "div", "ktx-motion-tunnel-lights");
   tunnel.append(tunnelPortal, tunnelLights);
-  cabWindow.append(cabRailLeft, cabRailRight, cabSleepers, cabCatenary, tunnel);
+  cabWindow.append(cabBase, cabGround, cabBallast, cabSleepers,
+    cabRailLeft, cabRailRight, cabPoles, cabCatenary, tunnel);
   const train = motionImage(document, "ktx-motion-train",
     pack.train, "실사 SRT 열차", controller);
+  const trainRig = el(document, "div", "ktx-motion-train-rig");
+  const door = el(document, "div", "ktx-motion-door");
+  const doorBay = el(document, "span", "ktx-motion-door-bay");
+  const doorLeft = el(document, "span",
+    "ktx-motion-door-leaf ktx-motion-door-leaf-left");
+  const doorRight = el(document, "span",
+    "ktx-motion-door-leaf ktx-motion-door-leaf-right");
+  door.append(doorBay, doorLeft, doorRight);
+  trainRig.append(train, wheelShadow, door);
   const cabFrame = motionImage(document, "ktx-motion-cab-frame",
     pack.cabMask, "실사 SRT 운전실", controller);
   Object.assign(controller, { station, stationSign, train, cabFrame });
 
-  scene.append(...plates, stationViewport, stationSign, track, near, cabWindow, train, cabFrame);
+  scene.append(...plates, stationViewport, stationSign,
+    mid, track, near, cabWindow, trainRig, cabFrame);
   scene.dataset.readiness = "pending";
-  applyFrame(scene, state, { land: state.land }, controller);
+  applyFrame(scene, state, { sky: state.sky, land: state.land }, controller);
   controllers.set(scene, controller);
   return scene;
 }
