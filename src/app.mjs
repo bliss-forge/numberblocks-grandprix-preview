@@ -1246,6 +1246,9 @@ function handleKtxEvents(events) {
       if (hint) showHint(hint);
     } else if (event.type === "slow-warn") {
       audio.playSfx("bell");
+      // 실물 표지판은 바깥 뷰의 소품 — 운전실이면 도착 컷과 같은 관례로
+      // 잠깐 바깥을 보여 준다(협회 D: cab에서 "저기"가 없었다).
+      state.ktxView = "side";
       showHint(`🚧 저기 표지판! ${event.limit}까지 천천히~`);
       audio.cancel();
       void audio.playAnswer(event.limit);   // number-100/150 재사용

@@ -789,3 +789,20 @@ test("피날레는 반짝 배지 목록을 동봉하고 요약은 개수를 안�
   assert.ok(finale, "피날레가 난다");
   assert.equal(finale.bonuses.length, 2, "배지 목록 동봉");
 });
+
+test("부스터 게이트는 관성 거리만큼 예고선보다 먼저 잠긴다", () => {
+  // 예고선 직전 발동 → 452km/h로 존 진입이 실측된 우회(협회 D).
+  const state = createKtxJourney(7, "srt", "steady");
+  const segIndex = state.slowZones.findIndex(Boolean);
+  const zone = state.slowZones[segIndex];
+  const seg = routeSegments(state)[segIndex];
+  const warnX = zone.at * seg.length - 500;
+  const driving = {
+    ...state, phase: "driving", segIndex,
+    x: Math.max(0, warnX - 900),   // 예고선 900m 앞 — 관성 가드(1100m) 안
+    v: 300
+  };
+  const result = pressKtxSpace(driving);
+  assert.equal(result.events[0]?.type, "boost-unavailable");
+  assert.equal(result.events[0]?.reason, "slow");
+});

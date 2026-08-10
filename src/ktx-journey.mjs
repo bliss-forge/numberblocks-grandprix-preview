@@ -465,8 +465,11 @@ export function pressKtxSpace(state) {
       if (zone) {
         const segLength = segment(state).length;
         const progress = state.x / segLength;
-        const warnAt = Math.max(0, zone.at - SLOW_WARN_DISTANCE / segLength);
-        if (progress >= warnAt && progress < zone.until) {
+        // 램프 5초 + 감쇠 4초의 관성 거리(~1.1km)만큼 먼저 잠근다 — 예고선
+        // 직전 발동이 452km/h로 존을 덮치는 우회가 실측됐다(협회 D).
+        const guardAt = Math.max(0,
+          zone.at - (SLOW_WARN_DISTANCE + 1100) / segLength);
+        if (progress >= guardAt && progress < zone.until) {
           return {
             state,
             events: [{ type: "boost-unavailable", reason: "slow", remainingMs: 0 }]
@@ -654,6 +657,7 @@ export function tickKtx(state, held = {}, elapsedMs = 150) {
 
   if (next.phase === "correcting") {
     // 오버런 복귀 — 통통 뒤로 물러나 마커에 선다. 별 1개 항상.
+    next.v = CORRECT_SPEED;   // 계기가 직전 판정 속도(35)에 얼어 있던 결함
     const marker = markerPosition(segment(next));
     next.x = Math.max(marker, next.x - (CORRECT_SPEED / 3.6) * dt);
     if (next.x <= marker + 0.5) {

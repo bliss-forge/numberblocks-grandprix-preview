@@ -1121,7 +1121,10 @@ export function updateKtxScene(root, state, view, events = [], held = {}) {
   const balloon = root.querySelector(".ktx-speed-balloon");
   const balloonOn = state.phase === "driving" && nextMilestone !== undefined &&
     nextMilestone < 300 &&
-    nextMilestone - state.v <= 20 && !state.zoneEntered;
+    nextMilestone - state.v <= 20 && !state.zoneEntered &&
+    // 서행 안내 중에는 다른 숫자 풍선을 띄우지 않는다 — "100까지 천천히"
+    // 옆에 "200" 풍선이 뜨면 제한 숫자와 혼선(협회 D).
+    !state.slow && !state.slowWarned;
   balloon.dataset.on = String(balloonOn);
   if (balloonOn) {
     const numberNode = root.querySelector(".ktx-balloon-number");
@@ -1206,10 +1209,18 @@ export function updateKtxScene(root, state, view, events = [], held = {}) {
     }
     if (event.type === "slow-warn") {
       const sign = root.querySelector(".ktx-slow-sign");
+      // "저기 표지판!" 순간 표지판이 보여야 한다 — 운전실이면 바깥 컷
+      // (도착 컷과 같은 관례, 협회 D). 뷰 상태는 앱이 관리하므로 여기서는
+      // updateKtxScene 호출자가 넘긴 view를 바꿀 수 없다 — 앱 배선에서 처리.
+      void 0;
       if (sign) {
         sign.querySelector(".ktx-slow-sign-disc").textContent = String(event.limit);
         pulse(sign, "ktx-slow-sign-go");
       }
+    }
+    if (event.type === "overrun") {
+      // "뒤로 통통~" 약속의 실체 — 무대 바운스(협회 D: correcting 연출 부재)
+      pulse(root, "ktx-wobble");
     }
     if (event.type === "slow-wobble") {
       // 무섭지 않은 통통 바운스 — 벌이 아니라 "속도를 봐 달라"는 신호
@@ -1230,9 +1241,11 @@ function showFinale(document, root, event, state) {
   const finale = root.querySelector(".ktx-finale");
   finale.dataset.on = "true";
   const title = root.querySelector(".ktx-finale-title");
+  // 종착역은 노선 따라 다르다 — 목포 완주가 "부산 도착"으로 뜨던 결함(협회 D).
+  const terminus = state ? routeStations(state).at(-1) : "부산";
   title.textContent = event.perfect
     ? "⭐ 퍼펙트 기관사! ⭐"
-    : "부산에 도착했어요!";
+    : `${terminus}에 도착했어요!`;
   // 정차 결과 — 역별 별 줄 (Canonical 정면 뷰 아래)
   const stopsHost = root.querySelector(".ktx-finale-stops");
   if (stopsHost && state) {
