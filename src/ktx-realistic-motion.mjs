@@ -17,10 +17,12 @@ export function realisticMotionFrame({ x, v, phase, markerDistance, land }) {
     groundRatio: round(speedRatio)
   });
   const atStation = STATION_PHASES.has(phase);
-  const departing = phase === "driving" && markerDistance > 1200 && x >= 0 && x < 600;
+  // 출발 잔상 300m — 600m는 고속 개활지에서 유령 역이 한참 겹쳐 보였다
+  // (협회 후반 검수 4). 접근 쪽 600m는 감속 중이라 자연스러워 유지.
+  const departing = phase === "driving" && markerDistance > 1200 && x >= 0 && x < 300;
   const approachProgress = clamp((600 - markerDistance) / 600, 0, 1);
   const stationProgress = atStation ? 1
-    : departing ? clamp(1 - x / 600, 0, 1)
+    : departing ? clamp(1 - x / 300, 0, 1)
       : approachProgress;
   const stationStage = atStation ? "stopped"
     : departing ? "departure"

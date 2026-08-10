@@ -456,6 +456,12 @@ function buildSideView(document, state) {
   // 탑승 워커 — ⎵마다 맨 앞 친구가 문까지 걸어간다
   view.append(el(document, "div", "ktx-walker-host"));
 
+  // 서행 표지판 — "저기 표지판!" 안내에 진짜 '저기'가 있어야 한다(협회 5).
+  const slowSign = el(document, "div", "ktx-slow-sign");
+  slowSign.append(el(document, "b", "ktx-slow-sign-disc", ""));
+  slowSign.append(el(document, "i", "ktx-slow-sign-post"));
+  view.append(slowSign);
+
   const streaks = el(document, "div", "ktx-speed-streaks");
   streaks.append(el(document, "i", "ktx-streak-tex"));
   view.append(streaks);
@@ -1198,6 +1204,13 @@ export function updateKtxScene(root, state, view, events = [], held = {}) {
       pulse(root.querySelector(".ktx-speedo"), "ktx-speed-pop");
       pulse(balloon, "ktx-balloon-pop");
     }
+    if (event.type === "slow-warn") {
+      const sign = root.querySelector(".ktx-slow-sign");
+      if (sign) {
+        sign.querySelector(".ktx-slow-sign-disc").textContent = String(event.limit);
+        pulse(sign, "ktx-slow-sign-go");
+      }
+    }
     if (event.type === "slow-wobble") {
       // 무섭지 않은 통통 바운스 — 벌이 아니라 "속도를 봐 달라"는 신호
       pulse(root, "ktx-wobble");
@@ -1231,6 +1244,15 @@ function showFinale(document, root, event, state) {
       chip.append(el(document, "span", "ktx-finale-stop-stars", "⭐".repeat(count)));
       stopsHost.append(chip);
     });
+    // 반짝 배지도 여기 보여야 HUD 합계와 피날레 문구가 어긋나지 않는다
+    // (협회 후반 검수 6 — 배지 +1이 전역 합계에만 더해져 12 vs 13이 났다).
+    if (event.bonuses?.length) {
+      const chip = el(document, "span", "ktx-finale-stop");
+      chip.append(el(document, "b", "ktx-finale-stop-name", "반짝 배지"));
+      chip.append(el(document, "span", "ktx-finale-stop-stars",
+        `✨ +${event.bonuses.length}`));
+      stopsHost.append(chip);
+    }
   }
   const friends = root.querySelector(".ktx-finale-friends");
   friends.replaceChildren();

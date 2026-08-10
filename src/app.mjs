@@ -1339,16 +1339,10 @@ function completeKtxJourney(event) {
     : fresh.length > 0
       ? `처음 만난 친구가 ${fresh.length}명 있어요!`
       : "고마워요, 기관사님!");
-  schedule(() => {
-    dom.cheer.textContent = event.perfect
-      ? "⭐ 퍼펙트 기관사! ⭐"
-      : `🚄 ${finalStation} 도착! 별 ${totalStars}개`;
-    dom.cheer.classList.add("show");
-    schedule(() => {
-      dom.cheer.classList.remove("show");
-      goHome();
-    }, 2400);
-  }, 2600);
+  // 빨간 cheer 배너는 피날레 제목과 같은 자리에 같은 말이 겹쳐 3중 표기가
+  // 됐다(협회 후반 검수 6). 피날레 화면이 이미 제목·별 줄·친구 대열을
+  // 갖고 있으니 배너 없이 9초 감상 후 홈으로.
+  schedule(() => goHome(), 9000);
 }
 
 function scheduleKtxTick() {

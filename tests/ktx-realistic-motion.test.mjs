@@ -88,11 +88,12 @@ test("역은 600m에서 나타나 0m에서 정위치에 단조롭게 도착한�
   }).stationProgress, 1);
 });
 
-test("출발하면 직전 역이 600m 동안 뒤로 물러난 뒤 제거된다", () => {
+test("출발하면 직전 역이 300m 동안 뒤로 물러난 뒤 제거된다", () => {
+  // 600m는 고속 출발에서 유령 역 이중 노출로 보였다(협회 후반 검수 4).
   const input = { v: 80, phase: "driving", markerDistance: 5000, land: "field" };
   const start = realisticMotionFrame({ ...input, x: 0 });
-  const middle = realisticMotionFrame({ ...input, x: 300 });
-  const exited = realisticMotionFrame({ ...input, x: 600 });
+  const middle = realisticMotionFrame({ ...input, x: 150 });
+  const exited = realisticMotionFrame({ ...input, x: 300 });
 
   assert.equal(start.departing, true);
   assert.equal(start.stationProgress, 1);
