@@ -21,7 +21,7 @@ const subwayKeys = [
   "subway-station-assembly", "subway-station-bongeunsa"
 ];
 const paintKeys = [
-  "paint-intro", "paint-finale", "paint-rainbow",
+  "paint-intro", "paint-finale", "paint-rainbow", "paint-unlock",
   ...[
     "firetruck", "chick", "bus", "carrot", "car", "frog", "tractor",
     "grape", "heli", "blossom", "boat", "bear", "rocket",
@@ -38,7 +38,7 @@ const paintKeys = [
     "red", "yellow", "blue", "black", "white", "orange", "green",
     "purple", "pink", "sky", "brown", "navy", "lightyellow", "olive", "gray",
     "peach", "yellowgreen", "lavender", "darkbrown", "darkgreen",
-    "darkpurple", "brick", "khaki", "bluegray"
+    "darkpurple", "brick", "khaki", "bluegray", "mud"
   ].map(color => `paint-made-${color}`)
 ];
 // 택배 왔어요! — 진행 안내 12 + 상자 이름 3. 매니페스트와의 대조는

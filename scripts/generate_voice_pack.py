@@ -263,6 +263,8 @@ KO_PAINT = {
     "paint-made-brick": "우와, 벽돌색이 됐네!",
     "paint-made-khaki": "우와, 카키가 됐네!",
     "paint-made-bluegray": "우와, 청회색이 됐네!",
+    "paint-made-mud": "우와, 다 섞여서 먹색이 됐네!",
+    "paint-unlock": "새 물감을 얻었어요! 이제 선반에서 바로 쓸 수 있어요!",
     "paint-finale": "오늘의 그림을 다 그렸어요! 정말 멋진 화가예요!",
     "paint-rainbow": "우와, 무지개 화가 탄생! 일곱 가지 색을 다 모았어요!",
 }
@@ -337,6 +339,8 @@ EN_PAINT = {
     "paint-made-brick": "Wow, you made brick red!",
     "paint-made-khaki": "Wow, you made khaki!",
     "paint-made-bluegray": "Wow, you made blue grey!",
+    "paint-made-mud": "Wow, they all mixed into inky black!",
+    "paint-unlock": "You earned a new paint! Now it's on your shelf!",
     "paint-finale": "You finished all the paintings! What a wonderful artist!",
     "paint-rainbow": "Wow, a rainbow artist! You collected all seven colours!",
 }
