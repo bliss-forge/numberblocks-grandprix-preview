@@ -1193,8 +1193,9 @@ test("다음 환경 이미지는 미리 읽고 로드된 뒤에만 현재 장면
   updateKtxScene(root, field, "side");
   assert.equal(root.querySelector(".ktx-real-cab-image"), cab);
   assert.equal(root.querySelector(".ktx-real-exterior-image"), exterior);
+  // 지형 변형(PR #8): field 밴드에서는 운전실도 cab-field로 준비를 시작한다
   assert.equal(cab.src, "https://game.test/assets/train-realistic/cab-day.webp");
-  assert.equal(cab.srcWrites, 1, "같은 주간 운전실 경로는 유지");
+  assert.equal(cab.srcWrites, 1, "다음 운전실이 준비되는 동안 현재 사진 유지");
   assert.equal(exterior.src,
     "https://game.test/assets/train-realistic/srt-exterior-city.webp",
     "다음 사진이 준비되는 동안 현재 사진 유지");
@@ -1215,6 +1216,16 @@ test("다음 환경 이미지는 미리 읽고 로드된 뒤에만 현재 장면
     "https://game.test/assets/train-realistic/srt-exterior-field.webp");
   assert.equal(exterior.srcWrites, 2, "미리 읽기가 끝난 뒤 현재 이미지 교체");
   assert.equal(root.dataset.realistic, "ready");
+
+  const cabPreloader = document.createdElements.find(element =>
+    element.tagName === "IMG" &&
+    element !== cab &&
+    element !== exterior &&
+    element.src.endsWith("/assets/train-realistic/cab-field.webp")
+  );
+  assert.ok(cabPreloader, "지형 운전실도 별도 이미지로 미리 읽음");
+  cabPreloader.dispatch("load");
+  assert.equal(cab.src, "https://game.test/assets/train-realistic/cab-field.webp");
   assert.equal(root.dataset.loading, "false");
 });
 
