@@ -664,8 +664,9 @@ test("역 접근·정차·출발은 진행률과 근경 억제를 하나의 수�
   assert.equal(scene.dataset.motionMoving, "false");
   assert.equal(station.dataset.lifecycle, "stopped");
 
+  // 출발 잔상 창은 300m — 600m는 고속에서 유령 역 이중 노출(협회 후반 검수 4)
   updateRealisticMotionScene(root,
-    { ...initial, phase: "driving", x: 300, v: 80, markerDistance: 5000 },
+    { ...initial, phase: "driving", x: 150, v: 80, markerDistance: 5000 },
     { land: "field" });
   assert.equal(scene.style.getPropertyValue("--station-progress"), "0.5");
   const departureMiddleX = Number.parseFloat(scene.style.getPropertyValue("--station-offset-x"));
@@ -673,7 +674,7 @@ test("역 접근·정차·출발은 진행률과 근경 억제를 하나의 수�
   assert.equal(station.dataset.lifecycle, "departing");
 
   updateRealisticMotionScene(root,
-    { ...initial, phase: "driving", x: 599, v: 80, markerDistance: 4401 },
+    { ...initial, phase: "driving", x: 299, v: 80, markerDistance: 4701 },
     { land: "field" });
   const departureEndX = Number.parseFloat(scene.style.getPropertyValue("--station-offset-x"));
   assert.ok(departureEndX < departureMiddleX,
@@ -681,7 +682,7 @@ test("역 접근·정차·출발은 진행률과 근경 억제를 하나의 수�
   assert.ok(Number.parseFloat(scene.style.getPropertyValue("--station-opacity")) < 0.01);
 
   updateRealisticMotionScene(root,
-    { ...initial, phase: "driving", x: 600, v: 80, markerDistance: 4400 },
+    { ...initial, phase: "driving", x: 300, v: 80, markerDistance: 4700 },
     { land: "field" });
   assert.equal(scene.dataset.stationVisible, "false");
   assert.equal(station.dataset.lifecycle, "hidden");

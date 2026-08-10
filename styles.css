@@ -10363,6 +10363,95 @@ body[data-mode="delivery"] #stage {
   visibility: hidden;
 }
 
+/* ── 시간대 틴트(협회 후반 검수 1) — 사진 자산이 전부 주간이라 야간·노을·
+   새벽 밴드에서 바깥이 대낮 그대로였다. 새 이미지 없이 장면 전체에 하늘
+   색을 입힌다. 운전실은 전용 야간 사진이 있어 제외. */
+.ktx-game[data-view="side"] .ktx-motion-scene::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 8;
+  pointer-events: none;
+  background: #0d1428;
+  opacity: 0;
+  transition: opacity 1.2s ease;
+}
+
+.ktx-game[data-view="side"] .ktx-motion-scene[data-sky="night"]::before {
+  opacity: .5;
+}
+
+.ktx-game[data-view="side"] .ktx-motion-scene[data-sky="sunset"]::before {
+  background: linear-gradient(to bottom,
+    rgba(255, 122, 40, .3), rgba(64, 32, 64, .38));
+  opacity: 1;
+}
+
+.ktx-game[data-view="side"] .ktx-motion-scene[data-sky="dawn"]::before {
+  background: linear-gradient(to bottom,
+    rgba(255, 150, 96, .26), rgba(44, 44, 84, .34));
+  opacity: 1;
+}
+
+/* 밴드 전환 공백(플레이트 교체 로드 중)에 노출되는 배경도 시간대를 따른다 —
+   밤에 민하늘색 판이 뜨던 문제(협회 3). */
+.ktx-motion-scene[data-sky="night"] { background: #141a28; }
+.ktx-motion-scene[data-sky="sunset"] { background: #3a2b33; }
+.ktx-motion-scene[data-sky="dawn"] { background: #2c2f45; }
+
+/* 실사 터널 연출이 있는데 만화 아치 스프라이트가 겹쳐 떠 있었다(협회 2) */
+.ktx-game[data-motion-realistic="ready"] .ktx-event-stage[data-event="tunnel"] {
+  display: none;
+}
+
+/* ── 서행 표지판(협회 5) — "저기 표지판!" 안내의 실체. 예고 순간 오른쪽에서
+   나타나 왼쪽으로 지나간다. 고정 3.2s: 속도 연동보다 확실히 읽히는 쪽. */
+.ktx-slow-sign {
+  position: absolute;
+  top: 22%;
+  right: -140px;
+  z-index: 9;
+  width: 96px;
+  text-align: center;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.ktx-slow-sign-disc {
+  display: block;
+  width: 76px;
+  height: 76px;
+  margin: 0 auto;
+  border-radius: 50%;
+  border: 9px solid #e03131;
+  background: #fff;
+  color: #1d2733;
+  font-size: 30px;
+  font-weight: 900;
+  font-style: normal;
+  line-height: 58px;
+  box-shadow: 0 3px 6px rgba(0, 0, 0, .3);
+}
+
+.ktx-slow-sign-post {
+  display: block;
+  width: 8px;
+  height: 74px;
+  margin: 0 auto;
+  background: linear-gradient(#6a7077, #474c52);
+}
+
+@keyframes ktx-slow-sign-run {
+  0% { transform: translateX(0); opacity: 0; }
+  8% { opacity: 1; }
+  90% { opacity: 1; }
+  100% { transform: translateX(calc(-100vw - 240px)); opacity: 0; }
+}
+
+.ktx-slow-sign.ktx-slow-sign-go {
+  animation: ktx-slow-sign-run 3.2s linear both;
+}
+
 .ktx-game[data-view="cab"] .ktx-motion-cab-frame {
   position: absolute;
   pointer-events: none;
@@ -10484,6 +10573,8 @@ body[data-mode="delivery"] #stage {
   }
 
   .ktx-game.ktx-wobble { animation: none !important; }
+
+  .ktx-slow-sign { animation: none !important; opacity: 0 !important; }
 
   /* 운전실 리그·평면·스트릭·스트로브 — 움직임 감축에서는 흔들림과 맥동을
      전부 끄고 위치는 150ms 이산 스냅으로만 갱신한다(기존 철학 동일). */
