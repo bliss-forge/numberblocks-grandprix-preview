@@ -264,3 +264,17 @@ test("모션 운전실 준비 상태는 정적 폴백과 무관하게 기존 배
   assert.doesNotMatch(css,
     /data-motion-realistic="ready"[^\{]*\.ktx-speedo[^\{]*\{[^}]*display:\s*none/s);
 });
+
+test("문 다섯 짝은 역이 보이는 동안만 나타난다 — 주행 중 검은 기둥 금지", () => {
+  // 협회 연출 검수(2026-08-10): 주행 중 문 모듈이 칸마다 검은 기둥으로 떠
+  // 있어 열차 그림을 해쳤다. 문은 역 장면의 소품이다.
+  assert.match(css,
+    /\.ktx-motion-door\s*\{[^}]*opacity:\s*0[^}]*transition:\s*opacity/s);
+  assert.match(css,
+    /data-station-visible="true"[^\{]*\.ktx-motion-door\s*\{[^}]*opacity:\s*1/s);
+});
+
+test("실사 모드 대기줄과 워커는 열차 차체와 겹치지 않는 전경 라인에 선다", () => {
+  assert.match(css,
+    /data-motion-realistic="ready"[^\{]*\.ktx-walker-host,[^\{]*data-motion-realistic="ready"[^\{]*\.ktx-queue\s*\{[^}]*bottom:\s*22%/s);
+});

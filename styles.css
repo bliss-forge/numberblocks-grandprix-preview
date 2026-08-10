@@ -9579,7 +9579,10 @@ body[data-mode="delivery"] #stage {
 .ktx-game[data-motion-realistic="ready"] .ktx-walker-host,
 .ktx-game[data-motion-realistic="ready"] .ktx-queue {
   left: 30%;
-  bottom: 47%;
+  /* 사진 구도상 승강장은 열차 뒤라 겹친다 — 2D 관례대로 열차 앞(바퀴 아래
+     전경)을 "이쪽 승강장"으로 쓴다. 47%는 차체 위에 서는 것으로 보였다
+     (협회 검수 2026-08-10). */
+  bottom: 22%;
   transform: none;
 }
 
@@ -9805,6 +9808,10 @@ body[data-mode="delivery"] #stage {
   position: absolute;
   left: var(--door-left, 63.8%);
   top: 45.7%;
+  /* 문은 역 장면의 소품이다 — 주행 중 다섯 짝이 검은 기둥으로 떠 있으면
+     열차 그림을 해친다(협회 검수). 역이 보이는 동안만 서서히 나타난다. */
+  opacity: 0;
+  transition: opacity .4s ease;
   z-index: 7;
   /* 열차 확대(78%→132%)와 같은 배율 — vw 고정이면 그림의 문보다 작아진다 */
   width: clamp(14px, 1.8vw, 24px);
@@ -9843,6 +9850,10 @@ body[data-mode="delivery"] #stage {
 
 .ktx-motion-door-leaf-left { left: 0; transform: translateX(0); }
 .ktx-motion-door-leaf-right { right: 0; transform: translateX(0); }
+
+.ktx-motion-scene[data-station-visible="true"] .ktx-motion-door {
+  opacity: 1;
+}
 
 .ktx-motion-scene[data-doors="open"] .ktx-motion-door-leaf-left {
   transform: translateX(-104%);
