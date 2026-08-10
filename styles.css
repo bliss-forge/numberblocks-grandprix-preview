@@ -9791,11 +9791,34 @@ body[data-mode="delivery"] #stage {
   filter: none;
 }
 
+/* 근접 궤도 — 열차 png의 바퀴 최하단(61.7%)에 맞춘 레일 윗면·침목 끝·자갈
+   어깨. 침목은 트랙 위상(주기 144의 정수배 72)으로 흘러 무봉합이다. */
+.ktx-motion-railbed {
+  position: absolute;
+  left: -26%;
+  right: -26%;
+  top: 60.9%;
+  height: 34px;
+  z-index: 1;
+  background:
+    repeating-linear-gradient(90deg,
+      transparent 0 34px, rgba(46, 38, 32, .82) 34px 44px, transparent 44px 72px)
+      var(--motion-track-phase-x, 0px) 10px / 72px 16px repeat-x,
+    linear-gradient(to bottom,
+      #d6dadb 0 3px, #697074 3px 6px, transparent 6px),
+    linear-gradient(to bottom,
+      transparent 0 7px, rgba(99, 92, 81, .78) 7px 24px,
+      rgba(62, 58, 51, .55) 24px 100%);
+  transition: background-position 165ms linear;
+}
+
 .ktx-motion-wheel-shadow {
   position: absolute;
   left: 8%;
   right: 7%;
-  bottom: 12%;
+  /* 바퀴 최하단은 png의 61.7% — 아래 38%는 투명 여백이라 예전 12%는
+     그림자가 바퀴보다 한참 밑에 떠 있었다(부유감의 공범). */
+  bottom: 36%;
   z-index: 1;
   height: 8%;
   border-radius: 50%;
@@ -10508,6 +10531,10 @@ body[data-mode="delivery"] #stage {
 .ktx-motion-scene[data-motion-moving="false"] .ktx-motion-train-rig {
   transition: none;
   will-change: auto;
+}
+
+.ktx-motion-scene[data-motion-moving="false"] .ktx-motion-railbed {
+  transition: none;
 }
 
 /* 모션 장면이 준비되면 정적 사진은 뒤에 폴백으로 남기되 페인트하지 않는다. */
