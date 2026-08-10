@@ -1146,6 +1146,7 @@ function startKtxPicker() {
   stopSafetyHold();
   clearTimers();
   audio.cancel();
+  audio.stopEngine();
   state.round += 1;
   state.problem = null;
   state.buffer = "";
@@ -1203,6 +1204,7 @@ function handleKtxEvents(events) {
       showHint(`문 닫았어요! ↑ 를 꾹 눌러 출발! 다음 역, ${event.next}!`);
     } else if (event.type === "depart") {
       audio.playSfx("jingle");
+      audio.startEngine();
       // 출발 컷: 문 닫힌 열차가 움직이기 시작하는 걸 900ms 보고 운전석에 앉는다.
       // 그 사이 아이가 1/3로 직접 뷰를 골랐으면 컷을 양보한다(반증 B1 가드).
       const cutMark = state.ktxViewMs;
@@ -1360,6 +1362,8 @@ function scheduleKtxTick() {
     state.ktx = result.state;
     handleKtxEvents(result.events);
     if (state.ktx) {
+      // 주행음 — 속도가 소리를 민다(정지 = 무음, 부스터 = 컷오프 활짝)
+      audio.setEngineSpeed(state.ktx.v / 300);
       updateKtxScene(state.ktxScene, state.ktx, state.ktxView, result.events,
         state.ktxHeld);
     }
@@ -2365,6 +2369,7 @@ function goHome() {
   stopSafetyHold();
   clearTimers();
   audio.cancel();
+  audio.stopEngine();
   state.round += 1;
   state.problem = null;
   state.safety = null;

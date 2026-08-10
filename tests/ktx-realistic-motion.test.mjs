@@ -68,7 +68,9 @@ test("300km/h 이상은 상한으로 고정되고 같은 입력은 같은 프레
   assert.equal(frame.speedRatio, 1);
   assert.equal(frame.speedBand, "very-fast");
   assert.equal(frame.brakePitch, 1.8);
-  assert.equal(frame.blurPx, 2.62);
+  // 블러 상한 축소(2026-08-10): 스트립만 뿌옇게 떠 사진과 따로 놀던 이질감의
+  // 주범이라 최대 0.75px로 줄였다 — 고속감은 가장자리 스트릭이 담당한다.
+  assert.equal(frame.blurPx, 0.75);
   assert.deepEqual(realisticMotionFrame({ ...input }), frame);
 });
 
