@@ -539,7 +539,10 @@ export function buildRealisticMotionScene(document, state, onStateChange) {
     door.append(doorBay, doorLeft, doorRight);
     return door;
   });
-  trainRig.append(train, wheelShadow, ...doors);
+  // 근접 궤도 — 바퀴 라인 바로 밑에 레일·침목·자갈이 함께 흐르지 않으면
+  // 열차가 사진 위에 떠 보인다(사용자 피드백 2026-08-10).
+  const railbed = el(document, "div", "ktx-motion-railbed");
+  trainRig.append(railbed, train, wheelShadow, ...doors);
   const cabFrame = motionImage(document, "ktx-motion-cab-frame",
     pack.cabMask, "실사 SRT 운전실", controller);
   // 창 내용과 프레임을 한 몸으로 묶는 카메라 리그 — 진동을 따로 주면 세계와
