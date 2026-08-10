@@ -9540,6 +9540,16 @@ body[data-mode="delivery"] #stage {
   bottom: calc(29% + 2px);
 }
 
+/* 실사 모션 모드 — 레거시 승강장 좌표(--platform-x)는 죽어 있다. 워커와
+   대기줄을 사진 승강장 표면(문 바로 옆)에 맞춘다(2026-08-10 플레이 관찰:
+   워커가 역명판 위 허공을 걸었다). */
+.ktx-game[data-motion-realistic="ready"] .ktx-walker-host,
+.ktx-game[data-motion-realistic="ready"] .ktx-queue {
+  left: 30%;
+  bottom: 47%;
+  transform: none;
+}
+
 /* 고속 블러는 사진·열차·계기가 아니라 카메라 가까운 전신주에만 적용한다. */
 .ktx-game[data-realistic="ready"][data-speed-tier="4"] .ktx-side-near {
   filter: blur(1.4px);
@@ -9760,7 +9770,7 @@ body[data-mode="delivery"] #stage {
 
 .ktx-motion-door {
   position: absolute;
-  left: 63.8%;
+  left: var(--door-left, 63.8%);
   top: 45.7%;
   z-index: 7;
   /* 열차 확대(78%→132%)와 같은 배율 — vw 고정이면 그림의 문보다 작아진다 */
@@ -9807,6 +9817,54 @@ body[data-mode="delivery"] #stage {
 
 .ktx-motion-scene[data-doors="open"] .ktx-motion-door-leaf-right {
   transform: translateX(104%);
+}
+
+@keyframes ktx-door-warning {
+  0%, 100% { box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .32); }
+  50% {
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .32),
+      0 0 0 3px rgba(240, 140, 0, .85), 0 0 10px rgba(240, 140, 0, .7);
+  }
+}
+
+.ktx-motion-scene[data-door-warning="true"] .ktx-motion-door {
+  animation: ktx-door-warning .5s ease-in-out infinite;
+}
+
+/* 도착 임팩트 — 역명판이 크게 튀고, 장면이 한 번 밝게 숨쉰다(1회, 부드럽게) */
+@keyframes ktx-sign-pop {
+  0% { transform: translate(-50%, 0) scale(1); }
+  35% { transform: translate(-50%, -4px) scale(1.22); }
+  100% { transform: translate(-50%, 0) scale(1); }
+}
+
+.ktx-motion-station-sign.ktx-sign-pop { animation: ktx-sign-pop .7s ease-out; }
+
+@keyframes ktx-arrive-flash-frames {
+  0%, 100% { filter: brightness(1); }
+  25% { filter: brightness(1.22); }
+}
+
+.ktx-motion-scene.ktx-arrive-flash { animation: ktx-arrive-flash-frames .5s ease-out; }
+
+/* 하차 워커 — 문에서 나와 왼쪽으로 걸어가며 사라진다 */
+@keyframes ktx-walk-out {
+  0% {
+    transform: translateX(var(--out-from, 0px)) scale(.55);
+    opacity: 0;
+  }
+  20% {
+    transform: translateX(calc(var(--out-from, 0px) - 30px)) scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(calc(var(--out-from, 0px) - 150px)) scale(1);
+    opacity: 0;
+  }
+}
+
+.ktx-walker-out {
+  animation: ktx-walk-out 1.3s ease-out var(--out-delay, 0ms) both;
 }
 
 .ktx-motion-cab-frame {
@@ -10331,10 +10389,16 @@ body[data-mode="delivery"] #stage {
 /* 모션 자산이 먼저 준비돼도 뒤늦은 정적/SVG 폴백이 전면창을 덮지 않는다.
    실제 계기와 조작부는 이 목록에 넣지 않아 계속 고정·상호작용 가능하다. */
 .ktx-game[data-motion-realistic="ready"] .ktx-view-cab .ktx-cab-backdrop,
-.ktx-game[data-motion-realistic="ready"] .ktx-view-cab .ktx-cab-world,
+.ktx-game[data-motion-realistic="ready"] .ktx-view-cab .ktx-cab-world > :not(.ktx-lineside),
 .ktx-game[data-motion-realistic="ready"] .ktx-view-cab .ktx-cab-frame,
 .ktx-game[data-motion-realistic="ready"] .ktx-view-cab .ktx-cab-dash {
   opacity: 0;
+}
+
+/* 사진 운전실 위의 전신주 플라이바이 — 소실점에서 커지며 스쳐 가는 이산
+   이벤트가 "사진이 그대로"라는 인상을 깬다(협회 P2). 실루엣 톤으로 조화. */
+.ktx-game[data-motion-realistic="ready"] .ktx-view-cab .ktx-lineside {
+  filter: saturate(.25) brightness(.6) opacity(.8);
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -752,13 +752,45 @@ function updateQueue(document, root, state) {
 }
 
 // 탑승 워커 — 문까지의 델타는 스폰 시 실측(반증 C5), 측정 불가 환경은 74px.
+function spawnAlighters(document, root) {
+  const host = root.querySelector(".ktx-walker-host");
+  if (!host) return;
+  // 내리는 친구는 문에서 나와야 한다 — 시작점을 실제 문 좌표에 맞춘다.
+  let fromX = 0;
+  const doors = root.querySelectorAll(".ktx-motion-door");
+  const door = doors[2] ?? doors[0];
+  if (door?.getBoundingClientRect && host.getBoundingClientRect) {
+    const doorBox = door.getBoundingClientRect();
+    const hostBox = host.getBoundingClientRect();
+    if (doorBox.width > 0) {
+      fromX = Math.round(doorBox.left + doorBox.width / 2 - hostBox.left);
+    }
+  }
+  // 모델과 무관한 연출 — 내리는 사람이 있어야 "역에 섰다"가 산다.
+  const count = 1 + Math.floor(Math.random() * 2);
+  const nodes = [];
+  for (let i = 0; i < count; i += 1) {
+    const number = 1 + Math.floor(Math.random() * 10);
+    const walker = el(document, "div", "ktx-walker ktx-walker-out");
+    walker.style.setProperty("--out-delay", `${i * 420}ms`);
+    walker.style.setProperty("--out-from", `${fromX}px`);
+    walker.append(passengerImg(document, number, "ktx-walker-img"));
+    nodes.push(walker);
+  }
+  host.replaceChildren(...nodes);
+}
+
 function spawnWalker(document, root, event) {
   const host = root.querySelector(".ktx-walker-host");
   if (!host) return;
   const walker = el(document, "div", "ktx-walker");
   walker.append(passengerImg(document, event.number, "ktx-walker-img"));
   let deltaX = 74;
-  const door = root.querySelector(".ktx-view-side .ktx-door");
+  // 실사 모드에서는 레거시 문이 숨어 있다 — 실제로 보이는 모션 문을 조준해야
+  // 워커가 허공이 아니라 문으로 걸어 들어간다(2026-08-10 플레이 관찰).
+  const door = root.dataset.motionRealistic === "ready"
+    ? root.querySelectorAll(".ktx-motion-door")[2] ?? root.querySelector(".ktx-motion-door")
+    : root.querySelector(".ktx-view-side .ktx-door");
   if (door?.getBoundingClientRect && host.getBoundingClientRect) {
     const doorBox = door.getBoundingClientRect();
     const hostBox = host.getBoundingClientRect();
@@ -1154,6 +1186,13 @@ export function updateKtxScene(root, state, view, events = [], held = {}) {
     if (event.type === "stopped") {
       root.dataset.lastStars = String(event.stars);
       pulse(root.querySelector(".ktx-hud"), "ktx-stars-pop");
+      // 도착 임팩트 — 역명판이 크게 튀고 장면이 한 번 밝게 숨쉰다
+      pulse(root.querySelector(".ktx-motion-station-sign"), "ktx-sign-pop");
+      pulse(root.querySelector(".ktx-motion-scene"), "ktx-arrive-flash");
+    }
+    if (event.type === "doors-open") {
+      // 문이 열리면 안에서 친구가 내린다 — "역에 섰다"의 체감
+      spawnAlighters(document, root);
     }
     if (event.type === "milestone") {
       pulse(root.querySelector(".ktx-speedo"), "ktx-speed-pop");
