@@ -1414,3 +1414,16 @@ test("도착 이벤트는 역명판 팝과 장면 플래시, 문 열림은 하�
     [{ type: "doors-open", station: "동탄", waiting: 3 }]);
   assert.ok(root.querySelector(".ktx-walker-out"), "문이 열리면 친구가 내린다");
 });
+
+test("피날레 제목은 노선의 종착역을 말한다 — 목포 완주가 부산이 되지 않는다", () => {
+  const mokpo = {
+    ...createKtxJourney(3, "srt"),
+    route: "mokpo",
+    phase: "finale"
+  };
+  const root = renderKtxScene(fakeDocument(), mokpo, "side");
+  updateKtxScene(root, mokpo, "side", [{
+    type: "finale", boarded: [1, 2], stars: [3, 1, 3, 3], bonuses: [], perfect: false
+  }]);
+  assert.match(root.querySelector(".ktx-finale-title").textContent, /목포/);
+});
