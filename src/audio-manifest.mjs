@@ -97,6 +97,7 @@ const paint = Object.fromEntries(
     "paint-intro",
     "paint-finale",
     "paint-rainbow",
+    "paint-unlock",
     ...[
       "firetruck", "chick", "bus", "carrot", "car", "frog", "tractor",
       "grape", "heli", "blossom", "boat", "bear", "rocket",
@@ -113,7 +114,7 @@ const paint = Object.fromEntries(
       "red", "yellow", "blue", "black", "white", "orange", "green",
       "purple", "pink", "sky", "brown", "navy", "lightyellow", "olive", "gray",
       "peach", "yellowgreen", "lavender", "darkbrown", "darkgreen",
-      "darkpurple", "brick", "khaki", "bluegray"
+      "darkpurple", "brick", "khaki", "bluegray", "mud"
     ].map(color => `paint-made-${color}`)
   ].map(key => [
     key,

@@ -9,9 +9,11 @@ import {
   PAINT_COLORS,
   PAINT_RECIPES,
   PAINT_SUBJECTS,
+  PAINT_TUBES,
   RAINBOW_COUNT,
   STAGE_PLANS,
-  mixResult
+  UNLOCKABLE,
+  mixJar
 } from "./paint-play-data.mjs";
 import { mulberry } from "./ktx-route-data.mjs";
 
@@ -63,7 +65,7 @@ function buildRounds(plan, random) {
   return rounds;
 }
 
-export function createPaintPlay(difficulty = "easy", seed = 0) {
+export function createPaintPlay(difficulty = "easy", seed = 0, unlocked = []) {
   const plan = STAGE_PLANS[difficulty] ?? STAGE_PLANS.easy;
   const random = mulberry(seed + 11);
   return {
@@ -78,8 +80,26 @@ export function createPaintPlay(difficulty = "easy", seed = 0) {
     gallery: [],        // 완성 순서대로 { colorId, subjectId } (액자·전시회 벽)
     finale: false,
     rainbow: false,
-    focusIndex: 0       // 0..4 튜브, 5 헹구기 (씬·앱 공용 인덱스)
+    // 해금한 "내 물감" — 완성해 본 혼합색이 튜브가 된다(앱이 localStorage 유지)
+    myTubes: [...new Set(unlocked)].filter(id => UNLOCKABLE.includes(id)),
+    focusIndex: 0       // 0..선반끝 튜브, 마지막 칸 헹구기 (씬·앱 공용 인덱스)
   };
+}
+
+// 선반의 튜브 목록 — 기본 5 + 해금한 내 물감. 씬·앱이 같은 순서를 쓴다.
+export function shelfTubes(state) {
+  return [
+    ...PAINT_TUBES,
+    ...state.myTubes.map(id => ({ id, unlocked: true }))
+  ];
+}
+
+// 병에 든 "재료 유닛" 수 — 해금 튜브는 재료 수만큼 차지한다(주황=2유닛).
+// 정원(need)은 기본 레시피 기준이라, 지름길을 쓰면 더 적은 손짓으로 찬다.
+function jarUnits(state) {
+  return state.jar.reduce(
+    (total, id) => total + (PAINT_RECIPES[id]?.length ?? 1), 0
+  );
 }
 
 export function currentRound(state) {
@@ -98,29 +118,25 @@ export function recipeFor(colorId) {
 }
 
 // 병이 최종적으로 담고 있는 색 — 섞이기 전엔 null.
+// 해금 튜브가 섞여 있어도 mixJar가 재료 전개로 판정한다.
 export function jarColor(state) {
   if (!state.mixed) return null;
-  if (state.jar.length === 1) return state.jar[0];
-  if (state.jar.length === 2) return mixResult(state.jar[0], state.jar[1]);
-  if (state.jar.length === 3) {
-    return mixResult(state.jar[0], state.jar[1], state.jar[2]);
-  }
-  return null;
+  return mixJar(state.jar);
 }
 
-// 수식 칩 문자열 조각 — 씬·자막이 같은 원본을 쓴다. 섞이기 전 result는 null.
-// 예: { a: "빨강", b: "노랑", c: null, result: "주황" | null }
+// 수식 칩 조각 — 씬·자막이 같은 원본을 쓴다. parts는 부은 튜브 이름 +
+// 남은 유닛만큼의 빈 칸(null, 최대 3칸). 섞이기 전 result는 null.
+// 예: { parts: ["주황", null], result: null } → 주황 + ? = ?
 export function equationFor(state) {
   const round = currentRound(state);
   if (!round) return null;
   const need = recipeFor(round.colorId).length;
-  const name = id => (id ? PAINT_COLORS[id].ko : null);
-  return {
-    a: name(state.jar[0]),
-    b: need >= 2 ? name(state.jar[1]) : null,
-    c: need >= 3 ? name(state.jar[2]) : null,
-    result: name(jarColor(state))
-  };
+  const names = state.jar.map(id => PAINT_COLORS[id].ko);
+  const remaining = state.mixed ? 0 : Math.max(0, need - jarUnits(state));
+  const parts = [...names, ...Array(remaining).fill(null)].slice(0, 3);
+  if (parts.length === 0) parts.push(null);
+  const result = jarColor(state);
+  return { parts, result: result ? PAINT_COLORS[result].ko : null };
 }
 
 // ── 행동들 — 각 함수는 events 배열을 돌려주고 상태를 제자리 갱신한다 ──────
@@ -129,7 +145,7 @@ export function squeezeTube(state, tubeId) {
   const round = currentRound(state);
   if (!round || state.finale) return [];
   const need = recipeFor(round.colorId).length;
-  if (state.mixed || state.jar.length >= need) {
+  if (state.mixed || jarUnits(state) >= need) {
     // 레시피 정원 제한(사용자 결정): 가득 찬 병에는 더 담을 수 없다 — 잠금만
     return [{ type: "locked", reason: "full" }];
   }
@@ -140,8 +156,9 @@ export function squeezeTube(state, tubeId) {
   }
   state.jar.push(tubeId);
   const events = [{ type: "squeeze", color: tubeId }];
-  if (state.jar.length >= need) {
-    // 필요한 만큼 고르면 그 자리에서 섞인다 — 젓기 단계 없음.
+  if (jarUnits(state) >= need) {
+    // 유닛이 차면 그 자리에서 섞인다 — 젓기 단계 없음. 해금 튜브 지름길은
+    // 더 적은 손짓으로 여기 도달한다(주황+하양 = 2번 = 살구색).
     // jar 스냅샷은 앱이 혼합 낭독(정식 레시피 문장 vs 실명 호명)을 고를 때 쓴다.
     state.mixed = true;
     events.push({ type: "mixed", color: jarColor(state), jar: [...state.jar] });
@@ -172,6 +189,11 @@ export function paintCanvas(state) {
       subjectId: round.subjectId,
       equation: equationFor(state)
     }];
+    // 처음 완성한 혼합색은 "내 물감"으로 해금 — 즉시 선반에 추가된다.
+    if (UNLOCKABLE.includes(result) && !state.myTubes.includes(result)) {
+      state.myTubes.push(result);
+      events.push({ type: "unlocked", color: result });
+    }
     state.roundIndex += 1;
     state.jar = [];
     state.mixed = false;
@@ -201,11 +223,13 @@ export function paintCanvas(state) {
   return mismatch;
 }
 
-// 포커스 이동(←/→) — 0..4 튜브, 5 헹구기.
-export const PAINT_FOCUS_COUNT = 6;
+// 포커스 이동(←/→) — 선반 튜브 전체 + 마지막 칸 헹구기. 해금 수에 따라 는다.
+export function paintFocusCount(state) {
+  return shelfTubes(state).length + 1;
+}
 
 export function movePaintFocus(state, delta) {
-  state.focusIndex =
-    (state.focusIndex + delta + PAINT_FOCUS_COUNT) % PAINT_FOCUS_COUNT;
+  const count = paintFocusCount(state);
+  state.focusIndex = (state.focusIndex + delta + count) % count;
   return state.focusIndex;
 }
