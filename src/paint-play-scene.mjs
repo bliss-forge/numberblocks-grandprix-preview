@@ -6,7 +6,6 @@
 import {
   PAINT_COLORS,
   PAINT_SUBJECTS,
-  PAINT_TUBES,
   RAINBOW_COUNT,
   josa
 } from "./paint-play-data.mjs";
@@ -15,7 +14,8 @@ import {
   currentSubject,
   equationFor,
   jarColor,
-  recipeFor
+  recipeFor,
+  shelfTubes
 } from "./paint-play.mjs";
 
 function el(document, tag, className, text = null) {
@@ -304,25 +304,25 @@ function buildJar(document, state) {
   jar.append(glass);
   zone.append(jar);
 
-  // 수식 칩 — "빨강 + 노랑 = ?" 학습의 상시 원본(사용자 강조 지점)
-  const round = currentRound(state);
+  // 수식 칩 — "빨강 + 노랑 = ?" 학습의 상시 원본(사용자 강조 지점).
+  // 칩 수는 병 내용 + 남은 유닛으로 정해진다 — 해금 지름길이면 칩이 줄어
+  // "주황 + 하양 = 살구색"처럼 지름길 문장이 그대로 보인다.
   const equation = el(document, "div", "pp-equation");
-  const parts = equationFor(state);
-  const need = round ? recipeFor(round.colorId).length : 2;
-  equation.append(el(document, "span", "pp-eq pp-eq-a", parts?.a ?? "?"));
-  if (need >= 2) {
-    equation.append(el(document, "span", "pp-eq-op", "+"));
-    equation.append(el(document, "span", "pp-eq pp-eq-b", parts?.b ?? "?"));
-  }
-  if (need >= 3) {
-    equation.append(el(document, "span", "pp-eq-op", "+"));
-    equation.append(el(document, "span", "pp-eq pp-eq-c", parts?.c ?? "?"));
-  }
+  const eq = equationFor(state);
+  const slots = eq?.parts ?? [null];
+  slots.forEach((name, index) => {
+    if (index > 0) equation.append(el(document, "span", "pp-eq-op", "+"));
+    equation.append(el(
+      document, "span",
+      `pp-eq pp-eq-${["a", "b", "c"][index]}`,
+      name ?? "?"
+    ));
+  });
   equation.append(el(document, "span", "pp-eq-op", "="));
   equation.append(el(
     document, "span",
-    `pp-eq pp-eq-result${parts?.result ? " pp-eq-solved" : ""}`,
-    parts?.result ?? "?"
+    `pp-eq pp-eq-result${eq?.result ? " pp-eq-solved" : ""}`,
+    eq?.result ?? "?"
   ));
   zone.append(equation);
   return zone;
@@ -330,15 +330,19 @@ function buildJar(document, state) {
 
 function buildShelf(document, state) {
   const shelf = el(document, "div", "pp-shelf");
+  const tubes = shelfTubes(state);
+  // 해금 튜브가 많아지면 칩을 줄여 한 줄을 지킨다(CSS가 crowded를 본다)
+  shelf.dataset.crowded = String(tubes.length > 7);
   const round = currentRound(state);
   const recipe = round ? recipeFor(round.colorId) : [];
-  PAINT_TUBES.forEach((tube, index) => {
+  tubes.forEach((tube, index) => {
     const button = document.createElement("button");
     button.type = "button";
-    button.className = "pp-tube";
+    button.className = tube.unlocked ? "pp-tube pp-tube-mine" : "pp-tube";
     button.dataset.tube = tube.id;
     button.dataset.focus = String(state.focusIndex === index);
-    // 힌트: 물방울(레시피 재료 표시) / 반짝(정답 튜브 강조)
+    // 힌트: 물방울(레시피 재료 표시) / 반짝(정답 튜브 강조).
+    // 기본 레시피 재료만 표시한다 — 해금 지름길은 아이가 발견하는 몫.
     const inRecipe = recipe.includes(tube.id);
     const level = round?.hintLevel ?? 0;
     button.dataset.hint = inRecipe && level >= 2
@@ -346,17 +350,24 @@ function buildShelf(document, state) {
       : inRecipe && level >= 1 ? "drop" : "";
     button.setAttribute(
       "aria-label",
-      `${PAINT_COLORS[tube.id].ko} 물감 (숫자 ${tube.keyDigit})`
+      tube.unlocked
+        ? `${PAINT_COLORS[tube.id].ko} 물감 (내가 만든 색)`
+        : `${PAINT_COLORS[tube.id].ko} 물감 (숫자 ${tube.keyDigit})`
     );
-    const badge = el(document, "span", "pp-tube-num", String(tube.number));
+    const badge = tube.unlocked
+      ? el(document, "span", "pp-tube-num pp-tube-star", "⭐")
+      : el(document, "span", "pp-tube-num", String(tube.number));
     const body = el(document, "span", "pp-tube-body");
     body.style.setProperty("--tube-color", PAINT_COLORS[tube.id].hex);
-    const mascot = document.createElement("img");
-    mascot.className = "pp-tube-mascot";
-    mascot.src = `assets/characters/${tube.char}.png`;
-    mascot.alt = "";
-    const name = el(document, "small", "pp-tube-name", PAINT_COLORS[tube.id].ko);
-    button.append(badge, body, mascot, name);
+    button.append(badge, body);
+    if (!tube.unlocked) {
+      const mascot = document.createElement("img");
+      mascot.className = "pp-tube-mascot";
+      mascot.src = `assets/characters/${tube.char}.png`;
+      mascot.alt = "";
+      button.append(mascot);
+    }
+    button.append(el(document, "small", "pp-tube-name", PAINT_COLORS[tube.id].ko));
     shelf.append(button);
   });
 
@@ -366,7 +377,7 @@ function buildShelf(document, state) {
   const rinse = document.createElement("button");
   rinse.type = "button";
   rinse.className = "pp-action pp-rinse";
-  rinse.dataset.focus = String(state.focusIndex === PAINT_TUBES.length);
+  rinse.dataset.focus = String(state.focusIndex === tubes.length);
   rinse.textContent = "💧 다시 담기";
   actions.append(rinse);
   shelf.append(actions);

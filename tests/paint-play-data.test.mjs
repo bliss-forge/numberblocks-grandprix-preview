@@ -11,6 +11,8 @@ import {
   PAINT_SUBJECTS,
   PAINT_TUBES,
   STAGE_PLANS,
+  UNLOCKABLE,
+  mixJar,
   mixKey,
   mixResult
 } from "../src/paint-play-data.mjs";
@@ -68,6 +70,31 @@ test("서로 다른 튜브 3색 조합 10가지가 전부 진짜 색을 낸다 �
   assert.equal(mixResult("red", "yellow", "white"), "peach");
   assert.equal(mixResult("white", "yellow", "red"), "peach");
   assert.equal(mixResult("red", "yellow", "black"), "brown");
+});
+
+test("해금 대상은 전부 2재료 레시피 색이다", () => {
+  for (const colorId of UNLOCKABLE) {
+    assert.equal(PAINT_RECIPES[colorId]?.length, 2, colorId);
+  }
+});
+
+test("mixJar — 해금 튜브는 재료로 전개돼 기존 테이블과 등가다", () => {
+  assert.equal(mixJar(["red", "yellow"]), "orange", "기본 2색 그대로");
+  assert.equal(mixJar(["orange"]), "orange", "해금 튜브 단독은 그 색");
+  assert.equal(mixJar(["orange", "white"]), "peach", "주황+하양 = 빨+노+하양");
+  assert.equal(mixJar(["green", "black"]), "darkgreen");
+  assert.equal(mixJar(["pink", "sky"]), "lavender", "분홍+하늘 = 빨+파+하양");
+  assert.equal(mixJar(["orange", "green"]), "darkbrown", "합집합 3원색");
+  // 해금 색끼리 어떤 조합도 이름 있는 색 — 4원색 이상은 먹색
+  for (const a of UNLOCKABLE) {
+    for (const b of UNLOCKABLE) {
+      const result = mixJar([a, b]);
+      assert.ok(result, `${a}+${b}`);
+      assert.ok(PAINT_COLORS[result], `${a}+${b} → ${result} 팔레트 등재`);
+    }
+  }
+  assert.equal(mixJar(["pink", "green"]), "mud", "빨+하양+노+파 = 먹색");
+  assert.ok(PAINT_COLORS.mud, "먹색 팔레트 등재");
 });
 
 test("혼합 낭독 원본(CANONICAL_MIX) — 모든 혼합색의 재료가 정의된다", () => {

@@ -33,7 +33,9 @@ export const PAINT_COLORS = Object.freeze({
   // 3색 발견 색 — 주문에는 안 나오지만 자유 혼합의 모든 3색 조합을 실명으로 받는다.
   brick: Object.freeze({ ko: "벽돌색", hex: "#b4574b" }),
   khaki: Object.freeze({ ko: "카키", hex: "#a89a5b" }),
-  bluegray: Object.freeze({ ko: "청회색", hex: "#7288a5" })
+  bluegray: Object.freeze({ ko: "청회색", hex: "#7288a5" }),
+  // 4원색 이상이 뒤섞였을 때의 종착색 — "다 섞으면 어두워져요" 학습.
+  mud: Object.freeze({ ko: "먹색", hex: "#4a4440" })
 });
 
 // ── 물감 튜브 선반 — 마스코트 몸색 = 물감색 (숫자키 ↔ 색 자연 학습) ──────
@@ -113,6 +115,24 @@ export function mixResult(a, b, c = null) {
   if (c !== null) return MIX3_TABLE[mixKey(a, b, c)] ?? null;
   if (a === b) return a;
   return MIX_TABLE[mixKey(a, b)] ?? null;
+}
+
+// 해금 가능한 색 — 2재료 혼합색을 완성하면 "내 물감" 튜브가 된다.
+// (3재료 색은 재료로 전개하면 대부분 4원색을 넘어 먹색행이라 튜브 가치가 낮다)
+export const UNLOCKABLE = Object.freeze([
+  "orange", "green", "purple", "pink", "sky", "brown", "navy"
+]);
+
+// 병 내용 전체를 섞은 결과 — 해금 튜브는 기본 재료로 전개해 판정한다.
+// 주황+하양 = {빨강,노랑,하양} = 살구색: 기존 2·3색 테이블과 항상 등가라
+// 새 조합 테이블 없이 지름길 혼합이 성립한다. 4원색 이상은 먹색.
+export function mixJar(colorIds) {
+  const base = [...new Set(colorIds.flatMap(id => PAINT_RECIPES[id] ?? [id]))];
+  if (base.length === 0) return null;
+  if (base.length === 1) return base[0];
+  if (base.length === 2) return MIX_TABLE[mixKey(...base)] ?? null;
+  if (base.length === 3) return MIX3_TABLE[mixKey(...base)] ?? null;
+  return "mud";
 }
 
 // 혼합 낭독 원본 — "A와 B를 섞으면 C!" 문장이 말하는 재료.

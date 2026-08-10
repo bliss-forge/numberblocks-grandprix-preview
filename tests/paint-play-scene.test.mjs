@@ -156,6 +156,21 @@ test("피날레 — 전시회 벽에 칠한 그림 도화지가 걸리고 화가
   assert.ok(note.textContent.includes("멋진 화가님"), "화가님 멘트");
 });
 
+test("해금 튜브 — 내 물감이 별 배지로 선반에 붙고 붐비면 crowded 표식", () => {
+  const state = createPaintPlay(
+    "steady", 2,
+    ["orange", "green", "purple", "pink", "sky", "brown", "navy"]
+  );
+  const root = renderPaintPlay(document, state);
+  assert.equal(byClass(root, "pp-tube").length, 12, "기본 5 + 해금 7");
+  assert.equal(byClass(root, "pp-tube-mine").length, 7);
+  assert.equal(byClass(root, "pp-tube-star").length, 7, "별 배지");
+  assert.equal(byClass(root, "pp-tube-mascot").length, 5, "마스코트는 기본 튜브만");
+  assert.equal(byClass(root, "pp-shelf")[0].dataset.crowded, "true");
+  const few = renderPaintPlay(document, createPaintPlay("steady", 2));
+  assert.equal(byClass(few, "pp-shelf")[0].dataset.crowded, "false");
+});
+
 test("3색 혼합 라운드 — 수식 칩이 세 재료로 늘어난다", () => {
   const state = createPaintPlay("challenge", 1);
   const index = state.rounds.findIndex(round => round.stage === 5);

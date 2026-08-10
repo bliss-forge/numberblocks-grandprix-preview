@@ -128,6 +128,7 @@ import {
   currentRound as currentPaintRound,
   currentSubject as currentPaintSubject,
   equationFor as paintEquationFor,
+  shelfTubes as paintShelfTubes,
   movePaintFocus,
   paintCanvas as paintPlayCanvas,
   rinseJar as paintRinseJar,
@@ -1726,6 +1727,30 @@ function deleteDigit() {
 
 // ── 알록달록 물감 놀이 ────────────────────────────────────────────────────
 
+// 해금한 "내 물감" — 완성해 본 혼합색은 기기에 남아 다음 게임부터 선반에 나온다.
+const PAINT_UNLOCK_KEY = "numberblocks-paint-unlocked";
+
+function readPaintUnlocks() {
+  try {
+    const list = JSON.parse(localStorage.getItem(PAINT_UNLOCK_KEY) ?? "[]");
+    return Array.isArray(list) ? list : [];
+  } catch {
+    return [];
+  }
+}
+
+function savePaintUnlock(colorId) {
+  try {
+    const list = readPaintUnlocks();
+    if (!list.includes(colorId)) {
+      list.push(colorId);
+      localStorage.setItem(PAINT_UNLOCK_KEY, JSON.stringify(list));
+    }
+  } catch {
+    // 저장 실패는 이번 판 해금에만 영향 없음 — 다음 판에 다시 해금하면 된다
+  }
+}
+
 // 혼합 문장("A와 B를 섞으면 C!")은 CANONICAL_MIX의 재료를 말한다.
 // 병 내용이 그 재료와 일치할 때만 혼합 문장을 틀고, 다른 조합으로 같은 색이
 // 나온 경우(빨+노+검→밤색)는 "우와, C가 됐네!"로 실명만 호명한다.
@@ -1812,7 +1837,7 @@ function startPaintPlay() {
   state.problem = null;
   state.buffer = "";
   const seed = Math.floor(Math.random() * 0x100000000);
-  state.paint = createPaintPlay(state.difficulty, seed);
+  state.paint = createPaintPlay(state.difficulty, seed, readPaintUnlocks());
   state.paintBusy = false;
   state.paintScene = renderPaintPlay(document, state.paint);
   dom.stage.setAttribute("aria-live", "off");
@@ -1872,7 +1897,7 @@ function handlePaintEvents(events) {
       dom.stars.textContent = String(state.stars);
       audio.playSfx("win");
       const parts = event.equation;
-      const mixParts = [parts.a, parts.b, parts.c].filter(Boolean);
+      const mixParts = (parts.parts ?? []).filter(Boolean);
       dom.cheer.textContent = mixParts.length >= 2
         ? `${mixParts.join(" + ")} = ${parts.result}!`
         : `${parts.result} 완성!`;
@@ -1882,6 +1907,17 @@ function handlePaintEvents(events) {
           if (state.round === round) dom.cheer.classList.remove("show");
         }, PAINT_HOLD_MS - 500);
       }
+    } else if (event.type === "unlocked") {
+      // 새 물감 해금 — 저장하고 알린다. 낭독은 혼합 문장이 끝난 뒤에 잇고,
+      // 피날레와 겹치는 판이면 토스트·효과음만(피날레 낭독이 우선).
+      savePaintUnlock(event.color);
+      audio.playSfx("jingle");
+      const name = PAINT_COLORS[event.color].ko;
+      showHint(
+        `🔓 ${name} 물감을 얻었어요! 이제 선반에서 바로 쓸 수 있어요`,
+        PAINT_EQUATION_HOLD_MS
+      );
+      if (!hasFinale) afterPaintVoice(round, () => speakPaint("paint-unlock"));
     } else if (event.type === "finale") {
       setPhase("celebrating");
       audio.playSfx("win");
@@ -1949,26 +1985,28 @@ function handlePaintEvents(events) {
 }
 
 // 혼합 완료 자막 — "빨강과 노랑을 섞으면 주황!" (수식 학습의 문장형)
-// 3색 라운드는 재료가 하나 늘어난다: "빨강과 노랑과 하양을 섞으면 살구색!"
+// 3색 라운드는 재료가 늘고, 해금 지름길은 "주황과 하양을 섞으면 살구색!"이 된다.
 function paintEquationText() {
-  const parts = paintEquationFor(state.paint);
-  if (!parts?.result) return "";
-  const items = [parts.a, parts.b, parts.c].filter(Boolean);
-  if (items.length < 2) return `${parts.result} 물감이 준비됐어요!`;
+  const equation = paintEquationFor(state.paint);
+  if (!equation?.result) return "";
+  const items = (equation.parts ?? []).filter(Boolean);
+  if (items.length < 2) return `${equation.result} 물감이 준비됐어요!`;
   const listed = items
     .map((name, index) => index < items.length - 1
       ? `${name}${josa(name, "과", "와")}`
       : `${name}${josa(name, "을", "를")}`)
     .join(" ");
-  return `${listed} 섞으면 ${parts.result}!`;
+  return `${listed} 섞으면 ${equation.result}!`;
 }
 
-// ⎵ 실행 — 0..4 튜브 고르기, 5 헹구기. 섞기·칠하기는 자동이라 버튼이 없다.
+// ⎵ 실행 — 선반 튜브(기본+해금) 고르기, 마지막 칸 헹구기.
+// 섞기·칠하기는 자동이라 버튼이 없다.
 function activatePaintFocus() {
   if (!state.paint || state.paintBusy) return;
+  const tubes = paintShelfTubes(state.paint);
   const index = state.paint.focusIndex;
-  if (index < PAINT_TUBES.length) {
-    handlePaintEvents(paintSqueezeTube(state.paint, PAINT_TUBES[index].id));
+  if (index < tubes.length) {
+    handlePaintEvents(paintSqueezeTube(state.paint, tubes[index].id));
     return;
   }
   handlePaintEvents(paintRinseJar(state.paint));
@@ -2443,7 +2481,8 @@ dom.stage.addEventListener("click", event => {
       !state.paintBusy) {
     const tubeButton = event.target.closest(".pp-tube");
     if (tubeButton) {
-      const index = PAINT_TUBES.findIndex(
+      const tubes = paintShelfTubes(state.paint);
+      const index = tubes.findIndex(
         entry => entry.id === tubeButton.dataset.tube
       );
       if (index >= 0) {
@@ -2453,7 +2492,7 @@ dom.stage.addEventListener("click", event => {
       return;
     }
     if (event.target.closest(".pp-rinse")) {
-      state.paint.focusIndex = PAINT_TUBES.length;
+      state.paint.focusIndex = paintShelfTubes(state.paint).length;
       handlePaintEvents(paintRinseJar(state.paint));
       return;
     }
