@@ -12,6 +12,9 @@ const TUNNEL_WALL_GAP_PX = 50;
 const TUNNEL_PORTAL_DISTANCE = 600;
 const STATION_PHASES = new Set(["stopped", "boarding", "ready", "branch", "finale"]);
 
+// 열차 png의 칸 접합부(문) 위치 — rig 폭 기준 %. 브라우저 실측으로 보정.
+const DOOR_LEFT_PERCENTS = Object.freeze([32, 43.9, 55.7, 67.6, 79.5]);
+
 function el(document, tag, className) {
   const node = document.createElement(tag);
   node.className = className;
@@ -150,6 +153,9 @@ function applyFrame(scene, state, band, controller = null) {
     `${(Math.sin(state.x / 900) * 0.8).toFixed(2)}deg`);
   scene.dataset.doors = state.doors === "open" && STATION_PHASES.has(state.phase)
     ? "open" : "closed";
+  scene.dataset.doorWarning = String(
+    Number.isFinite(state.doorCountdownMs) && state.doorCountdownMs > 0 &&
+    state.doorCountdownMs <= 3000);
   const tunnelPortal = tunnelPortalState(state, frame.land);
   setLoopPhase(scene, "tunnelWall", "--tunnel-wall-phase",
     frame.land === "tunnel" ? frame.offsets.track : 0,
@@ -520,14 +526,20 @@ export function buildRealisticMotionScene(document, state, onStateChange) {
   const train = motionImage(document, "ktx-motion-train",
     pack.train, "실사 SRT 열차", controller);
   const trainRig = el(document, "div", "ktx-motion-train-rig");
-  const door = el(document, "div", "ktx-motion-door");
-  const doorBay = el(document, "span", "ktx-motion-door-bay");
-  const doorLeft = el(document, "span",
-    "ktx-motion-door-leaf ktx-motion-door-leaf-left");
-  const doorRight = el(document, "span",
-    "ktx-motion-door-leaf ktx-motion-door-leaf-right");
-  door.append(doorBay, doorLeft, doorRight);
-  trainRig.append(train, wheelShadow, door);
+  // 칸 접합부마다 문 — 문 하나(23px)로는 개폐가 화면에서 읽히지 않는다는
+  // 피드백(2026-08-10). 네 짝이 함께 열리고 닫혀야 "정차했다/떠난다"가 보인다.
+  const doors = DOOR_LEFT_PERCENTS.map(left => {
+    const door = el(document, "div", "ktx-motion-door");
+    door.style.setProperty("--door-left", `${left}%`);
+    const doorBay = el(document, "span", "ktx-motion-door-bay");
+    const doorLeft = el(document, "span",
+      "ktx-motion-door-leaf ktx-motion-door-leaf-left");
+    const doorRight = el(document, "span",
+      "ktx-motion-door-leaf ktx-motion-door-leaf-right");
+    door.append(doorBay, doorLeft, doorRight);
+    return door;
+  });
+  trainRig.append(train, wheelShadow, ...doors);
   const cabFrame = motionImage(document, "ktx-motion-cab-frame",
     pack.cabMask, "실사 SRT 운전실", controller);
   // 창 내용과 프레임을 한 몸으로 묶는 카메라 리그 — 진동을 따로 주면 세계와

@@ -1372,3 +1372,44 @@ test("서행 배지는 예고·준수·초과를 색 상태로 갈라 보여 준
   }, "cab");
   assert.equal(root.dataset.slow, "over");
 });
+
+// ── 정차 연출(2026-08-10 피드백) — 문 다섯 짝·닫힘 경고·도착 임팩트 ────────
+
+test("문은 칸 접합부마다 다섯 짝이고 상태를 함께 바꾼다", () => {
+  const root = renderKtxScene(fakeDocument(), createKtxJourney(3, "srt"), "side");
+  const doors = root.querySelectorAll(".ktx-motion-door");
+  assert.equal(doors.length, 5, "문 한 짝(23px)으로는 개폐가 읽히지 않는다");
+  const lefts = [...doors].map(door => door.style.getPropertyValue("--door-left"));
+  assert.equal(new Set(lefts).size, 5, "다섯 짝이 서로 다른 접합부에 선다");
+});
+
+test("문닫힘 카운트다운 마지막 3초에 경고 상태가 켜진다", () => {
+  const base = createKtxJourney(3, "srt");
+  const root = renderKtxScene(fakeDocument(), base, "side");
+  const scene = root.querySelector(".ktx-motion-scene");
+
+  updateKtxScene(root, { ...base, doorCountdownMs: 5000 }, "side");
+  assert.equal(scene.dataset.doorWarning, "false", "감상 유예 구간은 조용하다");
+
+  updateKtxScene(root, { ...base, doorCountdownMs: 2400 }, "side");
+  assert.equal(scene.dataset.doorWarning, "true", "마지막 3초는 문 램프가 깜빡인다");
+
+  updateKtxScene(root, { ...base, doorCountdownMs: null }, "side");
+  assert.equal(scene.dataset.doorWarning, "false");
+});
+
+test("도착 이벤트는 역명판 팝과 장면 플래시, 문 열림은 하차 연출을 부른다", () => {
+  const base = { ...createKtxJourney(3, "srt"), phase: "stopped", station: "동탄" };
+  const root = renderKtxScene(fakeDocument(), base, "side");
+
+  updateKtxScene(root, base, "side",
+    [{ type: "stopped", station: "동탄", stars: 3, how: "press" }]);
+  const sign = root.querySelector(".ktx-motion-station-sign");
+  assert.ok(sign.className.includes("ktx-sign-pop"), "역명판이 튄다");
+  const scene = root.querySelector(".ktx-motion-scene");
+  assert.ok(scene.className.includes("ktx-arrive-flash"), "장면이 한 번 숨쉰다");
+
+  updateKtxScene(root, { ...base, phase: "boarding", doors: "open" }, "side",
+    [{ type: "doors-open", station: "동탄", waiting: 3 }]);
+  assert.ok(root.querySelector(".ktx-walker-out"), "문이 열리면 친구가 내린다");
+});
