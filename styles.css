@@ -9812,6 +9812,22 @@ body[data-mode="delivery"] #stage {
   transition: background-position 165ms linear;
 }
 
+/* 야간 도색 스프라이트 — 주간본과 같은 자리에 겹쳐 sky에 따라 교차 */
+.ktx-motion-train-night {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 2;
+  display: block;
+  width: 100%;
+  height: auto;
+  opacity: 0;
+  transition: opacity 1.2s ease;
+  pointer-events: none;
+}
+
+.ktx-motion-scene[data-sky="night"] .ktx-motion-train-night { opacity: 1; }
+
 .ktx-motion-wheel-shadow {
   position: absolute;
   left: 8%;

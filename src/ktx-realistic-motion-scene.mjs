@@ -1,4 +1,4 @@
-import { realisticMotionAssets } from "./ktx-realistic-assets.mjs";
+import { REALISTIC_MOTION_ASSETS, realisticMotionAssets } from "./ktx-realistic-assets.mjs";
 import { realisticMotionFrame } from "./ktx-realistic-motion.mjs";
 import { routeSegments } from "./ktx-journey.mjs";
 
@@ -177,6 +177,16 @@ function applyFrame(scene, state, band, controller = null) {
   if (controller?.station) {
     controller.station.dataset.lifecycle = frame.departing
       ? "departing" : frame.stationStage;
+    // 시간대별 역 사진 — 역이 화면 밖(hidden)일 때만 바꿔 로드 깜빡임이
+    // 보이지 않는다. loaded 게이트는 유지(최초 로드로 이미 통과).
+    const wantedStation =
+      REALISTIC_MOTION_ASSETS.stationBySky[scene.dataset.sky] ??
+      REALISTIC_MOTION_ASSETS.station[0];
+    if (frame.stationStage === "hidden" &&
+      controller.station.dataset.assetSrc !== wantedStation) {
+      controller.station.dataset.assetSrc = wantedStation;
+      controller.station.src = wantedStation;
+    }
   }
   if (controller?.stationSign) {
     controller.stationSign.textContent = stationName(state);
@@ -525,6 +535,12 @@ export function buildRealisticMotionScene(document, state, onStateChange) {
     cabRailLeft, cabRailRight, cabPersp, cabPoles, cabCatenary, tunnel);
   const train = motionImage(document, "ktx-motion-train",
     pack.train, "실사 SRT 열차", controller);
+  // 야간 도색 — 주간본과 픽셀 정렬된 스프라이트를 겹쳐 두고 CSS로 교차.
+  // 필수 로딩 게이트에 넣지 않아 실패해도 주간본으로 계속 논다.
+  const trainNight = el(document, "img", "ktx-motion-train-night");
+  trainNight.src = pack.trainNight;
+  trainNight.alt = "";
+  trainNight.decoding = "async";
   const trainRig = el(document, "div", "ktx-motion-train-rig");
   // 칸 접합부마다 문 — 문 하나(23px)로는 개폐가 화면에서 읽히지 않는다는
   // 피드백(2026-08-10). 네 짝이 함께 열리고 닫혀야 "정차했다/떠난다"가 보인다.
@@ -542,7 +558,7 @@ export function buildRealisticMotionScene(document, state, onStateChange) {
   // 근접 궤도 — 바퀴 라인 바로 밑에 레일·침목·자갈이 함께 흐르지 않으면
   // 열차가 사진 위에 떠 보인다(사용자 피드백 2026-08-10).
   const railbed = el(document, "div", "ktx-motion-railbed");
-  trainRig.append(railbed, train, wheelShadow, ...doors);
+  trainRig.append(railbed, train, trainNight, wheelShadow, ...doors);
   const cabFrame = motionImage(document, "ktx-motion-cab-frame",
     pack.cabMask, "실사 SRT 운전실", controller);
   // 창 내용과 프레임을 한 몸으로 묶는 카메라 리그 — 진동을 따로 주면 세계와

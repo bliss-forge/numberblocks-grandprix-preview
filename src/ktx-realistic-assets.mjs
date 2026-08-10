@@ -10,15 +10,27 @@ export const REALISTIC_TRAIN_ASSETS = Object.freeze({
     cab: Object.freeze({
       day: `${ROOT}/cab-day.webp`,
       night: `${ROOT}/cab-night.webp`,
-      tunnel: `${ROOT}/cab-tunnel.webp`
+      tunnel: `${ROOT}/cab-tunnel.webp`,
+      dawn: `${ROOT}/cab-dawn.webp`,
+      sunset: `${ROOT}/cab-sunset.webp`,
+      field: `${ROOT}/cab-field.webp`,
+      river: `${ROOT}/cab-river.webp`,
+      sea: `${ROOT}/cab-sea.webp`,
+      mountain: `${ROOT}/cab-mountain.webp`
     })
   })
 });
 
 export const REALISTIC_MOTION_ASSETS = Object.freeze({
   train: `${MOTION_ROOT}/srt-side-transparent.png`,
+  trainNight: `${MOTION_ROOT}/srt-side-transparent-night.png`,
   cabMask: `${MOTION_ROOT}/cab-window-mask.png`,
   station: Object.freeze([`${MOTION_ROOT}/station-platform-a.webp`]),
+  stationBySky: Object.freeze({
+    sunset: `${MOTION_ROOT}/station-platform-sunset.webp`,
+    night: `${MOTION_ROOT}/station-platform-night.webp`,
+    dawn: `${MOTION_ROOT}/station-platform-dawn.webp`
+  }),
   scenes: Object.freeze(Object.fromEntries(MOTION_LANDS.map(land => [
     land,
     Object.freeze(["a", "b", "c"].map(variant =>
@@ -36,8 +48,14 @@ export function realisticExteriorAsset(trainId, land) {
 }
 
 export function realisticCabAsset(sky, land) {
+  // 우선순위: 터널 > 밤 > 새벽·노을 > 지형(주간) > 낮 — 시간대가 지형보다
+  // 강한 단서다(PR #8 시간대·지형 자산, 협회 검수 8·11 해소).
   const cab = REALISTIC_TRAIN_ASSETS.srt.cab;
-  return cab[land === "tunnel" ? "tunnel" : sky === "night" ? "night" : "day"];
+  if (land === "tunnel") return cab.tunnel;
+  if (sky === "night") return cab.night;
+  if (sky === "dawn") return cab.dawn;
+  if (sky === "sunset") return cab.sunset;
+  return cab[land] ?? cab.day;
 }
 
 export function realisticMotionAssets(trainId, land) {
@@ -47,8 +65,10 @@ export function realisticMotionAssets(trainId, land) {
     : "city";
   return Object.freeze({
     train: REALISTIC_MOTION_ASSETS.train,
+    trainNight: REALISTIC_MOTION_ASSETS.trainNight,
     cabMask: REALISTIC_MOTION_ASSETS.cabMask,
     station: REALISTIC_MOTION_ASSETS.station,
+    stationBySky: REALISTIC_MOTION_ASSETS.stationBySky,
     scenes: REALISTIC_MOTION_ASSETS.scenes[selected]
   });
 }
