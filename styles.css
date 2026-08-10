@@ -9812,6 +9812,30 @@ body[data-mode="delivery"] #stage {
   transition: background-position 165ms linear;
 }
 
+/* 교행 KTX — 건너편(먼) 선로를 반대 방향으로 스치는 파란 열차. 같은
+   스프라이트를 색상 변환(보라→파랑)해 KTX로 읽히게 한다. 우리 열차보다
+   위(멀리)·작게, z는 열차 뒤. 상대속도 감각은 1.7s 스윕이면 충분하다. */
+.ktx-motion-oncoming {
+  position: absolute;
+  top: 43%;
+  left: 0;
+  width: 112%;
+  z-index: 5;
+  opacity: 0;
+  transform: translate3d(115%, -50%, 0);
+  filter: hue-rotate(-75deg) saturate(.92) brightness(.94);
+  pointer-events: none;
+}
+
+@keyframes ktx-oncoming-sweep {
+  0% { transform: translate3d(115%, -50%, 0); opacity: 1; }
+  100% { transform: translate3d(-125%, -50%, 0); opacity: 1; }
+}
+
+.ktx-motion-oncoming.ktx-oncoming-go {
+  animation: ktx-oncoming-sweep 1.7s cubic-bezier(.3, .05, .4, .95) both;
+}
+
 /* 야간 도색 스프라이트 — 주간본과 같은 자리에 겹쳐 sky에 따라 교차 */
 .ktx-motion-train-night {
   position: absolute;
@@ -10618,6 +10642,8 @@ body[data-mode="delivery"] #stage {
   .ktx-game.ktx-wobble { animation: none !important; }
 
   .ktx-slow-sign { animation: none !important; opacity: 0 !important; }
+
+  .ktx-motion-oncoming { animation: none !important; opacity: 0 !important; }
 
   /* 운전실 리그·평면·스트릭·스트로브 — 움직임 감축에서는 흔들림과 맥동을
      전부 끄고 위치는 150ms 이산 스냅으로만 갱신한다(기존 철학 동일). */

@@ -541,6 +541,13 @@ export function buildRealisticMotionScene(document, state, onStateChange) {
   trainNight.src = pack.trainNight;
   trainNight.alt = "";
   trainNight.decoding = "async";
+  // 교행 열차 — 건너편(먼) 선로를 반대 방향으로 스치는 KTX. 같은 스프라이트를
+  // 색상 변환(보라→파랑)으로 눕혀 쓴다. passing 이벤트가 스윕을 발사한다.
+  const oncoming = el(document, "img", "ktx-motion-oncoming");
+  oncoming.src = pack.train;
+  oncoming.alt = "";
+  oncoming.decoding = "async";
+  oncoming.setAttribute("aria-hidden", "true");
   const trainRig = el(document, "div", "ktx-motion-train-rig");
   // 칸 접합부마다 문 — 문 하나(23px)로는 개폐가 화면에서 읽히지 않는다는
   // 피드백(2026-08-10). 네 짝이 함께 열리고 닫혀야 "정차했다/떠난다"가 보인다.
@@ -568,7 +575,7 @@ export function buildRealisticMotionScene(document, state, onStateChange) {
   Object.assign(controller, { station, stationSign, train, cabFrame });
 
   scene.append(...plates, stationViewport, stationSign,
-    mid, track, near, cabRig, trainRig);
+    mid, track, oncoming, near, cabRig, trainRig);
   scene.dataset.readiness = "pending";
   applyFrame(scene, state, { sky: state.sky, land: state.land }, controller);
   controllers.set(scene, controller);

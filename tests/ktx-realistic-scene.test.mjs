@@ -1438,3 +1438,14 @@ test("피날레 제목은 노선의 종착역을 말한다 — 목포 완주가 
   }]);
   assert.match(root.querySelector(".ktx-finale-title").textContent, /목포/);
 });
+
+test("교행 이벤트는 건너편 선로의 실사 KTX 스윕을 발사한다", () => {
+  const base = { ...createKtxJourney(3, "srt"), phase: "driving" };
+  const root = renderKtxScene(fakeDocument(), base, "side");
+  const oncoming = root.querySelector(".ktx-motion-oncoming");
+  assert.ok(oncoming, "교행 스프라이트가 장면에 상주한다");
+
+  updateKtxScene(root, base, "side", [{ type: "event", event: "passing" }]);
+  assert.ok(oncoming.className.includes("ktx-oncoming-go"),
+    "passing 이벤트가 스윕 애니메이션을 건다");
+});

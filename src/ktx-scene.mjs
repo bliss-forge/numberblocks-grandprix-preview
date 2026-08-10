@@ -1170,6 +1170,8 @@ export function updateKtxScene(root, state, view, events = [], held = {}) {
       pulse(root.querySelector(".ktx-oncoming-cab"), "ktx-oncome-run");
       pulse(root.querySelector(".ktx-side-oncoming"), "ktx-oncoming-run");
       pulse(root.querySelector(".ktx-cab-world"), "ktx-cab-shake");
+      // 실사 교행 — 건너편 선로의 파란 KTX가 반대 방향으로 스친다
+      pulse(root.querySelector(".ktx-motion-oncoming"), "ktx-oncoming-go");
     }
     if (event.type === "zone-enter") {
       spawnObj(root, "speed35", "l", "", state.v);
