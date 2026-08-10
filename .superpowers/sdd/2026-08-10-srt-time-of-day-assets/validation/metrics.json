@@ -1,0 +1,182 @@
+[
+  {
+    "path": "assets/train-realistic/motion/srt-side-transparent-night.png",
+    "dimensions": [
+      2400,
+      640
+    ],
+    "bytes": 251671,
+    "mode": "RGBA",
+    "has_alpha": true,
+    "alpha_bbox": [
+      373,
+      240,
+      2027,
+      396
+    ],
+    "alpha_matches_reference": true,
+    "edge_alignment_score": 98.22
+  },
+  {
+    "path": "assets/train-realistic/cab-dawn.webp",
+    "dimensions": [
+      1672,
+      941
+    ],
+    "bytes": 77964,
+    "mode": "RGB",
+    "has_alpha": false,
+    "alpha_bbox": [
+      0,
+      0,
+      1672,
+      941
+    ],
+    "alpha_matches_reference": null,
+    "edge_alignment_score": 98.28
+  },
+  {
+    "path": "assets/train-realistic/cab-sunset.webp",
+    "dimensions": [
+      1672,
+      941
+    ],
+    "bytes": 81038,
+    "mode": "RGB",
+    "has_alpha": false,
+    "alpha_bbox": [
+      0,
+      0,
+      1672,
+      941
+    ],
+    "alpha_matches_reference": null,
+    "edge_alignment_score": 98.37
+  },
+  {
+    "path": "assets/train-realistic/motion/station-platform-sunset.webp",
+    "dimensions": [
+      1672,
+      941
+    ],
+    "bytes": 137624,
+    "mode": "RGB",
+    "has_alpha": false,
+    "alpha_bbox": [
+      0,
+      0,
+      1672,
+      941
+    ],
+    "alpha_matches_reference": null,
+    "edge_alignment_score": 92.35
+  },
+  {
+    "path": "assets/train-realistic/motion/station-platform-night.webp",
+    "dimensions": [
+      1672,
+      941
+    ],
+    "bytes": 110622,
+    "mode": "RGB",
+    "has_alpha": false,
+    "alpha_bbox": [
+      0,
+      0,
+      1672,
+      941
+    ],
+    "alpha_matches_reference": null,
+    "edge_alignment_score": 84.82
+  },
+  {
+    "path": "assets/train-realistic/motion/station-platform-dawn.webp",
+    "dimensions": [
+      1672,
+      941
+    ],
+    "bytes": 135750,
+    "mode": "RGB",
+    "has_alpha": false,
+    "alpha_bbox": [
+      0,
+      0,
+      1672,
+      941
+    ],
+    "alpha_matches_reference": null,
+    "edge_alignment_score": 92.6
+  },
+  {
+    "path": "assets/train-realistic/cab-field.webp",
+    "dimensions": [
+      1672,
+      941
+    ],
+    "bytes": 86206,
+    "mode": "RGB",
+    "has_alpha": false,
+    "alpha_bbox": [
+      0,
+      0,
+      1672,
+      941
+    ],
+    "alpha_matches_reference": null,
+    "edge_alignment_score": 95.94
+  },
+  {
+    "path": "assets/train-realistic/cab-river.webp",
+    "dimensions": [
+      1672,
+      941
+    ],
+    "bytes": 82880,
+    "mode": "RGB",
+    "has_alpha": false,
+    "alpha_bbox": [
+      0,
+      0,
+      1672,
+      941
+    ],
+    "alpha_matches_reference": null,
+    "edge_alignment_score": 94.48
+  },
+  {
+    "path": "assets/train-realistic/cab-sea.webp",
+    "dimensions": [
+      1672,
+      941
+    ],
+    "bytes": 80452,
+    "mode": "RGB",
+    "has_alpha": false,
+    "alpha_bbox": [
+      0,
+      0,
+      1672,
+      941
+    ],
+    "alpha_matches_reference": null,
+    "edge_alignment_score": 95.73
+  },
+  {
+    "path": "assets/train-realistic/cab-mountain.webp",
+    "dimensions": [
+      1672,
+      941
+    ],
+    "bytes": 130862,
+    "mode": "RGB",
+    "has_alpha": false,
+    "alpha_bbox": [
+      0,
+      0,
+      1672,
+      941
+    ],
+    "alpha_matches_reference": null,
+    "edge_alignment_score": 93.0
+  }
+]
