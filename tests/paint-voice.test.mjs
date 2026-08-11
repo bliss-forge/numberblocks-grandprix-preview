@@ -184,6 +184,27 @@ test("물감 음성 호출 경로는 speakPaint 하나뿐이다", async () => {
   assert.ok(found >= 5, `물감 키 사용처를 ${found}곳만 찾았다 — 스캔이 헛돌았다`);
 });
 
+// 반대 방향의 마지막 갈래 — 매니페스트에만 있고 아무 호출도 만들 수 없는 키.
+// 그림 주제를 지우면 paint-order-<그것> 이 매니페스트·생성기·mp3 로 영영 남는다.
+// 앞선 두 검사는 "데이터 → 매니페스트"와 "도달 가능 → 매니페스트"만 봐서
+// 이 방향이 비어 있었다. 부정 결과("고아 0건")를 한 번 손으로 확인하고
+// 끝내지 않고 가드로 고정한다.
+test("매니페스트의 모든 물감 키는 어떤 호출이든 만들 수 있어야 한다", () => {
+  const callable = new Set([
+    "paint-intro", "paint-unlock", "paint-rainbow", "paint-finale",
+    ...PAINT_SUBJECTS.map(subject => `paint-order-${subject.id}`),
+    // paintMixVoiceKey 가 낼 수 있는 두 계열
+    ...Object.keys(CANONICAL_MIX).map(id => `paint-mix-${id}`),
+    ...Object.keys(PAINT_COLORS).map(id => `paint-made-${id}`)
+  ]);
+  const orphan = manifestKeys.filter(key => !callable.has(key));
+  assert.deepEqual(
+    orphan, [],
+    "아무 호출 지점도 만들 수 없는 키가 있다 — 그림·색을 지웠다면 " +
+    "매니페스트·생성기·mp3 에서도 함께 지워라"
+  );
+});
+
 // 음성 키와 똑같은 이름의 CSS 클래스·데이터 속성이 생기면, 그 파일이 나중에
 // 오디오를 만지기 시작하는 순간 위 스캔이 그 이름을 "호출"로 오탐한다.
 // 그러면 정작 그 키가 사문화돼도 못 잡는다 — KTX 쪽에서 실제로 발견된 지뢰
