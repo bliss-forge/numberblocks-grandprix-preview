@@ -8,13 +8,18 @@
 // 기사님은 목업의 오리지널 아바타라 넘버블럭스로 바꾸지 않는다. 문이 열리고 나면
 // 그 자리에 서는 수령인만 저장소의 실제 넘버블럭스 에셋을 쓴다.
 
+import { characterAssetPath, standingCharacterSvg } from "./character-stage-art.mjs";
+
 export const ELEVATOR_RIDER = "courier"; // "truck" | "courier"
 
 // 수령인은 호수의 앞자리(=층) 번호를 가진 넘버블럭스다 — 502호에는 5번이 산다.
 // "앞자리를 읽는다"는 이 게임의 학습 훅을 캐릭터가 한 번 더 말해 준다.
+export function friendNumberFor(unit) {
+  return Math.max(1, Math.min(9, Math.floor(unit / 100)));
+}
+
 export function friendImageFor(unit) {
-  const floor = Math.max(1, Math.min(9, Math.floor(unit / 100)));
-  return `assets/characters/number-00${floor}.png`;
+  return characterAssetPath(friendNumberFor(unit));
 }
 
 const SHAFT_VIEW_BOX = "0 0 260 620";
@@ -570,11 +575,8 @@ export function handoverSvg({ tray = [], focus = 0, wanted = null, unit = 0, fri
       `stroke="${P.gold}" stroke-width="4"/></g>` +
     `<text x="640" y="98" text-anchor="middle" font-size="30" font-weight="800" ` +
       `fill="${P.goldDeep}">${unit}</text>` +
-    // 수취인 — 저장소의 실제 넘버블럭스 에셋.
-    // 에셋은 정사각 캔버스에 여백을 두고 그려져 있어, 상자를 정사각으로 잡아야
-    // 폭에 눌리지 않고 문간을 제대로 채운다.
-    `<image class="dv-friend" href="${friendImageFor(unit)}" x="548" y="278" width="184" height="192" ` +
-      `preserveAspectRatio="xMidYMax meet"/>` +
+    // 수취인 — 5번 게임과 같은 공식 넘버블럭스 에셋을 문간 바닥에 세운다.
+    standingCharacterSvg({ number: friendNumberFor(unit), cx: 640, baseY: 466, width: 128 }) +
     // 생각 말풍선 + 시선 유도
     thoughtBubble(870, 118, item.emoji, tint) +
     `<path d="M900 214 Q930 380 700 452" fill="none" stroke="${tint}" stroke-width="3.5" ` +

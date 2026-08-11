@@ -12,7 +12,8 @@ import {
   parcelBox,
   star,
 } from "./delivery-building-art.mjs";
-import { BEATS_PER_BAR } from "./delivery-rhythm.mjs";
+import { BEATS_PER_BAR, BEAT_MS, GOOD_WINDOW_MS, PERFECT_WINDOW_MS } from "./delivery-rhythm.mjs";
+import { standingCharacterSvg } from "./character-stage-art.mjs";
 
 export const RHYTHM_VIEW_BOX = "0 0 1280 620";
 export const RHYTHM_BACKDROP = "#EFF4DF";
@@ -43,8 +44,7 @@ function facade(unit) {
   const lit =
     `<rect x="576" y="168" width="60" height="52" rx="6" fill="${P.goldSoft}" ` +
       `stroke="#E8CE86" stroke-width="3"/>` +
-    `<image href="assets/characters/number-003.png" x="582" y="164" width="48" height="56" ` +
-      `preserveAspectRatio="xMidYMax meet"/>`;
+    standingCharacterSvg({ number: 3, cx: 606, baseY: 218, width: 30, className: "dv-window-friend" });
 
   return `<rect width="1280" height="${GROUND}" fill="${RHYTHM_BACKDROP}"/>` +
     `<g stroke="#D8DFBC" stroke-width="3" fill="none">` +
@@ -105,20 +105,55 @@ function truckRear() {
 
 /* ── 비트 마커 링 · 비트 칩 ───────────────────────────────────────── */
 
-const MARKER_X = 600;
-const MARKER_Y = 558;
+// ── 박자 막대 ─────────────────────────────────────────────────────
+// ---[ ● ]--- 표시가 이 화면의 전부다. 구슬이 괄호 한가운데 올 때 Space.
+//
+// 구슬은 한 박(750ms)에 막대를 왼쪽 끝에서 오른쪽 끝까지 가로지르고,
+// 애니메이션을 반 박 당겨 시작해(animation-delay: -375ms) 정박마다 정확히
+// 한가운데를 지난다. 무대는 박마다 다시 그려지므로 위상이 다시 맞춰진다.
+const TRACK_CX = 640;
+const TRACK_HALF = 280; // 한 박에 가로지르는 거리의 절반
+// 파사드 한가운데 빈 벽 위에 띄운다 — 바닥에 두면 트럭·카트·기사님에 묻힌다.
+const TRACK_Y = 286;
 
-// 바깥 링이 한 박에 걸쳐 안쪽 링으로 좁혀 든다 — 두 링이 겹치는 순간이 정박이다.
-// 좁아지는 것은 CSS 애니메이션이 한다: 무대는 박마다 다시 그려지므로 그때마다
-// 애니메이션도 처음부터 다시 돌아 박자와 저절로 맞는다.
-function beatRing() {
-  return `<g>` +
-    `<g class="dv-beat-ring">` +
-      `<ellipse cx="${MARKER_X}" cy="${MARKER_Y}" rx="46" ry="15" fill="none" ` +
-      `stroke="${P.star}" stroke-width="3"/></g>` +
-    `<ellipse cx="${MARKER_X}" cy="${MARKER_Y}" rx="46" ry="15" fill="${P.goldSoft}" opacity="0.5"/>` +
-    `<ellipse cx="${MARKER_X}" cy="${MARKER_Y}" rx="46" ry="15" fill="none" stroke="${P.gold}" ` +
-      `stroke-width="6" stroke-dasharray="16 10"/></g>`;
+// 시간을 거리로 바꾼다 — 판정 창이 막대 위 어디까지인지 그림이 정직하게 말한다.
+function windowHalfWidth(windowMs) {
+  return (windowMs / BEAT_MS) * TRACK_HALF * 2;
+}
+
+function beatTrack() {
+  const goodHalf = windowHalfWidth(GOOD_WINDOW_MS);
+  const perfectHalf = windowHalfWidth(PERFECT_WINDOW_MS);
+  const left = TRACK_CX - TRACK_HALF;
+  const right = TRACK_CX + TRACK_HALF;
+
+  return `<g class="dv-beat-track">` +
+    // 받침 카드 — 도로 위에서도 또렷하게 보이도록.
+    `<g filter="url(#dv-soft)">` +
+      `<rect x="${left - 40}" y="${TRACK_Y - 44}" width="${TRACK_HALF * 2 + 80}" height="88" ` +
+      `rx="26" fill="#FFFFFF" opacity="0.97"/></g>` +
+    // --- 막대 ---
+    `<path d="M${left} ${TRACK_Y} H${right}" stroke="#D9CDB2" stroke-width="10" ` +
+      `stroke-linecap="round"/>` +
+    // 좋아요 구간(넓은 띠)
+    `<rect x="${TRACK_CX - goodHalf}" y="${TRACK_Y - 15}" width="${goodHalf * 2}" height="30" ` +
+      `rx="15" fill="${P.goldSoft}"/>` +
+    // 딱! 구간 = 대괄호
+    `<rect x="${TRACK_CX - perfectHalf}" y="${TRACK_Y - 22}" width="${perfectHalf * 2}" height="44" ` +
+      `rx="10" fill="#FFFFFF" stroke="${P.gold}" stroke-width="5"/>` +
+    `<path d="M${TRACK_CX - perfectHalf + 12} ${TRACK_Y - 22} h-12 v44 h12" fill="none" ` +
+      `stroke="${P.goldEdge}" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>` +
+    `<path d="M${TRACK_CX + perfectHalf - 12} ${TRACK_Y - 22} h12 v44 h-12" fill="none" ` +
+      `stroke="${P.goldEdge}" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>` +
+    // 한가운데 눈금
+    `<path d="M${TRACK_CX} ${TRACK_Y - 16} v32" stroke="${P.goldEdge}" stroke-width="3" ` +
+      `stroke-linecap="round" opacity="0.7"/>` +
+    // 달리는 구슬
+    `<g class="dv-beat-marker">` +
+      `<circle cx="${TRACK_CX}" cy="${TRACK_Y}" r="20" fill="${P.coral}" stroke="#FFFFFF" ` +
+      `stroke-width="4"/>` +
+      `<circle cx="${TRACK_CX - 6}" cy="${TRACK_Y - 7}" r="6" fill="#FFFFFF" opacity="0.75"/></g>` +
+    `</g>`;
 }
 
 function beatChips(beat) {
@@ -150,21 +185,21 @@ const JUDGE_TEXT = {
 };
 
 function passArc(unit) {
-  return `<path d="M604 546 Q783 250 962 518" fill="none" stroke="${P.star}" stroke-width="4" ` +
+  return `<path d="M604 486 Q783 372 962 460" fill="none" stroke="${P.star}" stroke-width="4" ` +
       `stroke-dasharray="3 14" stroke-linecap="round" opacity="0.9"/>` +
-    `<g transform="translate(740 372) rotate(-7)" filter="url(#dv-tiny)">` +
+    `<g transform="translate(768 418) rotate(-7)" filter="url(#dv-tiny)">` +
       parcelBox(-43, -29, 86, 58, `${unit}호`, P.cartonA) + `</g>` +
-    `<g>` + star(672, 352, 1) + star(820, 348, 1) + star(740, 302, 0.8) +
-      star(678, 418, 0.75) + star(812, 416, 0.75) + `</g>`;
+    `<g>` + star(690, 400, 1) + star(846, 398, 1) + star(768, 366, 0.8) +
+      star(700, 458, 0.75) + star(838, 456, 0.75) + `</g>`;
 }
 
 function judgeBubble(judge) {
   const mark = JUDGE_TEXT[judge];
   if (!mark) return "";
   return `<g filter="url(#dv-tiny)">` +
-      `<rect x="846" y="300" width="196" height="58" rx="20" fill="#FFFFFF"/>` +
-      `<path d="M872 356 L906 356 L878 380 Z" fill="#FFFFFF"/></g>` +
-    `<text class="dv-judge" x="944" y="338" text-anchor="middle" font-size="26" ` +
+      `<rect x="1010" y="132" width="200" height="58" rx="20" fill="#FFFFFF"/>` +
+      `<path d="M1052 188 L1086 188 L1058 212 Z" fill="#FFFFFF"/></g>` +
+    `<text class="dv-judge" x="1110" y="170" text-anchor="middle" font-size="26" ` +
       `font-weight="800" fill="${mark.fill}">${mark.text}</text>`;
 }
 
@@ -182,7 +217,7 @@ export function rhythmStageSvg({ unit = 0, loaded = 0, target = 3, beat = 0, jud
 
   const remaining = Math.max(0, target - loaded);
   const onRamp = remaining > 0
-    ? `<g transform="translate(430 512) rotate(15)" filter="url(#dv-tiny)">` +
+    ? `<g transform="translate(408 508) rotate(15)" filter="url(#dv-tiny)">` +
       parcelBox(-38, -26, 76, 52, `${unit}호`, P.cartonB) + `</g>`
     : "";
 
@@ -193,9 +228,9 @@ export function rhythmStageSvg({ unit = 0, loaded = 0, target = 3, beat = 0, jud
     facade(unit) +
     truckRear() +
     onRamp +
-    beatRing() +
+    beatTrack() +
     (judge && judge !== "miss" ? passArc(unit) : "") +
-    courier(672, 496, 0.92, judge === "miss" ? "idle" : "cheer") +
+    courier(628, 468, 0.92, judge === "miss" ? "idle" : "cheer") +
     cart(898, 508, 260) +
     stacked +
     beatChips(beat) +
