@@ -9812,6 +9812,32 @@ body[data-mode="delivery"] #stage {
   transition: background-position 165ms linear;
 }
 
+/* 테마 이벤트 스프라이트 — 소 농장·갈매기 떼가 선로 옆을 스쳐 간다.
+   근경(near)과 중경(mid) 사이 깊이에 놓여 속도에 맞춰 흐른다. 스프라이트가
+   등재되지 않은 종류는 --event-image가 없어 아무것도 그리지 않는다. */
+.ktx-motion-event {
+  position: absolute;
+  left: 100%;
+  bottom: 20%;
+  z-index: 3;
+  width: 46%;
+  height: 34%;
+  background: var(--event-image, none) center bottom / contain no-repeat;
+  opacity: 0;
+  pointer-events: none;
+}
+
+@keyframes ktx-event-sweep {
+  0% { transform: translate3d(0, 0, 0); opacity: 0; }
+  8% { opacity: 1; }
+  88% { opacity: 1; }
+  100% { transform: translate3d(calc(-100vw - 46%), 0, 0); opacity: 0; }
+}
+
+.ktx-motion-event.ktx-event-go {
+  animation: ktx-event-sweep var(--event-sweep-ms, 2400ms) linear both;
+}
+
 /* 교행 KTX — 건너편(먼) 선로를 반대 방향으로 스치는 파란 열차. 같은
    스프라이트를 색상 변환(보라→파랑)해 KTX로 읽히게 한다. 우리 열차보다
    위(멀리)·작게, z는 열차 뒤. 상대속도 감각은 1.7s 스윕이면 충분하다. */
@@ -10644,6 +10670,8 @@ body[data-mode="delivery"] #stage {
   .ktx-slow-sign { animation: none !important; opacity: 0 !important; }
 
   .ktx-motion-oncoming { animation: none !important; opacity: 0 !important; }
+
+  .ktx-motion-event { animation: none !important; opacity: 0 !important; }
 
   /* 운전실 리그·평면·스트릭·스트로브 — 움직임 감축에서는 흔들림과 맥동을
      전부 끄고 위치는 150ms 이산 스냅으로만 갱신한다(기존 철학 동일). */

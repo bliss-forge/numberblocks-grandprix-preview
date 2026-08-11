@@ -16,8 +16,13 @@ import {
   ENVELOPE_FLOOR,
   GOLD_WINDOW,
   KTX_SEGMENTS,
+  KTX_LAND_EVENTS,
   KTX_RANDOM_EVENTS,
   KTX_ROUTES,
+  LAND_EVENTS_PER_SEGMENT,
+  LAND_EVENT_MARGIN,
+  LAND_EVENT_TYPE_BUDGET,
+  LAND_EVENT_SPAN,
   KTX_ROUTE_STATIONS,
   KTX_STATIONS,
   KTX_TRAINS,
@@ -115,16 +120,58 @@ function markerPosition(seg) {
   return seg.length - (ZONE_LENGTH - MARKER_FROM_ZONE);
 }
 
-// 시드로 이번 판의 랜덤 이벤트 1종을 뽑아 구간 일정에 끼워 넣는다.
+// 구간의 배경 밴드에서 테마 이벤트를 뽑아 일정에 끼워 넣는다. 판당 랜덤
+// 1종이던 예전 방식은 이벤트가 너무 드물고 지형과 무관했다 — 소가 바다에,
+// 갈매기가 들판에 나올 수 있었다.
 function scheduleEvents(seed, route = "busan") {
-  const random = mulberry(seed);
-  const pick = KTX_RANDOM_EVENTS[Math.floor(random() * KTX_RANDOM_EVENTS.length)];
-  const slot = pick.segments[Math.floor(random() * pick.segments.length)];
-  return KTX_ROUTES[route].map((seg, index) => {
-    const extra = index === slot
-      ? [{ type: pick.type, at: pick.at, until: pick.until }]
-      : [];
-    return [...seg.events, ...extra];
+  const random = mulberry(seed ^ 0x1a7d);
+  // 종류별 등장 예산 — 들판이 매 구간 나오니 그냥 두면 소만 네 번 본다.
+  // 판마다 어떤 밴드가 당첨될지 달라져 같은 시드가 아니면 여정도 달라진다.
+  const budget = new Map();
+  return KTX_ROUTES[route].map(seg => {
+    const events = [...seg.events];
+    let placed = 0;
+    let from = 0;
+    for (const band of seg.bands) {
+      const until = band.until;
+      const pool = KTX_LAND_EVENTS[band.land] ?? [];
+      const start = from;
+      from = until;
+      if (placed >= LAND_EVENTS_PER_SEGMENT || pool.length === 0) continue;
+
+      // 밴드 안쪽에만 — 경계에 걸치면 갈매기가 들판 위를 난다.
+      const low = start + LAND_EVENT_MARGIN;
+      const high = until - LAND_EVENT_MARGIN - LAND_EVENT_SPAN;
+      // 마지막 25%는 정차 접근 몫이라 비워 둔다.
+      const ceiling = Math.min(high, 0.75 - LAND_EVENT_SPAN);
+      if (ceiling <= low) continue;
+
+      const type = pool[Math.floor(random() * pool.length)];
+      if (events.some(event => event.type === type)) continue;
+      const used = budget.get(type) ?? 0;
+      if (used >= LAND_EVENT_TYPE_BUDGET) continue;
+      // 예산이 남아도 가끔 지나친다 — 매번 같은 자리에서 같은 걸 보면
+      // "우연히 만났다"는 느낌이 사라진다.
+      if (used > 0 && random() < 0.45) continue;
+
+      // 이미 잡힌 이벤트와 창이 겹치면 안 된다 — activeEvent는 첫 매치만
+      // 돌려주므로 겹친 쪽은 화면에 영영 안 나온다(실측으로 확인).
+      const free = [];
+      for (let i = 0; i <= 20; i += 1) {
+        const candidate = Number((low + (ceiling - low) * (i / 20)).toFixed(3));
+        const end = candidate + LAND_EVENT_SPAN;
+        if (events.every(other => end <= other.at || candidate >= other.until)) {
+          free.push(candidate);
+        }
+      }
+      if (free.length === 0) continue;
+      budget.set(type, used + 1);
+
+      const at = free[Math.floor(random() * free.length)];
+      events.push({ type, at, until: Number((at + LAND_EVENT_SPAN).toFixed(3)) });
+      placed += 1;
+    }
+    return events;
   });
 }
 
