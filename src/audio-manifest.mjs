@@ -128,7 +128,6 @@ const paint = Object.fromEntries(
 const delivery = Object.fromEntries(
   [
     "delivery-intro",
-    "delivery-go",
     "delivery-blocked",
     "delivery-wrong-house",
     "delivery-arrive",

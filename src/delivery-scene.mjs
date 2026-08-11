@@ -8,7 +8,6 @@
 // 씬 안에서 다시 그리지 않는다 — 같은 정보를 두 번 보여 주지 않기 위한 유일한 조정.
 
 import {
-  COMMAND_SLOTS,
   DELIVERY_TARGET,
   PARCELS,
   STREAK_BONUS_SLOTS,
@@ -36,7 +35,7 @@ export const DELIVERY_STEPS = Object.freeze({
     name: "단지 운전",
     headline: "목표 호수로 택배차를 운전해요!",
     emoji: "📦",
-    tip: ["방향 버튼으로 길을 만들고 출발 버튼을 눌러", "택배 차가 목표 호수에 도착하도록 도와주세요!"],
+    tip: ["방향키로 택배 차를 몰아 목표 호수까지 가세요!", "Space 를 누르면 빵빵 경적을 울려요."],
   },
   rhythm: {
     index: 2,
@@ -186,30 +185,10 @@ const DIRECTION_LABELS = { up: "위로", left: "왼쪽으로", right: "오른쪽
 // 디자인 정본 락 §10 — §5 패널의 ⬆⬅➡ 와 §6 버튼 시트의 ⬇ 를 합쳐 네 방향이다.
 const DIRECTION_ORDER = ["up", "left", "right", "down"];
 
-function drivePanel(document, state) {
+function drivePanel(document) {
   const panel = el(document, "aside", "dv-panel");
 
-  const queueCard = card(document, "이동 명령");
-  const queue = el(document, "div", "dv-queue");
-  for (let index = 0; index < COMMAND_SLOTS; index += 1) {
-    const direction = state.drive.queue[index];
-    // 채워진 칸은 눌러서 지울 수 있다 — 시안에 없는 새 버튼을 만들지 않으려고
-    // 이미 그려진 칸 자체를 조작면으로 쓴다.
-    const slot = direction
-      ? keyButton(document, "dv-slot", DIRECTION_MARKS[direction], { dvClear: "1" }, "쌓은 명령 지우기")
-      : el(document, "span", "dv-slot", "");
-    slot.dataset.filled = String(Boolean(direction));
-    queue.append(slot);
-  }
-  queueCard.append(queue);
-
-  const numbers = el(document, "div", "dv-slotnums");
-  for (let index = 1; index <= COMMAND_SLOTS; index += 1) {
-    numbers.append(el(document, "span", "dv-slotnum", String(index)));
-  }
-  queueCard.append(numbers);
-  panel.append(queueCard);
-
+  // 5번 게임과 같은 문법 — 누르면 바로 한 칸 간다. 쌓아 두는 칸도, 출발 버튼도 없다.
   const dirCard = card(document, "방향 버튼");
   const dirs = el(document, "div", "dv-dirs");
   DIRECTION_ORDER.forEach(direction => {
@@ -226,9 +205,11 @@ function drivePanel(document, state) {
   dirCard.append(dirs);
   panel.append(dirCard);
 
-  panel.append(
-    keyButton(document, "dv-key dv-key-go", "▶ 출발! 🚚", { dvGo: "1" }, "출발하기")
+  const hornCard = card(document, "경적");
+  hornCard.append(
+    keyButton(document, "dv-key dv-key-horn", "📣 빵빵!", { dvHorn: "1" }, "경적 울리기")
   );
+  panel.append(hornCard);
 
   return panel;
 }
@@ -442,7 +423,7 @@ function driveBody(document, state) {
       MAP_BACKDROP
     )
   );
-  body.append(drivePanel(document, state));
+  body.append(drivePanel(document));
   return body;
 }
 

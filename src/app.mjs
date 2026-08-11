@@ -146,7 +146,6 @@ import {
   josa
 } from "./paint-play-data.mjs";
 import {
-  clearCommands as clearDeliveryCommands,
   boardElevator,
   createDelivery,
   deliverParcel,
@@ -155,9 +154,9 @@ import {
   parcelById,
   pressFloor,
   passRhythmBox,
-  pushCommand as pushDeliveryCommand,
+
   ringBell as ringDeliveryBell,
-  runCommands as runDeliveryCommands,
+  driveStep as driveDeliveryStep,
   tickRhythm
 } from "./delivery-model.mjs";
 import { deliveryCaption, renderDelivery } from "./delivery-scene.mjs";
@@ -217,6 +216,7 @@ const state = {
   delivery: null,
   deliveryScene: null,
   deliveryBusy: false,   // 주행 연출·도착 여운 동안 입력 잠금
+  deliveryLastStepAt: 0, // 방향키 반복을 5번 게임과 같은 간격으로 조인다
   paintFinaleAt: 0,   // 피날레 화면이 뜬 시각(최소 체류 계산용)
   wrongCount: 0,
   round: 0,
@@ -2050,13 +2050,12 @@ function activatePaintFocus() {
    그 이벤트를 소리·자막·연출로 옮긴다. 벌점은 어디에도 없다 — 틀리면 다시
    알려 주고 다시 시킨다. 연출 중에는 deliveryBusy 로 입력을 잠근다. */
 
-const DRIVE_STEP_MS = 420;      // 한 칸 굴러가는 시간
 const DELIVERY_ARRIVE_MS = 1000; // 도착 여운
 const DELIVERY_HANDOFF_MS = 1400; // 전달 성공 여운
 
 // 조작할 때마다 씬을 통째로 갈아 끼우므로, 누르고 있던 버튼과 같은 버튼에
 // 포커스를 되돌려 준다. 안 그러면 키보드 사용자의 포커스가 매번 사라진다.
-const DELIVERY_FOCUS_KEYS = ["dvDir", "dvGo", "dvFloor", "dvBell", "dvMove", "dvClear", "dvHome", "dvBeat"];
+const DELIVERY_FOCUS_KEYS = ["dvDir", "dvHorn", "dvFloor", "dvBell", "dvMove", "dvHome", "dvBeat"];
 
 function deliveryFocusMark() {
   const active = document.activeElement;
@@ -2124,96 +2123,37 @@ function startDeliveryRun() {
   showHint(`${state.delivery.order.unit}호로 택배를 배달해요!`, 2200);
 }
 
-// 쌓아 둔 명령을 한 칸씩 굴린다. 판정은 모델이 이미 끝냈고 여기선 보여 주기만 한다.
-function animateDrive(path, onDone) {
-  const model = state.delivery;
-  const round = state.round;
-  const finalCell = { ...model.drive.truck };
-  const finalFacing = model.drive.facing;
-  let index = 0;
-
-  state.deliveryBusy = true;
-
-  const step = () => {
-    if (state.round !== round || state.mode !== "delivery" || !state.delivery) return;
-    if (index >= path.length) {
-      model.drive.truck = finalCell;
-      model.drive.facing = finalFacing;
-      renderDeliveryAs("drive");
-      onDone();
-      return;
-    }
-    const point = path[index];
-    index += 1;
-    model.drive.truck = { x: point.x, y: point.y };
-    model.drive.facing = point.facing;
-    renderDeliveryAs("drive");
-    audio.playSfx("pop");
-    schedule(step, DRIVE_STEP_MS);
-  };
-
-  // 움직임을 줄이겠다고 한 기기에서는 칸칸이 굴리지 않고 도착 자리만 보여 준다.
-  if (path.length === 0 || prefersReducedMotion()) {
-    model.drive.truck = finalCell;
-    model.drive.facing = finalFacing;
-    renderDeliveryAs("drive");
-    onDone();
-    return;
-  }
-  step();
-}
-
-function finishDrive(events) {
-  const arrived = events.find(event => event.type === "drive-arrived");
-  if (arrived) {
-    audio.playSfx("win");
-    void audio.playPrompt("delivery-arrive");
-    showHint(`${arrived.unit}호에 도착! 상자를 내려요.`, 2000);
-    holdDelivery(DELIVERY_ARRIVE_MS, startDeliveryBeat);
-    return;
-  }
-
-  state.deliveryBusy = false;
-  const miss = events.find(event => event.type === "drive-miss");
-  if (miss) {
-    audio.playSfx("pop");
-    void audio.playPrompt("delivery-wrong-house");
-    showHint(`여기는 ${miss.unit}호예요. 목표는 ${miss.want}호!`, 1900);
-    return;
-  }
-  if (events.some(event => event.type === "drive-blocked")) {
-    audio.playSfx("pop");
-    void audio.playPrompt("delivery-blocked");
-    showHint("그쪽은 길이 아니에요. 다시 만들어 봐요!", 1800);
-    return;
-  }
-  showHint("집 앞까지 가 볼까요?", 1600);
-}
-
 function handleDeliveryEvents(events) {
   if (events.length === 0) return;
 
-  const path = events.find(event => event.type === "drive-path");
-  if (path) {
-    animateDrive(path.path, () => finishDrive(events));
-    return;
-  }
-
   for (const event of events) {
     switch (event.type) {
-      case "command-added":
-        audio.playSfx("key");
-        break;
-      case "command-cleared":
+      case "drive-step":
         audio.playSfx("pop");
         break;
-      case "command-full":
+      case "drive-edge":
         audio.playSfx("pop");
-        showHint("명령은 네 칸까지 담을 수 있어요.", 1500);
+        showHint("여기가 단지 끝이에요. 다른 쪽으로 가 봐요!", 1400);
         break;
-      case "command-empty":
+      case "drive-blocked":
         audio.playSfx("pop");
-        showHint("방향 버튼으로 길을 먼저 만들어요!", 1600);
+        void audio.playPrompt("delivery-blocked");
+        showHint(
+          event.kind === "pond" ? "연못이에요! 돌아서 가요." : "나무가 있어요! 돌아서 가요.",
+          1600
+        );
+        break;
+      case "drive-miss":
+        // 벌점은 첫 방문 한 번뿐이다 — 같은 집을 오간다고 보너스가 끊기지 않는다.
+        audio.playSfx("pop");
+        void audio.playPrompt("delivery-wrong-house");
+        showHint(`여기는 ${event.unit}호예요. 목표는 ${event.want}호!`, 1900);
+        break;
+      case "drive-arrived":
+        audio.playSfx("win");
+        void audio.playPrompt("delivery-arrive");
+        showHint(`${event.unit}호에 도착! 상자를 내려요.`, 2000);
+        holdDelivery(DELIVERY_ARRIVE_MS, startDeliveryBeat);
         break;
       case "rhythm-pass":
         audio.playSfx(event.judge === "perfect" ? "jingle" : "key");
@@ -2338,20 +2278,17 @@ function deliveryActionable() {
     Boolean(state.delivery) && !state.deliveryBusy;
 }
 
-function deliveryPush(direction) {
+// 5번 게임과 같은 문법 — 누르면 그 자리에서 한 칸 간다.
+function deliveryDrive(direction) {
   if (!deliveryActionable()) return;
-  handleDeliveryEvents(pushDeliveryCommand(state.delivery, direction));
+  handleDeliveryEvents(driveDeliveryStep(state.delivery, direction));
 }
 
-function deliveryGo() {
-  if (!deliveryActionable()) return;
-  if (state.delivery.drive.queue.length > 0) void audio.playPrompt("delivery-go");
-  handleDeliveryEvents(runDeliveryCommands(state.delivery));
-}
-
-function deliveryClear() {
-  if (!deliveryActionable()) return;
-  handleDeliveryEvents(clearDeliveryCommands(state.delivery));
+// 경적은 판정이 없다. 아이가 아무 때나 눌러도 되는 유일한 버튼이다.
+function deliveryHorn() {
+  if (!deliveryActionable() || state.delivery.phase !== "drive") return;
+  audio.playSfx("horn");
+  showHint("빵빵! 친구들이 손을 흔들어요.", 1200);
 }
 
 function deliveryFloor(digit) {
@@ -2568,11 +2505,10 @@ dom.stage.addEventListener("click", event => {
     );
     if (control) {
       const data = control.dataset;
-      if (data.dvDir) deliveryPush(data.dvDir);
-      else if (data.dvGo) deliveryGo();
+      if (data.dvDir) deliveryDrive(data.dvDir);
+      else if (data.dvHorn) deliveryHorn();
       else if (data.dvFloor) deliveryFloor(Number(data.dvFloor));
       else if (data.dvMove) deliveryMove(Number(data.dvMove));
-      else if (data.dvClear) deliveryClear();
       else if (data.dvBeat) deliveryBeat();
       else if (data.dvHome) goHome();
       else if (data.dvBell) deliveryBell();
@@ -2731,20 +2667,24 @@ document.addEventListener("keydown", event => {
     if (model.phase === "drive") {
       if (direction) {
         event.preventDefault();
-        if (!event.repeat) deliveryPush(direction);
+        // 5번 게임과 같은 반복 규칙 — 꾹 눌러도 140ms 에 한 칸씩만 간다.
+        const nowMs = performance.now();
+        if (acceptSafetyRepeat({
+          repeat: event.repeat,
+          nowMs,
+          previousMs: state.deliveryLastStepAt
+        })) {
+          state.deliveryLastStepAt = nowMs;
+          deliveryDrive(direction);
+        }
         return;
       }
       if (isSpace) {
         event.preventDefault();
-        if (!event.repeat) deliveryGo();
+        if (!event.repeat) deliveryHorn();
         return;
       }
-      if (event.key === "Backspace") {
-        event.preventDefault();
-        if (!event.repeat) deliveryClear();
-        return;
-      }
-      if (isDigit) {
+      if (isDigit || event.key === "Backspace") {
         event.preventDefault();
         audio.playSfx("pop");
       }

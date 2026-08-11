@@ -21,8 +21,7 @@ import {
   boardElevator,
   createDelivery,
   passRhythmBox,
-  pushCommand,
-  runCommands,
+  driveStep,
   tickRhythm,
 } from "../src/delivery-model.mjs";
 import { rhythmStageSvg } from "../src/delivery-rhythm-art.mjs";
@@ -32,9 +31,8 @@ function atRhythm(seed = 21) {
   const goal = state.order.cell;
   const dx = goal.x - state.drive.truck.x;
   const dy = goal.y - state.drive.truck.y;
-  for (let i = 0; i < Math.abs(dx); i += 1) pushCommand(state, dx > 0 ? "right" : "left");
-  for (let i = 0; i < Math.abs(dy); i += 1) pushCommand(state, dy > 0 ? "down" : "up");
-  runCommands(state);
+  for (let i = 0; i < Math.abs(dx); i += 1) driveStep(state, dx > 0 ? "right" : "left");
+  for (let i = 0; i < Math.abs(dy); i += 1) driveStep(state, dy > 0 ? "down" : "up");
   return state;
 }
 

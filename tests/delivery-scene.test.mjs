@@ -3,7 +3,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
-  COMMAND_SLOTS,
   DELIVERY_TARGET,
   STREAK_BONUS_SLOTS,
   createDelivery,
@@ -11,9 +10,8 @@ import {
   moveCorridorFocus,
   moveTrayFocus,
   pressFloor,
-  pushCommand,
+  driveStep,
   ringBell,
-  runCommands,
   boardElevator,
   passRhythmBox,
 } from "../src/delivery-model.mjs";
@@ -71,9 +69,8 @@ function driveToTarget(state) {
   const goal = state.order.cell;
   const horizontal = goal.x - state.drive.truck.x;
   const vertical = goal.y - state.drive.truck.y;
-  for (let i = 0; i < Math.abs(horizontal); i += 1) pushCommand(state, horizontal > 0 ? "right" : "left");
-  for (let i = 0; i < Math.abs(vertical); i += 1) pushCommand(state, vertical > 0 ? "down" : "up");
-  runCommands(state);
+  for (let i = 0; i < Math.abs(horizontal); i += 1) driveStep(state, horizontal > 0 ? "right" : "left");
+  for (let i = 0; i < Math.abs(vertical); i += 1) driveStep(state, vertical > 0 ? "down" : "up");
 }
 
 // 도착 다음은 리듬 하역이다. 하역 자체를 보는 곳이 아니면 정박에 맞춰 끝낸다.
@@ -136,8 +133,9 @@ test("모든 조작 버튼은 button 이고 이름이 붙어 있다", () => {
   for (const state of [createDelivery("steady", 3), atRhythm(), atElevator(), atCorridor(), atHandover()]) {
     const root = renderDelivery(document, state);
     const actionable = descendants(root).filter(node =>
-      node.dataset.dvDir || node.dataset.dvGo || node.dataset.dvFloor ||
-      node.dataset.dvBell || node.dataset.dvMove || node.dataset.dvBeat
+      node.dataset.dvDir || node.dataset.dvFloor ||
+      node.dataset.dvBell || node.dataset.dvMove || node.dataset.dvBeat ||
+      node.dataset.dvHorn
     );
     assert.ok(actionable.length > 0, `${state.phase}: 조작 버튼이 없다`);
     for (const node of actionable) {
@@ -150,35 +148,34 @@ test("모든 조작 버튼은 button 이고 이름이 붙어 있다", () => {
 
 /* ── STEP 1 ───────────────────────────────────────────────────────── */
 
-test("운전 화면은 목표·배송 수 카드와 지도, 명령 큐를 세운다", () => {
+test("운전 화면은 목표·배송 수 카드와 지도, 방향 버튼을 세운다", () => {
   const state = createDelivery("steady", 3);
   const root = renderDelivery(document, state);
 
   assert.equal(root.dataset.step, "1");
-  assert.deepEqual(text(root, "dv-card-title"), ["목표", "배송한 택배", "이동 명령", "방향 버튼"]);
+  assert.deepEqual(text(root, "dv-card-title"), ["목표", "배송한 택배", "방향 버튼", "경적"]);
   assert.equal(byClass(root, "dv-goal-num")[0].textContent, `${state.order.unit}호`);
   assert.equal(byClass(root, "dv-progress")[0].textContent, `📦 0 / ${DELIVERY_TARGET}`);
-  assert.equal(byClass(root, "dv-slot").length, COMMAND_SLOTS);
-  assert.deepEqual(text(root, "dv-slotnum"), ["1", "2", "3", "4"]);
+  assert.equal(byClass(root, "dv-slot").length, 0, "명령을 쌓는 칸은 더 없다");
   assert.ok(markup(root).includes("dv-map"), "지도가 없다");
 });
 
-test("방향 버튼은 정본대로 네 방향이다", () => {
+test("방향 버튼은 정본대로 네 방향이고, 출발 버튼은 없다", () => {
   const root = renderDelivery(document, createDelivery("steady", 3));
   const dirs = byData(root, "dvDir");
   assert.deepEqual(dirs.map(node => node.dataset.dvDir), ["up", "left", "right", "down"]);
   assert.deepEqual(dirs.map(node => node.textContent), ["↑", "←", "→", "↓"]);
-  assert.equal(byData(root, "dvGo").length, 1);
+  assert.equal(byData(root, "dvGo").length, 0, "누르면 바로 가므로 출발 버튼이 없다");
+  assert.equal(byData(root, "dvHorn").length, 1, "경적 버튼이 없다");
 });
 
-test("쌓은 명령이 슬롯에 그대로 보인다", () => {
+test("방향 버튼을 누르면 트럭이 그 자리에서 한 칸 간다", () => {
   const state = createDelivery("steady", 3);
-  pushCommand(state, "right");
-  pushCommand(state, "up");
-  const slots = byClass(renderDelivery(document, state), "dv-slot");
+  const before = markup(renderDelivery(document, state));
+  driveStep(state, "right");
+  const after = markup(renderDelivery(document, state));
 
-  assert.deepEqual(slots.map(node => node.textContent), ["→", "↑", "", ""]);
-  assert.deepEqual(slots.map(node => node.dataset.filled), ["true", "true", "false", "false"]);
+  assert.notEqual(before, after, "한 칸 갔으면 지도가 달라져야 한다");
 });
 
 test("하단에 배달한 택배 수가 붙는다", () => {
