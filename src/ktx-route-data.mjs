@@ -88,7 +88,9 @@ export const KTX_SEGMENTS = Object.freeze([
       Object.freeze({ until: 1, sky: "day", land: "city" })
     ]),
     events: Object.freeze([
-      Object.freeze({ type: "seagull", at: 0.4, until: 0.85 })
+      // 0.85는 정차 접근 구간(마지막 25%)을 침범해 딱 멈추기와 주의가
+      // 겹쳤다 — 갈매기는 바다 밴드 안에서 일찍 끝낸다.
+      Object.freeze({ type: "seagull", at: 0.4, until: 0.75 })
     ])
   })
 ]);
@@ -150,6 +152,24 @@ export const KTX_ROUTE_LABELS = Object.freeze({
 
 // 랜덤 이벤트 풀 2종 — 매판 시드로 1종을 뽑아 2 또는 3구간의 빈 자리에 놓는다.
 // (전량 삭제는 7세 변주 0, 4종 유지는 밀도 초과 — 협회 절충)
+// 지형이 이벤트를 정한다 — 들판엔 소 농장, 바다엔 갈매기, 도시엔 교행 열차.
+// 아이가 "저기 뭐야?" 하고 창밖을 보게 만드는 게 목적이라 그 땅에서 실제로
+// 볼 법한 것만 넣는다. 터널·산은 자체 연출이 있어 비워 둔다.
+export const KTX_LAND_EVENTS = Object.freeze({
+  field: Object.freeze(["cows"]),
+  river: Object.freeze(["river"]),
+  sea: Object.freeze(["seagull"]),
+  city: Object.freeze(["passing"]),
+  mountain: Object.freeze([]),
+  tunnel: Object.freeze([])
+});
+
+export const LAND_EVENT_SPAN = 0.1;        // 이벤트 창 길이(구간 진행률)
+export const LAND_EVENT_MARGIN = 0.03;     // 밴드 경계에서 띄우는 여유
+export const LAND_EVENTS_PER_SEGMENT = 2;  // 구간당 상한 — 남발하면 특별함이 죽는다
+export const LAND_EVENT_TYPE_BUDGET = 2;   // 한 판에 같은 종류는 두 번까지
+
+// (구) 판당 랜덤 1종 — 지형 기반 배치로 대체됐다. 상수는 호환용으로 남긴다.
 export const KTX_RANDOM_EVENTS = Object.freeze([
   Object.freeze({ type: "passing", segments: Object.freeze([1, 2]), at: 0.12, until: 0.3 }),
   Object.freeze({ type: "cows", segments: Object.freeze([1]), at: 0.75, until: 0.95 })

@@ -806,3 +806,56 @@ test("부스터 게이트는 관성 거리만큼 예고선보다 먼저 잠긴�
   assert.equal(result.events[0]?.type, "boost-unavailable");
   assert.equal(result.events[0]?.reason, "slow");
 });
+
+test("이벤트는 지형이 정한다 — 갈매기는 바다에, 소는 들판에만 온다", () => {
+  const LAND_OF = { cows: "field", river: "river", seagull: "sea", passing: "city" };
+  for (let seed = 0; seed <= 40; seed += 1) {
+    const state = createKtxJourney(seed, "srt", "steady");
+    const segs = routeSegments(state);
+    state.schedule.forEach((events, segIndex) => {
+      for (const event of events) {
+        const land = LAND_OF[event.type];
+        if (!land) continue;   // sprint300·tunnel은 지형(밴드) 자체라 제외
+        // 이벤트 창의 양 끝이 모두 그 지형 밴드 안에 있어야 한다
+        for (const at of [event.at, event.until]) {
+          const band = segs[segIndex].bands.find(b => at <= b.until);
+          assert.equal(band.land, land,
+            `seed ${seed} 구간 ${segIndex}: ${event.type}가 ${band.land} 위에 있다`);
+        }
+        assert.ok(event.until <= 0.75 + 1e-9,
+          `seed ${seed}: ${event.type}가 정차 접근 구간을 침범`);
+      }
+    });
+  }
+});
+
+test("한 판에 같은 이벤트가 세 번 이상 나오지 않는다", () => {
+  for (let seed = 0; seed <= 40; seed += 1) {
+    const state = createKtxJourney(seed, "srt", "steady");
+    const counts = new Map();
+    for (const event of state.schedule.flat()) {
+      counts.set(event.type, (counts.get(event.type) ?? 0) + 1);
+    }
+    for (const [type, count] of counts) {
+      if (type === "sprint300" || type === "tunnel") continue;
+      assert.ok(count <= 2, `seed ${seed}: ${type} ${count}회 — 특별함이 죽는다`);
+    }
+  }
+});
+
+test("같은 구간의 이벤트 창은 서로 겹치지 않는다 — 겹치면 뒤쪽이 안 보인다", () => {
+  // activeEvent가 첫 매치만 돌려주므로 겹친 이벤트는 화면에 영영 안 나온다.
+  for (let seed = 0; seed <= 40; seed += 1) {
+    const state = createKtxJourney(seed, "srt", "steady");
+    state.schedule.forEach((events, segIndex) => {
+      for (let i = 0; i < events.length; i += 1) {
+        for (let j = i + 1; j < events.length; j += 1) {
+          const a = events[i];
+          const b = events[j];
+          assert.ok(a.until <= b.at || a.at >= b.until,
+            `seed ${seed} 구간 ${segIndex}: ${a.type}와 ${b.type} 창이 겹친다`);
+        }
+      }
+    });
+  }
+});

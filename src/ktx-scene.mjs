@@ -54,6 +54,7 @@ import { characterAsset } from "./character-spec.mjs";
 import {
   realisticAssetAlt,
   realisticCabAsset,
+  realisticEventAsset,
   realisticExteriorAsset
 } from "./ktx-realistic-assets.mjs";
 import {
@@ -1137,7 +1138,8 @@ export function updateKtxScene(root, state, view, events = [], held = {}) {
   const stageHost = root.querySelector(".ktx-event-stage");
   const active = activeEvent(state);
   const eventKey = active?.type ?? "";
-  const stageKey = eventKey === "passing" ? "" : eventKey;
+  const stageKey = eventKey === "passing" || realisticEventAsset(eventKey)
+    ? "" : eventKey;
   if (stageHost.dataset.event !== stageKey) {
     stageHost.dataset.event = stageKey;
     stageHost.innerHTML = stageKey ? eventSpriteSvg(stageKey) : "";
@@ -1164,6 +1166,19 @@ export function updateKtxScene(root, state, view, events = [], held = {}) {
       if (event.response === "passing") {
         pulse(root.querySelector(".ktx-oncoming-cab"), "ktx-oncome-run");
         pulse(root.querySelector(".ktx-side-oncoming"), "ktx-oncoming-run");
+      }
+    }
+    if (event.type === "event") {
+      // 실사 스프라이트가 있는 종류만 월드 스윕으로 — 없으면 기존 평면 연출.
+      const sprite = realisticEventAsset(event.event);
+      const host = root.querySelector(".ktx-motion-event");
+      if (sprite && host) {
+        host.dataset.kind = event.event;
+        host.style.setProperty("--event-image", `url("${sprite}")`);
+        // 빠를수록 짧게 스친다 — 고정 시간이면 300km/h에서 느릿해 보인다.
+        const seconds = Math.max(1.1, Math.min(4.2, 620 / Math.max(state.v, 40)));
+        host.style.setProperty("--event-sweep-ms", `${Math.round(seconds * 1000)}ms`);
+        pulse(host, "ktx-event-go");
       }
     }
     if (event.type === "event" && event.event === "passing") {

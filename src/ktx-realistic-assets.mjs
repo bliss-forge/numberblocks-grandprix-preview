@@ -38,6 +38,19 @@ export const REALISTIC_MOTION_ASSETS = Object.freeze({
   ])))
 });
 
+// 실사 이벤트 스프라이트 — Codex가 만든 것만 등재한다. 등재된 종류만 월드
+// 스윕으로 승격되고, 없는 종류는 기존 평면 연출을 그대로 써서 빈 화면이
+// 되지 않는다(자산 도착 순서와 배포를 분리하기 위한 장치).
+export const REALISTIC_EVENT_ASSETS = Object.freeze({
+  // 예: cows: `${MOTION_ROOT}/event-cows.webp`
+});
+
+export function realisticEventAsset(kind) {
+  return Object.hasOwn(REALISTIC_EVENT_ASSETS, kind)
+    ? REALISTIC_EVENT_ASSETS[kind]
+    : null;
+}
+
 export function realisticExteriorAsset(trainId, land) {
   const train = Object.hasOwn(REALISTIC_TRAIN_ASSETS, trainId)
     ? REALISTIC_TRAIN_ASSETS[trainId]

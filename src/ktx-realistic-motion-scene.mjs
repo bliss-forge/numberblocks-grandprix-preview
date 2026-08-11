@@ -1,4 +1,8 @@
-import { REALISTIC_MOTION_ASSETS, realisticMotionAssets } from "./ktx-realistic-assets.mjs";
+import {
+  REALISTIC_MOTION_ASSETS,
+  realisticEventAsset,
+  realisticMotionAssets
+} from "./ktx-realistic-assets.mjs";
 import { realisticMotionFrame } from "./ktx-realistic-motion.mjs";
 import { routeSegments } from "./ktx-journey.mjs";
 
@@ -548,6 +552,10 @@ export function buildRealisticMotionScene(document, state, onStateChange) {
   oncoming.alt = "";
   oncoming.decoding = "async";
   oncoming.setAttribute("aria-hidden", "true");
+  // 테마 이벤트 스프라이트 — 소 농장·갈매기 떼가 월드에서 스쳐 지나간다.
+  // 화면에 붙어 있는 평면 연출과 달리 속도에 맞춰 흘러야 "달리는 중에
+  // 우연히 봤다"가 된다.
+  const eventSprite = el(document, "div", "ktx-motion-event");
   const trainRig = el(document, "div", "ktx-motion-train-rig");
   // 칸 접합부마다 문 — 문 하나(23px)로는 개폐가 화면에서 읽히지 않는다는
   // 피드백(2026-08-10). 네 짝이 함께 열리고 닫혀야 "정차했다/떠난다"가 보인다.
@@ -575,7 +583,7 @@ export function buildRealisticMotionScene(document, state, onStateChange) {
   Object.assign(controller, { station, stationSign, train, cabFrame });
 
   scene.append(...plates, stationViewport, stationSign,
-    mid, track, oncoming, near, cabRig, trainRig);
+    mid, eventSprite, track, oncoming, near, cabRig, trainRig);
   scene.dataset.readiness = "pending";
   applyFrame(scene, state, { sky: state.sky, land: state.land }, controller);
   controllers.set(scene, controller);
