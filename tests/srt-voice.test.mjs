@@ -63,6 +63,20 @@ test("앱이 부르는 SRT 음성은 모두 등재돼 있다 — 무음이 되�
   }
 });
 
+// 물감 세션이 같은 이식을 하며 넣은 구조 가드를 여기도 둔다(2026-08-11).
+// 위 두 테스트는 "내가 아는 세 경로"를 훑는다 — 넷째 경로가 생기면 스캔 범위가
+// 조용히 좁아져, 살아 있는 키를 사문화로 오판한다(내가 실제로 밟은 함정).
+// 새 경로가 생기면 여기서 먼저 걸려 스캐너를 갱신하라고 알려 준다.
+test("SRT 음성 호출 경로가 알려진 세 갈래를 벗어나지 않는다", () => {
+  const literals = new Set(
+    [...appSource.matchAll(/"(srt-[\w-]+)"/g)].map(match => match[1]));
+  const scanned = new Set(appVoiceKeys());
+  for (const key of literals) {
+    assert.ok(scanned.has(key),
+      `${key} 가 스캔 밖에 있다 — 새 호출 경로가 생겼으니 appVoiceKeys()를 갱신하라`);
+  }
+});
+
 test("등재한 SRT 음성은 앱이 실제로 부른다 — 사문화된 키가 없다", () => {
   const called = appVoiceKeys();
   for (const key of manifestKeys) {
