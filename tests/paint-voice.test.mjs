@@ -116,24 +116,47 @@ test("재생 경로 없는 실명 호명 키는 알려진 폴백 넷뿐이다", 
 });
 
 // 물감은 음성 호출이 speakPaint 한 곳으로 모인다. 다른 게임처럼 키 룩업
-// 테이블이 생기면 위 도달성 계산의 스캔 범위가 조용히 좁아지므로 못 박는다.
+// 테이블이나 두 번째 래퍼가 생기면 위 도달성 계산의 스캔 범위가 조용히
+// 좁아진다 — KTX 세션이 정확히 그걸로 살아 있는 키를 사문화로 오판했다.
+//
+// 찾을 문자열은 매니페스트에서 끌어온다. 정규식으로 "paint-" 를 훑으면
+// CSS 클래스 "paint-play" 나 SVG 속성 paint-order= 까지 걸려 오탐이 난다.
+const VOICE_TEMPLATES = Object.freeze([
+  "paint-order-${subject.id}",
+  "paint-mix-${event.color}",
+  "paint-made-${event.color}"
+]);
+
 test("물감 음성 호출 경로는 speakPaint 하나뿐이다", async () => {
-  const appSource = await readFile(
-    new URL("../src/app.mjs", import.meta.url), "utf8"
-  );
-  const literals = [...appSource.matchAll(/["'`]paint-[\w-]*(?:\$\{[^}]+\})?[^"'`]*["'`]/g)]
-    .map(match => match[0]);
-  assert.ok(literals.length >= 5, "물감 키 리터럴을 찾지 못했다");
-  // 모든 물감 키 리터럴은 speakPaint(...) 나 paintMixVoiceKey 반환문 안에 있어야 한다
-  for (const literal of literals) {
-    const at = appSource.indexOf(literal);
-    const line = appSource.slice(appSource.lastIndexOf("\n", at) + 1,
-      appSource.indexOf("\n", at));
-    assert.match(
-      line, /speakPaint\(|paint-mix-\$\{event\.color\}|paint-made-\$\{event\.color\}/,
-      `물감 키가 speakPaint 밖에서 쓰인다: ${line.trim()}`
-    );
+  const needles = [...manifestKeys, ...VOICE_TEMPLATES];
+  const files = ["app.mjs", "paint-play.mjs", "paint-play-scene.mjs",
+    "paint-play-data.mjs", "audio-manager.mjs", "app-behavior.mjs"];
+  let found = 0;
+
+  for (const file of files) {
+    const source = await readFile(new URL(`../src/${file}`, import.meta.url), "utf8");
+    for (const needle of needles) {
+      // 같은 리터럴이 두 번 나와도 각 위치를 따로 본다(indexOf 한 번은 첫 것만 본다)
+      for (let at = source.indexOf(needle); at >= 0; at = source.indexOf(needle, at + 1)) {
+        // 부분 문자열 오탐 제외 — localStorage 키 "numberblocks-paint-unlocked" 가
+        // "paint-unlock" 을 품는다. 앞뒤가 단어 문자면 다른 이름의 일부다.
+        const before = source[at - 1] ?? " ";
+        const after = source[at + needle.length] ?? " ";
+        if (/[\w-]/.test(before) || /[\w-]/.test(after)) continue;
+        const start = source.lastIndexOf("\n", at) + 1;
+        const end = source.indexOf("\n", at);
+        const line = source.slice(start, end < 0 ? source.length : end);
+        found += 1;
+        assert.match(
+          line,
+          /speakPaint\(|return matches \?/,
+          `${file} 에서 물감 키가 speakPaint 밖에서 쓰인다 — 새 호출 경로가 ` +
+          `생겼다면 위 도달성 계산의 스캔 범위를 함께 넓혀라: ${line.trim()}`
+        );
+      }
+    }
   }
+  assert.ok(found >= 5, `물감 키 사용처를 ${found}곳만 찾았다 — 스캔이 헛돌았다`);
 });
 
 // 위 탐색이 쓰는 결과색 판정 — mixJar 와 같은 규칙을 테스트 안에서 재현한다.
