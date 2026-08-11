@@ -1,0 +1,183 @@
+<!-- 목업 v3-4: 씬 ④ 초인종·호 확인 — 복도 문패 매칭, 딩동, 라벨 카드가 문패에 딱 겹침("숫자가 딱 같네!") -->
+<meta charset="utf-8">
+<style>
+  html,body{margin:0;padding:0;background:#fff}
+  body{width:1280px;height:720px;overflow:hidden}
+  svg{display:block;font-family:'Noto Sans CJK KR','Noto Sans KR','WenQuanYi Zen Hei',sans-serif}
+  text{user-select:none}
+</style>
+<svg width="1280" height="720" viewBox="0 0 1280 720" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="hallWall" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#F8F1E2"/><stop offset="1" stop-color="#F1E6CF"/>
+    </linearGradient>
+    <filter id="soft" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="5" stdDeviation="7" flood-color="#26424E" flood-opacity="0.16"/>
+    </filter>
+    <filter id="tiny" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="2" stdDeviation="2.5" flood-color="#26424E" flood-opacity="0.18"/>
+    </filter>
+  </defs>
+
+  <!-- 복도 벽/천장/바닥 -->
+  <rect width="1280" height="720" fill="url(#hallWall)"/>
+  <rect x="0" y="0" width="1280" height="56" fill="#EFE4CC"/>
+  <path d="M0 56 h1280" stroke="#DDCFB0" stroke-width="4"/>
+  <g>
+    <ellipse cx="380" cy="46" rx="46" ry="14" fill="#FFF6D9" stroke="#E8D9AE" stroke-width="3"/>
+    <ellipse cx="900" cy="46" rx="46" ry="14" fill="#FFF6D9" stroke="#E8D9AE" stroke-width="3"/>
+  </g>
+  <rect x="0" y="536" width="1280" height="26" fill="#E2D2AE"/>
+  <rect x="0" y="562" width="1280" height="158" fill="#D9C094"/>
+  <g stroke="#CBB183" stroke-width="3">
+    <path d="M0 610 h1280"/><path d="M0 668 h1280"/>
+    <path d="M160 562 v48 M480 562 v48 M800 562 v48 M1120 562 v48"/>
+    <path d="M320 610 v58 M640 610 v58 M960 610 v58"/>
+  </g>
+
+  <!-- ===== 문 3개: 501 / 502(목표, 닫힘·딩동 중) / 503 ===== -->
+  <!-- 501호 -->
+  <g>
+    <rect x="130" y="220" width="196" height="326" rx="8" fill="#8FBFB7" stroke="#74A79E" stroke-width="5"/>
+    <rect x="152" y="248" width="152" height="120" rx="8" fill="#A8D0C8" opacity="0.6"/>
+    <circle cx="304" cy="396" r="9" fill="#5E8A82"/>
+    <g filter="url(#tiny)"><rect x="176" y="168" width="104" height="42" rx="10" fill="#FFFDF6" stroke="#D9CDB2" stroke-width="3"/></g>
+    <text x="228" y="199" text-anchor="middle" font-size="26" font-weight="800" fill="#7B8A96">501</text>
+  </g>
+  <!-- 503호 -->
+  <g>
+    <rect x="954" y="220" width="196" height="326" rx="8" fill="#93B7E0" stroke="#7A9FC9" stroke-width="5"/>
+    <rect x="976" y="248" width="152" height="120" rx="8" fill="#ACC9E8" opacity="0.6"/>
+    <circle cx="978" cy="396" r="9" fill="#5F82AB"/>
+    <g filter="url(#tiny)"><rect x="1000" y="168" width="104" height="42" rx="10" fill="#FFFDF6" stroke="#D9CDB2" stroke-width="3"/></g>
+    <text x="1052" y="199" text-anchor="middle" font-size="26" font-weight="800" fill="#7B8A96">503</text>
+  </g>
+
+  <!-- 502호 (목표, 닫힘): 코럴 문 + 패널 2 -->
+  <g>
+    <rect x="542" y="220" width="196" height="326" rx="8" fill="#EE9678" stroke="#D67C5E" stroke-width="5"/>
+    <rect x="566" y="252" width="148" height="108" rx="8" fill="none" stroke="#D67C5E" stroke-width="3" opacity="0.8"/>
+    <rect x="566" y="388" width="148" height="122" rx="8" fill="none" stroke="#D67C5E" stroke-width="3" opacity="0.8"/>
+    <circle cx="562" cy="396" r="9" fill="#B35F44"/>
+  </g>
+
+  <!-- 호 확인 연출: 라벨 카드가 문패에 딱 겹침 -->
+  <!-- 비행 트레일 (HUD 라벨 → 문패) -->
+  <path d="M1146 66 Q980 34 716 148" fill="none" stroke="#FFD34D" stroke-width="4" stroke-dasharray="2 13" stroke-linecap="round" opacity="0.9"/>
+  <g transform="translate(946 84) rotate(-8)" opacity="0.5">
+    <rect x="-48" y="-16" width="96" height="32" rx="7" fill="#FFFDF6" stroke="#D9CDB2" stroke-width="2"/>
+    <circle cx="-22" cy="0" r="10" fill="#FFE1D6"/>
+    <text x="-22" y="6" text-anchor="middle" font-size="16" font-weight="800" fill="#E86A50">5</text>
+    <text x="14" y="6" text-anchor="middle" font-size="16" font-weight="800" fill="#8A94A0">02호</text>
+  </g>
+  <!-- 겹침 확인: 매칭 문패 + 카드 프레임 + 반짝 -->
+  <g transform="rotate(-2 640 176)">
+    <rect x="544" y="141" width="192" height="70" rx="14" fill="#FFFDF6" opacity="0.6" stroke="#D9CDB2" stroke-width="3"/>
+    <rect x="618" y="130" width="44" height="20" rx="4" fill="#BFE3EE" opacity="0.85"/>
+  </g>
+  <g filter="url(#tiny)"><rect x="576" y="152" width="128" height="48" rx="12" fill="#FFF9E6" stroke="#F5C531" stroke-width="4"/></g>
+  <circle cx="614" cy="176" r="20" fill="#FFE1D6"/>
+  <text x="614" y="187" text-anchor="middle" font-size="30" font-weight="800" fill="#E86A50">5</text>
+  <text x="658" y="187" text-anchor="middle" font-size="30" font-weight="800" fill="#D98A2B">02</text>
+  <g fill="#FFD34D">
+    <path d="M556 136 l4 9 9 4 -9 4 -4 9 -4 -9 -9 -4 9 -4 z"/>
+    <path d="M718 144 l3 7 7 3 -7 3 -3 7 -3 -7 -7 -3 7 -3 z"/>
+  </g>
+  <g stroke="#FFD34D" stroke-width="3" stroke-linecap="round">
+    <path d="M540 176 h-16 M740 176 h16 M576 122 l-8 -12 M704 122 l8 -12"/>
+  </g>
+
+  <!-- "숫자가 딱 같네!" 말풍선 (문패 왼쪽) -->
+  <g filter="url(#tiny)">
+    <path d="M304 108 q0 -16 16 -16 h208 q16 0 16 16 v28 q0 16 -16 16 h-30 l20 20 -42 -20 h-156 q-16 0 -16 -16 z" fill="#FFFFFF"/>
+  </g>
+  <text x="424" y="131" text-anchor="middle" font-size="24" font-weight="800" fill="#E86A50">숫자가 딱 같네!</text>
+
+  <!-- 초인종 (누름) + 딩동 -->
+  <g filter="url(#tiny)">
+    <rect x="500" y="360" width="30" height="44" rx="8" fill="#FFFDF6" stroke="#D9CDB2" stroke-width="3"/>
+    <circle cx="515" cy="382" r="8" fill="#F5A623"/>
+    <circle cx="515" cy="382" r="12" fill="none" stroke="#F5A623" stroke-width="2.5" opacity="0.6"/>
+  </g>
+  <g stroke="#E8A61E" stroke-width="3" fill="none" stroke-linecap="round">
+    <path d="M498 340 q6 -8 2 -16"/><path d="M512 336 q8 -10 3 -22"/>
+  </g>
+  <text x="486" y="304" font-size="20" font-weight="800" fill="#E8A61E">딩동!</text>
+
+  <!-- 기사님: 초인종 누르기 -->
+  <g filter="url(#tiny)">
+    <g transform="translate(414 462)">
+      <rect x="-34" y="-8" width="68" height="86" rx="18" fill="#F5A623"/>
+      <rect x="-15" y="-8" width="30" height="86" fill="#FFF1D4"/>
+      <path d="M-15 22 h30" stroke="#E8CFA0" stroke-width="3"/>
+      <circle cx="0" cy="-38" r="27" fill="#F7C6A0"/>
+      <path d="M-28 -46 a28 28 0 0 1 56 0 z" fill="#E86A50"/>
+      <rect x="24" y="-52" width="22" height="10" rx="5" fill="#E86A50"/>
+      <circle cx="-8" cy="-36" r="3.6" fill="#333333"/><circle cx="10" cy="-36" r="3.6" fill="#333333"/>
+      <circle cx="-9.4" cy="-37.4" r="1.4" fill="#FFFFFF" opacity="0.9"/><circle cx="8.6" cy="-37.4" r="1.4" fill="#FFFFFF" opacity="0.9"/>
+      <path d="M-6 -25 q7 6 14 0" stroke="#B3541E" stroke-width="3" fill="none" stroke-linecap="round"/>
+      <circle cx="-17" cy="-29" r="4.5" fill="#FF9E8A" opacity="0.6"/>
+      <!-- 오른팔: 초인종으로 -->
+      <path d="M26 -2 q40 -34 72 -72" stroke="#F5A623" stroke-width="13" fill="none" stroke-linecap="round"/>
+      <path d="M-28 8 q-14 16 -10 34" stroke="#F5A623" stroke-width="13" fill="none" stroke-linecap="round"/>
+      <rect x="-24" y="78" width="18" height="26" rx="8" fill="#5B6472"/>
+      <rect x="6" y="78" width="18" height="26" rx="8" fill="#5B6472"/>
+    </g>
+  </g>
+  <!-- "택배 왔어요~!" 말풍선 -->
+  <g filter="url(#tiny)">
+    <path d="M180 322 q0 -18 18 -18 h198 q18 0 18 18 v32 q0 18 -18 18 h-30 l24 26 -50 -26 h-142 q-18 0 -18 -18 z" fill="#FFFFFF"/>
+  </g>
+  <text x="297" y="348" text-anchor="middle" font-size="24" font-weight="800" fill="#3E5A68">택배 왔어요~!</text>
+
+  <!-- 카트 + 상자 2 (502 앞, 701 뒤) -->
+  <g filter="url(#tiny)">
+    <path d="M186 600 q-22 -16 -26 -42" stroke="#8A97A3" stroke-width="5" fill="none" stroke-linecap="round"/>
+    <rect x="182" y="598" width="164" height="10" rx="4" fill="#8A97A3"/>
+    <path d="M194 608 v16 m140 -16 v16" stroke="#8A97A3" stroke-width="5"/>
+    <circle cx="200" cy="630" r="10" fill="#39434C"/><circle cx="200" cy="630" r="4" fill="#C9D2DA"/>
+    <circle cx="328" cy="630" r="10" fill="#39434C"/><circle cx="328" cy="630" r="4" fill="#C9D2DA"/>
+    <rect x="274" y="546" width="66" height="46" rx="6" fill="#DDA75A" stroke="#C98F3F" stroke-width="3"/>
+    <rect x="282" y="558" width="50" height="20" rx="3" fill="#FFFDF6" stroke="#D9CDB2" stroke-width="2"/>
+    <text x="307" y="573" text-anchor="middle" font-size="14" font-weight="800" fill="#4A5560">701호</text>
+    <rect x="188" y="540" width="86" height="58" rx="7" fill="#E8B368" stroke="#C98F3F" stroke-width="4"/>
+    <path d="M188 563 h86 M231 540 v23" stroke="#C98F3F" stroke-width="3"/>
+    <rect x="203" y="568" width="56" height="23" rx="4" fill="#FFFDF6" stroke="#D9CDB2" stroke-width="2.5"/>
+    <text x="231" y="586" text-anchor="middle" font-size="17" font-weight="800" fill="#4A5560">502호</text>
+  </g>
+
+  <!-- ===== HUD ===== -->
+  <g filter="url(#tiny)"><rect x="24" y="22" width="252" height="56" rx="18" fill="#FFFFFF" opacity="0.97"/></g>
+  <text x="44" y="58" font-size="19" font-weight="700" fill="#3E5A68">남은 상자</text>
+  <g>
+    <g transform="translate(140 36)" opacity="0.35"><rect width="26" height="26" rx="5" fill="#D9D2C2" stroke="#B8B09C" stroke-width="2.5"/><path d="M5 13 l7 7 9 -11" stroke="#69A05B" stroke-width="4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <g transform="translate(172 36)"><rect width="26" height="26" rx="5" fill="#E8B368" stroke="#C98F3F" stroke-width="2.5"/><path d="M0 10 h26 M13 0 v10" stroke="#C98F3F" stroke-width="2"/></g>
+    <g transform="translate(204 36)"><rect width="26" height="26" rx="5" fill="#DDA75A" stroke="#C98F3F" stroke-width="2.5"/><path d="M0 10 h26 M13 0 v10" stroke="#C98F3F" stroke-width="2"/></g>
+    <g transform="translate(236 36)"><rect width="26" height="26" rx="5" fill="#E8B368" stroke="#C98F3F" stroke-width="2.5"/><path d="M0 10 h26 M13 0 v10" stroke="#C98F3F" stroke-width="2"/></g>
+  </g>
+  <!-- 우상단: 라벨 카드 자리(비행 중 = 빈 슬롯) + 다음 카드 701 -->
+  <rect x="1064" y="22" width="192" height="62" rx="14" fill="#FFFDF6" opacity="0.35" stroke="#D9CDB2" stroke-width="3" stroke-dasharray="9 8"/>
+  <g filter="url(#tiny)" transform="rotate(2 1160 128)">
+    <rect x="1072" y="100" width="176" height="56" rx="13" fill="#FFFDF6" stroke="#D9CDB2" stroke-width="3"/>
+    <circle cx="1108" cy="128" r="18" fill="#FFE1D6"/>
+    <text x="1108" y="138" text-anchor="middle" font-size="27" font-weight="800" fill="#E86A50">7</text>
+    <text x="1174" y="138" text-anchor="middle" font-size="27" font-weight="800" fill="#8A94A0">01호</text>
+  </g>
+
+  <!-- 우하단 키 힌트: Space = 초인종 -->
+  <g filter="url(#tiny)"><rect x="1046" y="666" width="214" height="44" rx="12" fill="#FFFFFF" opacity="0.97"/></g>
+  <g>
+    <rect x="1058" y="672" width="72" height="32" rx="8" fill="#FFF3C9" stroke="#F5A623" stroke-width="2.5"/>
+    <rect x="1072" y="686" width="44" height="5" rx="2.5" fill="#B3541E"/>
+    <!-- 초인종 그림 -->
+    <rect x="1150" y="674" width="20" height="28" rx="6" fill="#FFFDF6" stroke="#D9CDB2" stroke-width="2.5"/>
+    <circle cx="1160" cy="688" r="5.5" fill="#F5A623"/>
+    <path d="M1178 680 q5 -5 2 -11 M1185 686 q8 -8 4 -17" stroke="#F5A623" stroke-width="2.6" fill="none" stroke-linecap="round"/>
+    <path d="M1216 696 v-14 l8 -3 v14" stroke="#E8A61E" stroke-width="2.6" fill="none" stroke-linejoin="round"/>
+    <circle cx="1214" cy="696" r="3.4" fill="#E8A61E"/><circle cx="1222" cy="693" r="3.4" fill="#E8A61E"/>
+  </g>
+
+  <!-- 목업 캡션 -->
+  <g><rect x="16" y="688" width="708" height="26" rx="8" fill="#FFFFFF" opacity="0.78"/></g>
+  <text x="28" y="706" font-size="14" fill="#7B8A96">목업 v3 · 씬 ④ 초인종·호 확인(딩동 → 라벨 카드가 문패에 딱 겹침) · 캐릭터는 실제 에셋으로 교체 예정</text>
+</svg>

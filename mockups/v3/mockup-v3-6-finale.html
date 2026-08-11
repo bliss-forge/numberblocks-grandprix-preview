@@ -1,0 +1,282 @@
+<!-- 목업 v3-6: 씬 ⑥ 단지 전경 합창 피날레 — "멋진 꼬마 택배기사님, 고마워요!" + 별 샤워 + 포장이 통과 -->
+<meta charset="utf-8">
+<style>
+  html,body{margin:0;padding:0;background:#fff}
+  body{width:1280px;height:720px;overflow:hidden}
+  svg{display:block;font-family:'Noto Sans CJK KR','Noto Sans KR','WenQuanYi Zen Hei',sans-serif}
+  text{user-select:none}
+</style>
+<svg width="1280" height="720" viewBox="0 0 1280 720" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="dusk" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFC28A"/><stop offset="1" stop-color="#FFE3B8"/>
+    </linearGradient>
+    <filter id="soft" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="5" stdDeviation="7" flood-color="#26424E" flood-opacity="0.16"/>
+    </filter>
+    <filter id="tiny" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="2" stdDeviation="2.5" flood-color="#26424E" flood-opacity="0.18"/>
+    </filter>
+  </defs>
+
+  <!-- 석양 하늘 + 해 -->
+  <rect width="1280" height="720" fill="url(#dusk)"/>
+  <circle cx="176" cy="176" r="56" fill="#FF9E5E" opacity="0.35"/>
+  <circle cx="176" cy="176" r="40" fill="#FF9E5E"/>
+
+  <!-- 원경 실루엣 -->
+  <g fill="#D9A88F">
+    <rect x="-10" y="392" width="120" height="120" rx="6"/>
+    <rect x="96" y="428" width="86" height="84" rx="6"/>
+    <rect x="170" y="404" width="104" height="108" rx="6"/>
+    <rect x="1004" y="420" width="96" height="92" rx="6"/>
+    <rect x="1086" y="392" width="120" height="120" rx="6"/>
+    <rect x="1194" y="430" width="96" height="82" rx="6"/>
+  </g>
+
+  <!-- 광장 바닥 -->
+  <rect x="0" y="496" width="1280" height="224" fill="#E3DCCA"/>
+  <path d="M0 496 h1280" stroke="#D2C9B2" stroke-width="3"/>
+  <g stroke="#D2C9B2" stroke-width="2.5">
+    <path d="M0 566 h1280 M0 644 h1280"/>
+    <path d="M140 496 v70 M420 496 v70 M700 496 v70 M980 496 v70 M1240 496 v70"/>
+    <path d="M280 566 v78 M560 566 v78 M840 566 v78 M1120 566 v78"/>
+  </g>
+
+  <!-- ===== 방문 3동 미니어처 (101 / 202 / 303) ===== -->
+  <!-- 101동 -->
+  <g filter="url(#soft)">
+    <rect x="316" y="290" width="168" height="220" rx="10" fill="#F6EDD9" stroke="#E3D4B4" stroke-width="3"/>
+  </g>
+  <path d="M316 300 q0 -10 10 -10 h148 q10 0 10 10 v18 h-168 z" fill="#EE8A6B"/>
+  <g filter="url(#tiny)"><rect x="350" y="330" width="100" height="34" rx="8" fill="#FFFDF6" stroke="#D9CDB2" stroke-width="2.5"/></g>
+  <text x="400" y="355" text-anchor="middle" font-size="24" font-weight="800" fill="#8AA0B0">101동</text>
+  <g fill="#BFDCEA" stroke="#A9C6D6" stroke-width="2.5">
+    <rect x="336" y="382" width="40" height="34" rx="5"/>
+    <rect x="336" y="432" width="40" height="34" rx="5"/>
+    <rect x="424" y="432" width="40" height="34" rx="5"/>
+  </g>
+  <!-- 점등 창 + 미니 친구(3번, 손 흔들기) -->
+  <rect x="424" y="382" width="40" height="34" rx="5" fill="#FFF3C9" stroke="#E8CE86" stroke-width="2.5"/>
+  <g>
+    <rect x="438" y="401" width="11" height="11" rx="2" fill="#F5C531" stroke="#D9A81E" stroke-width="1.5"/>
+    <rect x="438" y="390" width="11" height="11" rx="2" fill="#F8D45C" stroke="#D9A81E" stroke-width="1.5"/>
+    <circle cx="441.4" cy="394" r="1.8" fill="#FFFFFF"/><circle cx="446" cy="394" r="1.8" fill="#FFFFFF"/>
+    <circle cx="441.8" cy="394.3" r="0.9" fill="#333333"/><circle cx="446.4" cy="394.3" r="0.9" fill="#333333"/>
+    <path d="M441.5 398 q2.3 1.8 4.6 0" stroke="#B37A24" stroke-width="1.3" fill="none" stroke-linecap="round"/>
+    <path d="M449 393 q5 -4 6 -9" stroke="#D9A81E" stroke-width="3" fill="none" stroke-linecap="round"/>
+  </g>
+  <rect x="380" y="454" width="40" height="56" rx="6" fill="#CBD8E2" stroke="#B4C4D0" stroke-width="2.5"/>
+  <path d="M400 454 v56" stroke="#B4C4D0" stroke-width="2"/>
+
+  <!-- 202동 -->
+  <g filter="url(#soft)">
+    <rect x="556" y="272" width="168" height="238" rx="10" fill="#EFF4DF" stroke="#D8DFBC" stroke-width="3"/>
+  </g>
+  <path d="M556 282 q0 -10 10 -10 h148 q10 0 10 10 v18 h-168 z" fill="#7FB6A4"/>
+  <g filter="url(#tiny)"><rect x="590" y="312" width="100" height="34" rx="8" fill="#FFFDF6" stroke="#D9CDB2" stroke-width="2.5"/></g>
+  <text x="640" y="337" text-anchor="middle" font-size="24" font-weight="800" fill="#7E967F">202동</text>
+  <g fill="#C6E0D2" stroke="#AECBB9" stroke-width="2.5">
+    <rect x="576" y="364" width="40" height="34" rx="5"/>
+    <rect x="664" y="414" width="40" height="34" rx="5"/>
+    <rect x="576" y="414" width="40" height="34" rx="5"/>
+  </g>
+  <rect x="664" y="364" width="40" height="34" rx="5" fill="#FFF3C9" stroke="#E8CE86" stroke-width="2.5"/>
+  <g>
+    <rect x="678" y="383" width="11" height="11" rx="2" fill="#4A90D9" stroke="#3877B8" stroke-width="1.5"/>
+    <rect x="678" y="372" width="11" height="11" rx="2" fill="#5A9CE0" stroke="#3877B8" stroke-width="1.5"/>
+    <circle cx="681.4" cy="376" r="1.8" fill="#FFFFFF"/><circle cx="686" cy="376" r="1.8" fill="#FFFFFF"/>
+    <circle cx="681.8" cy="376.3" r="0.9" fill="#333333"/><circle cx="686.4" cy="376.3" r="0.9" fill="#333333"/>
+    <path d="M681.5 380 q2.3 1.8 4.6 0" stroke="#26527E" stroke-width="1.3" fill="none" stroke-linecap="round"/>
+    <path d="M689 375 q5 -4 6 -9" stroke="#3877B8" stroke-width="3" fill="none" stroke-linecap="round"/>
+  </g>
+  <rect x="620" y="454" width="40" height="56" rx="6" fill="#CBD8E2" stroke="#B4C4D0" stroke-width="2.5"/>
+  <path d="M640 454 v56" stroke="#B4C4D0" stroke-width="2"/>
+
+  <!-- 303동 -->
+  <g filter="url(#soft)">
+    <rect x="796" y="290" width="168" height="220" rx="10" fill="#EDEBF7" stroke="#D3CFE8" stroke-width="3"/>
+  </g>
+  <path d="M796 300 q0 -10 10 -10 h148 q10 0 10 10 v18 h-168 z" fill="#8F9FD9"/>
+  <g filter="url(#tiny)"><rect x="830" y="330" width="100" height="34" rx="8" fill="#FFFDF6" stroke="#D9CDB2" stroke-width="2.5"/></g>
+  <text x="880" y="355" text-anchor="middle" font-size="24" font-weight="800" fill="#8A88B0">303동</text>
+  <g fill="#BFDCEA" stroke="#A9C6D6" stroke-width="2.5">
+    <rect x="816" y="382" width="40" height="34" rx="5"/>
+    <rect x="904" y="382" width="40" height="34" rx="5"/>
+    <rect x="904" y="432" width="40" height="34" rx="5"/>
+  </g>
+  <rect x="816" y="432" width="40" height="34" rx="5" fill="#FFF3C9" stroke="#E8CE86" stroke-width="2.5"/>
+  <g>
+    <rect x="830" y="451" width="11" height="11" rx="2" fill="#8E7FD6" stroke="#7566C2" stroke-width="1.5"/>
+    <rect x="830" y="440" width="11" height="11" rx="2" fill="#A196DE" stroke="#7566C2" stroke-width="1.5"/>
+    <circle cx="833.4" cy="444" r="1.8" fill="#FFFFFF"/><circle cx="838" cy="444" r="1.8" fill="#FFFFFF"/>
+    <circle cx="833.8" cy="444.3" r="0.9" fill="#333333"/><circle cx="838.4" cy="444.3" r="0.9" fill="#333333"/>
+    <path d="M833.5 448 q2.3 1.8 4.6 0" stroke="#5A4E9E" stroke-width="1.3" fill="none" stroke-linecap="round"/>
+    <path d="M841 443 q5 -4 6 -9" stroke="#7566C2" stroke-width="3" fill="none" stroke-linecap="round"/>
+  </g>
+  <rect x="860" y="454" width="40" height="56" rx="6" fill="#CBD8E2" stroke="#B4C4D0" stroke-width="2.5"/>
+  <path d="M880 454 v56" stroke="#B4C4D0" stroke-width="2"/>
+
+  <!-- ===== 가랜드(색깔 깃발) ===== -->
+  <path d="M30 150 Q335 268 640 212 Q945 268 1250 150" fill="none" stroke="#9DB3BF" stroke-width="3"/>
+  <g stroke-width="2">
+    <path d="M120 182 l11 30 12 -27 z" fill="#FF8FA8" stroke="#B34D66"/>
+    <path d="M226 210 l11 30 12 -27 z" fill="#7CC9F0" stroke="#3F7FA6"/>
+    <path d="M336 228 l11 30 12 -27 z" fill="#A6DB7E" stroke="#5F8A3C"/>
+    <path d="M448 232 l11 30 12 -27 z" fill="#C7A6E8" stroke="#7A5CA8"/>
+    <path d="M560 224 l11 30 12 -27 z" fill="#FFC96B" stroke="#B37A24"/>
+    <path d="M700 224 l11 30 12 -27 z" fill="#FF8FA8" stroke="#B34D66"/>
+    <path d="M812 232 l11 30 12 -27 z" fill="#7CC9F0" stroke="#3F7FA6"/>
+    <path d="M924 228 l11 30 12 -27 z" fill="#A6DB7E" stroke="#5F8A3C"/>
+    <path d="M1034 210 l11 30 12 -27 z" fill="#C7A6E8" stroke="#7A5CA8"/>
+    <path d="M1140 182 l11 30 12 -27 z" fill="#FFC96B" stroke="#B37A24"/>
+  </g>
+
+  <!-- ===== 합창 배너 ===== -->
+  <g filter="url(#soft)">
+    <rect x="266" y="44" width="748" height="78" rx="39" fill="#FFFDF6" stroke="#F5C531" stroke-width="5"/>
+  </g>
+  <text x="640" y="96" text-anchor="middle" font-size="36" font-weight="800" fill="#D95E41">멋진 꼬마 택배기사님, 고마워요!</text>
+  <g stroke="#E8A61E" stroke-width="3" fill="none" stroke-linecap="round">
+    <path d="M300 84 q-6 -10 2 -18"/><path d="M316 92 q-10 -14 -2 -28"/>
+    <path d="M980 84 q6 -10 -2 -18"/><path d="M964 92 q10 -14 2 -28"/>
+  </g>
+
+  <!-- ===== 별 샤워 + 색종이 ===== -->
+  <g fill="#FFD34D">
+    <path d="M180 300 l5 11 11 5 -11 5 -5 11 -5 -11 -11 -5 11 -5 z"/>
+    <path d="M260 220 l4 9 9 4 -9 4 -4 9 -4 -9 -9 -4 9 -4 z"/>
+    <path d="M520 168 l4 9 9 4 -9 4 -4 9 -4 -9 -9 -4 9 -4 z"/>
+    <path d="M760 158 l3 7 7 3 -7 3 -3 7 -3 -7 -7 -3 7 -3 z"/>
+    <path d="M1030 250 l5 11 11 5 -11 5 -5 11 -5 -11 -11 -5 11 -5 z"/>
+    <path d="M1120 330 l4 9 9 4 -9 4 -4 9 -4 -9 -9 -4 9 -4 z"/>
+    <path d="M96 420 l4 9 9 4 -9 4 -4 9 -4 -9 -9 -4 9 -4 z"/>
+    <path d="M1204 470 l3 7 7 3 -7 3 -3 7 -3 -7 -7 -3 7 -3 z"/>
+    <path d="M420 200 l3 7 7 3 -7 3 -3 7 -3 -7 -7 -3 7 -3 z"/>
+    <path d="M900 190 l3 7 7 3 -7 3 -3 7 -3 -7 -7 -3 7 -3 z"/>
+  </g>
+  <g>
+    <rect x="230" y="360" width="12" height="12" rx="2" fill="#FF8FA8" transform="rotate(24 236 366)"/>
+    <rect x="486" y="256" width="12" height="12" rx="2" fill="#7CC9F0" transform="rotate(-18 492 262)"/>
+    <rect x="694" y="240" width="10" height="10" rx="2" fill="#A6DB7E" transform="rotate(30 699 245)"/>
+    <rect x="964" y="300" width="12" height="12" rx="2" fill="#C7A6E8" transform="rotate(-24 970 306)"/>
+    <rect x="1082" y="404" width="10" height="10" rx="2" fill="#FFC96B" transform="rotate(18 1087 409)"/>
+    <rect x="150" y="500" width="10" height="10" rx="2" fill="#7CC9F0" transform="rotate(-12 155 505)"/>
+    <rect x="560" y="330" width="10" height="10" rx="2" fill="#FF8FA8" transform="rotate(40 565 335)"/>
+    <rect x="1180" y="240" width="10" height="10" rx="2" fill="#A6DB7E" transform="rotate(-32 1185 245)"/>
+  </g>
+
+  <!-- ===== 친구들 (배달 받은 4명, 만세 합창) ===== -->
+  <!-- 3번 친구 (101동 앞, 노랑 3단) -->
+  <g filter="url(#tiny)">
+    <g transform="translate(414 612) scale(0.85)">
+      <rect x="-19" y="-38" width="38" height="38" rx="7" fill="#F5C531" stroke="#D9A81E" stroke-width="2.5"/>
+      <rect x="-19" y="-76" width="38" height="38" rx="7" fill="#F8D45C" stroke="#D9A81E" stroke-width="2.5"/>
+      <rect x="-19" y="-114" width="38" height="38" rx="7" fill="#F5C531" stroke="#D9A81E" stroke-width="2.5"/>
+      <circle cx="-6.5" cy="-99" r="5" fill="#FFFFFF"/><circle cx="7.5" cy="-99" r="5" fill="#FFFFFF"/>
+      <circle cx="-5.5" cy="-98.3" r="2.5" fill="#333333"/><circle cx="8.5" cy="-98.3" r="2.5" fill="#333333"/>
+      <circle cx="-6.5" cy="-99.3" r="1" fill="#FFFFFF" opacity="0.95"/><circle cx="7.5" cy="-99.3" r="1" fill="#FFFFFF" opacity="0.95"/>
+      <path d="M-7 -89 q7 6.5 14 0" stroke="#B37A24" stroke-width="3" fill="none" stroke-linecap="round"/>
+      <circle cx="-13.5" cy="-93" r="3.2" fill="#FF9E8A" opacity="0.7"/><circle cx="14.5" cy="-93" r="3.2" fill="#FF9E8A" opacity="0.7"/>
+      <path d="M-19 -86 q-13 -9 -16 -20" stroke="#D9A81E" stroke-width="5" fill="none" stroke-linecap="round"/>
+      <path d="M19 -86 q13 -9 16 -20" stroke="#D9A81E" stroke-width="5" fill="none" stroke-linecap="round"/>
+    </g>
+  </g>
+  <!-- 5번 친구 (202동 앞, 파랑 5단) -->
+  <g filter="url(#tiny)">
+    <g transform="translate(576 630) scale(0.85)">
+      <rect x="-19" y="-38" width="38" height="38" rx="7" fill="#4A90D9" stroke="#3877B8" stroke-width="2.5"/>
+      <rect x="-19" y="-76" width="38" height="38" rx="7" fill="#5A9CE0" stroke="#3877B8" stroke-width="2.5"/>
+      <rect x="-19" y="-114" width="38" height="38" rx="7" fill="#4A90D9" stroke="#3877B8" stroke-width="2.5"/>
+      <rect x="-19" y="-152" width="38" height="38" rx="7" fill="#5A9CE0" stroke="#3877B8" stroke-width="2.5"/>
+      <rect x="-19" y="-190" width="38" height="38" rx="7" fill="#4A90D9" stroke="#3877B8" stroke-width="2.5"/>
+      <circle cx="-6.5" cy="-175" r="5" fill="#FFFFFF"/><circle cx="7.5" cy="-175" r="5" fill="#FFFFFF"/>
+      <circle cx="-5.5" cy="-174.3" r="2.5" fill="#333333"/><circle cx="8.5" cy="-174.3" r="2.5" fill="#333333"/>
+      <circle cx="-6.5" cy="-175.3" r="1" fill="#FFFFFF" opacity="0.95"/><circle cx="7.5" cy="-175.3" r="1" fill="#FFFFFF" opacity="0.95"/>
+      <path d="M-7 -165 q7 6.5 14 0" stroke="#26527E" stroke-width="3" fill="none" stroke-linecap="round"/>
+      <circle cx="-13.5" cy="-169" r="3.2" fill="#FF9E8A" opacity="0.7"/><circle cx="14.5" cy="-169" r="3.2" fill="#FF9E8A" opacity="0.7"/>
+      <path d="M-19 -162 q-13 -9 -16 -20" stroke="#3877B8" stroke-width="5" fill="none" stroke-linecap="round"/>
+      <path d="M19 -162 q13 -9 16 -20" stroke="#3877B8" stroke-width="5" fill="none" stroke-linecap="round"/>
+    </g>
+  </g>
+  <!-- 7번 친구 (202동 앞, 분홍 5단 + 배지) -->
+  <g filter="url(#tiny)">
+    <g transform="translate(706 622) scale(0.85)">
+      <rect x="-19" y="-38" width="38" height="38" rx="7" fill="#EE5D8A" stroke="#C9436E" stroke-width="2.5"/>
+      <rect x="-19" y="-76" width="38" height="38" rx="7" fill="#F27BA0" stroke="#C9436E" stroke-width="2.5"/>
+      <rect x="-19" y="-114" width="38" height="38" rx="7" fill="#EE5D8A" stroke="#C9436E" stroke-width="2.5"/>
+      <rect x="-19" y="-152" width="38" height="38" rx="7" fill="#F27BA0" stroke="#C9436E" stroke-width="2.5"/>
+      <rect x="-19" y="-190" width="38" height="38" rx="7" fill="#EE5D8A" stroke="#C9436E" stroke-width="2.5"/>
+      <circle cx="0" cy="-133" r="10" fill="#FFFDF6" stroke="#C9436E" stroke-width="2"/>
+      <text x="0" y="-127" text-anchor="middle" font-size="14" font-weight="800" fill="#C9436E">7</text>
+      <circle cx="-6.5" cy="-175" r="5" fill="#FFFFFF"/><circle cx="7.5" cy="-175" r="5" fill="#FFFFFF"/>
+      <circle cx="-5.5" cy="-174.3" r="2.5" fill="#333333"/><circle cx="8.5" cy="-174.3" r="2.5" fill="#333333"/>
+      <circle cx="-6.5" cy="-175.3" r="1" fill="#FFFFFF" opacity="0.95"/><circle cx="7.5" cy="-175.3" r="1" fill="#FFFFFF" opacity="0.95"/>
+      <path d="M-7 -165 q7 6.5 14 0" stroke="#A3325B" stroke-width="3" fill="none" stroke-linecap="round"/>
+      <circle cx="-13.5" cy="-169" r="3.2" fill="#FF9E8A" opacity="0.7"/><circle cx="14.5" cy="-169" r="3.2" fill="#FF9E8A" opacity="0.7"/>
+      <path d="M-19 -162 q-13 -9 -16 -20" stroke="#C9436E" stroke-width="5" fill="none" stroke-linecap="round"/>
+      <path d="M19 -162 q13 -9 16 -20" stroke="#C9436E" stroke-width="5" fill="none" stroke-linecap="round"/>
+    </g>
+  </g>
+  <!-- 9번 친구 (303동 앞, 빨강 5단 + 배지, 생일 고깔) -->
+  <g filter="url(#tiny)">
+    <g transform="translate(882 634) scale(0.85)">
+      <rect x="-19" y="-38" width="38" height="38" rx="7" fill="#F0584A" stroke="#C74537" stroke-width="2.5"/>
+      <rect x="-19" y="-76" width="38" height="38" rx="7" fill="#F4776B" stroke="#C74537" stroke-width="2.5"/>
+      <rect x="-19" y="-114" width="38" height="38" rx="7" fill="#F0584A" stroke="#C74537" stroke-width="2.5"/>
+      <rect x="-19" y="-152" width="38" height="38" rx="7" fill="#F4776B" stroke="#C74537" stroke-width="2.5"/>
+      <rect x="-19" y="-190" width="38" height="38" rx="7" fill="#F0584A" stroke="#C74537" stroke-width="2.5"/>
+      <circle cx="0" cy="-133" r="10" fill="#FFFDF6" stroke="#C74537" stroke-width="2"/>
+      <text x="0" y="-127" text-anchor="middle" font-size="14" font-weight="800" fill="#C74537">9</text>
+      <path d="M-10 -188 l10 -26 10 26 z" fill="#7CC9F0" stroke="#3F7FA6" stroke-width="2"/>
+      <circle cx="0" cy="-214" r="4" fill="#FF8FA8"/>
+      <circle cx="-6.5" cy="-175" r="5" fill="#FFFFFF"/><circle cx="7.5" cy="-175" r="5" fill="#FFFFFF"/>
+      <circle cx="-5.5" cy="-174.3" r="2.5" fill="#333333"/><circle cx="8.5" cy="-174.3" r="2.5" fill="#333333"/>
+      <circle cx="-6.5" cy="-175.3" r="1" fill="#FFFFFF" opacity="0.95"/><circle cx="7.5" cy="-175.3" r="1" fill="#FFFFFF" opacity="0.95"/>
+      <path d="M-7 -165 q7 6.5 14 0" stroke="#8C2A20" stroke-width="3" fill="none" stroke-linecap="round"/>
+      <circle cx="-13.5" cy="-169" r="3.2" fill="#FF9E8A" opacity="0.7"/><circle cx="14.5" cy="-169" r="3.2" fill="#FF9E8A" opacity="0.7"/>
+      <path d="M-19 -162 q-13 -9 -16 -20" stroke="#C74537" stroke-width="5" fill="none" stroke-linecap="round"/>
+      <path d="M19 -162 q13 -9 16 -20" stroke="#C74537" stroke-width="5" fill="none" stroke-linecap="round"/>
+    </g>
+  </g>
+
+  <!-- ===== 포장이: 화면 하단 좌→우 통과 + 빵빵 ===== -->
+  <g stroke="#FFFFFF" stroke-width="6" stroke-linecap="round" opacity="0.8">
+    <path d="M44 616 h64"/><path d="M30 644 h80"/>
+  </g>
+  <g transform="translate(-14 290) scale(0.62)" filter="url(#soft)">
+    <rect x="230" y="512" width="240" height="130" rx="16" fill="#FFC531" stroke="#E8A61E" stroke-width="4"/>
+    <rect x="230" y="512" width="240" height="30" rx="15" fill="#FFD766"/>
+    <rect x="268" y="556" width="52" height="52" rx="8" fill="#FFF6D9" stroke="#E8A61E" stroke-width="3"/>
+    <path d="M268 582 h52 M294 556 v26" stroke="#E8A61E" stroke-width="2.5"/>
+    <circle cx="287" cy="592" r="3.4" fill="#6B5433"/><circle cx="301" cy="592" r="3.4" fill="#6B5433"/>
+    <path d="M288 600 q6 5 12 0" stroke="#6B5433" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+    <text x="392" y="592" text-anchor="middle" font-size="30" font-weight="800" fill="#8A5A10">포장이</text>
+    <path d="M470 542 h84 q22 0 28 20 l10 34 q4 22 -18 24 h-104 z" fill="#FFC531" stroke="#E8A61E" stroke-width="4"/>
+    <path d="M482 552 h56 q14 0 18 13 l7 21 h-81 z" fill="#DDF1FB" stroke="#B9DCEC" stroke-width="3"/>
+    <circle cx="584" cy="590" r="12" fill="#FFF6D9" stroke="#E8A61E" stroke-width="3"/>
+    <circle cx="587" cy="590" r="5" fill="#39434C"/>
+    <circle cx="585.5" cy="588" r="2" fill="#FFFFFF" opacity="0.9"/>
+    <path d="M568 610 q12 10 22 2" stroke="#B3541E" stroke-width="5" fill="none" stroke-linecap="round"/>
+    <circle cx="560" cy="600" r="6" fill="#FF9E8A" opacity="0.7"/>
+    <rect x="222" y="636" width="376" height="16" rx="8" fill="#5B6472"/>
+    <circle cx="298" cy="652" r="26" fill="#39434C"/><circle cx="298" cy="652" r="11" fill="#C9D2DA"/>
+    <circle cx="470" cy="652" r="26" fill="#39434C"/><circle cx="470" cy="652" r="11" fill="#C9D2DA"/>
+    <circle cx="560" cy="652" r="26" fill="#39434C"/><circle cx="560" cy="652" r="11" fill="#C9D2DA"/>
+    <g>
+      <circle cx="508" cy="530" r="13" fill="#F7C6A0"/>
+      <path d="M494 526 a14 14 0 0 1 28 0 z" fill="#E86A50"/>
+      <rect x="519" y="521" width="12" height="6" rx="3" fill="#E86A50"/>
+      <circle cx="504" cy="531" r="2" fill="#333333"/><circle cx="512" cy="531" r="2" fill="#333333"/>
+      <path d="M505 537 q3 3 6 0" stroke="#B3541E" stroke-width="2" fill="none" stroke-linecap="round"/>
+    </g>
+  </g>
+  <g filter="url(#tiny)">
+    <path d="M196 540 q0 -14 14 -14 h84 q14 0 14 14 v22 q0 14 -14 14 h-20 l18 22 -44 -22 h-38 q-14 0 -14 -14 z" fill="#FFFFFF"/>
+  </g>
+  <text x="252" y="562" text-anchor="middle" font-size="24" font-weight="800" fill="#E86A50">빵빵!</text>
+
+  <!-- 목업 캡션 -->
+  <g><rect x="548" y="688" width="716" height="26" rx="8" fill="#FFFFFF" opacity="0.78"/></g>
+  <text x="560" y="706" font-size="14" fill="#7B8A96">목업 v3 · 씬 ⑥ 단지 전경 합창 피날레(석양, 4명 등장 후 합창) · 캐릭터는 실제 에셋으로 교체 예정</text>
+</svg>

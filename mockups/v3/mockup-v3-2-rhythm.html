@@ -1,0 +1,205 @@
+<!-- 목업 v3-2: 씬 ② 리듬 하역 — 트럭 후면+경사로, 비트 마커 링, Space 정박 패스(PERFECT 반짝), 카트 -->
+<meta charset="utf-8">
+<style>
+  html,body{margin:0;padding:0;background:#fff}
+  body{width:1280px;height:720px;overflow:hidden}
+  svg{display:block;font-family:'Noto Sans CJK KR','Noto Sans KR','WenQuanYi Zen Hei',sans-serif}
+  text{user-select:none}
+</style>
+<svg width="1280" height="720" viewBox="0 0 1280 720" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <filter id="soft" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="5" stdDeviation="7" flood-color="#26424E" flood-opacity="0.16"/>
+    </filter>
+    <filter id="tiny" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="2" stdDeviation="2.5" flood-color="#26424E" flood-opacity="0.18"/>
+    </filter>
+  </defs>
+
+  <!-- ===== 배경: 202동 정문 파사드(간이) ===== -->
+  <rect width="1280" height="548" fill="#EFF4DF"/>
+  <g stroke="#D8DFBC" stroke-width="3">
+    <path d="M0 152 h1280 M0 300 h1280 M0 448 h1280"/>
+  </g>
+  <!-- 창문 (윗줄/중간줄) -->
+  <g fill="#C6E0D2" stroke="#AECBB9" stroke-width="3">
+    <rect x="96" y="52" width="64" height="56" rx="6"/>
+    <rect x="256" y="52" width="64" height="56" rx="6"/>
+    <rect x="416" y="52" width="64" height="56" rx="6"/>
+    <rect x="576" y="52" width="64" height="56" rx="6"/>
+    <rect x="896" y="52" width="64" height="56" rx="6"/>
+    <rect x="1056" y="52" width="64" height="56" rx="6"/>
+    <rect x="96" y="196" width="64" height="56" rx="6"/>
+    <rect x="416" y="196" width="64" height="56" rx="6"/>
+    <rect x="576" y="196" width="64" height="56" rx="6"/>
+    <rect x="1056" y="196" width="64" height="56" rx="6"/>
+  </g>
+  <g stroke="#AECBB9" stroke-width="2">
+    <path d="M128 52 v56 M96 80 h64 M288 52 v56 M256 80 h64 M448 52 v56 M416 80 h64 M608 52 v56 M576 80 h64 M928 52 v56 M896 80 h64 M1088 52 v56 M1056 80 h64"/>
+    <path d="M128 196 v56 M96 224 h64 M448 196 v56 M416 224 h64 M608 196 v56 M576 224 h64 M1088 196 v56 M1056 224 h64"/>
+  </g>
+  <!-- 점등 창문 + 손 흔드는 미니 친구 (구경) -->
+  <g>
+    <rect x="736" y="52" width="64" height="56" rx="6" fill="#FFF3C9" stroke="#E8CE86" stroke-width="3"/>
+    <rect x="757" y="82" width="11" height="11" rx="2" fill="#4A90D9" stroke="#3877B8" stroke-width="1.5"/>
+    <rect x="757" y="71" width="11" height="11" rx="2" fill="#5A9CE0" stroke="#3877B8" stroke-width="1.5"/>
+    <circle cx="760.4" cy="75" r="1.8" fill="#FFFFFF"/><circle cx="765" cy="75" r="1.8" fill="#FFFFFF"/>
+    <circle cx="760.8" cy="75.3" r="0.9" fill="#333333"/><circle cx="765.4" cy="75.3" r="0.9" fill="#333333"/>
+    <path d="M760.5 79 q2.3 1.8 4.6 0" stroke="#26527E" stroke-width="1.3" fill="none" stroke-linecap="round"/>
+    <path d="M768 74 q5 -4 6 -9" stroke="#3877B8" stroke-width="3" fill="none" stroke-linecap="round"/>
+  </g>
+  <!-- 정문: 캐노피 + 배너 + 유리문 -->
+  <g>
+    <rect x="700" y="300" width="180" height="248" fill="#CBD8E2" stroke="#B4C4D0" stroke-width="3"/>
+    <path d="M790 300 v248 M700 380 h180 M700 460 h180" stroke="#B4C4D0" stroke-width="2.5"/>
+    <rect x="748" y="368" width="26" height="30" rx="4" fill="#FFF3C9" opacity="0.55"/>
+    <g filter="url(#tiny)">
+      <path d="M686 300 h208 l-14 -34 h-180 z" fill="#7FB6A4" stroke="#6BA491" stroke-width="3"/>
+    </g>
+    <path d="M718 266 l10 34 M754 266 l6 34 M790 266 v34 M826 266 l-6 34 M862 266 l-10 34" stroke="#FFFDF6" stroke-width="7" opacity="0.45"/>
+    <g filter="url(#tiny)"><rect x="712" y="212" width="156" height="42" rx="12" fill="#7FB6A4"/></g>
+    <text x="790" y="242" text-anchor="middle" font-size="26" font-weight="800" fill="#FFFFFF">202동</text>
+  </g>
+  <!-- 화단 -->
+  <g>
+    <rect x="932" y="500" width="228" height="48" rx="8" fill="#E3DCCA" stroke="#D2C9B2" stroke-width="2.5"/>
+    <circle cx="980" cy="498" r="22" fill="#8FCF6B"/><circle cx="1030" cy="492" r="26" fill="#A6DB7E"/><circle cx="1082" cy="498" r="22" fill="#8FCF6B"/><circle cx="1122" cy="502" r="16" fill="#A6DB7E"/>
+  </g>
+
+  <!-- ===== 지면: 인도 + 도로 ===== -->
+  <rect x="0" y="548" width="1280" height="64" fill="#E3DCCA"/>
+  <path d="M0 548 h1280" stroke="#D2C9B2" stroke-width="3"/>
+  <path d="M160 548 v64 M420 548 v64 M680 548 v64 M940 548 v64 M1200 548 v64" stroke="#D2C9B2" stroke-width="3"/>
+  <rect x="0" y="612" width="1280" height="108" fill="#606B78"/>
+  <path d="M0 612 h1280" stroke="#F6F1E3" stroke-width="4" opacity="0.5"/>
+
+  <!-- ===== 트럭 후면 + 내려온 경사로 ===== -->
+  <g filter="url(#soft)">
+    <!-- 짐칸 (측면, 앞쪽은 화면 왼쪽 밖) -->
+    <rect x="-60" y="368" width="380" height="238" rx="16" fill="#FFC531" stroke="#E8A61E" stroke-width="4"/>
+    <rect x="-60" y="368" width="380" height="28" rx="14" fill="#FFD766"/>
+    <!-- 측면 로고 상자 + 로고 -->
+    <rect x="36" y="440" width="52" height="52" rx="8" fill="#FFF6D9" stroke="#E8A61E" stroke-width="3"/>
+    <path d="M36 466 h52 M62 440 v26" stroke="#E8A61E" stroke-width="2.5"/>
+    <circle cx="55" cy="478" r="3.4" fill="#6B5433"/><circle cx="69" cy="478" r="3.4" fill="#6B5433"/>
+    <path d="M56 486 q6 5 12 0" stroke="#6B5433" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+    <text x="182" y="480" text-anchor="middle" font-size="30" font-weight="800" fill="#8A5A10">포장이</text>
+    <!-- 열린 뒷문 프레임 + 경첩 -->
+    <path d="M304 380 v218" stroke="#E8A61E" stroke-width="3.5"/>
+    <circle cx="313" cy="596" r="5" fill="#E8A61E"/>
+    <!-- 하부 섀시 + 바퀴 -->
+    <rect x="-60" y="606" width="380" height="18" rx="8" fill="#5B6472"/>
+    <circle cx="238" cy="652" r="28" fill="#39434C"/><circle cx="238" cy="652" r="12" fill="#C9D2DA"/>
+    <circle cx="42" cy="652" r="28" fill="#39434C"/><circle cx="42" cy="652" r="12" fill="#C9D2DA"/>
+  </g>
+  <!-- 경사로 (짐칸 문이 내려와 "찰칵") -->
+  <g filter="url(#tiny)">
+    <path d="M320 592 L588 668 L582 684 L316 606 Z" fill="#FFD766" stroke="#E8A61E" stroke-width="3.5" stroke-linejoin="round"/>
+    <path d="M382 611 l-4 13 M448 630 l-4 13 M514 649 l-4 13" stroke="#E8A61E" stroke-width="3" stroke-linecap="round"/>
+  </g>
+  <!-- 경사로 위 활강 중인 다음 상자 (701호) -->
+  <g transform="translate(438 596) rotate(16)" filter="url(#tiny)">
+    <rect x="-38" y="-26" width="76" height="52" rx="6" fill="#DDA75A" stroke="#C98F3F" stroke-width="3.5"/>
+    <path d="M-38 -5 h76 M0 -26 v21" stroke="#C98F3F" stroke-width="3"/>
+    <rect x="-27" y="1" width="54" height="20" rx="3" fill="#FFFDF6" stroke="#D9CDB2" stroke-width="2"/>
+    <text x="0" y="16" text-anchor="middle" font-size="14" font-weight="800" fill="#4A5560">701호</text>
+  </g>
+
+  <!-- ===== 비트 마커 링 (바닥) ===== -->
+  <g>
+    <ellipse cx="620" cy="668" rx="58" ry="19" fill="none" stroke="#FFD34D" stroke-width="3" opacity="0.5"/>
+    <ellipse cx="620" cy="668" rx="46" ry="15" fill="#FFF3C9" opacity="0.5"/>
+    <ellipse cx="620" cy="668" rx="46" ry="15" fill="none" stroke="#F5C531" stroke-width="6" stroke-dasharray="16 10"/>
+  </g>
+
+  <!-- ===== PERFECT 패스: 포물선 + 날아가는 상자 + 별가루 6 ===== -->
+  <path d="M624 654 Q783 295 942 626" fill="none" stroke="#FFD34D" stroke-width="4" stroke-dasharray="3 14" stroke-linecap="round" opacity="0.9"/>
+  <g transform="translate(783 462) rotate(-7)" filter="url(#tiny)">
+    <rect x="-43" y="-29" width="86" height="58" rx="7" fill="#E8B368" stroke="#C98F3F" stroke-width="4"/>
+    <path d="M-43 -6 h86 M0 -29 v23" stroke="#C98F3F" stroke-width="3"/>
+    <rect x="-31" y="1" width="62" height="23" rx="4" fill="#FFFDF6" stroke="#D9CDB2" stroke-width="2.5"/>
+    <text x="0" y="19" text-anchor="middle" font-size="17" font-weight="800" fill="#4A5560">502호</text>
+  </g>
+  <g fill="#FFD34D">
+    <path d="M712 442 l4 9 9 4 -9 4 -4 9 -4 -9 -9 -4 9 -4 z"/>
+    <path d="M860 438 l4 9 9 4 -9 4 -4 9 -4 -9 -9 -4 9 -4 z"/>
+    <path d="M780 392 l3.4 7.6 7.6 3.4 -7.6 3.4 -3.4 7.6 -3.4 -7.6 -7.6 -3.4 7.6 -3.4 z"/>
+    <path d="M718 508 l3 7 7 3 -7 3 -3 7 -3 -7 -7 -3 7 -3 z"/>
+    <path d="M852 506 l3 7 7 3 -7 3 -3 7 -3 -7 -7 -3 7 -3 z"/>
+    <path d="M688 386 l2.6 6 6 2.6 -6 2.6 -2.6 6 -2.6 -6 -6 -2.6 6 -2.6 z"/>
+  </g>
+  <!-- "박자 딱!" -->
+  <g filter="url(#tiny)">
+    <path d="M846 420 q0 -16 16 -16 h132 q16 0 16 16 v26 q0 16 -16 16 h-92 l-22 18 4 -18 h-22 q-16 0 -16 -16 z" fill="#FFFFFF"/>
+  </g>
+  <text x="928" y="440" text-anchor="middle" font-size="26" font-weight="800" fill="#E86A50">박자 딱!</text>
+
+  <!-- ===== 기사님 (마커 옆, 상자 패스 포즈) ===== -->
+  <g filter="url(#tiny)">
+    <g transform="translate(772 574)">
+      <rect x="-34" y="-8" width="68" height="86" rx="18" fill="#F5A623"/>
+      <rect x="-15" y="-8" width="30" height="86" fill="#FFF1D4"/>
+      <path d="M-15 22 h30" stroke="#E8CFA0" stroke-width="3"/>
+      <circle cx="0" cy="-38" r="27" fill="#F7C6A0"/>
+      <path d="M-28 -46 a28 28 0 0 1 56 0 z" fill="#E86A50"/>
+      <rect x="24" y="-52" width="22" height="10" rx="5" fill="#E86A50"/>
+      <circle cx="-8" cy="-36" r="3.6" fill="#333333"/><circle cx="10" cy="-36" r="3.6" fill="#333333"/>
+      <circle cx="-9" cy="-37.4" r="1.4" fill="#FFFFFF" opacity="0.9"/><circle cx="9" cy="-37.4" r="1.4" fill="#FFFFFF" opacity="0.9"/>
+      <path d="M-6 -25 q7 6 14 0" stroke="#B3541E" stroke-width="3" fill="none" stroke-linecap="round"/>
+      <circle cx="-17" cy="-29" r="4.5" fill="#FF9E8A" opacity="0.6"/>
+      <!-- 팔: 위로 패스! -->
+      <path d="M28 4 q22 -26 40 -44" stroke="#F5A623" stroke-width="13" fill="none" stroke-linecap="round"/>
+      <path d="M-28 4 q-22 -26 -40 -44" stroke="#F5A623" stroke-width="13" fill="none" stroke-linecap="round"/>
+      <rect x="-24" y="78" width="18" height="26" rx="8" fill="#5B6472"/>
+      <rect x="6" y="78" width="18" height="26" rx="8" fill="#5B6472"/>
+    </g>
+  </g>
+
+  <!-- ===== 카트 (착지 지점) ===== -->
+  <g filter="url(#tiny)">
+    <path d="M905 642 q-24 -18 -28 -46" stroke="#8A97A3" stroke-width="5" fill="none" stroke-linecap="round"/>
+    <rect x="900" y="640" width="150" height="10" rx="4" fill="#8A97A3"/>
+    <path d="M912 650 v18 m126 -18 v18" stroke="#8A97A3" stroke-width="5"/>
+    <circle cx="918" cy="674" r="10" fill="#39434C"/><circle cx="918" cy="674" r="4" fill="#C9D2DA"/>
+    <circle cx="1032" cy="674" r="10" fill="#39434C"/><circle cx="1032" cy="674" r="4" fill="#C9D2DA"/>
+  </g>
+
+  <!-- ===== 비트 칩 (4비트, 2박 점등) ===== -->
+  <g filter="url(#tiny)"><rect x="492" y="24" width="296" height="56" rx="18" fill="#FFFFFF" opacity="0.97"/></g>
+  <g>
+    <circle cx="544" cy="52" r="11" fill="#F4F1E8" stroke="#BEB6A4" stroke-width="2.5"/>
+    <circle cx="598" cy="52" r="15" fill="#FFE08A" stroke="#F5A623" stroke-width="3"/>
+    <circle cx="652" cy="52" r="11" fill="#F4F1E8" stroke="#BEB6A4" stroke-width="2.5"/>
+    <circle cx="706" cy="52" r="11" fill="#F4F1E8" stroke="#BEB6A4" stroke-width="2.5"/>
+    <path d="M744 62 v-20 l12 -4 v20" stroke="#E8A61E" stroke-width="3" fill="none" stroke-linejoin="round"/>
+    <circle cx="741" cy="62" r="4.5" fill="#E8A61E"/><circle cx="753" cy="58" r="4.5" fill="#E8A61E"/>
+  </g>
+
+  <!-- ===== HUD ===== -->
+  <g filter="url(#tiny)"><rect x="24" y="22" width="286" height="62" rx="18" fill="#FFFFFF" opacity="0.97"/></g>
+  <text x="44" y="61" font-size="21" font-weight="700" fill="#3E5A68">남은 상자</text>
+  <g>
+    <g transform="translate(150 39)" opacity="0.35"><rect width="28" height="28" rx="5" fill="#D9D2C2" stroke="#B8B09C" stroke-width="2.5"/><path d="M6 14 l7 7 9 -11" stroke="#69A05B" stroke-width="4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <g transform="translate(184 39)"><rect width="28" height="28" rx="5" fill="#E8B368" stroke="#C98F3F" stroke-width="2.5"/><path d="M0 11 h28 M14 0 v11" stroke="#C98F3F" stroke-width="2"/></g>
+    <g transform="translate(218 39)"><rect width="28" height="28" rx="5" fill="#DDA75A" stroke="#C98F3F" stroke-width="2.5"/><path d="M0 11 h28 M14 0 v11" stroke="#C98F3F" stroke-width="2"/></g>
+    <g transform="translate(252 39)"><rect width="28" height="28" rx="5" fill="#E8B368" stroke="#C98F3F" stroke-width="2.5"/><path d="M0 11 h28 M14 0 v11" stroke="#C98F3F" stroke-width="2"/></g>
+  </g>
+  <g filter="url(#tiny)"><rect x="24" y="96" width="92" height="42" rx="14" fill="#FFFFFF" opacity="0.97"/></g>
+  <path d="M48 103 l4.2 9 10 1.2 -7.4 6.8 2 9.8 -8.8 -5 -8.8 5 2 -9.8 -7.4 -6.8 10 -1.2 z" fill="#FFC531" stroke="#E8A61E" stroke-width="2" stroke-linejoin="round"/>
+  <text x="86" y="125" text-anchor="middle" font-size="21" font-weight="800" fill="#3E5A68">4</text>
+
+  <!-- 키 힌트: Space = 박자에 맞춰 패스 -->
+  <g filter="url(#tiny)"><rect x="1046" y="662" width="214" height="48" rx="12" fill="#FFFFFF" opacity="0.96"/></g>
+  <g>
+    <rect x="1058" y="670" width="72" height="32" rx="8" fill="#FFF3C9" stroke="#F5A623" stroke-width="2.5"/>
+    <rect x="1072" y="684" width="44" height="5" rx="2.5" fill="#B3541E"/>
+    <ellipse cx="1168" cy="688" rx="18" ry="8" fill="none" stroke="#F5C531" stroke-width="3.5" stroke-dasharray="7 5"/>
+    <path d="M1206 696 v-14 l8 -3 v14" stroke="#E8A61E" stroke-width="2.6" fill="none" stroke-linejoin="round"/>
+    <circle cx="1204" cy="696" r="3.4" fill="#E8A61E"/><circle cx="1212" cy="693" r="3.4" fill="#E8A61E"/>
+    <path d="M1232 678 l3 7 7 3 -7 3 -3 7 -3 -7 -7 -3 7 -3 z" fill="#FFD34D"/>
+  </g>
+
+  <!-- 목업 캡션 -->
+  <g><rect x="16" y="688" width="668" height="26" rx="8" fill="#FFFFFF" opacity="0.78"/></g>
+  <text x="28" y="706" font-size="14" fill="#7B8A96">목업 v3 · 씬 ② 리듬 하역(80BPM, 2박째 정박 PERFECT 패스) · 캐릭터는 실제 에셋으로 교체 예정</text>
+</svg>
