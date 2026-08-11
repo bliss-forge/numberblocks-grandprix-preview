@@ -14,7 +14,8 @@ import {
   recipeFor,
   rinseJar,
   shelfTubes,
-  squeezeTube
+  squeezeTube,
+  tubeForDigit
 } from "../src/paint-play.mjs";
 import {
   PAINT_COLORS,
@@ -63,15 +64,42 @@ test("난이도별 라운드 수·스테이지가 계획을 따른다", () => {
   }
 });
 
-test("라운드는 목표색과 주제가 정합하고 같은 색이 연속되지 않는다", () => {
-  for (const seed of [1, 2, 3, 4, 5]) {
-    const state = createPaintPlay("challenge", seed);
-    let previous = null;
-    for (const round of state.rounds) {
-      assert.ok(PAINT_RECIPES[round.colorId], "레시피 있는 색");
-      assert.notEqual(round.colorId, previous, "연속 색 금지");
-      previous = round.colorId;
+// 한 판 안에서 색·그림이 겹치지 않아야 한다. 예전엔 직전 라운드만 걸러서
+// 같은 스테이지가 떨어져 배치되면 같은 그림이 다시 나왔고, 전시회 벽에
+// 같은 그림 두 장이 걸렸다(2026-08-11 리뷰에서 잡힌 회귀).
+test("한 판에 같은 색·같은 그림이 두 번 나오지 않는다", () => {
+  for (const difficulty of Object.keys(STAGE_PLANS)) {
+    for (let seed = 0; seed < 200; seed += 1) {
+      const state = createPaintPlay(difficulty, seed);
+      const colors = state.rounds.map(round => round.colorId);
+      const subjects = state.rounds.map(round => round.subjectId);
+      for (const round of state.rounds) {
+        assert.ok(PAINT_RECIPES[round.colorId], "레시피 있는 색");
+      }
+      assert.equal(new Set(colors).size, colors.length,
+        `${difficulty} seed ${seed} 색 중복: ${colors}`);
+      assert.equal(new Set(subjects).size, subjects.length,
+        `${difficulty} seed ${seed} 그림 중복: ${subjects}`);
     }
+  }
+});
+
+// 역추론(스테이지 4)은 "무엇과 무엇을 섞을까"를 묻는다. 이미 튜브로 가진
+// 색을 내면 그 튜브 한 번으로 정원이 차서 물음이 사라진다(2026-08-11 리뷰).
+test("역추론 라운드는 이미 해금한 색을 목표로 내지 않는다", () => {
+  const owned = ["orange", "green", "purple", "pink"];
+  for (let seed = 0; seed < 200; seed += 1) {
+    const state = createPaintPlay("challenge", seed, owned);
+    for (const round of state.rounds) {
+      if (round.stage !== 4) continue;
+      assert.ok(!owned.includes(round.colorId),
+        `seed ${seed} 역추론 목표 ${round.colorId} 는 이미 가진 색`);
+    }
+  }
+  // 다 가진 아이면 피할 곳이 없다 — 그때는 출제가 깨지지 않는 쪽이 우선이다
+  const all = createPaintPlay("challenge", 1, [...UNLOCKABLE]);
+  for (const round of all.rounds) {
+    assert.ok(PAINT_RECIPES[round.colorId], "전부 해금해도 라운드는 성립");
   }
 });
 
@@ -327,21 +355,45 @@ test("해금 선반 — 내 물감 튜브가 기본 5 뒤에 붙는다", () => {
   assert.ok(tubes.at(-1).unlocked, "내 물감 표식");
 });
 
-// 숫자키가 위치로 정해지므로 선반 순서가 세션마다 흔들리면 안 된다.
-// 해금한 순서가 아니라 UNLOCKABLE 선언 순서로 줄을 세운다(2026-08-11).
-test("해금 선반 순서는 해금 시각이 아니라 팔레트 선언 순서로 고정된다", () => {
-  const late = createPaintPlay("easy", 1, ["navy", "orange", "pink"]);
-  const early = createPaintPlay("easy", 1, ["orange", "pink", "navy"]);
+// 숫자키가 선반 위치에서 나오므로, 한 번 6번이 된 색은 영원히 6번이어야 한다.
+// 팔레트 선언 순서로 정렬하면 앞선 색을 나중에 해금할 때 뒤 튜브가 밀려
+// 아이가 외운 키가 판 중간에 바뀐다 — 리뷰에서 잡힌 회귀(2026-08-11).
+test("선반은 append-only — 새 해금이 기존 튜브의 숫자키를 밀지 않는다", () => {
+  const before = createPaintPlay("easy", 1, ["navy"]);
+  assert.equal(shelfTubes(before)[5].id, "navy");
+  assert.equal(slotKeyDigit(5), "6", "남색이 6번");
+
+  // 같은 판에서 UNLOCKABLE 선언이 앞선 주황을 새로 얻는다
+  before.myTubes.push("orange");
+  const after = shelfTubes(before);
+  assert.equal(after[5].id, "navy", "남색은 6번 자리를 지킨다");
+  assert.equal(after[6].id, "orange", "새 물감은 뒤에 붙는다");
+
+  // 다음 세션(localStorage 는 얻은 순서를 보존한다)에서도 같은 자리
+  const next = createPaintPlay("easy", 9, ["navy", "orange"]);
   assert.deepEqual(
-    shelfTubes(late).map(tube => tube.id),
-    shelfTubes(early).map(tube => tube.id),
-    "해금 순서가 달라도 같은 자리"
+    shelfTubes(next).map(tube => tube.id),
+    [...PAINT_TUBES.map(tube => tube.id), "navy", "orange"]
   );
+});
+
+test("tubeForDigit — 숫자키가 가리키는 칸을 앱과 같은 함수로 판정한다", () => {
+  const none = createPaintPlay("easy", 1);
+  assert.equal(tubeForDigit(none, "1").tube.id, "red");
+  assert.equal(tubeForDigit(none, "5").tube.id, "white");
+  assert.equal(tubeForDigit(none, "6"), null, "해금 전엔 빈 칸");
+  assert.equal(tubeForDigit(none, "0"), null);
+  assert.equal(tubeForDigit(none, "x"), null, "숫자가 아니면 없음");
+
+  const some = createPaintPlay("easy", 1, ["green", "orange"]);
   assert.deepEqual(
-    shelfTubes(late).slice(PAINT_TUBES.length).map(tube => tube.id),
-    ["orange", "pink", "navy"],
-    "UNLOCKABLE 선언 순서"
+    ["1", "2", "3", "4", "5", "6", "7", "8"].map(d => tubeForDigit(some, d)?.tube.id ?? null),
+    ["red", "yellow", "blue", "black", "white", "green", "orange", null]
   );
+  // 헹구기는 숫자키로 잡히지 않는다 — 잡히면 마지막 튜브가 밀린다
+  const full = createPaintPlay("easy", 1, [...UNLOCKABLE]);
+  assert.equal(tubeForDigit(full, "0").tube.id, "sky");
+  assert.equal(tubeForDigit(full, "0").index, 9);
 });
 
 test("숫자키 슬롯 — 기본 5 + 해금이 1..9,0 을 순서대로 받고 11번째는 없다", () => {
