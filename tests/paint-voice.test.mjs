@@ -8,7 +8,7 @@
 
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
+import { readFile, readdir } from "node:fs/promises";
 import { VOICE } from "../src/audio-manifest.mjs";
 import {
   CANONICAL_MIX,
@@ -127,22 +127,47 @@ const VOICE_TEMPLATES = Object.freeze([
   "paint-made-${event.color}"
 ]);
 
+// 스캔 대상은 "오디오를 실제로 만지는 파일"로 그때그때 고른다. 파일 목록을
+// 손으로 적으면 새 모듈이 음성을 부르기 시작할 때 스캔이 조용히 좁아진다 —
+// 이 테스트가 막으려는 바로 그 실패 모드다(KTX 세션 제안, 2026-08-11).
+const AUDIO_TOUCH = /playPrompt\(|playVoice\(|speakPaint\(|audio\./;
+
+async function readSources() {
+  const dir = new URL("../src/", import.meta.url);
+  const names = (await readdir(dir)).filter(name => name.endsWith(".mjs"));
+  const loud = [];
+  const quiet = [];
+  for (const name of names) {
+    // 등록부 자체는 호출자가 아니다
+    if (name === "audio-manifest.mjs") continue;
+    const source = await readFile(new URL(name, dir), "utf8");
+    (AUDIO_TOUCH.test(source) ? loud : quiet).push({ name, source });
+  }
+  return { loud, quiet };
+}
+
+// 토큰 경계까지 맞는 위치만 돌려준다 — localStorage 키
+// "numberblocks-paint-unlocked" 가 "paint-unlock" 을 품는 식의 오탐을 뺀다.
+function tokenPositions(source, needle) {
+  const out = [];
+  for (let at = source.indexOf(needle); at >= 0; at = source.indexOf(needle, at + 1)) {
+    const before = source[at - 1] ?? " ";
+    const after = source[at + needle.length] ?? " ";
+    if (!/[\w-]/.test(before) && !/[\w-]/.test(after)) out.push(at);
+  }
+  return out;
+}
+
 test("물감 음성 호출 경로는 speakPaint 하나뿐이다", async () => {
   const needles = [...manifestKeys, ...VOICE_TEMPLATES];
-  const files = ["app.mjs", "paint-play.mjs", "paint-play-scene.mjs",
-    "paint-play-data.mjs", "audio-manager.mjs", "app-behavior.mjs"];
+  const { loud } = await readSources();
+  assert.ok(loud.some(file => file.name === "app.mjs"), "app.mjs 가 스캔에 없다");
   let found = 0;
 
-  for (const file of files) {
-    const source = await readFile(new URL(`../src/${file}`, import.meta.url), "utf8");
+  for (const { name: file, source } of loud) {
     for (const needle of needles) {
       // 같은 리터럴이 두 번 나와도 각 위치를 따로 본다(indexOf 한 번은 첫 것만 본다)
-      for (let at = source.indexOf(needle); at >= 0; at = source.indexOf(needle, at + 1)) {
-        // 부분 문자열 오탐 제외 — localStorage 키 "numberblocks-paint-unlocked" 가
-        // "paint-unlock" 을 품는다. 앞뒤가 단어 문자면 다른 이름의 일부다.
-        const before = source[at - 1] ?? " ";
-        const after = source[at + needle.length] ?? " ";
-        if (/[\w-]/.test(before) || /[\w-]/.test(after)) continue;
+      for (const at of tokenPositions(source, needle)) {
         const start = source.lastIndexOf("\n", at) + 1;
         const end = source.indexOf("\n", at);
         const line = source.slice(start, end < 0 ? source.length : end);
@@ -157,6 +182,28 @@ test("물감 음성 호출 경로는 speakPaint 하나뿐이다", async () => {
     }
   }
   assert.ok(found >= 5, `물감 키 사용처를 ${found}곳만 찾았다 — 스캔이 헛돌았다`);
+});
+
+// 음성 키와 똑같은 이름의 CSS 클래스·데이터 속성이 생기면, 그 파일이 나중에
+// 오디오를 만지기 시작하는 순간 위 스캔이 그 이름을 "호출"로 오탐한다.
+// 그러면 정작 그 키가 사문화돼도 못 잡는다 — KTX 쪽에서 실제로 발견된 지뢰
+// (srt-journey-scene 의 CSS 클래스 "srt-parking" 이 음성 키와 동명)라,
+// 물감에서는 충돌이 생기는 시점에 미리 걸리게 한다.
+test("음성 키와 같은 이름의 비오디오 토큰이 없다", async () => {
+  const { quiet } = await readSources();
+  const css = await readFile(new URL("../styles.css", import.meta.url), "utf8");
+  const collisions = [];
+  for (const key of manifestKeys) {
+    for (const { name, source } of quiet) {
+      if (tokenPositions(source, key).length) collisions.push(`src/${name}: ${key}`);
+    }
+    if (tokenPositions(css, key).length) collisions.push(`styles.css: ${key}`);
+  }
+  assert.deepEqual(
+    collisions, [],
+    "음성 키와 이름이 겹치는 클래스·속성이 있다 — 그 파일이 오디오를 " +
+    "만지기 시작하면 호출 스캔이 오탐하므로 이름부터 바꿔라"
+  );
 });
 
 // 위 탐색이 쓰는 결과색 판정 — mixJar 와 같은 규칙을 테스트 안에서 재현한다.
