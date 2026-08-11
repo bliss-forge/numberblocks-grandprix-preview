@@ -29,8 +29,8 @@
 <script type="module">
 import {
   createDelivery, deliverParcel, pressFloor, pushCommand, ringBell, runCommands,
-} from "/src/delivery-model.mjs";
-import { renderDelivery } from "/src/delivery-scene.mjs";
+} from "./src/delivery-model.mjs";
+import { renderDelivery } from "./src/delivery-scene.mjs";
 
 const phase = new URLSearchParams(location.search).get("phase") ?? "drive";
 const seed = Number(new URLSearchParams(location.search).get("seed") ?? 31);
