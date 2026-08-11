@@ -142,8 +142,8 @@ import {
 import {
   CANONICAL_MIX as PAINT_CANONICAL_MIX,
   PAINT_COLORS,
-  PAINT_TUBES,
-  josa
+  josa,
+  keyDigitSlot as paintKeyDigitSlot
 } from "./paint-play-data.mjs";
 import {
   clearCommands as clearDeliveryCommands,
@@ -2591,14 +2591,16 @@ document.addEventListener("keydown", event => {
       if (!event.repeat) activatePaintFocus();
       return;
     }
+    // 숫자키 = 선반 슬롯(1..9, 0). 해금한 내 물감도 같은 규칙으로 잡힌다 —
+    // 키를 위치에서 뽑기 때문에 클릭·⎵ 경로와 인덱스 공간이 하나로 유지된다.
     if (/^[0-9]$/.test(event.key)) {
       event.preventDefault();
       if (event.repeat) return;
-      const tube = PAINT_TUBES.find(entry => entry.keyDigit === event.key);
-      if (tube) {
-        const index = PAINT_TUBES.indexOf(tube);
+      const tubes = paintShelfTubes(state.paint);
+      const index = paintKeyDigitSlot(event.key);
+      if (index >= 0 && index < tubes.length) {
         state.paint.focusIndex = index;
-        handlePaintEvents(paintSqueezeTube(state.paint, tube.id));
+        handlePaintEvents(paintSqueezeTube(state.paint, tubes[index].id));
       } else {
         audio.playSfx("pop");
       }

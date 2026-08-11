@@ -8143,8 +8143,12 @@ body[data-mode="paint"] .stage-lights {
   flex-direction: column-reverse;
 }
 
+/* 층은 최대 넷까지 쌓인다(4색 라운드). 30% 고정이면 4층에서 120%가 되어
+   맨 위 층이 잘리므로, 남는 높이를 나눠 갖되 30%를 넘지 않게 한다. */
 .pp-jar-layer {
-  height: 30%;
+  flex: 1 1 0;
+  min-height: 0;
+  max-height: 30%;
   background: var(--layer-color, #ccc);
   animation: pp-pour .45s ease;
 }
@@ -8185,16 +8189,20 @@ body[data-mode="paint"] .stage-lights {
   to { transform: rotate(320deg) scale(1); }
 }
 
-/* 수식 칩 — 학습의 상시 원본 */
+/* 수식 칩 — 학습의 상시 원본. 4색 라운드면 칩이 아홉 개까지 늘어나므로
+   좁은 화면에서는 줄을 바꾼다(가로 스크롤 금지 계약). */
 .pp-equation {
   display: flex;
   align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
   gap: 7px;
   padding: 8px 14px;
   background: #fff;
   border: 3px solid #31445b;
   border-radius: 14px;
   font-weight: 900;
+  max-width: 100%;
 }
 
 .pp-eq { font-size: clamp(14px, 1.6vw, 19px); color: #31445b; }

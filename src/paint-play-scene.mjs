@@ -15,7 +15,8 @@ import {
   equationFor,
   jarColor,
   recipeFor,
-  shelfTubes
+  shelfTubes,
+  slotKeyDigit
 } from "./paint-play.mjs";
 
 function el(document, tag, className, text = null) {
@@ -212,7 +213,66 @@ const SUBJECT_ART = {
   eggplant: `
     <ellipse cx="150" cy="150" rx="88" ry="60" transform="rotate(32 150 150)" ${FILL}/>
     <path d="M88 96 C76 80 74 64 80 50 C96 56 108 68 114 84 C122 76 134 72 146 74 C138 88 124 98 108 100z" fill="#4f7a4f" stroke="#3d5f3d" stroke-width="4"/>
-    <path d="M84 92 C74 80 70 68 72 54" stroke="#4f7a4f" stroke-width="7" fill="none" stroke-linecap="round"/>`
+    <path d="M84 92 C74 80 70 68 72 54" stroke="#4f7a4f" stroke-width="7" fill="none" stroke-linecap="round"/>`,
+  // 4색 혼합(스테이지 6). 겹쳐 쌓는 그림은 그리는 순서가 곧 레이어라
+  // 팔·다리를 몸통보다 먼저 둔다 — 안 그러면 점선 이음매가 몸을 가로지른다.
+  sandcastle: `
+    <path d="M16 210 C48 188 96 182 140 182 C184 182 232 188 264 210 C232 224 184 230 140 230 C96 230 48 224 16 210z" ${FILL}/>
+    <path d="M40 202 L40 96 L58 96 L58 112 L78 112 L78 96 L96 96 L96 202z" ${FILL}/>
+    <path d="M184 202 L184 96 L202 96 L202 112 L222 112 L222 96 L240 96 L240 202z" ${FILL}/>
+    <path d="M96 202 L96 74 L114 74 L114 90 L131 90 L131 74 L149 74 L149 90 L166 90 L166 74 L184 74 L184 202z" ${FILL}/>
+    <path d="M126 202 L126 166 C126 150 154 150 154 166 L154 202z" fill="#c8ccd4" stroke="${DETAIL}" stroke-width="4"/>
+    <rect x="58" y="138" width="20" height="26" rx="7" fill="#dfe8f2" stroke="${DETAIL}" stroke-width="4"/>
+    <rect x="202" y="138" width="20" height="26" rx="7" fill="#dfe8f2" stroke="${DETAIL}" stroke-width="4"/>
+    <line x1="140" y1="90" x2="140" y2="36" stroke="#8a6a48" stroke-width="6" stroke-linecap="round"/>
+    <path d="M144 40 L182 52 L144 64z" fill="#ff8a3d" stroke="#e8763a" stroke-width="4"/>
+    <circle cx="56" cy="222" r="8" fill="#ffd3df" stroke="#e8a3b8" stroke-width="3"/>
+    <circle cx="226" cy="220" r="6" fill="#8fd0f8" stroke="#6fb4e0" stroke-width="3"/>`,
+  camel: `
+    <path d="M166 154 C172 118 184 88 200 60 L228 70 C216 100 210 128 208 160z" ${FILL}/>
+    <rect x="86" y="168" width="24" height="64" rx="12" ${FILL}/>
+    <rect x="120" y="170" width="24" height="62" rx="12" ${FILL}/>
+    <rect x="164" y="170" width="24" height="62" rx="12" ${FILL}/>
+    <rect x="192" y="168" width="24" height="64" rx="12" ${FILL}/>
+    <ellipse cx="136" cy="146" rx="78" ry="42" ${FILL}/>
+    <path d="M84 118 C92 72 128 72 136 118z" ${FILL}/>
+    <path d="M140 118 C148 76 182 76 190 118z" ${FILL}/>
+    <ellipse cx="230" cy="56" rx="24" ry="19" ${FILL}/>
+    <ellipse cx="254" cy="70" rx="18" ry="13" transform="rotate(22 254 70)" ${FILL}/>
+    <ellipse cx="214" cy="34" rx="9" ry="11" transform="rotate(-24 214 34)" ${FILL}/>
+    <circle cx="234" cy="50" r="7" fill="#31445b"/>
+    <circle cx="262" cy="66" r="4" fill="${DETAIL}"/>
+    <path d="M264 76 C270 78 270 84 264 84" stroke="${DETAIL}" stroke-width="4" fill="none" stroke-linecap="round"/>
+    <path d="M60 138 C46 146 42 162 48 176" stroke="#8a6a48" stroke-width="6" fill="none" stroke-linecap="round"/>`,
+  dumptruck: `
+    <path d="M34 150 L50 74 L168 74 L168 150z" ${FILL}/>
+    <path d="M176 150 L176 96 C176 88 182 82 190 82 L226 82 C235 82 241 87 245 96 L254 120 L254 150z" ${FILL}/>
+    <rect x="28" y="150" width="228" height="20" rx="8" ${FILL}/>
+    <rect x="190" y="96" width="34" height="26" rx="6" fill="#dfe8f2" stroke="${DETAIL}" stroke-width="4"/>
+    <line x1="52" y1="88" x2="168" y2="88" stroke="${DETAIL}" stroke-width="4"/>
+    <circle cx="76" cy="182" r="26" fill="#3a4152"/><circle cx="76" cy="182" r="11" fill="#c8ccd4"/>
+    <circle cx="134" cy="182" r="26" fill="#3a4152"/><circle cx="134" cy="182" r="11" fill="#c8ccd4"/>
+    <circle cx="216" cy="182" r="26" fill="#3a4152"/><circle cx="216" cy="182" r="11" fill="#c8ccd4"/>`,
+  elephant: `
+    <path d="M38 128 C14 164 18 202 48 212 C68 219 86 210 80 194 C74 182 64 180 56 188 C44 176 52 156 76 140z" ${FILL}/>
+    <rect x="96" y="172" width="30" height="60" rx="14" ${FILL}/>
+    <rect x="140" y="176" width="30" height="56" rx="14" ${FILL}/>
+    <rect x="190" y="172" width="30" height="60" rx="14" ${FILL}/>
+    <ellipse cx="158" cy="142" rx="82" ry="58" ${FILL}/>
+    <circle cx="84" cy="118" r="54" ${FILL}/>
+    <ellipse cx="112" cy="104" rx="34" ry="38" ${FILL}/>
+    <circle cx="66" cy="104" r="9" fill="#31445b"/>
+    <path d="M238 148 C250 158 252 176 244 188" stroke="${DETAIL}" stroke-width="6" fill="none" stroke-linecap="round"/>`,
+  cactus: `
+    <rect x="118" y="46" width="46" height="146" rx="23" ${FILL}/>
+    <rect x="62" y="96" width="76" height="30" rx="15" ${FILL}/>
+    <rect x="62" y="58" width="30" height="58" rx="15" ${FILL}/>
+    <rect x="146" y="126" width="72" height="30" rx="15" ${FILL}/>
+    <rect x="188" y="84" width="30" height="60" rx="15" ${FILL}/>
+    <circle cx="141" cy="40" r="13" fill="#ff9ec4" stroke="#e8a3b8" stroke-width="4"/>
+    <path d="M118 148 L108 143 M164 168 L174 163 M164 108 L174 104" stroke="${DETAIL}" stroke-width="4" fill="none" stroke-linecap="round"/>
+    <rect x="76" y="176" width="130" height="20" rx="7" fill="#e39b70" stroke="#b86a44" stroke-width="4"/>
+    <path d="M86 196 L196 196 L186 226 L96 226z" fill="#d98a5e" stroke="#b86a44" stroke-width="4"/>`
 };
 
 export function paintSubjectSvg(subjectId) {
@@ -314,7 +374,7 @@ function buildJar(document, state) {
     if (index > 0) equation.append(el(document, "span", "pp-eq-op", "+"));
     equation.append(el(
       document, "span",
-      `pp-eq pp-eq-${["a", "b", "c"][index]}`,
+      `pp-eq pp-eq-${["a", "b", "c", "d"][index]}`,
       name ?? "?"
     ));
   });
@@ -348,15 +408,18 @@ function buildShelf(document, state) {
     button.dataset.hint = inRecipe && level >= 2
       ? "sparkle"
       : inRecipe && level >= 1 ? "drop" : "";
+    // 배지 = 눌러야 할 숫자키. 열 칸을 넘긴 튜브는 키가 없어 별을 단다
+    // (←/→ 로는 늘 닿는다). 마스코트는 색 정체성으로 남는다.
+    const digit = slotKeyDigit(index);
     button.setAttribute(
       "aria-label",
-      tube.unlocked
-        ? `${PAINT_COLORS[tube.id].ko} 물감 (내가 만든 색)`
-        : `${PAINT_COLORS[tube.id].ko} 물감 (숫자 ${tube.keyDigit})`
+      digit
+        ? `${PAINT_COLORS[tube.id].ko} 물감 (숫자 ${digit})`
+        : `${PAINT_COLORS[tube.id].ko} 물감 (내가 만든 색)`
     );
-    const badge = tube.unlocked
-      ? el(document, "span", "pp-tube-num pp-tube-star", "⭐")
-      : el(document, "span", "pp-tube-num", String(tube.number));
+    const badge = digit
+      ? el(document, "span", "pp-tube-num", digit)
+      : el(document, "span", "pp-tube-num pp-tube-star", "⭐");
     const body = el(document, "span", "pp-tube-body");
     body.style.setProperty("--tube-color", PAINT_COLORS[tube.id].hex);
     button.append(badge, body);

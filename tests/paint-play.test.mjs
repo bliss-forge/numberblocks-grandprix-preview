@@ -20,7 +20,9 @@ import {
   PAINT_COLORS,
   PAINT_RECIPES,
   PAINT_TUBES,
-  STAGE_PLANS
+  STAGE_PLANS,
+  UNLOCKABLE,
+  slotKeyDigit
 } from "../src/paint-play-data.mjs";
 
 // 현재 라운드를 정답으로 완성한다 — 테스트 헬퍼.
@@ -28,6 +30,15 @@ function solveRound(state) {
   const round = currentRound(state);
   for (const part of recipeFor(round.colorId)) squeezeTube(state, part);
   return paintCanvas(state);
+}
+
+// 라운드를 원하는 목표색으로 고정한다. 난이도 계획이 바뀔 때마다 무관한
+// 테스트가 무더기로 깨지지 않도록, 재료 수가 중요한 테스트는 이걸 쓴다.
+function pinRound(state, colorId, subjectId = null) {
+  const round = state.rounds[state.roundIndex];
+  round.colorId = colorId;
+  if (subjectId) round.subjectId = subjectId;
+  return round;
 }
 
 test("같은 시드는 같은 라운드 목록을 만든다 (재현성)", () => {
@@ -77,7 +88,7 @@ test("원색 라운드는 한 번 고르면 바로 섞인다", () => {
 // 고르면 무른다 — 2재료 레시피는 모두 서로 다른 두 색이라 잃는 조작이 없다.
 test("같은 튜브를 두 번 고르면 두 번째는 잠금 — 더블탭이 오답이 되지 않는다", () => {
   const state = createPaintPlay("steady", 1);
-  const round = currentRound(state);
+  const round = pinRound(state, "orange", "car");
   const [a] = recipeFor(round.colorId);
   assert.equal(recipeFor(round.colorId).length, 2, "2재료 라운드");
   squeezeTube(state, a);
@@ -90,7 +101,7 @@ test("같은 튜브를 두 번 고르면 두 번째는 잠금 — 더블탭이 �
 
 test("혼합 라운드 — 2색 제한: 가득 찬 병에는 잠금 이벤트만 나온다", () => {
   const state = createPaintPlay("steady", 1);
-  const round = currentRound(state);
+  const round = pinRound(state, "green", "frog");
   const [a, b] = recipeFor(round.colorId);
   squeezeTube(state, a);
   squeezeTube(state, b);
@@ -103,7 +114,7 @@ test("혼합 라운드 — 2색 제한: 가득 찬 병에는 잠금 이벤트만
 // 젓기·칠하기 버튼은 없다 — 두 번째 튜브가 곧 혼합 신호다.
 test("혼합 라운드 — 두 번째 튜브에서 자동으로 섞인다(젓기 단계 없음)", () => {
   const state = createPaintPlay("steady", 1);
-  const round = currentRound(state);
+  const round = pinRound(state, "purple", "grape");
   const [a, b] = recipeFor(round.colorId);
   const first = squeezeTube(state, a);
   assert.ok(!first.some(event => event.type === "mixed"), "한 개로는 안 섞인다");
@@ -118,7 +129,7 @@ test("혼합 라운드 — 두 번째 튜브에서 자동으로 섞인다(젓기
 
 test("수식 칩 — 한 개 고른 뒤엔 결과가 비고, 두 개째에 채워진다", () => {
   const state = createPaintPlay("steady", 1);
-  const round = currentRound(state);
+  const round = pinRound(state, "orange", "car");
   const [a, b] = recipeFor(round.colorId);
   squeezeTube(state, a);
   const before = equationFor(state);
@@ -132,7 +143,7 @@ test("수식 칩 — 한 개 고른 뒤엔 결과가 비고, 두 개째에 채�
 
 test("헹구기 — 병이 비고 판정·별 변화가 없다", () => {
   const state = createPaintPlay("steady", 1);
-  const round = currentRound(state);
+  const round = pinRound(state, "orange", "car");
   squeezeTube(state, recipeFor(round.colorId)[0]);
   const events = rinseJar(state);
   assert.deepEqual(events, [{ type: "rinsed" }]);
@@ -316,6 +327,40 @@ test("해금 선반 — 내 물감 튜브가 기본 5 뒤에 붙는다", () => {
   assert.ok(tubes.at(-1).unlocked, "내 물감 표식");
 });
 
+// 숫자키가 위치로 정해지므로 선반 순서가 세션마다 흔들리면 안 된다.
+// 해금한 순서가 아니라 UNLOCKABLE 선언 순서로 줄을 세운다(2026-08-11).
+test("해금 선반 순서는 해금 시각이 아니라 팔레트 선언 순서로 고정된다", () => {
+  const late = createPaintPlay("easy", 1, ["navy", "orange", "pink"]);
+  const early = createPaintPlay("easy", 1, ["orange", "pink", "navy"]);
+  assert.deepEqual(
+    shelfTubes(late).map(tube => tube.id),
+    shelfTubes(early).map(tube => tube.id),
+    "해금 순서가 달라도 같은 자리"
+  );
+  assert.deepEqual(
+    shelfTubes(late).slice(PAINT_TUBES.length).map(tube => tube.id),
+    ["orange", "pink", "navy"],
+    "UNLOCKABLE 선언 순서"
+  );
+});
+
+test("숫자키 슬롯 — 기본 5 + 해금이 1..9,0 을 순서대로 받고 11번째는 없다", () => {
+  const all = createPaintPlay("easy", 1, [...UNLOCKABLE]);
+  const tubes = shelfTubes(all);
+  assert.equal(tubes.length, 12, "기본 5 + 해금 7");
+  const keyed = tubes
+    .map((tube, index) => [slotKeyDigit(index), tube.id])
+    .filter(([digit]) => digit !== null);
+  assert.deepEqual(keyed, [
+    ["1", "red"], ["2", "yellow"], ["3", "blue"], ["4", "black"], ["5", "white"],
+    ["6", "orange"], ["7", "green"], ["8", "purple"], ["9", "pink"], ["0", "sky"]
+  ]);
+  assert.equal(slotKeyDigit(10), null, "밤색은 키 없이 ←/→ 로만");
+  assert.equal(slotKeyDigit(11), null, "남색도 마찬가지");
+  // 키 없는 튜브도 포커스로는 항상 닿는다
+  assert.equal(paintFocusCount(all), 13);
+});
+
 test("해금 지름길 — 주황+하양 두 번으로 살구색(3재료)이 완성된다", () => {
   const state = createPaintPlay("challenge", 1, ["orange"]);
   const index = state.rounds.findIndex(round => round.stage === 5);
@@ -333,19 +378,79 @@ test("해금 지름길 — 주황+하양 두 번으로 살구색(3재료)이 완
   assert.ok(paintCanvas(state).some(event => event.type === "success"));
 });
 
-test("해금 뒤섞임 — 4원색 이상은 먹색으로 판정된다(크래시 없음)", () => {
-  const state = createPaintPlay("challenge", 1, ["pink", "green"]);
+// 4원색이 이름을 얻은 뒤(2026-08-11)에도 먹색 경로는 남는다 — 삼원색+검정.
+test("해금 뒤섞임 — 삼원색+검정은 먹색으로 판정된다(크래시 없음)", () => {
+  const state = createPaintPlay("challenge", 1, ["orange", "navy"]);
   const index = state.rounds.findIndex(round => round.stage === 5);
   state.roundIndex = index;
   state.rounds[index].colorId = "peach";
-  squeezeTube(state, "pink");   // {빨강, 하양}
-  squeezeTube(state, "green");  // {노랑, 파랑} → 합집합 4원색
+  squeezeTube(state, "orange"); // {빨강, 노랑}
+  squeezeTube(state, "navy");   // {파랑, 검정} → 합집합 빨노파검
   assert.equal(jarColor(state), "mud");
   const outcome = paintCanvas(state).find(
     event => event.type === "mismatch"
   );
   assert.ok(outcome, "먹색은 벌점 없는 재도전");
   assert.equal(outcome.color, "mud");
+});
+
+// ── 4색 혼합(어려움) — 사용자 요구 2026-08-11 ─────────────────────────────
+
+test("4색 라운드 — 기본 튜브 네 번으로 완성된다(해금 0인 첫 판)", () => {
+  const state = createPaintPlay("challenge", 1);
+  const index = state.rounds.findIndex(round => round.stage === 6);
+  assert.ok(index >= 0, "challenge에 4색 라운드");
+  state.roundIndex = index;
+  const round = currentRound(state);
+  const recipe = recipeFor(round.colorId);
+  assert.equal(recipe.length, 4, "4재료 레시피");
+  recipe.slice(0, 3).forEach(part => {
+    const events = squeezeTube(state, part);
+    assert.ok(!events.some(event => event.type === "mixed"), "3개로는 안 섞인다");
+  });
+  const events = squeezeTube(state, recipe[3]);
+  assert.ok(events.some(event => event.type === "mixed"), "네 번째에서 혼합");
+  assert.equal(jarColor(state), round.colorId);
+  const equation = equationFor(state);
+  assert.equal(equation.parts.length, 4, "수식 칩 네 칸 — 재료가 잘리지 않는다");
+  assert.deepEqual(
+    equation.parts, recipe.map(id => PAINT_COLORS[id].ko), "네 재료 이름 전부"
+  );
+  assert.ok(paintCanvas(state).some(event => event.type === "success"));
+});
+
+test("4색 지름길 — 해금 두 개로 두 손짓에 4원색이 완성된다", () => {
+  const state = createPaintPlay("challenge", 1, ["orange", "sky"]);
+  const index = state.rounds.findIndex(round => round.stage === 6);
+  state.roundIndex = index;
+  const round = pinRound(state, "sand", "sandcastle");
+  assert.equal(recipeFor(round.colorId).length, 4, "정원은 네 유닛");
+  const first = squeezeTube(state, "orange"); // 2유닛
+  assert.ok(!first.some(event => event.type === "mixed"), "2유닛으론 부족");
+  const events = squeezeTube(state, "sky");   // +2유닛 = 4
+  assert.ok(events.some(event => event.type === "mixed"), "두 손짓에 혼합");
+  assert.equal(jarColor(state), "sand");
+  assert.deepEqual(equationFor(state).parts, ["주황", "하늘색"], "지름길 수식");
+  assert.ok(paintCanvas(state).some(event => event.type === "success"));
+});
+
+test("4색 회귀 — 서로 다른 네 튜브 전 조합이 이름 있는 색으로 판정된다", () => {
+  const tubes = PAINT_TUBES.map(tube => tube.id);
+  for (let skip = 0; skip < tubes.length; skip += 1) {
+    const picks = tubes.filter((_, index) => index !== skip);
+    const state = createPaintPlay("challenge", 1);
+    const index = state.rounds.findIndex(round => round.stage === 6);
+    state.roundIndex = index;
+    pinRound(state, "sand", "sandcastle");
+    for (const id of picks) squeezeTube(state, id);
+    const label = picks.join("+");
+    assert.ok(jarColor(state), `${label} 혼합색`);
+    const outcome = paintCanvas(state).find(
+      event => event.type === "success" || event.type === "mismatch"
+    );
+    assert.ok(outcome, `${label} 판정 이벤트`);
+    assert.ok(outcome.color, `${label} 색 이름 존재`);
+  }
 });
 
 // 반증 패스(2026-08-05)에서 잡힌 크래시 회귀 가드: 아이가 아무 튜브나

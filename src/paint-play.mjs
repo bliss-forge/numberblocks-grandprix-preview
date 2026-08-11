@@ -13,7 +13,9 @@ import {
   RAINBOW_COUNT,
   STAGE_PLANS,
   UNLOCKABLE,
-  mixJar
+  keyDigitSlot,
+  mixJar,
+  slotKeyDigit
 } from "./paint-play-data.mjs";
 import { mulberry } from "./ktx-route-data.mjs";
 
@@ -87,11 +89,12 @@ export function createPaintPlay(difficulty = "easy", seed = 0, unlocked = []) {
 }
 
 // 선반의 튜브 목록 — 기본 5 + 해금한 내 물감. 씬·앱이 같은 순서를 쓴다.
+// 해금 튜브는 해금한 시각이 아니라 UNLOCKABLE 선언 순서로 줄을 세운다.
+// 숫자키가 위치에서 나오므로, 순서가 흔들리면 어제 6번이던 초록이 오늘
+// 분홍이 된다 — 4~6세 반복 학습에서는 그게 곧 조작 불능이다.
 export function shelfTubes(state) {
-  return [
-    ...PAINT_TUBES,
-    ...state.myTubes.map(id => ({ id, unlocked: true }))
-  ];
+  const mine = UNLOCKABLE.filter(id => state.myTubes.includes(id));
+  return [...PAINT_TUBES, ...mine.map(id => ({ id, unlocked: true }))];
 }
 
 // 병에 든 "재료 유닛" 수 — 해금 튜브는 재료 수만큼 차지한다(주황=2유닛).
@@ -124,16 +127,22 @@ export function jarColor(state) {
   return mixJar(state.jar);
 }
 
+export { slotKeyDigit, keyDigitSlot };
+
 // 수식 칩 조각 — 씬·자막이 같은 원본을 쓴다. parts는 부은 튜브 이름 +
-// 남은 유닛만큼의 빈 칸(null, 최대 3칸). 섞이기 전 result는 null.
-// 예: { parts: ["주황", null], result: null } → 주황 + ? = ?
+// 남은 유닛만큼의 빈 칸(null). 상한은 레시피 최대 재료 수(4)다 —
+// 3으로 잘려 있던 동안 4색 라운드는 "빨강+노랑+파랑 = 모래색"이라는
+// 틀린 식을 자막·음성으로 가르쳤다(2026-08-11 감사에서 발견).
+const EQUATION_SLOTS = 4;
+
 export function equationFor(state) {
   const round = currentRound(state);
   if (!round) return null;
   const need = recipeFor(round.colorId).length;
   const names = state.jar.map(id => PAINT_COLORS[id].ko);
   const remaining = state.mixed ? 0 : Math.max(0, need - jarUnits(state));
-  const parts = [...names, ...Array(remaining).fill(null)].slice(0, 3);
+  const parts = [...names, ...Array(remaining).fill(null)]
+    .slice(0, EQUATION_SLOTS);
   if (parts.length === 0) parts.push(null);
   const result = jarColor(state);
   return { parts, result: result ? PAINT_COLORS[result].ko : null };

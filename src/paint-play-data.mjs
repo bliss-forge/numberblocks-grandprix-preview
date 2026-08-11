@@ -34,19 +34,44 @@ export const PAINT_COLORS = Object.freeze({
   brick: Object.freeze({ ko: "벽돌색", hex: "#b4574b" }),
   khaki: Object.freeze({ ko: "카키", hex: "#a89a5b" }),
   bluegray: Object.freeze({ ko: "청회색", hex: "#7288a5" }),
-  // 4원색 이상이 뒤섞였을 때의 종착색 — "다 섞으면 어두워져요" 학습.
+  // 4색 혼합 주문색 — 어려움(challenge)의 스테이지 6에서 출제된다.
+  // 넷 다 하양이 섞인 조합이라 밝고 탁한 쪽으로 떨어진다. 기존 24색과의
+  // CIEDE2000 최소 거리는 12.9(황토-카키)로, 이미 공존 중인 밤색-고동색(13.3)
+  // 수준이라 아이 눈에 갈라진다.
+  sand: Object.freeze({ ko: "모래색", hex: "#c7b9a1" }),
+  ochre: Object.freeze({ ko: "황토색", hex: "#c28a30" }),
+  grayviolet: Object.freeze({ ko: "회보라", hex: "#93879f" }),
+  sage: Object.freeze({ ko: "쑥색", hex: "#9ab595" }),
+  // 삼원색+검정과 전부 섞기의 종착색 — "다 섞으면 어두워져요" 학습.
+  // 하양 없는 4원색까지 여기로 보내 진한 갈색 이름이 셋으로 늘지 않게 한다.
   mud: Object.freeze({ ko: "먹색", hex: "#4a4440" })
 });
 
-// ── 물감 튜브 선반 — 마스코트 몸색 = 물감색 (숫자키 ↔ 색 자연 학습) ──────
-// keyDigit: 키보드 숫자키(10번 열이는 0키).
+// ── 물감 튜브 선반 — 마스코트 몸색 = 물감색 ───────────────────────────────
+// 숫자키는 여기 있지 않다. 선반 위치에서 파생된다(slotKeyDigit) —
+// 해금한 "내 물감"까지 숫자로 고를 수 있어야 한다는 사용자 요구(2026-08-11)
+// 때문에, 키를 정적 데이터로 두면 해금 튜브가 영영 키를 못 받는다.
 export const PAINT_TUBES = Object.freeze([
-  Object.freeze({ id: "red", number: 1, keyDigit: "1", char: "one" }),
-  Object.freeze({ id: "yellow", number: 3, keyDigit: "3", char: "three" }),
-  Object.freeze({ id: "blue", number: 5, keyDigit: "5", char: "five" }),
-  Object.freeze({ id: "black", number: 9, keyDigit: "9", char: "nine" }),
-  Object.freeze({ id: "white", number: 10, keyDigit: "0", char: "ten" })
+  Object.freeze({ id: "red", char: "one" }),
+  Object.freeze({ id: "yellow", char: "three" }),
+  Object.freeze({ id: "blue", char: "five" }),
+  Object.freeze({ id: "black", char: "nine" }),
+  Object.freeze({ id: "white", char: "ten" })
 ]);
+
+// ── 선반 슬롯 ↔ 숫자키 — 앞 열 칸만 1..9,0 을 받는다 ──────────────────────
+// 열한 번째부터는 키가 없고 ←/→ 로만 닿는다(해금을 다 모으면 12칸이 된다).
+export const KEY_SLOTS = 10;
+
+export function slotKeyDigit(index) {
+  if (!Number.isInteger(index) || index < 0 || index >= KEY_SLOTS) return null;
+  return String((index + 1) % 10);
+}
+
+export function keyDigitSlot(digit) {
+  if (!/^[0-9]$/.test(digit)) return -1;
+  return digit === "0" ? KEY_SLOTS - 1 : Number(digit) - 1;
+}
 
 // ── 레시피 — 결과색 → 재료(1개=원색 그대로, 2개=혼합, 3개=3색 혼합) ──────
 export const PAINT_RECIPES = Object.freeze({
@@ -65,7 +90,13 @@ export const PAINT_RECIPES = Object.freeze({
   lavender: Object.freeze(["red", "blue", "white"]),
   darkbrown: Object.freeze(["red", "yellow", "blue"]),
   darkgreen: Object.freeze(["yellow", "blue", "black"]),
-  darkpurple: Object.freeze(["red", "blue", "black"])
+  darkpurple: Object.freeze(["red", "blue", "black"]),
+  // 4색 — 기본 튜브 5종 중 넷을 고르는 조합 C(5,4)=5 가운데 하양이 든 넷.
+  // 남은 하나(빨+노+파+검)는 새 색을 만들지 않고 먹색으로 보낸다.
+  sand: Object.freeze(["red", "yellow", "blue", "white"]),
+  ochre: Object.freeze(["red", "yellow", "black", "white"]),
+  grayviolet: Object.freeze(["red", "blue", "black", "white"]),
+  sage: Object.freeze(["yellow", "blue", "black", "white"])
 });
 
 export function mixKey(...parts) {
@@ -109,6 +140,16 @@ export const MIX3_TABLE = Object.freeze({
   ...EXTRA_MIXES_3
 });
 
+// 4색 혼합 룩업 — 주문색 넷 + 하양 없는 나머지 한 조합(먹색).
+export const MIX4_TABLE = Object.freeze({
+  ...Object.fromEntries(
+    Object.entries(PAINT_RECIPES)
+      .filter(([, parts]) => parts.length === 4)
+      .map(([result, parts]) => [mixKey(...parts), result])
+  ),
+  [mixKey("red", "yellow", "blue", "black")]: "mud"
+});
+
 // 재료를 섞은 결과 색 id — 2재료 또는 3재료. 같은 색끼리는 그 색 그대로.
 // 서로 다른 튜브의 어떤 2·3색 조합도 null이 아니다.
 export function mixResult(a, b, c = null) {
@@ -124,15 +165,19 @@ export const UNLOCKABLE = Object.freeze([
 ]);
 
 // 병 내용 전체를 섞은 결과 — 해금 튜브는 기본 재료로 전개해 판정한다.
-// 주황+하양 = {빨강,노랑,하양} = 살구색: 기존 2·3색 테이블과 항상 등가라
-// 새 조합 테이블 없이 지름길 혼합이 성립한다. 4원색 이상은 먹색.
+// 주황+하양 = {빨강,노랑,하양} = 살구색: 기존 테이블과 항상 등가라
+// 새 조합 테이블 없이 지름길 혼합이 성립한다. 원색 다섯이 다 모이면 먹색.
+const MIX_TABLES = Object.freeze({
+  2: MIX_TABLE, 3: MIX3_TABLE, 4: MIX4_TABLE
+});
+
 export function mixJar(colorIds) {
   const base = [...new Set(colorIds.flatMap(id => PAINT_RECIPES[id] ?? [id]))];
   if (base.length === 0) return null;
   if (base.length === 1) return base[0];
-  if (base.length === 2) return MIX_TABLE[mixKey(...base)] ?? null;
-  if (base.length === 3) return MIX3_TABLE[mixKey(...base)] ?? null;
-  return "mud";
+  const table = MIX_TABLES[base.length];
+  if (!table) return "mud";
+  return table[mixKey(...base)] ?? null;
 }
 
 // 혼합 낭독 원본 — "A와 B를 섞으면 C!" 문장이 말하는 재료.
@@ -147,11 +192,13 @@ export const CANONICAL_MIX = Object.freeze({
   gray: Object.freeze(["black", "white"]),
   brick: Object.freeze(["red", "black", "white"]),
   khaki: Object.freeze(["yellow", "black", "white"]),
-  bluegray: Object.freeze(["blue", "black", "white"])
+  bluegray: Object.freeze(["blue", "black", "white"]),
+  // 먹색은 삼원색+검정을 정확히 부었을 때만 혼합 문장을 듣는다
+  mud: Object.freeze(["red", "yellow", "blue", "black"])
 });
 
 // ── 그림 주제 — 회색 윤곽으로 제시되고 목표색으로 칠해진다 ────────────────
-// stage: 1 원색 그대로 · 2 두 색 섞기 · 3 연하게/진하게 · 5 세 색 섞기.
+// stage: 1 원색 · 2 두 색 · 3 연하게/진하게 · 4 역추론 · 5 세 색 · 6 네 색.
 // vehicle: 탈것 가중 출제 대상(사용자 결정 — 자동차 색 입히기 욕구 반영).
 export const PAINT_SUBJECTS = Object.freeze([
   Object.freeze({ id: "firetruck", ko: "소방차", color: "red", vehicle: true, stage: 1 }),
@@ -180,16 +227,31 @@ export const PAINT_SUBJECTS = Object.freeze([
   Object.freeze({ id: "butterfly", ko: "나비", color: "lavender", vehicle: false, stage: 5 }),
   Object.freeze({ id: "acorn", ko: "도토리", color: "darkbrown", vehicle: false, stage: 5 }),
   Object.freeze({ id: "pine", ko: "소나무", color: "darkgreen", vehicle: false, stage: 5 }),
-  Object.freeze({ id: "eggplant", ko: "가지", color: "darkpurple", vehicle: false, stage: 5 })
+  Object.freeze({ id: "eggplant", ko: "가지", color: "darkpurple", vehicle: false, stage: 5 }),
+  // 4색 혼합(스테이지 6) — 흙빛 결과색에 어울리는 사물로 골랐다.
+  Object.freeze({ id: "sandcastle", ko: "모래성", color: "sand", vehicle: false, stage: 6 }),
+  Object.freeze({ id: "camel", ko: "낙타", color: "sand", vehicle: false, stage: 6 }),
+  Object.freeze({ id: "dumptruck", ko: "덤프트럭", color: "ochre", vehicle: true, stage: 6 }),
+  Object.freeze({ id: "elephant", ko: "코끼리", color: "grayviolet", vehicle: false, stage: 6 }),
+  Object.freeze({ id: "cactus", ko: "선인장", color: "sage", vehicle: false, stage: 6 })
 ]);
 
-// 난이도별 라운드 스테이지 계획.
+// 스테이지가 요구하는 재료 수 — 테스트·난이도 계약이 이 선언 하나를 본다.
+// (예전엔 if/else 사슬이라 새 스테이지가 조용히 "2재료"로 오판됐다)
+export const STAGE_PARTS = Object.freeze({
+  1: 1, 2: 2, 3: 2, 4: 2, 5: 3, 6: 4
+});
+
+// 난이도별 라운드 스테이지 계획 — 사용자 정의(2026-08-11):
+// 쉬움은 두 색까지, 중간은 세 색까지, 어려움은 네 색까지 섞는다.
 // 4 = 역추론(힌트 없이 시작 — 2·3스테이지 색에서 출제, 2회 실패 시 힌트 복귀).
-// 5 = 세 색 섞기 — easy에는 내지 않는다(4~6세 기본 난이도 보호).
+// 쉬움의 첫 라운드는 원색 하나로 남긴다 — 실패 위험 없이 조작을 배우는 자리다.
+// 어려움도 2색으로 시작한다: 해금이 하나도 없는 첫 판에서 4색 라운드를 만나기
+// 전에 "내 물감"을 한 개라도 얻게 하려는 배치다.
 export const STAGE_PLANS = Object.freeze({
-  easy: Object.freeze([1, 1, 2, 2, 2]),
-  steady: Object.freeze([2, 2, 2, 3, 3, 5]),
-  challenge: Object.freeze([2, 3, 3, 5, 5, 4, 4])
+  easy: Object.freeze([1, 2, 2, 3, 3]),
+  steady: Object.freeze([2, 3, 5, 2, 5, 5]),
+  challenge: Object.freeze([2, 5, 6, 3, 5, 4, 6])
 });
 
 // 무지개 피날레 조건 — 갤러리에 서로 다른 색이 이만큼 모이면 일곱이의 대단원.
