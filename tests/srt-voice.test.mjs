@@ -9,12 +9,27 @@
 
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
+import { readdir, readFile } from "node:fs/promises";
 import { VOICE } from "../src/audio-manifest.mjs";
 
 const generatorSource = await readFile(
   new URL("../scripts/generate_voice_pack.py", import.meta.url), "utf8");
-const appSource = await readFile(new URL("../src/app.mjs", import.meta.url), "utf8");
+
+// 스캔 대상은 "오디오를 실제로 만지는 파일"이다 — 파일 이름이나 src 전체가
+// 아니다. srt-journey-scene.mjs 는 CSS 클래스 "srt-parking" 을 쓰는데(197행)
+// 이름이 음성 키와 같다. src 전체로 넓히면 그 클래스가 호출로 오탐돼, 정작
+// srt-parking 이 사문화돼도 못 잡는다. 오디오 접촉 여부로 거르면 그 파일은
+// 구조적으로 빠지고, 나중에 새 파일이 음성을 부르면 자동으로 포함된다.
+// (물감 세션의 스캔 범위·이름 충돌 지적에서 나온 설계 — 2026-08-11)
+const AUDIO_TOUCH = /playPrompt|playSrtVoice|audio\./;
+const srcDir = new URL("../src/", import.meta.url);
+const voiceSources = new Map();
+for (const file of await readdir(srcDir)) {
+  if (!file.endsWith(".mjs") || file === "audio-manifest.mjs") continue;
+  const source = await readFile(new URL(file, srcDir), "utf8");
+  if (AUDIO_TOUCH.test(source)) voiceSources.set(file, source);
+}
+const appSource = voiceSources.get("app.mjs") ?? "";
 
 const manifestKeys = Object.keys(VOICE).filter(key => key.startsWith("srt-")).sort();
 
@@ -28,8 +43,10 @@ function pythonKeys(name) {
 // (실제로 playPrompt만 보고 7개를 죽은 키로 착각한 적이 있다.)
 function appVoiceKeys() {
   const keys = new Set();
-  for (const call of appSource.matchAll(/play(?:Prompt|SrtVoice)\("(srt-[\w-]+)"\)/g)) {
-    keys.add(call[1]);
+  for (const source of voiceSources.values()) {
+    for (const call of source.matchAll(/play(?:Prompt|SrtVoice)\("(srt-[\w-]+)"\)/g)) {
+      keys.add(call[1]);
+    }
   }
   for (const name of ["SRT_SPLASH_VOICES", "SRT_STATION_VOICES"]) {
     const block = appSource.match(new RegExp(`const ${name} = [\\[{]([\\s\\S]*?)[\\]}];`));
@@ -68,13 +85,24 @@ test("앱이 부르는 SRT 음성은 모두 등재돼 있다 — 무음이 되�
 // 조용히 좁아져, 살아 있는 키를 사문화로 오판한다(내가 실제로 밟은 함정).
 // 새 경로가 생기면 여기서 먼저 걸려 스캐너를 갱신하라고 알려 준다.
 test("SRT 음성 호출 경로가 알려진 세 갈래를 벗어나지 않는다", () => {
-  const literals = new Set(
-    [...appSource.matchAll(/"(srt-[\w-]+)"/g)].map(match => match[1]));
   const scanned = new Set(appVoiceKeys());
-  for (const key of literals) {
-    assert.ok(scanned.has(key),
-      `${key} 가 스캔 밖에 있다 — 새 호출 경로가 생겼으니 appVoiceKeys()를 갱신하라`);
+  for (const [file, source] of voiceSources) {
+    for (const match of source.matchAll(/"(srt-[\w-]+)"/g)) {
+      assert.ok(scanned.has(match[1]),
+        `${file} 의 ${match[1]} 이 스캔 밖에 있다 — ` +
+        "새 호출 경로가 생겼으니 appVoiceKeys()를 갱신하라");
+    }
   }
+});
+
+test("오디오를 만지는 파일만 스캔한다 — 이름이 같은 CSS 클래스에 속지 않는다", () => {
+  // srt-journey-scene.mjs 는 CSS 클래스 "srt-parking" 을 쓴다. 스캔에 들어오면
+  // 호출로 오탐돼 사문화 검사가 무력해진다. 이 파일이 오디오를 만지기 시작하면
+  // 이 테스트가 먼저 걸려 이름 충돌을 처리하라고 알려 준다.
+  assert.ok(voiceSources.has("app.mjs"), "app.mjs 는 스캔에 있어야 한다");
+  assert.ok(!voiceSources.has("srt-journey-scene.mjs"),
+    "srt-journey-scene.mjs 가 오디오를 만지기 시작했다 — " +
+    "CSS 클래스 srt-parking 과 음성 키 srt-parking 의 충돌을 먼저 해소하라");
 });
 
 test("등재한 SRT 음성은 앱이 실제로 부른다 — 사문화된 키가 없다", () => {
