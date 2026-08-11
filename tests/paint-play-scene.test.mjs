@@ -63,13 +63,16 @@ test("모든 그림 주제는 칠해질 면(pp-fillable)이 있는 SVG를 만든
   }
 });
 
-test("기본 렌더 — 튜브 5개·번호 배지·마스코트·병·수식·갤러리 액자", () => {
+// 배지는 캐릭터 번호가 아니라 "눌러야 할 숫자키"다(2026-08-11 계약 변경).
+// 아이가 배지를 보고 그 키를 누르는 게 이 게임의 조작 규칙이라, 배지≠키가 되면
+// 해금 튜브를 숫자로 고를 수 없다는 요구를 반쪽만 만족하게 된다.
+test("기본 렌더 — 튜브 5개·숫자키 배지·마스코트·병·수식·갤러리 액자", () => {
   const state = createPaintPlay("steady", 2);
   const root = renderPaintPlay(document, state);
   assert.equal(byClass(root, "pp-tube").length, 5);
   assert.deepEqual(
     byClass(root, "pp-tube-num").map(node => node.textContent),
-    ["1", "3", "5", "9", "10"]
+    ["1", "2", "3", "4", "5"]
   );
   assert.equal(byClass(root, "pp-tube-mascot").length, 5);
   assert.equal(byClass(root, "pp-jar").length, 1);
@@ -156,19 +159,28 @@ test("피날레 — 전시회 벽에 칠한 그림 도화지가 걸리고 화가
   assert.ok(note.textContent.includes("멋진 화가님"), "화가님 멘트");
 });
 
-test("해금 튜브 — 내 물감이 별 배지로 선반에 붙고 붐비면 crowded 표식", () => {
+test("해금 튜브 — 내 물감도 숫자키 배지를 받고 11번째부터만 별 배지", () => {
   const state = createPaintPlay(
     "steady", 2,
     ["orange", "green", "purple", "pink", "sky", "brown", "navy"]
   );
   const root = renderPaintPlay(document, state);
   assert.equal(byClass(root, "pp-tube").length, 12, "기본 5 + 해금 7");
-  assert.equal(byClass(root, "pp-tube-mine").length, 7);
-  assert.equal(byClass(root, "pp-tube-star").length, 7, "별 배지");
+  assert.equal(byClass(root, "pp-tube-mine").length, 7, "내 물감 점선 표식");
+  assert.deepEqual(
+    byClass(root, "pp-tube-num").map(node => node.textContent),
+    ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "⭐", "⭐"],
+    "앞 10칸은 숫자키, 넘치는 칸은 별"
+  );
+  assert.equal(byClass(root, "pp-tube-star").length, 2, "키 없는 튜브만 별");
   assert.equal(byClass(root, "pp-tube-mascot").length, 5, "마스코트는 기본 튜브만");
   assert.equal(byClass(root, "pp-shelf")[0].dataset.crowded, "true");
   const few = renderPaintPlay(document, createPaintPlay("steady", 2));
   assert.equal(byClass(few, "pp-shelf")[0].dataset.crowded, "false");
+  // 스크린리더도 같은 키를 안내한다
+  const labels = byClass(root, "pp-tube").map(node => node.attributes.get("aria-label"));
+  assert.match(labels[5], /주황 물감 \(숫자 6\)/);
+  assert.match(labels[10], /밤색 물감 \(내가 만든 색\)/);
 });
 
 test("3색 혼합 라운드 — 수식 칩이 세 재료로 늘어난다", () => {
@@ -180,10 +192,46 @@ test("3색 혼합 라운드 — 수식 칩이 세 재료로 늘어난다", () =>
   const [a, b, c] = recipeFor(round.colorId);
   let root = renderPaintPlay(document, state);
   assert.equal(byClass(root, "pp-eq-c").length, 1, "세 번째 칩 자리");
+  assert.equal(byClass(root, "pp-eq-d").length, 0, "3색엔 네 번째 칩 없음");
   squeezeTube(state, a);
   squeezeTube(state, b);
   squeezeTube(state, c);
   root = updatePaintPlay(root, state, document);
   assert.equal(byClass(root, "pp-jar-layer").length, 3, "병에 세 층");
   assert.notEqual(byClass(root, "pp-eq-result")[0].textContent, "?");
+});
+
+test("4색 혼합 라운드 — 수식 칩 네 칸과 병 네 층", () => {
+  const state = createPaintPlay("challenge", 1);
+  const index = state.rounds.findIndex(round => round.stage === 6);
+  assert.ok(index >= 0, "challenge에 4색 라운드");
+  state.roundIndex = index;
+  const recipe = recipeFor(currentRound(state).colorId);
+  assert.equal(recipe.length, 4);
+  let root = renderPaintPlay(document, state);
+  assert.equal(byClass(root, "pp-eq-d").length, 1, "네 번째 칩 자리");
+  assert.deepEqual(
+    byClass(root, "pp-eq").map(node => node.textContent),
+    ["?", "?", "?", "?", "?"], "재료 넷 + 결과"
+  );
+  for (const part of recipe) squeezeTube(state, part);
+  root = updatePaintPlay(root, state, document);
+  assert.equal(byClass(root, "pp-jar-layer").length, 4, "병에 네 층");
+  assert.notEqual(byClass(root, "pp-eq-result")[0].textContent, "?");
+  // 잘림 방지 회귀 — 네 번째 재료가 사라지면 아이가 틀린 식을 배운다
+  assert.equal(
+    byClass(root, "pp-eq-d")[0].textContent,
+    PAINT_COLORS[recipe[3]].ko
+  );
+});
+
+test("4색 스테이지 그림도 칠해질 면이 있는 SVG를 만든다", () => {
+  const stage6 = PAINT_SUBJECTS.filter(subject => subject.stage === 6);
+  assert.ok(stage6.length >= 4);
+  for (const subject of stage6) {
+    const svg = paintSubjectSvg(subject.id);
+    assert.ok(svg.includes("pp-fillable"), `${subject.id} fillable`);
+    assert.ok(svg.includes("var(--pp-fill"), `${subject.id} fill 변수`);
+    assert.doesNotMatch(svg, /<image|<filter|<animate/i, subject.id);
+  }
 });

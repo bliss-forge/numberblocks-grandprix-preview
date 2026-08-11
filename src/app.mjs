@@ -129,6 +129,7 @@ import {
   currentSubject as currentPaintSubject,
   equationFor as paintEquationFor,
   shelfTubes as paintShelfTubes,
+  tubeForDigit as paintTubeForDigit,
   movePaintFocus,
   paintCanvas as paintPlayCanvas,
   rinseJar as paintRinseJar,
@@ -142,7 +143,6 @@ import {
 import {
   CANONICAL_MIX as PAINT_CANONICAL_MIX,
   PAINT_COLORS,
-  PAINT_TUBES,
   josa
 } from "./paint-play-data.mjs";
 import {
@@ -2031,9 +2031,26 @@ function paintEquationText() {
 
 // ⎵ 실행 — 선반 튜브(기본+해금) 고르기, 마지막 칸 헹구기.
 // 섞기·칠하기는 자동이라 버튼이 없다.
+// Tab 으로 옮긴 DOM 포커스가 있으면 그쪽을 먼저 따른다 — 파란 포커스 링과
+// 노란 게임 포커스가 서로 다른 칸을 가리키던 문제(2026-08-11 리뷰).
 function activatePaintFocus() {
   if (!state.paint || state.paintBusy) return;
   const tubes = paintShelfTubes(state.paint);
+  const active = document.activeElement;
+  const focusedTube = active?.closest?.(".pp-tube");
+  if (focusedTube) {
+    const found = tubes.findIndex(entry => entry.id === focusedTube.dataset.tube);
+    if (found >= 0) {
+      state.paint.focusIndex = found;
+      handlePaintEvents(paintSqueezeTube(state.paint, tubes[found].id));
+      return;
+    }
+  }
+  if (active?.closest?.(".pp-rinse")) {
+    state.paint.focusIndex = tubes.length;
+    handlePaintEvents(paintRinseJar(state.paint));
+    return;
+  }
   const index = state.paint.focusIndex;
   if (index < tubes.length) {
     handlePaintEvents(paintSqueezeTube(state.paint, tubes[index].id));
@@ -2622,16 +2639,20 @@ document.addEventListener("keydown", event => {
       if (!event.repeat) activatePaintFocus();
       return;
     }
+    // 숫자키 = 선반 슬롯(1..9, 0). 해금한 내 물감도 같은 규칙으로 잡힌다 —
+    // 키를 위치에서 뽑기 때문에 클릭·⎵ 경로와 인덱스 공간이 하나로 유지된다.
     if (/^[0-9]$/.test(event.key)) {
       event.preventDefault();
       if (event.repeat) return;
-      const tube = PAINT_TUBES.find(entry => entry.keyDigit === event.key);
-      if (tube) {
-        const index = PAINT_TUBES.indexOf(tube);
-        state.paint.focusIndex = index;
-        handlePaintEvents(paintSqueezeTube(state.paint, tube.id));
+      const picked = paintTubeForDigit(state.paint, event.key);
+      if (picked) {
+        state.paint.focusIndex = picked.index;
+        handlePaintEvents(paintSqueezeTube(state.paint, picked.tube.id));
       } else {
-        audio.playSfx("pop");
+        // 빈 칸을 누른 것 — 예전엔 물감을 짤 때와 똑같은 pop 이 나서
+        // 글을 못 읽는 아이가 성공한 줄 알았다(2026-08-11 리뷰).
+        audio.playSfx("key");
+        showHint(`${event.key}번 물감은 아직 없어요! 다른 번호를 눌러 봐요`);
       }
       return;
     }
