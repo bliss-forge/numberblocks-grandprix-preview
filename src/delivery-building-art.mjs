@@ -28,7 +28,7 @@ export const HALL_BACKDROP = "#F1E6CF";
 
 /* ── 팔레트 ───────────────────────────────────────────────────────── */
 
-const P = Object.freeze({
+export const HALL_PALETTE = Object.freeze({
   wall: "#F3EDE0",
   panel: "#F9F4E7",
   panelEdge: "#DCCFAF",
@@ -92,7 +92,10 @@ const P = Object.freeze({
   mutter: "#7B8A96",
 });
 
-const SHADOWS =
+// 파일 안에서는 짧게 부른다. 리듬 하역 무대도 같은 팔레트를 쓴다.
+const P = HALL_PALETTE;
+
+export const SHADOWS =
   `<filter id="dv-soft" x="-20%" y="-20%" width="140%" height="140%">` +
   `<feDropShadow dx="0" dy="5" stdDeviation="7" flood-color="#26424E" flood-opacity="0.16"/></filter>` +
   `<filter id="dv-tiny" x="-30%" y="-30%" width="160%" height="160%">` +
@@ -112,13 +115,13 @@ const GLOW_DEFS =
 
 /* ── 공통 조각 ────────────────────────────────────────────────────── */
 
-function star(cx, cy, size = 1) {
+export function star(cx, cy, size = 1) {
   return `<path transform="translate(${cx} ${cy}) scale(${size})" ` +
     `d="M0 -13 l4 9 9 4 -9 4 -4 9 -4 -9 -9 -4 9 -4 z" fill="${P.star}"/>`;
 }
 
 // 택배 상자 + 문패 라벨. 라벨이 없으면 테이프만 있는 민 상자다.
-function parcelBox(x, y, width, height, label = null, tone = P.cartonA) {
+export function parcelBox(x, y, width, height, label = null, tone = P.cartonA) {
   const seam = height * 0.42;
   const plateWidth = width * 0.66;
   const plateHeight = height * 0.36;
@@ -139,7 +142,7 @@ function parcelBox(x, y, width, height, label = null, tone = P.cartonA) {
 }
 
 // 손수레 — 기사님이 미는 카트.
-function cart(x, y, width) {
+export function cart(x, y, width) {
   const wheel = width * 0.06;
   return `<g transform="translate(${x} ${y})">` +
     `<path d="M6 4 q-22 -16 -26 -42" stroke="${P.metal}" stroke-width="5" fill="none" stroke-linecap="round"/>` +
@@ -167,7 +170,7 @@ const COURIER_ARMS = {
     `<path d="M-28 4 q-22 -26 -40 -44" stroke="${P.vest}" stroke-width="13" fill="none" stroke-linecap="round"/>`,
 };
 
-function courier(x, y, scale = 1, pose = "idle") {
+export function courier(x, y, scale = 1, pose = "idle") {
   return `<g class="dv-courier" filter="url(#dv-tiny)">` +
     `<g transform="translate(${x} ${y}) scale(${scale})">` +
     `<rect x="-34" y="-8" width="68" height="86" rx="18" fill="${P.vest}"/>` +
@@ -209,7 +212,7 @@ function speech(rawX, y, width, height, textAt, { edge = null, tail = "left", li
 }
 
 // 소리가 퍼지는 표시 — 초인종·버튼음에 공통으로 붙는다.
-function chirp(x, y, color = P.goldWarm) {
+export function chirp(x, y, color = P.goldWarm) {
   return `<g stroke="${color}" stroke-width="3" fill="none" stroke-linecap="round" ` +
     `transform="translate(${x} ${y})">` +
     `<path d="M0 0 q6 -8 2 -16"/><path d="M14 -4 q8 -10 3 -22"/></g>`;
