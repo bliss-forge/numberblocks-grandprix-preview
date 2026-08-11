@@ -396,3 +396,38 @@ test("SRT 주행 안내는 없는 경적을 누르라고 시키지 않는다", (
   assert.match(app, /const hint = ktxEventHint\(event\.event\)/);
   assert.match(app, /state\.ktx\?\.train\?\.id === "srt"/);
 });
+
+// 물감 숫자키 결선 가드(2026-08-11) — 사용자 요구는 "해금한 내 물감도 1~0으로
+// 고르게"였는데, 이 결선은 app.mjs 에만 있어 기본 5종으로 되돌려도 스위트가
+// 전부 통과했다(리뷰에서 실측). 슬롯 계산은 tubeForDigit 순수 함수가 테스트하고,
+// 여기서는 앱이 그 함수를 실제로 지나는지만 소스 계약으로 지킨다.
+test("물감 숫자키는 해금 포함 선반 전체를 tubeForDigit 한 곳으로 찾는다", () => {
+  assert.match(app, /tubeForDigit as paintTubeForDigit/, "순수 함수를 가져와야 한다");
+  const paintKeys = app.slice(
+    app.indexOf('state.mode === "paint" && state.paint'),
+    app.indexOf("// 택배 왔어요! — 단계마다 쓰는 키가 다르다")
+  );
+  assert.ok(paintKeys.length > 0, "물감 keydown 블록을 찾지 못했다");
+
+  const digitBranch = paintKeys.indexOf('/^[0-9]$/.test(event.key)');
+  assert.ok(digitBranch >= 0, "숫자키 분기가 있다");
+  const branch = paintKeys.slice(digitBranch);
+  assert.match(branch, /paintTubeForDigit\(state\.paint, event\.key\)/);
+  // 기본 튜브 목록으로 직접 찾으면 해금 튜브가 영영 키를 못 받는다
+  assert.doesNotMatch(branch, /PAINT_TUBES/, "기본 5종 목록을 직접 쓰면 안 된다");
+  // 빈 칸을 눌렀을 때 물감 짜기 성공음(pop)을 내면 아이가 성공으로 오해한다
+  assert.doesNotMatch(branch, /playSfx\("pop"\)/, "빈 칸에 성공음을 내면 안 된다");
+});
+
+// 게임 포커스(노란 링)와 Tab 포커스(파란 링)가 서로 다른 칸을 가리키던 결함.
+test("물감 ⎵ 실행은 Tab 으로 옮긴 DOM 포커스를 먼저 따른다", () => {
+  const body = app.slice(
+    app.indexOf("function activatePaintFocus("),
+    app.indexOf("/* ── 택배 왔어요!")
+  );
+  assert.ok(body.length > 0, "activatePaintFocus 를 찾지 못했다");
+  const domFocus = body.indexOf('closest?.(".pp-tube")');
+  const gameFocus = body.indexOf("state.paint.focusIndex;");
+  assert.ok(domFocus >= 0, "DOM 포커스를 보지 않는다");
+  assert.ok(domFocus < gameFocus, "DOM 포커스 분기가 게임 포커스보다 앞에 와야 한다");
+});
