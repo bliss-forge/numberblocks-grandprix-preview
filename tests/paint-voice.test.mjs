@@ -103,6 +103,37 @@ test("재생 경로 없는 실명 호명 키는 알려진 폴백 넷뿐이다", 
     ["gray", "khaki", "lightyellow", "olive"],
     "재생되지 않는 실명 호명 키가 늘었다 — 새 색을 넣었다면 도달 경로를 확인하라"
   );
+
+  // 반대 방향 — 앱이 실제로 요청할 수 있는 키가 매니페스트에 다 있는가.
+  // 없으면 조용히 404 무음이 된다(KTX 쪽에서 같은 모양의 결함을 겪었다).
+  for (const entry of reachable) {
+    const [kind, colorId] = entry.split(":");
+    assert.ok(
+      VOICE[`paint-${kind}-${colorId}`],
+      `paint-${kind}-${colorId} 가 매니페스트에 없다 — 도달 가능한데 무음이 된다`
+    );
+  }
+});
+
+// 물감은 음성 호출이 speakPaint 한 곳으로 모인다. 다른 게임처럼 키 룩업
+// 테이블이 생기면 위 도달성 계산의 스캔 범위가 조용히 좁아지므로 못 박는다.
+test("물감 음성 호출 경로는 speakPaint 하나뿐이다", async () => {
+  const appSource = await readFile(
+    new URL("../src/app.mjs", import.meta.url), "utf8"
+  );
+  const literals = [...appSource.matchAll(/["'`]paint-[\w-]*(?:\$\{[^}]+\})?[^"'`]*["'`]/g)]
+    .map(match => match[0]);
+  assert.ok(literals.length >= 5, "물감 키 리터럴을 찾지 못했다");
+  // 모든 물감 키 리터럴은 speakPaint(...) 나 paintMixVoiceKey 반환문 안에 있어야 한다
+  for (const literal of literals) {
+    const at = appSource.indexOf(literal);
+    const line = appSource.slice(appSource.lastIndexOf("\n", at) + 1,
+      appSource.indexOf("\n", at));
+    assert.match(
+      line, /speakPaint\(|paint-mix-\$\{event\.color\}|paint-made-\$\{event\.color\}/,
+      `물감 키가 speakPaint 밖에서 쓰인다: ${line.trim()}`
+    );
+  }
 });
 
 // 위 탐색이 쓰는 결과색 판정 — mixJar 와 같은 규칙을 테스트 안에서 재현한다.
