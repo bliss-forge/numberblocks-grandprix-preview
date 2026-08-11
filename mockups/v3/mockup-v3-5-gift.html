@@ -1,0 +1,254 @@
+<!-- 목업 v3-5: 씬 ⑤ 선물 선택 — 친구의 생각 말풍선 힌트(사과) + 트레이 3택(번호 배지 1·2·3, 2번 포커스) -->
+<meta charset="utf-8">
+<style>
+  html,body{margin:0;padding:0;background:#fff}
+  body{width:1280px;height:720px;overflow:hidden}
+  svg{display:block;font-family:'Noto Sans CJK KR','Noto Sans KR','WenQuanYi Zen Hei',sans-serif}
+  text{user-select:none}
+</style>
+<svg width="1280" height="720" viewBox="0 0 1280 720" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="hallWall" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#F8F1E2"/><stop offset="1" stop-color="#F1E6CF"/>
+    </linearGradient>
+    <linearGradient id="doorLight" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFF2C8"/><stop offset="1" stop-color="#FFE3A0"/>
+    </linearGradient>
+    <filter id="soft" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="5" stdDeviation="7" flood-color="#26424E" flood-opacity="0.16"/>
+    </filter>
+    <filter id="tiny" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="2" stdDeviation="2.5" flood-color="#26424E" flood-opacity="0.18"/>
+    </filter>
+    <radialGradient id="doorGlow" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0.5" stop-color="#FFDF8E" stop-opacity="0.5"/>
+      <stop offset="1" stop-color="#FFDF8E" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="btnGlow" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0.5" stop-color="#FFD34D" stop-opacity="0.7"/>
+      <stop offset="1" stop-color="#FFD34D" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <!-- 복도 벽/천장/바닥 -->
+  <rect width="1280" height="720" fill="url(#hallWall)"/>
+  <rect x="0" y="0" width="1280" height="56" fill="#EFE4CC"/>
+  <path d="M0 56 h1280" stroke="#DDCFB0" stroke-width="4"/>
+  <g>
+    <ellipse cx="380" cy="46" rx="46" ry="14" fill="#FFF6D9" stroke="#E8D9AE" stroke-width="3"/>
+    <ellipse cx="900" cy="46" rx="46" ry="14" fill="#FFF6D9" stroke="#E8D9AE" stroke-width="3"/>
+  </g>
+  <rect x="0" y="536" width="1280" height="26" fill="#E2D2AE"/>
+  <rect x="0" y="562" width="1280" height="158" fill="#D9C094"/>
+  <g stroke="#CBB183" stroke-width="3">
+    <path d="M0 610 h1280"/><path d="M0 668 h1280"/>
+    <path d="M160 562 v48 M480 562 v48 M800 562 v48 M1120 562 v48"/>
+    <path d="M320 610 v58 M640 610 v58 M960 610 v58"/>
+  </g>
+
+  <!-- 이웃 문 -->
+  <g>
+    <rect x="130" y="220" width="196" height="326" rx="8" fill="#8FBFB7" stroke="#74A79E" stroke-width="5"/>
+    <rect x="152" y="248" width="152" height="120" rx="8" fill="#A8D0C8" opacity="0.6"/>
+    <circle cx="304" cy="396" r="9" fill="#5E8A82"/>
+    <g filter="url(#tiny)"><rect x="176" y="168" width="104" height="42" rx="10" fill="#FFFDF6" stroke="#D9CDB2" stroke-width="3"/></g>
+    <text x="228" y="199" text-anchor="middle" font-size="26" font-weight="800" fill="#7B8A96">501</text>
+  </g>
+  <g>
+    <rect x="954" y="220" width="196" height="326" rx="8" fill="#93B7E0" stroke="#7A9FC9" stroke-width="5"/>
+    <rect x="976" y="248" width="152" height="120" rx="8" fill="#ACC9E8" opacity="0.6"/>
+    <circle cx="978" cy="396" r="9" fill="#5F82AB"/>
+    <g filter="url(#tiny)"><rect x="1000" y="168" width="104" height="42" rx="10" fill="#FFFDF6" stroke="#D9CDB2" stroke-width="3"/></g>
+    <text x="1052" y="199" text-anchor="middle" font-size="26" font-weight="800" fill="#7B8A96">503</text>
+  </g>
+
+  <!-- 502호 (열림) -->
+  <ellipse cx="640" cy="400" rx="330" ry="290" fill="url(#doorGlow)"/>
+  <g>
+    <rect x="530" y="206" width="220" height="344" rx="8" fill="#E8D9B6" stroke="#D2BE92" stroke-width="5"/>
+    <rect x="544" y="220" width="192" height="326" rx="6" fill="url(#doorLight)"/>
+    <g filter="url(#tiny)">
+      <path d="M736 220 L820 250 L820 580 L736 546 Z" fill="#EE9678" stroke="#D67C5E" stroke-width="5" stroke-linejoin="round"/>
+      <circle cx="756" cy="398" r="8" fill="#B35F44"/>
+    </g>
+    <g filter="url(#tiny)"><rect x="576" y="152" width="128" height="48" rx="12" fill="#FFF9E6" stroke="#F5C531" stroke-width="4"/></g>
+    <text x="640" y="188" text-anchor="middle" font-size="30" font-weight="800" fill="#D98A2B">502</text>
+  </g>
+
+  <!-- 수취인: 7번 친구(임시 블록, 5단 + 가슴 배지) -->
+  <g filter="url(#tiny)">
+    <g transform="translate(640 506)">
+      <rect x="-27" y="-54" width="54" height="54" rx="9" fill="#EE5D8A" stroke="#C9436E" stroke-width="3"/>
+      <rect x="-27" y="-108" width="54" height="54" rx="9" fill="#F27BA0" stroke="#C9436E" stroke-width="3"/>
+      <rect x="-27" y="-162" width="54" height="54" rx="9" fill="#EE5D8A" stroke="#C9436E" stroke-width="3"/>
+      <rect x="-27" y="-216" width="54" height="54" rx="9" fill="#F27BA0" stroke="#C9436E" stroke-width="3"/>
+      <rect x="-27" y="-270" width="54" height="54" rx="9" fill="#EE5D8A" stroke="#C9436E" stroke-width="3"/>
+      <!-- 가슴 숫자 배지 (N>=6 규칙) -->
+      <circle cx="0" cy="-189" r="13" fill="#FFFDF6" stroke="#C9436E" stroke-width="2.5"/>
+      <text x="0" y="-182" text-anchor="middle" font-size="18" font-weight="800" fill="#C9436E">7</text>
+      <!-- 얼굴 -->
+      <circle cx="-9" cy="-248" r="7" fill="#FFFFFF"/><circle cx="11" cy="-248" r="7" fill="#FFFFFF"/>
+      <circle cx="-7.5" cy="-247" r="3.5" fill="#333333"/><circle cx="12.5" cy="-247" r="3.5" fill="#333333"/>
+      <circle cx="-8.9" cy="-248.4" r="1.4" fill="#FFFFFF" opacity="0.95"/><circle cx="11.1" cy="-248.4" r="1.4" fill="#FFFFFF" opacity="0.95"/>
+      <path d="M-10 -234 q10 9 20 0" stroke="#A3325B" stroke-width="4" fill="none" stroke-linecap="round"/>
+      <circle cx="-19" cy="-240" r="4.5" fill="#FF9E8A" opacity="0.7"/><circle cx="21" cy="-240" r="4.5" fill="#FF9E8A" opacity="0.7"/>
+      <!-- 팔: 한쪽은 생각, 한쪽은 기대 -->
+      <path d="M-27 -196 q-16 -8 -20 -24" stroke="#C9436E" stroke-width="7" fill="none" stroke-linecap="round"/>
+      <path d="M27 -196 q18 -4 24 8" stroke="#C9436E" stroke-width="7" fill="none" stroke-linecap="round"/>
+    </g>
+  </g>
+
+  <!-- 생각 말풍선 (구름형 + 꼬리 버블) : 힌트 = 사과 -->
+  <g>
+    <circle cx="700" cy="242" r="10" fill="#FFFFFF" stroke="#7B8A96" stroke-width="2.5"/>
+    <circle cx="678" cy="268" r="6" fill="#FFFFFF" stroke="#7B8A96" stroke-width="2.5"/>
+    <circle cx="662" cy="288" r="3.5" fill="#FFFFFF" stroke="#7B8A96" stroke-width="2.5"/>
+    <g filter="url(#tiny)">
+      <g stroke="#7B8A96" stroke-width="3" fill="#FFFFFF">
+        <ellipse cx="800" cy="152" rx="88" ry="64"/>
+        <circle cx="742" cy="112" r="30"/>
+        <circle cx="806" cy="96" r="34"/>
+        <circle cx="866" cy="120" r="28"/>
+      </g>
+      <g fill="#FFFFFF">
+        <ellipse cx="800" cy="152" rx="86" ry="62"/>
+        <circle cx="742" cy="112" r="28"/>
+        <circle cx="806" cy="96" r="32"/>
+        <circle cx="866" cy="120" r="26"/>
+      </g>
+    </g>
+    <!-- 힌트 아이콘: 사과 + target-halo 원판 -->
+    <circle cx="800" cy="146" r="46" fill="#FFE1D6"/>
+    <path d="M801 124 q1 -11 10 -15" stroke="#9C7B4E" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+    <path d="M811 109 q15 -4 19 7 q-13 8 -19 -7 z" fill="#8FCF6B"/>
+    <circle cx="800" cy="152" r="30" fill="#E86A50"/>
+    <ellipse cx="789" cy="141" rx="8" ry="11" fill="#FFFFFF" opacity="0.35" transform="rotate(-22 789 141)"/>
+  </g>
+
+  <!-- 시선 유도 점선 (말풍선 → 트레이, 친구 오른쪽으로 우회) -->
+  <path d="M836 212 Q872 420 668 542" fill="none" stroke="#7B8A96" stroke-width="3.5" stroke-dasharray="1 12" stroke-linecap="round"/>
+  <path d="M664 528 l0 17 17 -4" fill="none" stroke="#7B8A96" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- ===== 카트 트레이 3택 ===== -->
+  <!-- 카트 프레임 -->
+  <g>
+    <path d="M436 690 q-24 -12 -30 -38" stroke="#8A97A3" stroke-width="5" fill="none" stroke-linecap="round"/>
+    <rect x="428" y="686" width="424" height="9" rx="4" fill="#8A97A3"/>
+    <circle cx="478" cy="704" r="9" fill="#39434C"/><circle cx="478" cy="704" r="3.6" fill="#C9D2DA"/>
+    <circle cx="802" cy="704" r="9" fill="#39434C"/><circle cx="802" cy="704" r="3.6" fill="#C9D2DA"/>
+  </g>
+  <!-- 슬롯 1: 곰인형 -->
+  <g filter="url(#tiny)">
+    <rect x="436" y="560" width="120" height="120" rx="14" fill="#FFFFFF" stroke="#D9CDB2" stroke-width="3"/>
+  </g>
+  <g>
+    <ellipse cx="496" cy="646" rx="18" ry="15" fill="#E8B368" stroke="#C98F3F" stroke-width="2.5"/>
+    <ellipse cx="496" cy="648" rx="8" ry="7" fill="#FFFDF6"/>
+    <circle cx="481" cy="596" r="8" fill="#E8B368" stroke="#C98F3F" stroke-width="2.5"/>
+    <circle cx="511" cy="596" r="8" fill="#E8B368" stroke="#C98F3F" stroke-width="2.5"/>
+    <circle cx="496" cy="612" r="20" fill="#E8B368" stroke="#C98F3F" stroke-width="2.5"/>
+    <ellipse cx="496" cy="620" rx="9" ry="7" fill="#FFFDF6"/>
+    <circle cx="489" cy="607" r="2.6" fill="#333333"/><circle cx="503" cy="607" r="2.6" fill="#333333"/>
+    <circle cx="488" cy="606" r="1" fill="#FFFFFF" opacity="0.9"/><circle cx="502" cy="606" r="1" fill="#FFFFFF" opacity="0.9"/>
+    <path d="M493 616 l3 3 3 -3 z" fill="#333333"/>
+    <path d="M488 632 l8 5 8 -5 -8 -5 z" fill="#E86A50"/>
+  </g>
+  <circle cx="496" cy="560" r="18" fill="#F4F1E8" stroke="#BEB6A4" stroke-width="2"/>
+  <text x="496" y="569" text-anchor="middle" font-size="24" font-weight="800" fill="#3E5A68">1</text>
+
+  <!-- 슬롯 2: 사과 (정답 후보, 포커스: scale 1.08 + 글로우) -->
+  <circle cx="640" cy="620" r="94" fill="url(#btnGlow)"/>
+  <g transform="translate(640 620) scale(1.08) translate(-640 -620)">
+    <g filter="url(#tiny)">
+      <rect x="580" y="560" width="120" height="120" rx="14" fill="#FFFFFF" stroke="#F5C531" stroke-width="4"/>
+    </g>
+    <path d="M640 592 q2 -13 11 -17" stroke="#9C7B4E" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+    <path d="M651 577 q15 -4 19 7 q-13 8 -19 -7 z" fill="#8FCF6B"/>
+    <circle cx="640" cy="626" r="30" fill="#E86A50"/>
+    <ellipse cx="629" cy="615" rx="8" ry="11" fill="#FFFFFF" opacity="0.35" transform="rotate(-22 629 615)"/>
+    <circle cx="640" cy="560" r="18" fill="#FFF3C9" stroke="#F5A623" stroke-width="2.5"/>
+    <text x="640" y="569" text-anchor="middle" font-size="24" font-weight="800" fill="#B3541E">2</text>
+  </g>
+
+  <!-- 슬롯 3: 밀짚모자 -->
+  <g filter="url(#tiny)">
+    <rect x="724" y="560" width="120" height="120" rx="14" fill="#FFFFFF" stroke="#D9CDB2" stroke-width="3"/>
+  </g>
+  <g>
+    <path d="M760 628 a24 24 0 0 1 48 0 z" fill="#F5C531" stroke="#E8A61E" stroke-width="3"/>
+    <rect x="758" y="619" width="52" height="9" fill="#E86A50"/>
+    <ellipse cx="784" cy="632" rx="40" ry="12" fill="#F5C531" stroke="#E8A61E" stroke-width="3"/>
+  </g>
+  <circle cx="784" cy="560" r="18" fill="#F4F1E8" stroke="#BEB6A4" stroke-width="2"/>
+  <text x="784" y="569" text-anchor="middle" font-size="24" font-weight="800" fill="#3E5A68">3</text>
+
+  <!-- 기사님 (트레이 왼쪽) -->
+  <g filter="url(#tiny)">
+    <g transform="translate(316 470)">
+      <rect x="-34" y="-8" width="68" height="86" rx="18" fill="#F5A623"/>
+      <rect x="-15" y="-8" width="30" height="86" fill="#FFF1D4"/>
+      <path d="M-15 22 h30" stroke="#E8CFA0" stroke-width="3"/>
+      <circle cx="0" cy="-38" r="27" fill="#F7C6A0"/>
+      <path d="M-28 -46 a28 28 0 0 1 56 0 z" fill="#E86A50"/>
+      <rect x="24" y="-52" width="22" height="10" rx="5" fill="#E86A50"/>
+      <circle cx="-8" cy="-36" r="3.6" fill="#333333"/><circle cx="10" cy="-36" r="3.6" fill="#333333"/>
+      <circle cx="-9.4" cy="-37.4" r="1.4" fill="#FFFFFF" opacity="0.9"/><circle cx="8.6" cy="-37.4" r="1.4" fill="#FFFFFF" opacity="0.9"/>
+      <path d="M-6 -25 q7 6 14 0" stroke="#B3541E" stroke-width="3" fill="none" stroke-linecap="round"/>
+      <circle cx="-17" cy="-29" r="4.5" fill="#FF9E8A" opacity="0.6"/>
+      <path d="M28 8 q26 16 52 28" stroke="#F5A623" stroke-width="13" fill="none" stroke-linecap="round"/>
+      <path d="M-28 8 q-14 16 -10 34" stroke="#F5A623" stroke-width="13" fill="none" stroke-linecap="round"/>
+      <rect x="-24" y="78" width="18" height="26" rx="8" fill="#5B6472"/>
+      <rect x="6" y="78" width="18" height="26" rx="8" fill="#5B6472"/>
+    </g>
+  </g>
+
+  <!-- 안내 음성 칩 -->
+  <g filter="url(#tiny)"><rect x="24" y="92" width="352" height="50" rx="18" fill="#FFFFFF" opacity="0.97"/></g>
+  <g fill="#5B8FA8">
+    <path d="M46 110 h10 l12 -9 v26 l-12 -9 h-10 z"/>
+    <path d="M74 109 q7 8 0 16" stroke="#5B8FA8" stroke-width="3" fill="none" stroke-linecap="round"/>
+  </g>
+  <text x="94" y="124" font-size="22" font-weight="700" fill="#3E5A68">말풍선을 봐! 뭘 갖고 싶을까?</text>
+
+  <!-- ===== HUD ===== -->
+  <g filter="url(#tiny)"><rect x="24" y="22" width="252" height="56" rx="18" fill="#FFFFFF" opacity="0.97"/></g>
+  <text x="44" y="58" font-size="19" font-weight="700" fill="#3E5A68">남은 상자</text>
+  <g>
+    <g transform="translate(140 36)" opacity="0.35"><rect width="26" height="26" rx="5" fill="#D9D2C2" stroke="#B8B09C" stroke-width="2.5"/><path d="M5 13 l7 7 9 -11" stroke="#69A05B" stroke-width="4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <g transform="translate(172 36)"><rect width="26" height="26" rx="5" fill="#E8B368" stroke="#C98F3F" stroke-width="2.5"/><path d="M0 10 h26 M13 0 v10" stroke="#C98F3F" stroke-width="2"/></g>
+    <g transform="translate(204 36)"><rect width="26" height="26" rx="5" fill="#DDA75A" stroke="#C98F3F" stroke-width="2.5"/><path d="M0 10 h26 M13 0 v10" stroke="#C98F3F" stroke-width="2"/></g>
+    <g transform="translate(236 36)"><rect width="26" height="26" rx="5" fill="#E8B368" stroke="#C98F3F" stroke-width="2.5"/><path d="M0 10 h26 M13 0 v10" stroke="#C98F3F" stroke-width="2"/></g>
+  </g>
+  <!-- 라벨 카드 (호 확인 완료 체크) -->
+  <g filter="url(#tiny)" transform="rotate(2 1150 52)">
+    <rect x="1064" y="22" width="192" height="62" rx="14" fill="#FFFDF6" stroke="#D9CDB2" stroke-width="3"/>
+  </g>
+  <circle cx="1102" cy="53" r="20" fill="#FFE1D6"/>
+  <text x="1102" y="64" text-anchor="middle" font-size="30" font-weight="800" fill="#E86A50">5</text>
+  <text x="1168" y="64" text-anchor="middle" font-size="30" font-weight="800" fill="#8A94A0">02호</text>
+  <path d="M1216 48 l8 8 14 -16" stroke="#69A05B" stroke-width="6" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- 키 힌트: ←/→ 고르기, 1~3 바로 선택, Space 확정 -->
+  <g filter="url(#tiny)"><rect x="920" y="662" width="340" height="48" rx="12" fill="#FFFFFF" opacity="0.96"/></g>
+  <g>
+    <rect x="932" y="670" width="32" height="32" rx="8" fill="#F4F1E8" stroke="#BEB6A4" stroke-width="2"/>
+    <path d="M955 686 h-14 m5 -5 l-5 5 5 5" stroke="#5B6472" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+    <rect x="968" y="670" width="32" height="32" rx="8" fill="#F4F1E8" stroke="#BEB6A4" stroke-width="2"/>
+    <path d="M977 686 h14 m-5 -5 l5 5 -5 5" stroke="#5B6472" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M1010 674 v24" stroke="#E4DCCA" stroke-width="2"/>
+    <rect x="1022" y="670" width="32" height="32" rx="8" fill="#F4F1E8" stroke="#BEB6A4" stroke-width="2"/>
+    <text x="1038" y="694" text-anchor="middle" font-size="19" font-weight="800" fill="#5B6472">1</text>
+    <rect x="1058" y="670" width="32" height="32" rx="8" fill="#FFF3C9" stroke="#F5A623" stroke-width="2.5"/>
+    <text x="1074" y="694" text-anchor="middle" font-size="19" font-weight="800" fill="#B3541E">2</text>
+    <rect x="1094" y="670" width="32" height="32" rx="8" fill="#F4F1E8" stroke="#BEB6A4" stroke-width="2"/>
+    <text x="1110" y="694" text-anchor="middle" font-size="19" font-weight="800" fill="#5B6472">3</text>
+    <path d="M1136 674 v24" stroke="#E4DCCA" stroke-width="2"/>
+    <rect x="1148" y="670" width="64" height="32" rx="8" fill="#F4F1E8" stroke="#BEB6A4" stroke-width="2"/>
+    <rect x="1162" y="684" width="36" height="5" rx="2.5" fill="#5B6472"/>
+    <path d="M1222 692 l7 7 12 -14" stroke="#69A05B" stroke-width="4" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+
+  <!-- 목업 캡션 -->
+  <g><rect x="16" y="688" width="690" height="26" rx="8" fill="#FFFFFF" opacity="0.78"/></g>
+  <text x="28" y="706" font-size="14" fill="#7B8A96">목업 v3 · 씬 ⑤ 선물 선택(생각 말풍선 힌트 = 사과, 트레이 2번 포커스) · 캐릭터는 실제 에셋으로 교체 예정</text>
+</svg>

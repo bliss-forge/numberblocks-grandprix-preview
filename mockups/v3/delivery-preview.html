@@ -1,0 +1,81 @@
+<!doctype html>
+<!-- 택배 씬 미리보기 하네스 — 게임을 처음부터 몰지 않고 한 단계를 바로 세운다.
+     저장소 루트에서 정적 서버를 띄운 뒤 mockups/v3/delivery-preview.html?phase=drive 로 연다.
+     phase: drive | elevator | corridor | handover | finale -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>택배 씬 미리보기</title>
+<!-- 캐릭터 에셋 경로가 게임(루트의 index.html)과 같아지도록 기준을 루트로 옮긴다. -->
+<base href="../../">
+<link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="mobile-games.css">
+</head>
+<body data-state="playing" data-mode="delivery">
+  <main class="app">
+    <section id="game" class="screen active" tabindex="-1" aria-labelledby="problem-text">
+      <div class="stage-curtain curtain-left" aria-hidden="true"></div>
+      <div class="stage-curtain curtain-right" aria-hidden="true"></div>
+      <p id="problem-text" class="problem-pill"></p>
+      <div class="stage-frame">
+        <div class="stage-lights" aria-hidden="true"></div>
+        <div id="stage" class="stage" aria-live="polite"></div>
+        <div class="stage-floor" aria-hidden="true"></div>
+      </div>
+    </section>
+  </main>
+
+<script type="module">
+import {
+  createDelivery, deliverParcel, pressFloor, pushCommand, ringBell, runCommands,
+} from "/src/delivery-model.mjs";
+import { renderDelivery } from "/src/delivery-scene.mjs";
+
+const phase = new URLSearchParams(location.search).get("phase") ?? "drive";
+const seed = Number(new URLSearchParams(location.search).get("seed") ?? 31);
+const state = createDelivery("steady", seed);
+
+function driveToTarget() {
+  const goal = state.order.cell;
+  const dx = goal.x - state.drive.truck.x;
+  const dy = goal.y - state.drive.truck.y;
+  for (let i = 0; i < Math.abs(dx); i += 1) pushCommand(state, dx > 0 ? "right" : "left");
+  for (let i = 0; i < Math.abs(dy); i += 1) pushCommand(state, dy > 0 ? "down" : "up");
+  runCommands(state);
+}
+
+function oneDelivery() {
+  driveToTarget();
+  pressFloor(state, state.order.floor);
+  state.corridor.focus = state.corridor.units.indexOf(state.order.unit);
+  ringBell(state);
+  state.handover.focus = state.handover.tray.indexOf(state.order.parcel);
+  deliverParcel(state);
+}
+
+if (phase === "drive") {
+  // 명령 두 칸을 쌓아 둔 상태 — 빈 큐보다 화면이 정직하다.
+  pushCommand(state, "right");
+  pushCommand(state, "up");
+} else if (phase === "elevator") {
+  driveToTarget();
+} else if (phase === "corridor") {
+  driveToTarget();
+  pressFloor(state, state.order.floor);
+  state.corridor.focus = state.corridor.units.indexOf(state.order.unit);
+} else if (phase === "handover") {
+  driveToTarget();
+  pressFloor(state, state.order.floor);
+  state.corridor.focus = state.corridor.units.indexOf(state.order.unit);
+  ringBell(state);
+  state.handover.focus = state.handover.tray.indexOf(state.order.parcel);
+} else if (phase === "finale") {
+  while (state.phase !== "finale") oneDelivery();
+}
+
+document.getElementById("stage").replaceChildren(renderDelivery(document, state));
+document.body.dataset.ready = "1";
+</script>
+</body>
+</html>

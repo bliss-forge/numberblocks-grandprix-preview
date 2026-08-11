@@ -24,6 +24,7 @@ import {
   elevatorShaftSvg,
   handoverSvg,
 } from "./delivery-building-art.mjs";
+import { FINALE_BACKDROP, finaleSvg } from "./delivery-finale-art.mjs";
 
 const MASCOT_IMAGE = "assets/characters/nine.png";
 
@@ -336,6 +337,7 @@ function whoCard(document, state) {
 function finaleBody(document, state) {
   const body = el(document, "div", "dv-body");
   body.dataset.cols = "1";
+  body.append(stage(document, "dv-stage dv-stage-finale", finaleSvg(state.finale), FINALE_BACKDROP));
 
   const panel = el(document, "div", "dv-finale");
   panel.append(el(document, "p", "dv-finale-title", "배달을 모두 마쳤어요!"));

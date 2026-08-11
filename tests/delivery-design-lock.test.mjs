@@ -1,5 +1,9 @@
-// 디자인 정본 락 — docs/superpowers/specs/2026-08-08-delivery-design-lock.md 를 기계적으로 지킨다.
-// 이 파일이 깨진다면 코드가 아니라 디자인이 왜곡된 것이다. 값을 고치지 말고 그림을 고쳐라.
+// 디자인 정본 락 — 트럭 "포장이"의 색과 비례를 기계적으로 지킨다.
+// 정본은 목업 v3(mockups/v3/*.html)이다. 이 파일이 깨진다면 코드가 아니라
+// 디자인이 왜곡된 것이다. 값을 고치지 말고 그림을 고쳐라.
+//
+// v1 은 흰 트럭이었다. v3 목업이 노란 포장이를 정본으로 세우면서 팔레트를 옮겼고,
+// 정면 치수 비례(§4)는 한 자리도 바꾸지 않아 아래 비율 검사는 그대로 살아 있다.
 
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -18,20 +22,27 @@ import {
   truckViewForDirection,
 } from "../src/delivery-truck-art.mjs";
 
-// 시트 §3 색상표. 한 글자도 바꾸지 않는다.
+// 목업 v3 색상표. 한 글자도 바꾸지 않는다.
 const LOCKED_COLORS = {
-  body: "#FFFFFF",
-  trim: "#E6E6E6",
-  blue: "#4AA3FF",
-  tailRed: "#FF3B30",
-  windshield: "#1E1E1E",
-  bumper: "#282B2B",
-  tire: "#333333",
-  tailAmber: "#FF9500",
+  body: "#FFC531",
+  bodyLight: "#FFD766",
+  edge: "#E8A61E",
+  logo: "#FFF6D9",
+  logoInk: "#6B5433",
+  glass: "#DDF1FB",
+  glassEdge: "#B9DCEC",
+  ink: "#39434C",
+  smile: "#B3541E",
+  cheek: "#FF9E8A",
+  chassis: "#5B6472",
+  hub: "#C9D2DA",
+  name: "#8A5A10",
+  tailRed: "#E86A50",
+  tailAmber: "#F5A623",
 };
 
-// 도면 밖에서 쓰는 것이 허용된 보조 색 — 그림자·허브 안쪽·그릴 외곽선·눈 흰자.
-const NEUTRAL_EXTRAS = new Set(["#9aa2ab", "#c9ced4", "#fff"]);
+// 도면 밖에서 쓰는 것이 허용된 보조 색 — 눈 흰자뿐이다(그림자는 rgba 라 여기 없다).
+const NEUTRAL_EXTRAS = new Set(["#fff"]);
 
 test("트럭 색상표가 디자인 정본과 정확히 일치한다", () => {
   assert.deepEqual({ ...TRUCK_COLORS }, LOCKED_COLORS);
@@ -101,7 +112,7 @@ test("도면에 정본 밖 색이 섞이지 않는다", () => {
 });
 
 test("얼굴은 정면 계열에만 있고 측면·후면에는 없다", () => {
-  const hasFace = markup => markup.includes(TRUCK_COLORS.windshield) && markup.includes('fill="#fff"');
+  const hasFace = markup => markup.includes('class="dv-face"');
 
   assert.ok(hasFace(truckFrontSvg()), "정면에 얼굴이 없다");
   assert.ok(hasFace(truckFront34Svg()), "정면 3/4 에 얼굴이 없다");
@@ -128,8 +139,8 @@ test("주행 방향이 뷰로 옮겨진다", () => {
   assert.equal(truckSvgForDirection("left"), truckSideReverseSvg());
 });
 
-test("모든 뷰가 블루 포인트를 지닌다 — 같은 차라는 표식", () => {
+test("모든 뷰가 지붕 하이라이트를 지닌다 — 같은 차라는 표식", () => {
   for (const view of TRUCK_VIEWS) {
-    assert.ok(truckSvg(view).includes(TRUCK_COLORS.blue), `${view}: 블루 포인트가 빠졌다`);
+    assert.ok(truckSvg(view).includes(TRUCK_COLORS.bodyLight), `${view}: 지붕 하이라이트가 빠졌다`);
   }
 });
