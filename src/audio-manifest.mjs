@@ -102,19 +102,22 @@ const paint = Object.fromEntries(
       "firetruck", "chick", "bus", "carrot", "car", "frog", "tractor",
       "grape", "heli", "blossom", "boat", "bear", "rocket",
       "strawberry", "banana", "whale", "tangerine", "plane", "submarine",
-      "pig", "peach", "caterpillar", "butterfly", "acorn", "pine", "eggplant"
+      "pig", "peach", "caterpillar", "butterfly", "acorn", "pine", "eggplant",
+      "sandcastle", "camel", "dumptruck", "elephant", "cactus"
     ].map(subject => `paint-order-${subject}`),
     ...[
       "orange", "green", "purple", "pink", "sky", "brown", "navy",
       "lightyellow", "olive", "gray",
       "peach", "yellowgreen", "lavender", "darkbrown", "darkgreen",
-      "darkpurple", "brick", "khaki", "bluegray"
+      "darkpurple", "brick", "khaki", "bluegray",
+      "sand", "ochre", "grayviolet", "sage", "mud"
     ].map(color => `paint-mix-${color}`),
     ...[
       "red", "yellow", "blue", "black", "white", "orange", "green",
       "purple", "pink", "sky", "brown", "navy", "lightyellow", "olive", "gray",
       "peach", "yellowgreen", "lavender", "darkbrown", "darkgreen",
-      "darkpurple", "brick", "khaki", "bluegray", "mud"
+      "darkpurple", "brick", "khaki", "bluegray", "mud",
+      "sand", "ochre", "grayviolet", "sage"
     ].map(color => `paint-made-${color}`)
   ].map(key => [
     key,
