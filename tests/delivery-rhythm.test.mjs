@@ -148,7 +148,8 @@ test("하역 무대는 실은 수만큼 상자를 쌓고 지금 박을 켠다", 
   assert.equal((svg.match(/class="dv-beat-chip"/g) ?? []).length, BEATS_PER_BAR);
   assert.ok(svg.includes("박자 딱!"), "정박 판정 문구가 없다");
   assert.match(svg, /aria-label="[^"]*2 \/ 3 개 실었어요/);
-  assert.match(svg, /class="dv-beat-ring"/, "박자 링이 없다");
+  assert.match(svg, /class="dv-beat-marker"/, "박자 구슬이 없다");
+  assert.match(svg, /class="dv-beat-track"/, "박자 막대가 없다");
 });
 
 test("빗나간 순간에는 상자가 날아가지 않는다", () => {

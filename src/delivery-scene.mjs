@@ -42,7 +42,7 @@ export const DELIVERY_STEPS = Object.freeze({
     name: "리듬 하역",
     headline: "박자에 맞춰 상자를 내려요!",
     emoji: "🎵",
-    tip: ["동그라미가 좁아지는 순간 Space 를 누르세요!", "박자를 놓쳐도 괜찮아요. 다음 박자에 다시 해요."],
+    tip: ["구슬이 가운데 괄호에 들어올 때 Space 를 누르세요!", "박자를 놓쳐도 괜찮아요. 다음 박자에 다시 해요."],
   },
   elevator: {
     index: 3,

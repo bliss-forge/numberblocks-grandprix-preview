@@ -9218,22 +9218,24 @@ body[data-mode="delivery"] #stage {
 
 /* ── 리듬 하역 ───────────────────────────────────────────────────── */
 
-/* 바깥 링이 한 박(80BPM = 750ms)에 걸쳐 안쪽 링으로 좁혀 든다.
-   무대는 박마다 다시 그려지므로 애니메이션도 그때마다 처음부터 돌아 박자에 맞는다. */
-.dv-beat-ring {
+/* ---[ ● ]--- 구슬이 한 박(80BPM = 750ms)에 막대를 가로지른다.
+   애니메이션을 반 박 당겨 시작해 정박마다 정확히 한가운데를 지나고,
+   무대가 박마다 다시 그려지므로 위상이 계속 맞는다. */
+.dv-beat-marker {
   transform-box: view-box;
-  transform-origin: 600px 558px;
-  animation: dv-beat-close 750ms linear infinite;
+  animation: dv-beat-sweep 750ms linear infinite;
+  animation-delay: -375ms;
 }
 
-@keyframes dv-beat-close {
-  from { transform: scale(2.1); opacity: .25; }
-  to { transform: scale(1); opacity: .95; }
+@keyframes dv-beat-sweep {
+  from { transform: translateX(-280px); }
+  to { transform: translateX(280px); }
 }
 
-/* 움직임을 줄이겠다고 한 기기에서는 링을 고정한다 — 박자는 비트 칩이 알려 준다. */
+/* 움직임을 줄이겠다고 한 기기에서는 구슬을 한가운데 세운다 —
+   박자는 비트 칩과 소리가 알려 준다. */
 @media (prefers-reduced-motion: reduce) {
-  .dv-beat-ring { animation: none; opacity: .6; }
+  .dv-beat-marker { animation: none; }
 }
 
 .dv-key-beat { font-size: clamp(15px, 1.9vw, 22px); }
