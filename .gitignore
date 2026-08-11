@@ -9,3 +9,7 @@ tmp/*.png
 
 # 내려받은 안내방송 원본 묶음 (약 400MB) — subway_sound/ 로 정리해서 쓴다
 subway_sound/original_subway_sound/
+
+# 의존성 0개 저장소 — npm install이 만드는 빈 lockfile이 미추적으로 떠돌며
+# 다른 워크트리 병합을 멈추게 한다(2026-08-11 실제 발생).
+package-lock.json

@@ -353,10 +353,15 @@ export function estateMapSvg(view) {
       star(goalBox.x + 16, goalBox.y + 34, 1.2) +
       star(goalBox.x + BUILDING_WIDTH - 12, goalBox.y + 22, 0.9)
     : "";
-  // 윗줄 동은 위쪽 여백이 66px 이 안 나온다. 말풍선을 지도 밖으로 밀어내는 대신
-  // 천장에 붙이고 꼬리로 지붕을 짚게 한다.
+  // 말풍선을 놓을 자리는 줄마다 다르다. 윗줄 동은 위쪽 여백이 66px 이 안 나와
+  // 지도 밖으로 밀려나므로 천장에 붙이고, 아랫줄 동은 도로에 띄우면 하역 존을
+  // 덮으므로 도로 아래·지붕 바로 위에 앉힌다. 어느 쪽이든 꼬리가 지붕을 짚는다.
   const marker = goalBox
-    ? callout(goalBox.x + BUILDING_WIDTH / 2, Math.max(4, goalBox.y - 66), targetUnit)
+    ? callout(
+        goalBox.x + BUILDING_WIDTH / 2,
+        goalBox.row === "north" ? 4 : goalBox.y - 30,
+        targetUnit
+      )
     : "";
 
   const guide = goalHouse
