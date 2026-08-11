@@ -1,4 +1,8 @@
-import { realisticMotionAssets } from "./ktx-realistic-assets.mjs";
+import {
+  REALISTIC_MOTION_ASSETS,
+  realisticEventAsset,
+  realisticMotionAssets
+} from "./ktx-realistic-assets.mjs";
 import { realisticMotionFrame } from "./ktx-realistic-motion.mjs";
 import { routeSegments } from "./ktx-journey.mjs";
 
@@ -11,6 +15,9 @@ const PATTERN_PERIOD_PX = Object.freeze({ mid: 960, near: 720, track: 144, strea
 const TUNNEL_WALL_GAP_PX = 50;
 const TUNNEL_PORTAL_DISTANCE = 600;
 const STATION_PHASES = new Set(["stopped", "boarding", "ready", "branch", "finale"]);
+
+// 열차 png의 칸 접합부(문) 위치 — rig 폭 기준 %. 브라우저 실측으로 보정.
+const DOOR_LEFT_PERCENTS = Object.freeze([32, 43.9, 55.7, 67.6, 79.5]);
 
 function el(document, tag, className) {
   const node = document.createElement(tag);
@@ -125,6 +132,14 @@ function applyFrame(scene, state, band, controller = null) {
     76 - frame.speedRatio * 20, frame.moving);
   const tunnelLightGap = patternGap(scene, "--tunnel-light-gap",
     98 - frame.speedRatio * 42, frame.moving);
+  // 터널 조명 맥동 주기 — 조명 간격을 실제 통과 시간으로 환산. 4~6세 광과민
+  // 안전 상한: 최소 400ms(2.5Hz) 밑으로 절대 내리지 않는다. 100ms 양자화로
+  // 값이 진짜 변할 때만 써서 애니메이션 재시작 점프를 막는다.
+  const strobeMs = Math.round(Math.min(2000, Math.max(400,
+    (tunnelLightGap * 3600) / Math.max(state.v, 1))) / 100) * 100;
+  if (scene.style.getPropertyValue("--strobe-period") !== `${strobeMs}ms`) {
+    scene.style.setProperty("--strobe-period", `${strobeMs}ms`);
+  }
   scene.style.setProperty("--tunnel-wall-gap", `${TUNNEL_WALL_GAP_PX}px`);
   setLoopPhase(scene, "cabTrack", "--cab-track-phase",
     frame.offsets.track, cabSleeperGap, frame.moving);
@@ -133,8 +148,18 @@ function applyFrame(scene, state, band, controller = null) {
   scene.style.setProperty("--cab-sleeper-phase", `${frame.cab.sleeperPhase}px`);
   scene.style.setProperty("--cab-pole-phase", `${frame.cab.polePhase}px`);
   scene.style.setProperty("--cab-ground-ratio", String(frame.cab.groundRatio));
+  // 원근 평면 침목 — 평면 로컬 8px/m, 패턴 주기 64px의 정수배(512)로 무봉합.
+  setLoopPhase(scene, "cabTies", "--cab-tie-px",
+    frame.offsets.track * 8, 512, frame.moving);
+  // 의사 곡선 캔트 — 시뮬에 곡선 데이터가 없어 위치 기반 저주파 사인.
+  // 상한 0.8°(멀미 배려), 900m 주기라 체감은 "가끔 완만한 곡선".
+  scene.style.setProperty("--cab-cant",
+    `${(Math.sin(state.x / 900) * 0.8).toFixed(2)}deg`);
   scene.dataset.doors = state.doors === "open" && STATION_PHASES.has(state.phase)
     ? "open" : "closed";
+  scene.dataset.doorWarning = String(
+    Number.isFinite(state.doorCountdownMs) && state.doorCountdownMs > 0 &&
+    state.doorCountdownMs <= 3000);
   const tunnelPortal = tunnelPortalState(state, frame.land);
   setLoopPhase(scene, "tunnelWall", "--tunnel-wall-phase",
     frame.land === "tunnel" ? frame.offsets.track : 0,
@@ -156,6 +181,16 @@ function applyFrame(scene, state, band, controller = null) {
   if (controller?.station) {
     controller.station.dataset.lifecycle = frame.departing
       ? "departing" : frame.stationStage;
+    // 시간대별 역 사진 — 역이 화면 밖(hidden)일 때만 바꿔 로드 깜빡임이
+    // 보이지 않는다. loaded 게이트는 유지(최초 로드로 이미 통과).
+    const wantedStation =
+      REALISTIC_MOTION_ASSETS.stationBySky[scene.dataset.sky] ??
+      REALISTIC_MOTION_ASSETS.station[0];
+    if (frame.stationStage === "hidden" &&
+      controller.station.dataset.assetSrc !== wantedStation) {
+      controller.station.dataset.assetSrc = wantedStation;
+      controller.station.src = wantedStation;
+    }
   }
   if (controller?.stationSign) {
     controller.stationSign.textContent = stationName(state);
@@ -488,29 +523,67 @@ export function buildRealisticMotionScene(document, state, onStateChange) {
   const cabSleepers = el(document, "div", "ktx-motion-cab-sleepers");
   const cabPoles = el(document, "div", "ktx-motion-cab-poles");
   const cabCatenary = el(document, "div", "ktx-motion-cab-catenary");
+  // 원근 선로 평면 — 사진 위 평면 크롤이 아니라 진짜 CSS 3D 투영(rotateX 84°).
+  // 소실점에서 느리고 관찰자 앞에서 지수 가속하는 광학 흐름이 투영에서 공짜로
+  // 나온다(협회 모션 설계 2026-08-10 P1). 기존 크롤 침목은 보조로 강등.
+  const cabPersp = el(document, "div", "ktx-motion-cab-persp");
+  const cabPlane = el(document, "div", "ktx-motion-cab-plane");
+  const cabTies = el(document, "div", "ktx-motion-cab-ties");
+  cabPlane.append(cabTies);
+  cabPersp.append(cabPlane);
   const tunnel = el(document, "div", "ktx-motion-tunnel");
   const tunnelPortal = el(document, "div", "ktx-motion-tunnel-portal");
   const tunnelLights = el(document, "div", "ktx-motion-tunnel-lights");
   tunnel.append(tunnelPortal, tunnelLights);
   cabWindow.append(cabBase, cabGround, cabBallast, cabSleepers,
-    cabRailLeft, cabRailRight, cabPoles, cabCatenary, tunnel);
+    cabRailLeft, cabRailRight, cabPersp, cabPoles, cabCatenary, tunnel);
   const train = motionImage(document, "ktx-motion-train",
     pack.train, "실사 SRT 열차", controller);
+  // 야간 도색 — 주간본과 픽셀 정렬된 스프라이트를 겹쳐 두고 CSS로 교차.
+  // 필수 로딩 게이트에 넣지 않아 실패해도 주간본으로 계속 논다.
+  const trainNight = el(document, "img", "ktx-motion-train-night");
+  trainNight.src = pack.trainNight;
+  trainNight.alt = "";
+  trainNight.decoding = "async";
+  // 교행 열차 — 건너편(먼) 선로를 반대 방향으로 스치는 KTX. 같은 스프라이트를
+  // 색상 변환(보라→파랑)으로 눕혀 쓴다. passing 이벤트가 스윕을 발사한다.
+  const oncoming = el(document, "img", "ktx-motion-oncoming");
+  oncoming.src = pack.train;
+  oncoming.alt = "";
+  oncoming.decoding = "async";
+  oncoming.setAttribute("aria-hidden", "true");
+  // 테마 이벤트 스프라이트 — 소 농장·갈매기 떼가 월드에서 스쳐 지나간다.
+  // 화면에 붙어 있는 평면 연출과 달리 속도에 맞춰 흘러야 "달리는 중에
+  // 우연히 봤다"가 된다.
+  const eventSprite = el(document, "div", "ktx-motion-event");
   const trainRig = el(document, "div", "ktx-motion-train-rig");
-  const door = el(document, "div", "ktx-motion-door");
-  const doorBay = el(document, "span", "ktx-motion-door-bay");
-  const doorLeft = el(document, "span",
-    "ktx-motion-door-leaf ktx-motion-door-leaf-left");
-  const doorRight = el(document, "span",
-    "ktx-motion-door-leaf ktx-motion-door-leaf-right");
-  door.append(doorBay, doorLeft, doorRight);
-  trainRig.append(train, wheelShadow, door);
+  // 칸 접합부마다 문 — 문 하나(23px)로는 개폐가 화면에서 읽히지 않는다는
+  // 피드백(2026-08-10). 네 짝이 함께 열리고 닫혀야 "정차했다/떠난다"가 보인다.
+  const doors = DOOR_LEFT_PERCENTS.map(left => {
+    const door = el(document, "div", "ktx-motion-door");
+    door.style.setProperty("--door-left", `${left}%`);
+    const doorBay = el(document, "span", "ktx-motion-door-bay");
+    const doorLeft = el(document, "span",
+      "ktx-motion-door-leaf ktx-motion-door-leaf-left");
+    const doorRight = el(document, "span",
+      "ktx-motion-door-leaf ktx-motion-door-leaf-right");
+    door.append(doorBay, doorLeft, doorRight);
+    return door;
+  });
+  // 근접 궤도 — 바퀴 라인 바로 밑에 레일·침목·자갈이 함께 흐르지 않으면
+  // 열차가 사진 위에 떠 보인다(사용자 피드백 2026-08-10).
+  const railbed = el(document, "div", "ktx-motion-railbed");
+  trainRig.append(railbed, train, trainNight, wheelShadow, ...doors);
   const cabFrame = motionImage(document, "ktx-motion-cab-frame",
     pack.cabMask, "실사 SRT 운전실", controller);
+  // 창 내용과 프레임을 한 몸으로 묶는 카메라 리그 — 진동을 따로 주면 세계와
+  // 프레임이 분리돼 보인다. 흔들림은 리그 하나에만 건다(협회 P3).
+  const cabRig = el(document, "div", "ktx-motion-cab-rig");
+  cabRig.append(cabWindow, cabFrame);
   Object.assign(controller, { station, stationSign, train, cabFrame });
 
   scene.append(...plates, stationViewport, stationSign,
-    mid, track, near, cabWindow, trainRig, cabFrame);
+    mid, eventSprite, track, oncoming, near, cabRig, trainRig);
   scene.dataset.readiness = "pending";
   applyFrame(scene, state, { sky: state.sky, land: state.land }, controller);
   controllers.set(scene, controller);

@@ -54,6 +54,7 @@ import { characterAsset } from "./character-spec.mjs";
 import {
   realisticAssetAlt,
   realisticCabAsset,
+  realisticEventAsset,
   realisticExteriorAsset
 } from "./ktx-realistic-assets.mjs";
 import {
@@ -456,6 +457,12 @@ function buildSideView(document, state) {
   // 탑승 워커 — ⎵마다 맨 앞 친구가 문까지 걸어간다
   view.append(el(document, "div", "ktx-walker-host"));
 
+  // 서행 표지판 — "저기 표지판!" 안내에 진짜 '저기'가 있어야 한다(협회 5).
+  const slowSign = el(document, "div", "ktx-slow-sign");
+  slowSign.append(el(document, "b", "ktx-slow-sign-disc", ""));
+  slowSign.append(el(document, "i", "ktx-slow-sign-post"));
+  view.append(slowSign);
+
   const streaks = el(document, "div", "ktx-speed-streaks");
   streaks.append(el(document, "i", "ktx-streak-tex"));
   view.append(streaks);
@@ -536,6 +543,7 @@ export function renderKtxScene(document, state, view = "cab") {
   score.append(el(document, "span", "ktx-boarded-total", "친구 0"));
   hud.append(score);
   hud.append(el(document, "span", "ktx-boost-badge", ""));
+  hud.append(el(document, "span", "ktx-slow-badge", ""));
   const viewKeys = el(document, "div", "ktx-view-keys");
   const cabKey = el(document, "span", "ktx-view-key", "1 운전실");
   cabKey.dataset.viewKey = "cab";
@@ -751,13 +759,45 @@ function updateQueue(document, root, state) {
 }
 
 // 탑승 워커 — 문까지의 델타는 스폰 시 실측(반증 C5), 측정 불가 환경은 74px.
+function spawnAlighters(document, root) {
+  const host = root.querySelector(".ktx-walker-host");
+  if (!host) return;
+  // 내리는 친구는 문에서 나와야 한다 — 시작점을 실제 문 좌표에 맞춘다.
+  let fromX = 0;
+  const doors = root.querySelectorAll(".ktx-motion-door");
+  const door = doors[2] ?? doors[0];
+  if (door?.getBoundingClientRect && host.getBoundingClientRect) {
+    const doorBox = door.getBoundingClientRect();
+    const hostBox = host.getBoundingClientRect();
+    if (doorBox.width > 0) {
+      fromX = Math.round(doorBox.left + doorBox.width / 2 - hostBox.left);
+    }
+  }
+  // 모델과 무관한 연출 — 내리는 사람이 있어야 "역에 섰다"가 산다.
+  const count = 1 + Math.floor(Math.random() * 2);
+  const nodes = [];
+  for (let i = 0; i < count; i += 1) {
+    const number = 1 + Math.floor(Math.random() * 10);
+    const walker = el(document, "div", "ktx-walker ktx-walker-out");
+    walker.style.setProperty("--out-delay", `${i * 420}ms`);
+    walker.style.setProperty("--out-from", `${fromX}px`);
+    walker.append(passengerImg(document, number, "ktx-walker-img"));
+    nodes.push(walker);
+  }
+  host.replaceChildren(...nodes);
+}
+
 function spawnWalker(document, root, event) {
   const host = root.querySelector(".ktx-walker-host");
   if (!host) return;
   const walker = el(document, "div", "ktx-walker");
   walker.append(passengerImg(document, event.number, "ktx-walker-img"));
   let deltaX = 74;
-  const door = root.querySelector(".ktx-view-side .ktx-door");
+  // 실사 모드에서는 레거시 문이 숨어 있다 — 실제로 보이는 모션 문을 조준해야
+  // 워커가 허공이 아니라 문으로 걸어 들어간다(2026-08-10 플레이 관찰).
+  const door = root.dataset.motionRealistic === "ready"
+    ? root.querySelectorAll(".ktx-motion-door")[2] ?? root.querySelector(".ktx-motion-door")
+    : root.querySelector(".ktx-view-side .ktx-door");
   if (door?.getBoundingClientRect && host.getBoundingClientRect) {
     const doorBox = door.getBoundingClientRect();
     const hostBox = host.getBoundingClientRect();
@@ -876,6 +916,25 @@ export function updateKtxScene(root, state, view, events = [], held = {}) {
   const boostBadge = root.querySelector(".ktx-boost-badge");
   if (boostBadge && boostBadge.textContent !== boostText) {
     boostBadge.textContent = boostText;
+  }
+  // 서행 표지 배지 — 예고 순간부터 존 종료까지 제한 숫자를 계속 보여 준다.
+  // 글을 못 읽는 아이도 "동그라미 숫자 = 속도계 숫자를 그 밑으로"를 배운다.
+  const slowZone = state.slowZones?.[state.segIndex];
+  const slowActive = Boolean(state.slow);
+  const slowComing = Boolean(slowZone) && state.slowWarned && !state.zoneEntered &&
+    state.phase === "driving" &&
+    state.x / routeSegments(state)[state.segIndex].length < slowZone.until;
+  let slowMode = "off";
+  if (slowActive) {
+    slowMode = state.v <= state.slow.limit + state.slow.grace ? "calm" : "over";
+  } else if (slowComing) {
+    slowMode = "coming";
+  }
+  root.dataset.slow = slowMode;
+  const slowBadge = root.querySelector(".ktx-slow-badge");
+  const slowText = slowMode === "off" ? "" : String(slowZone.limit);
+  if (slowBadge && slowBadge.textContent !== slowText) {
+    slowBadge.textContent = slowText;
   }
   root.dataset.zone = String(state.zoneEntered &&
     ["driving", "stopping", "correcting"].includes(state.phase));
@@ -1055,12 +1114,18 @@ export function updateKtxScene(root, state, view, events = [], held = {}) {
     boardedNode.textContent = boardedText;
   }
 
-  // 속도 풍선 — 존 안에서는 억제(시선 깔때기, 아이 렌즈 §6)
+  // 속도 풍선 — 존 안에서는 억제(시선 깔때기, 아이 렌즈 §6).
+  // 300 링은 뺀다 — 최고속 부근에서 "300" 동그라미가 경고판처럼 읽힌다는
+  // 피드백(2026-08-10). 세기 놀이용 낮은 마일스톤(50~250)만 띄운다.
   const nextMilestone = SPEED_MILESTONES.find(milestone =>
     !state.milestones.includes(milestone) && milestone > state.v - 1);
   const balloon = root.querySelector(".ktx-speed-balloon");
   const balloonOn = state.phase === "driving" && nextMilestone !== undefined &&
-    nextMilestone - state.v <= 20 && !state.zoneEntered;
+    nextMilestone < 300 &&
+    nextMilestone - state.v <= 20 && !state.zoneEntered &&
+    // 서행 안내 중에는 다른 숫자 풍선을 띄우지 않는다 — "100까지 천천히"
+    // 옆에 "200" 풍선이 뜨면 제한 숫자와 혼선(협회 D).
+    !state.slow && !state.slowWarned;
   balloon.dataset.on = String(balloonOn);
   if (balloonOn) {
     const numberNode = root.querySelector(".ktx-balloon-number");
@@ -1073,7 +1138,8 @@ export function updateKtxScene(root, state, view, events = [], held = {}) {
   const stageHost = root.querySelector(".ktx-event-stage");
   const active = activeEvent(state);
   const eventKey = active?.type ?? "";
-  const stageKey = eventKey === "passing" ? "" : eventKey;
+  const stageKey = eventKey === "passing" || realisticEventAsset(eventKey)
+    ? "" : eventKey;
   if (stageHost.dataset.event !== stageKey) {
     stageHost.dataset.event = stageKey;
     stageHost.innerHTML = stageKey ? eventSpriteSvg(stageKey) : "";
@@ -1102,17 +1168,31 @@ export function updateKtxScene(root, state, view, events = [], held = {}) {
         pulse(root.querySelector(".ktx-side-oncoming"), "ktx-oncoming-run");
       }
     }
+    if (event.type === "event") {
+      // 실사 스프라이트가 있는 종류만 월드 스윕으로 — 없으면 기존 평면 연출.
+      const sprite = realisticEventAsset(event.event);
+      const host = root.querySelector(".ktx-motion-event");
+      if (sprite && host) {
+        host.dataset.kind = event.event;
+        host.style.setProperty("--event-image", `url("${sprite}")`);
+        // 빠를수록 짧게 스친다 — 고정 시간이면 300km/h에서 느릿해 보인다.
+        const seconds = Math.max(1.1, Math.min(4.2, 620 / Math.max(state.v, 40)));
+        host.style.setProperty("--event-sweep-ms", `${Math.round(seconds * 1000)}ms`);
+        pulse(host, "ktx-event-go");
+      }
+    }
     if (event.type === "event" && event.event === "passing") {
       pulse(root.querySelector(".ktx-oncoming-cab"), "ktx-oncome-run");
       pulse(root.querySelector(".ktx-side-oncoming"), "ktx-oncoming-run");
       pulse(root.querySelector(".ktx-cab-world"), "ktx-cab-shake");
+      // 실사 교행 — 건너편 선로의 파란 KTX가 반대 방향으로 스친다
+      pulse(root.querySelector(".ktx-motion-oncoming"), "ktx-oncoming-go");
     }
     if (event.type === "zone-enter") {
       spawnObj(root, "speed35", "l", "", state.v);
     }
-    if (event.type === "event" && event.event === "sprint300") {
-      spawnObj(root, "sign300", "r", "", state.v);
-    }
+    // sprint300의 "300" 경고판 소환은 뺐다 — 실사 배경 위에 뜬 표지판이
+    // 경고처럼 읽힌다는 피드백(2026-08-10). 문구 힌트("300까지 가 볼까?")만 남긴다.
     if (event.type === "boarded") {
       const pop = root.querySelector(".ktx-board-pop");
       const face = root.querySelector(".ktx-board-face");
@@ -1132,10 +1212,40 @@ export function updateKtxScene(root, state, view, events = [], held = {}) {
     if (event.type === "stopped") {
       root.dataset.lastStars = String(event.stars);
       pulse(root.querySelector(".ktx-hud"), "ktx-stars-pop");
+      // 도착 임팩트 — 역명판이 크게 튀고 장면이 한 번 밝게 숨쉰다
+      pulse(root.querySelector(".ktx-motion-station-sign"), "ktx-sign-pop");
+      pulse(root.querySelector(".ktx-motion-scene"), "ktx-arrive-flash");
+    }
+    if (event.type === "doors-open") {
+      // 문이 열리면 안에서 친구가 내린다 — "역에 섰다"의 체감
+      spawnAlighters(document, root);
     }
     if (event.type === "milestone") {
       pulse(root.querySelector(".ktx-speedo"), "ktx-speed-pop");
       pulse(balloon, "ktx-balloon-pop");
+    }
+    if (event.type === "slow-warn") {
+      const sign = root.querySelector(".ktx-slow-sign");
+      // "저기 표지판!" 순간 표지판이 보여야 한다 — 운전실이면 바깥 컷
+      // (도착 컷과 같은 관례, 협회 D). 뷰 상태는 앱이 관리하므로 여기서는
+      // updateKtxScene 호출자가 넘긴 view를 바꿀 수 없다 — 앱 배선에서 처리.
+      void 0;
+      if (sign) {
+        sign.querySelector(".ktx-slow-sign-disc").textContent = String(event.limit);
+        pulse(sign, "ktx-slow-sign-go");
+      }
+    }
+    if (event.type === "overrun") {
+      // "뒤로 통통~" 약속의 실체 — 무대 바운스(협회 D: correcting 연출 부재)
+      pulse(root, "ktx-wobble");
+    }
+    if (event.type === "slow-wobble") {
+      // 무섭지 않은 통통 바운스 — 벌이 아니라 "속도를 봐 달라"는 신호
+      pulse(root, "ktx-wobble");
+      pulse(root.querySelector(".ktx-slow-badge"), "ktx-balloon-pop");
+    }
+    if (event.type === "slow-clear" && event.success) {
+      pulse(root.querySelector(".ktx-hud"), "ktx-stars-pop");
     }
     if (event.type === "finale") {
       showFinale(document, root, event, state);
@@ -1148,9 +1258,11 @@ function showFinale(document, root, event, state) {
   const finale = root.querySelector(".ktx-finale");
   finale.dataset.on = "true";
   const title = root.querySelector(".ktx-finale-title");
+  // 종착역은 노선 따라 다르다 — 목포 완주가 "부산 도착"으로 뜨던 결함(협회 D).
+  const terminus = state ? routeStations(state).at(-1) : "부산";
   title.textContent = event.perfect
     ? "⭐ 퍼펙트 기관사! ⭐"
-    : "부산에 도착했어요!";
+    : `${terminus}에 도착했어요!`;
   // 정차 결과 — 역별 별 줄 (Canonical 정면 뷰 아래)
   const stopsHost = root.querySelector(".ktx-finale-stops");
   if (stopsHost && state) {
@@ -1162,6 +1274,15 @@ function showFinale(document, root, event, state) {
       chip.append(el(document, "span", "ktx-finale-stop-stars", "⭐".repeat(count)));
       stopsHost.append(chip);
     });
+    // 반짝 배지도 여기 보여야 HUD 합계와 피날레 문구가 어긋나지 않는다
+    // (협회 후반 검수 6 — 배지 +1이 전역 합계에만 더해져 12 vs 13이 났다).
+    if (event.bonuses?.length) {
+      const chip = el(document, "span", "ktx-finale-stop");
+      chip.append(el(document, "b", "ktx-finale-stop-name", "반짝 배지"));
+      chip.append(el(document, "span", "ktx-finale-stop-stars",
+        `✨ +${event.bonuses.length}`));
+      stopsHost.append(chip);
+    }
   }
   const friends = root.querySelector(".ktx-finale-friends");
   friends.replaceChildren();

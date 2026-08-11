@@ -1147,6 +1147,7 @@ function startKtxPicker() {
   stopSafetyHold();
   clearTimers();
   audio.cancel();
+  audio.stopEngine();
   state.round += 1;
   state.problem = null;
   state.buffer = "";
@@ -1163,7 +1164,7 @@ function startKtxPicker() {
 function startKtxJourney(trainId) {
   state.ktxPicking = false;
   const seed = Math.floor(Math.random() * 0x100000000);
-  state.ktx = createKtxJourney(seed, trainId);
+  state.ktx = createKtxJourney(seed, trainId, state.difficulty);
   // 밖에서 타고, 안에서 몬다 — 탑승은 바깥 뷰에서 시작한다.
   state.ktxView = "side";
   state.ktxHeld = { up: false, down: false };
@@ -1204,6 +1205,7 @@ function handleKtxEvents(events) {
       showHint(`문 닫았어요! ↑ 를 꾹 눌러 출발! 다음 역, ${event.next}!`);
     } else if (event.type === "depart") {
       audio.playSfx("jingle");
+      audio.startEngine();
       // 출발 컷: 문 닫힌 열차가 움직이기 시작하는 걸 900ms 보고 운전석에 앉는다.
       // 그 사이 아이가 1/3로 직접 뷰를 골랐으면 컷을 양보한다(반증 B1 가드).
       const cutMark = state.ktxViewMs;
@@ -1242,6 +1244,26 @@ function handleKtxEvents(events) {
     } else if (event.type === "event") {
       const hint = ktxEventHint(event.event);
       if (hint) showHint(hint);
+    } else if (event.type === "slow-warn") {
+      audio.playSfx("bell");
+      // 실물 표지판은 바깥 뷰의 소품 — 운전실이면 도착 컷과 같은 관례로
+      // 잠깐 바깥을 보여 준다(협회 D: cab에서 "저기"가 없었다).
+      state.ktxView = "side";
+      showHint(`🚧 저기 표지판! ${event.limit}까지 천천히~`);
+      audio.cancel();
+      void audio.playAnswer(event.limit);   // number-100/150 재사용
+    } else if (event.type === "slow-enter") {
+      showHint(`서행 구간이에요! ${event.limit} 밑으로 살살~`);
+    } else if (event.type === "slow-wobble") {
+      audio.playSfx("pop");
+      showHint("덜컹덜컹~ 조금만 천천히!");
+    } else if (event.type === "slow-clear") {
+      if (event.success) {
+        audio.playSfx("win");
+        showHint("✨ 부드럽게 지나갔어요! 반짝 배지!");
+      } else {
+        showHint("다음 서행은 살살 가 보자~");
+      }
     } else if (event.type === "zone-enter") {
       audio.playSfx("bell");
       showHint(`${event.station}역이 보여요! 천천히, 천천히~`);
@@ -1257,9 +1279,17 @@ function handleKtxEvents(events) {
       audio.playSfx("win");
       state.ktxView = "side";      // 도착 컷: 승강장의 친구들이 보인다
       const starText = "⭐".repeat(event.stars);
-      showHint(event.stars === 3
-        ? `${starText} 딱 멈췄어요! 최고, 기관사님!`
-        : `${starText} ${event.station}역이에요! ⎵ 눌러서 문 열기`);
+      if (event.gold) {
+        showHint(`👑 골드 정차! ${starText} 완벽해요, 기관사님!`);
+      } else if (event.stars === 3 && event.smooth) {
+        showHint(`${starText} 스르르~ 딱! 승객들이 편안해요`);
+      } else if (event.stars === 3) {
+        showHint(`${starText} 딱 멈췄어요! 최고, 기관사님!`);
+      } else if (event.smooth) {
+        showHint(`${starText} 부드러운 도착! ⎵ 눌러서 문 열기`);
+      } else {
+        showHint(`${starText} ${event.station}역이에요! ⎵ 눌러서 문 열기`);
+      }
       const voiceKey = SRT_STATION_VOICES[event.station];
       if (voiceKey) {
         audio.cancel();
@@ -1293,7 +1323,11 @@ function handleKtxEvents(events) {
 }
 
 function completeKtxJourney(event) {
-  const totalStars = event.stars.reduce((sum, count) => sum + count, 0);
+  // 반짝 배지(서행·부드러운 도착·골드) 1개 = 별 +1. 정차 별 계약은 불변,
+  // 보너스는 언제나 가산만 한다 — 4~6세 무벌점 세계 유지.
+  const bonusStars = event.bonuses?.length ?? 0;
+  const totalStars = event.stars.reduce((sum, count) => sum + count, 0) +
+    bonusStars;
   state.stars += totalStars;
   dom.stars.textContent = String(state.stars);
   const fresh = recordMetFriends(event.boarded);
@@ -1308,16 +1342,10 @@ function completeKtxJourney(event) {
     : fresh.length > 0
       ? `처음 만난 친구가 ${fresh.length}명 있어요!`
       : "고마워요, 기관사님!");
-  schedule(() => {
-    dom.cheer.textContent = event.perfect
-      ? "⭐ 퍼펙트 기관사! ⭐"
-      : `🚄 ${finalStation} 도착! 별 ${totalStars}개`;
-    dom.cheer.classList.add("show");
-    schedule(() => {
-      dom.cheer.classList.remove("show");
-      goHome();
-    }, 2400);
-  }, 2600);
+  // 빨간 cheer 배너는 피날레 제목과 같은 자리에 같은 말이 겹쳐 3중 표기가
+  // 됐다(협회 후반 검수 6). 피날레 화면이 이미 제목·별 줄·친구 대열을
+  // 갖고 있으니 배너 없이 9초 감상 후 홈으로.
+  schedule(() => goHome(), 9000);
 }
 
 function scheduleKtxTick() {
@@ -1332,6 +1360,8 @@ function scheduleKtxTick() {
     state.ktx = result.state;
     handleKtxEvents(result.events);
     if (state.ktx) {
+      // 주행음 — 속도가 소리를 민다(정지 = 무음, 부스터 = 컷오프 활짝)
+      audio.setEngineSpeed(state.ktx.v / 300);
       updateKtxScene(state.ktxScene, state.ktx, state.ktxView, result.events,
         state.ktxHeld);
     }
@@ -2374,6 +2404,7 @@ function goHome() {
   stopSafetyHold();
   clearTimers();
   audio.cancel();
+  audio.stopEngine();
   state.round += 1;
   state.problem = null;
   state.safety = null;

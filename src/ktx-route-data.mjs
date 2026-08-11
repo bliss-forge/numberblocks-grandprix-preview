@@ -88,7 +88,9 @@ export const KTX_SEGMENTS = Object.freeze([
       Object.freeze({ until: 1, sky: "day", land: "city" })
     ]),
     events: Object.freeze([
-      Object.freeze({ type: "seagull", at: 0.4, until: 0.85 })
+      // 0.85는 정차 접근 구간(마지막 25%)을 침범해 딱 멈추기와 주의가
+      // 겹쳤다 — 갈매기는 바다 밴드 안에서 일찍 끝낸다.
+      Object.freeze({ type: "seagull", at: 0.4, until: 0.75 })
     ])
   })
 ]);
@@ -150,6 +152,24 @@ export const KTX_ROUTE_LABELS = Object.freeze({
 
 // 랜덤 이벤트 풀 2종 — 매판 시드로 1종을 뽑아 2 또는 3구간의 빈 자리에 놓는다.
 // (전량 삭제는 7세 변주 0, 4종 유지는 밀도 초과 — 협회 절충)
+// 지형이 이벤트를 정한다 — 들판엔 소 농장, 바다엔 갈매기, 도시엔 교행 열차.
+// 아이가 "저기 뭐야?" 하고 창밖을 보게 만드는 게 목적이라 그 땅에서 실제로
+// 볼 법한 것만 넣는다. 터널·산은 자체 연출이 있어 비워 둔다.
+export const KTX_LAND_EVENTS = Object.freeze({
+  field: Object.freeze(["cows"]),
+  river: Object.freeze(["river"]),
+  sea: Object.freeze(["seagull"]),
+  city: Object.freeze(["passing"]),
+  mountain: Object.freeze([]),
+  tunnel: Object.freeze([])
+});
+
+export const LAND_EVENT_SPAN = 0.1;        // 이벤트 창 길이(구간 진행률)
+export const LAND_EVENT_MARGIN = 0.03;     // 밴드 경계에서 띄우는 여유
+export const LAND_EVENTS_PER_SEGMENT = 2;  // 구간당 상한 — 남발하면 특별함이 죽는다
+export const LAND_EVENT_TYPE_BUDGET = 2;   // 한 판에 같은 종류는 두 번까지
+
+// (구) 판당 랜덤 1종 — 지형 기반 배치로 대체됐다. 상수는 호환용으로 남긴다.
 export const KTX_RANDOM_EVENTS = Object.freeze([
   Object.freeze({ type: "passing", segments: Object.freeze([1, 2]), at: 0.12, until: 0.3 }),
   Object.freeze({ type: "cows", segments: Object.freeze([1]), at: 0.75, until: 0.95 })
@@ -161,6 +181,27 @@ export function segmentBand(segment, progress) {
   }
   return segment.bands[segment.bands.length - 1];
 }
+
+// ── 게임성 시스템(협회 게임 디자인 보고) — 서행·부드러운 도착·골드 프리셋 ──
+// grace: 서행 제한 초과 허용 여유(km/h). smoothEntry: 정차 존 진입 속도가 이
+// 값 이하면 "부드러운 도착". 강제 감속·벌점은 어느 난이도에도 없다.
+export const SLOW_ZONE_PRESETS = Object.freeze({
+  easy: Object.freeze({ zones: 1, grace: 30, smoothEntry: 170 }),
+  steady: Object.freeze({ zones: 1, grace: 15, smoothEntry: 140 }),
+  challenge: Object.freeze({ zones: 2, grace: 10, smoothEntry: 120 })
+});
+
+// 제한 속도는 이 둘뿐 — number-100/number-150 음성 자산을 그대로 재사용한다.
+export const SLOW_ZONE_LIMITS = Object.freeze([150, 100]);
+export const SLOW_ZONE_SPAN = 0.15;           // 존 길이(구간 진행률)
+export const SLOW_ZONE_AT_MIN = 0.2;          // 존 시작 진행률 창 — 0구간은
+export const SLOW_ZONE_AT_MAX = 0.6;          // sprint300 몫이라 배치 제외
+export const SLOW_ZONE_APPROACH_GUARD = 0.25; // 구간 마지막 25%는 정차 접근 몫
+export const SLOW_WARN_DISTANCE = 500;        // m — 존 시작 500m 전 예고 1회
+export const SLOW_CALM_RATIO = 0.75;          // calm/total ≥ 0.75 → 성공(회복 가능)
+export const SLOW_WOBBLE_THROTTLE_MS = 2000;  // 초과 알림 쓰로틀(모델 시간)
+export const SLOW_WOBBLE_MAX = 3;             // 존당 알림 상한 — 잔소리 방지
+export const GOLD_WINDOW = 4;                 // |정지점-마커| ≤ 4m → 골드(challenge 전용)
 
 // 속도 마일스톤 — 도달 순간 숫자가 커지며 음성이 붙는다. 250은 음성이
 // 없어(number 음성은 150까지) 시각 확대만 한다(협회 실측).

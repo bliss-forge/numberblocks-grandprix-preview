@@ -664,8 +664,9 @@ test("역 접근·정차·출발은 진행률과 근경 억제를 하나의 수�
   assert.equal(scene.dataset.motionMoving, "false");
   assert.equal(station.dataset.lifecycle, "stopped");
 
+  // 출발 잔상 창은 300m — 600m는 고속에서 유령 역 이중 노출(협회 후반 검수 4)
   updateRealisticMotionScene(root,
-    { ...initial, phase: "driving", x: 300, v: 80, markerDistance: 5000 },
+    { ...initial, phase: "driving", x: 150, v: 80, markerDistance: 5000 },
     { land: "field" });
   assert.equal(scene.style.getPropertyValue("--station-progress"), "0.5");
   const departureMiddleX = Number.parseFloat(scene.style.getPropertyValue("--station-offset-x"));
@@ -673,7 +674,7 @@ test("역 접근·정차·출발은 진행률과 근경 억제를 하나의 수�
   assert.equal(station.dataset.lifecycle, "departing");
 
   updateRealisticMotionScene(root,
-    { ...initial, phase: "driving", x: 599, v: 80, markerDistance: 4401 },
+    { ...initial, phase: "driving", x: 299, v: 80, markerDistance: 4701 },
     { land: "field" });
   const departureEndX = Number.parseFloat(scene.style.getPropertyValue("--station-offset-x"));
   assert.ok(departureEndX < departureMiddleX,
@@ -681,7 +682,7 @@ test("역 접근·정차·출발은 진행률과 근경 억제를 하나의 수�
   assert.ok(Number.parseFloat(scene.style.getPropertyValue("--station-opacity")) < 0.01);
 
   updateRealisticMotionScene(root,
-    { ...initial, phase: "driving", x: 600, v: 80, markerDistance: 4400 },
+    { ...initial, phase: "driving", x: 300, v: 80, markerDistance: 4700 },
     { land: "field" });
   assert.equal(scene.dataset.stationVisible, "false");
   assert.equal(station.dataset.lifecycle, "hidden");
@@ -1192,8 +1193,9 @@ test("다음 환경 이미지는 미리 읽고 로드된 뒤에만 현재 장면
   updateKtxScene(root, field, "side");
   assert.equal(root.querySelector(".ktx-real-cab-image"), cab);
   assert.equal(root.querySelector(".ktx-real-exterior-image"), exterior);
+  // 지형 변형(PR #8): field 밴드에서는 운전실도 cab-field로 준비를 시작한다
   assert.equal(cab.src, "https://game.test/assets/train-realistic/cab-day.webp");
-  assert.equal(cab.srcWrites, 1, "같은 주간 운전실 경로는 유지");
+  assert.equal(cab.srcWrites, 1, "다음 운전실이 준비되는 동안 현재 사진 유지");
   assert.equal(exterior.src,
     "https://game.test/assets/train-realistic/srt-exterior-city.webp",
     "다음 사진이 준비되는 동안 현재 사진 유지");
@@ -1214,6 +1216,16 @@ test("다음 환경 이미지는 미리 읽고 로드된 뒤에만 현재 장면
     "https://game.test/assets/train-realistic/srt-exterior-field.webp");
   assert.equal(exterior.srcWrites, 2, "미리 읽기가 끝난 뒤 현재 이미지 교체");
   assert.equal(root.dataset.realistic, "ready");
+
+  const cabPreloader = document.createdElements.find(element =>
+    element.tagName === "IMG" &&
+    element !== cab &&
+    element !== exterior &&
+    element.src.endsWith("/assets/train-realistic/cab-field.webp")
+  );
+  assert.ok(cabPreloader, "지형 운전실도 별도 이미지로 미리 읽음");
+  cabPreloader.dispatch("load");
+  assert.equal(cab.src, "https://game.test/assets/train-realistic/cab-field.webp");
   assert.equal(root.dataset.loading, "false");
 });
 
@@ -1333,4 +1345,107 @@ test("브라우저 NodeList처럼 배열 메서드가 없어도 실사 상태를
 
   assert.doesNotThrow(() => updateKtxScene(root, state, "cab"));
   assert.equal(root.dataset.realistic, "pending");
+});
+
+// ── 서행 표지 HUD(협회 게임 디자인 2026-08-10) ─────────────────────────────
+
+test("서행 배지는 예고·준수·초과를 색 상태로 갈라 보여 준다", () => {
+  const base = createKtxJourney(7, "srt", "steady");
+  const segIndex = base.slowZones.findIndex(Boolean);
+  assert.ok(segIndex > 0, "시드 7에 서행 존이 있다");
+  const zone = base.slowZones[segIndex];
+  const root = renderKtxScene(fakeDocument(), base, "cab");
+  const badge = root.querySelector(".ktx-slow-badge");
+  assert.ok(badge, "HUD에 서행 배지 자리가 있다");
+
+  // 평시 — 꺼짐
+  updateKtxScene(root, { ...base, phase: "driving" }, "cab");
+  assert.equal(root.dataset.slow, "off");
+  assert.equal(badge.textContent, "");
+
+  // 예고 후 존 앞 — coming, 제한 숫자 표시
+  updateKtxScene(root, {
+    ...base, phase: "driving", segIndex, slowWarned: true, x: 0, v: 200
+  }, "cab");
+  assert.equal(root.dataset.slow, "coming");
+  assert.equal(badge.textContent, String(zone.limit));
+
+  // 존 안 준수 — calm
+  updateKtxScene(root, {
+    ...base, phase: "driving", segIndex, slowWarned: true, v: zone.limit - 20,
+    slow: { limit: zone.limit, grace: zone.grace, calm: 1, total: 1, wobbles: 0 }
+  }, "cab");
+  assert.equal(root.dataset.slow, "calm");
+
+  // 존 안 초과 — over
+  updateKtxScene(root, {
+    ...base, phase: "driving", segIndex, slowWarned: true, v: zone.limit + 60,
+    slow: { limit: zone.limit, grace: zone.grace, calm: 0, total: 1, wobbles: 1 }
+  }, "cab");
+  assert.equal(root.dataset.slow, "over");
+});
+
+// ── 정차 연출(2026-08-10 피드백) — 문 다섯 짝·닫힘 경고·도착 임팩트 ────────
+
+test("문은 칸 접합부마다 다섯 짝이고 상태를 함께 바꾼다", () => {
+  const root = renderKtxScene(fakeDocument(), createKtxJourney(3, "srt"), "side");
+  const doors = root.querySelectorAll(".ktx-motion-door");
+  assert.equal(doors.length, 5, "문 한 짝(23px)으로는 개폐가 읽히지 않는다");
+  const lefts = [...doors].map(door => door.style.getPropertyValue("--door-left"));
+  assert.equal(new Set(lefts).size, 5, "다섯 짝이 서로 다른 접합부에 선다");
+});
+
+test("문닫힘 카운트다운 마지막 3초에 경고 상태가 켜진다", () => {
+  const base = createKtxJourney(3, "srt");
+  const root = renderKtxScene(fakeDocument(), base, "side");
+  const scene = root.querySelector(".ktx-motion-scene");
+
+  updateKtxScene(root, { ...base, doorCountdownMs: 5000 }, "side");
+  assert.equal(scene.dataset.doorWarning, "false", "감상 유예 구간은 조용하다");
+
+  updateKtxScene(root, { ...base, doorCountdownMs: 2400 }, "side");
+  assert.equal(scene.dataset.doorWarning, "true", "마지막 3초는 문 램프가 깜빡인다");
+
+  updateKtxScene(root, { ...base, doorCountdownMs: null }, "side");
+  assert.equal(scene.dataset.doorWarning, "false");
+});
+
+test("도착 이벤트는 역명판 팝과 장면 플래시, 문 열림은 하차 연출을 부른다", () => {
+  const base = { ...createKtxJourney(3, "srt"), phase: "stopped", station: "동탄" };
+  const root = renderKtxScene(fakeDocument(), base, "side");
+
+  updateKtxScene(root, base, "side",
+    [{ type: "stopped", station: "동탄", stars: 3, how: "press" }]);
+  const sign = root.querySelector(".ktx-motion-station-sign");
+  assert.ok(sign.className.includes("ktx-sign-pop"), "역명판이 튄다");
+  const scene = root.querySelector(".ktx-motion-scene");
+  assert.ok(scene.className.includes("ktx-arrive-flash"), "장면이 한 번 숨쉰다");
+
+  updateKtxScene(root, { ...base, phase: "boarding", doors: "open" }, "side",
+    [{ type: "doors-open", station: "동탄", waiting: 3 }]);
+  assert.ok(root.querySelector(".ktx-walker-out"), "문이 열리면 친구가 내린다");
+});
+
+test("피날레 제목은 노선의 종착역을 말한다 — 목포 완주가 부산이 되지 않는다", () => {
+  const mokpo = {
+    ...createKtxJourney(3, "srt"),
+    route: "mokpo",
+    phase: "finale"
+  };
+  const root = renderKtxScene(fakeDocument(), mokpo, "side");
+  updateKtxScene(root, mokpo, "side", [{
+    type: "finale", boarded: [1, 2], stars: [3, 1, 3, 3], bonuses: [], perfect: false
+  }]);
+  assert.match(root.querySelector(".ktx-finale-title").textContent, /목포/);
+});
+
+test("교행 이벤트는 건너편 선로의 실사 KTX 스윕을 발사한다", () => {
+  const base = { ...createKtxJourney(3, "srt"), phase: "driving" };
+  const root = renderKtxScene(fakeDocument(), base, "side");
+  const oncoming = root.querySelector(".ktx-motion-oncoming");
+  assert.ok(oncoming, "교행 스프라이트가 장면에 상주한다");
+
+  updateKtxScene(root, base, "side", [{ type: "event", event: "passing" }]);
+  assert.ok(oncoming.className.includes("ktx-oncoming-go"),
+    "passing 이벤트가 스윕 애니메이션을 건다");
 });

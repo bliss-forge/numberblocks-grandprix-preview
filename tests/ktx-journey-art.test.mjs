@@ -187,7 +187,7 @@ test("운전실 모션은 고정 프레임의 투명 전면창 안에서만 소�
   assert.match(css,
     /data-view="cab"\][^\{]*\.ktx-motion-scene\s*\{[^}]*inset:\s*0[^}]*opacity:\s*1/s);
   assert.match(css,
-    /\.ktx-motion-cab-window\s*\{[^}]*position:\s*absolute[^}]*z-index:\s*5[^}]*overflow:\s*hidden[^}]*clip-path:\s*polygon\([^)]*49%[^)]*\)/s,
+    /\.ktx-motion-cab-window\s*\{[^}]*position:\s*absolute[^}]*z-index:\s*5[^}]*overflow:\s*hidden[^}]*clip-path:\s*polygon\([^)]*53%[^)]*\)/s,
     "절차적 선로는 실제 투명 전면창을 마스크로 쓰도록 운전실 프레임 아래에 표시됨");
   assert.match(css,
     /\.ktx-motion-cab-rail\s*\{[^}]*top:\s*20%[^}]*transform-origin:\s*50%\s+0/s,
@@ -228,9 +228,11 @@ test("역 플레이트는 반복 없이 안전 크롭되고 상세 단계에서 
     /data-station-stage="detail"[^\{]*\.ktx-motion-station-sign[\s\S]*data-station-stage="stopped"[^\{]*\.ktx-motion-station-sign\s*\{[^}]*opacity:\s*1/s);
   assert.match(css,
     /data-near-suppressed="true"[^\{]*\.ktx-motion-near\s*\{[^}]*opacity:\s*0/s);
+  // 실물 크기 개편(2026-08-10): 승강장 구조물과 같은 자로 잰 132% 폭 —
+  // 코끝·꼬리가 화면 밖으로 살짝 나가는 게 실사 배경과 맞는 스케일이다.
   assert.match(css,
-    /\.ktx-motion-train-rig\s*\{[^}]*top:\s*68%/s,
-    "열차 바퀴 기준선은 풍경·승강장의 선로 높이에 놓임");
+    /\.ktx-motion-train-rig\s*\{[^}]*top:\s*62%[^}]*width:\s*min\(132%,\s*1900px\)/s,
+    "열차는 실물 스케일(132%)로 바퀴가 선로 높이에 놓임");
   assert.match(css,
     /\.ktx-motion-station\s*\{[^}]*object-position:\s*center\s+var\(--station-object-y/s,
     "역 접근 진행률에 따라 승강장 크롭 위치를 정렬함");
@@ -261,4 +263,18 @@ test("모션 운전실 준비 상태는 정적 폴백과 무관하게 기존 배
     /data-motion-realistic="ready"[^\{]*\.ktx-view-cab \.ktx-cab-backdrop[\s\S]*?\.ktx-view-cab \.ktx-cab-dash\s*\{[^}]*opacity:\s*0/s);
   assert.doesNotMatch(css,
     /data-motion-realistic="ready"[^\{]*\.ktx-speedo[^\{]*\{[^}]*display:\s*none/s);
+});
+
+test("문 다섯 짝은 역이 보이는 동안만 나타난다 — 주행 중 검은 기둥 금지", () => {
+  // 협회 연출 검수(2026-08-10): 주행 중 문 모듈이 칸마다 검은 기둥으로 떠
+  // 있어 열차 그림을 해쳤다. 문은 역 장면의 소품이다.
+  assert.match(css,
+    /\.ktx-motion-door\s*\{[^}]*opacity:\s*0[^}]*transition:\s*opacity/s);
+  assert.match(css,
+    /data-station-visible="true"[^\{]*\.ktx-motion-door\s*\{[^}]*opacity:\s*1/s);
+});
+
+test("실사 모드 대기줄과 워커는 열차 차체와 겹치지 않는 전경 라인에 선다", () => {
+  assert.match(css,
+    /data-motion-realistic="ready"[^\{]*\.ktx-walker-host,[^\{]*data-motion-realistic="ready"[^\{]*\.ktx-queue\s*\{[^}]*bottom:\s*22%/s);
 });

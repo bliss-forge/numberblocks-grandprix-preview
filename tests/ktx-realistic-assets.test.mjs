@@ -161,8 +161,14 @@ test("SRT 모션 팩은 선택 환경의 완성 장면 3개와 공용 열차·�
   const pack = realisticMotionAssets("srt", "river", "day");
   assert.deepEqual(pack, {
     train: "assets/train-realistic/motion/srt-side-transparent.png",
+    trainNight: "assets/train-realistic/motion/srt-side-transparent-night.png",
     cabMask: "assets/train-realistic/motion/cab-window-mask.png",
     station: ["assets/train-realistic/motion/station-platform-a.webp"],
+    stationBySky: {
+      sunset: "assets/train-realistic/motion/station-platform-sunset.webp",
+      night: "assets/train-realistic/motion/station-platform-night.webp",
+      dawn: "assets/train-realistic/motion/station-platform-dawn.webp"
+    },
     scenes: [
       "assets/train-realistic/motion/river-a.webp",
       "assets/train-realistic/motion/river-b.webp",
@@ -296,7 +302,7 @@ test("SRT 운전실은 화면을 채우고 전면창 안쪽만 투명하다", as
 
 test("매니페스트의 실사 자산이 모두 존재하고 비어 있지 않다", async () => {
   const paths = realisticAssetPaths();
-  assert.equal(paths.length, 9);
+  assert.equal(paths.length, 15);   // 시간대 2 + 지형 4 운전실 추가(PR #8)
   for (const file of paths) {
     const stat = await fs.stat(new URL(`../${file}`, import.meta.url));
     assert.ok(stat.size > 20_000, `${file} is a real image asset`);

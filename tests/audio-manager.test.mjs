@@ -723,3 +723,65 @@ test("100 정답도 한국어 뒤 영어 음성을 재생한다", async () => {
     "assets/audio/voice/en/number-100.mp3"
   ]);
 });
+
+// ── 주행음 엔진(2026-08-10) — 시작·속도 연동·정지·음소거 계약 ──────────────
+
+test("주행음은 시작·속도 연동·정지가 한 쌍이고 음소거를 존중한다", () => {
+  const params = [];
+  const makeParam = initial => {
+    const param = {
+      value: initial,
+      cancelScheduledValues() { this.cancelled = true; },
+      setValueAtTime(value) { this.value = value; },
+      linearRampToValueAtTime(value) { this.value = value; }
+    };
+    params.push(param);
+    return param;
+  };
+  const context = {
+    currentTime: 0,
+    sampleRate: 8000,
+    state: "running",
+    createBuffer: (channels, length) => ({
+      getChannelData: () => new Float32Array(length)
+    }),
+    createBufferSource: () => ({
+      buffer: null, loop: false, connect() {}, start() {},
+      stop() { context.noiseStopped = true; }
+    }),
+    createBiquadFilter: () => ({
+      type: "", Q: { value: 0 }, frequency: makeParam(0),
+      connect() {}
+    }),
+    createGain: () => ({ gain: makeParam(0.0001), connect() {} }),
+    createOscillator: () => ({
+      type: "", frequency: makeParam(0), connect() {}, start() {},
+      stop() { context.humStopped = true; }
+    }),
+    destination: {}
+  };
+  const manager = new AudioManager({
+    storage: null,
+    audioContextFactory: () => context,
+    logger: { warn() {} }
+  });
+
+  manager.startEngine();
+  assert.ok(manager.engine, "엔진이 마운트된다");
+  const gains = [manager.engine.noiseGain.gain, manager.engine.humGain.gain];
+
+  manager.setEngineSpeed(1);       // 300km/h
+  assert.ok(gains[0].value > 0.03, "고속에서 구름소리가 커진다");
+  assert.ok(manager.engine.filter.frequency.value > 800, "컷오프가 열린다");
+
+  manager.setEngineSpeed(0);       // 정지
+  assert.ok(gains.every(gain => gain.value <= 0.0001), "정지는 무음");
+
+  manager.stopEngine();
+  assert.equal(manager.engine, null);
+  assert.ok(context.noiseStopped && context.humStopped, "소스가 실제로 멎는다");
+
+  manager.muted = true;
+  manager.startEngine();
+  assert.equal(manager.engine, null, "음소거 중에는 시작하지 않는다");
+});
