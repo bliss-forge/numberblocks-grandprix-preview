@@ -1,0 +1,215 @@
+<!-- 목업 v3-3: 씬 ③ 엘리베이터 — 202동 큐 과제(버튼 2개 점등, 작은 수 층부터), v2 오버라이드 반영판 -->
+<meta charset="utf-8">
+<style>
+  html,body{margin:0;padding:0;background:#fff}
+  body{width:1280px;height:720px;overflow:hidden}
+  svg{display:block;font-family:'Noto Sans CJK KR','Noto Sans KR','WenQuanYi Zen Hei',sans-serif}
+  text{user-select:none}
+</style>
+<svg width="1280" height="720" viewBox="0 0 1280 720" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="wall" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#F3EDE0"/><stop offset="1" stop-color="#EAE0CC"/>
+    </linearGradient>
+    <filter id="soft" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="5" stdDeviation="7" flood-color="#26424E" flood-opacity="0.16"/>
+    </filter>
+    <filter id="tiny" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="2" stdDeviation="2.5" flood-color="#26424E" flood-opacity="0.18"/>
+    </filter>
+    <radialGradient id="btnGlow" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0.5" stop-color="#FFD34D" stop-opacity="0.7"/>
+      <stop offset="1" stop-color="#FFD34D" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <rect width="1280" height="720" fill="url(#wall)"/>
+
+  <!-- ===== 좌 58%: 202동 샤프트 단면 ===== -->
+  <g filter="url(#soft)">
+    <rect x="100" y="128" width="600" height="546" rx="12" fill="#F9F4E7" stroke="#DCCFAF" stroke-width="4"/>
+  </g>
+  <rect x="84" y="96" width="632" height="40" rx="14" fill="#7FB6A4"/>
+  <text x="400" y="125" text-anchor="middle" font-size="26" font-weight="800" fill="#FFFFFF">202동</text>
+
+  <!-- 층 슬랩 (1~7층) -->
+  <g stroke="#E2D5B8" stroke-width="4">
+    <path d="M104 592 h592"/><path d="M104 518 h592"/><path d="M104 444 h592"/>
+    <path d="M104 370 h592"/><path d="M104 296 h592"/><path d="M104 222 h592"/>
+  </g>
+
+  <!-- 샤프트 -->
+  <rect x="290" y="140" width="220" height="530" fill="#DEE7EE" stroke="#C4D2DC" stroke-width="4"/>
+  <g stroke="#C4D2DC" stroke-width="3" stroke-dasharray="4 10">
+    <path d="M330 144 v522"/><path d="M470 144 v522"/>
+  </g>
+
+  <!-- 층 숫자 (기본 50px, 현재 3층 pass, 목표 5층 halo r38 + 56px) -->
+  <g text-anchor="middle" font-weight="800">
+    <text x="200" y="648" font-size="50" fill="#AEB9C4">1</text>
+    <text x="200" y="574" font-size="50" fill="#AEB9C4">2</text>
+    <text x="200" y="500" font-size="50" fill="#8FA3B8">3</text>
+    <text x="200" y="426" font-size="50" fill="#AEB9C4">4</text>
+    <circle cx="200" cy="333" r="38" fill="#FFE1D6"/>
+    <text x="200" y="353" font-size="56" fill="#E86A50">5</text>
+    <text x="200" y="278" font-size="50" fill="#AEB9C4">6</text>
+    <text x="200" y="204" font-size="50" fill="#AEB9C4">7</text>
+  </g>
+
+  <!-- 승강장 문 -->
+  <g fill="#CBD8E2" stroke="#B4C4D0" stroke-width="3">
+    <rect x="560" y="612" width="80" height="54" rx="4"/>
+    <rect x="560" y="538" width="80" height="54" rx="4"/>
+    <rect x="560" y="464" width="80" height="54" rx="4"/>
+    <rect x="560" y="390" width="80" height="54" rx="4"/>
+    <rect x="560" y="242" width="80" height="54" rx="4"/>
+    <rect x="560" y="168" width="80" height="54" rx="4"/>
+  </g>
+  <g stroke="#B4C4D0" stroke-width="2.5">
+    <path d="M600 612 v54 M600 538 v54 M600 464 v54 M600 390 v54 M600 242 v54 M600 168 v54"/>
+  </g>
+  <!-- 5층 승강장 문 강조 -->
+  <rect x="560" y="316" width="80" height="54" rx="4" fill="#FFF3C9" stroke="#F5C531" stroke-width="4"/>
+  <path d="M600 316 v54" stroke="#F5C531" stroke-width="3"/>
+
+  <!-- 케이블 + 도르래 -->
+  <circle cx="400" cy="152" r="10" fill="#8A97A3"/>
+  <path d="M400 152 v294" stroke="#8A97A3" stroke-width="4"/>
+
+  <!-- 칸(cab): 3층 통과, 상행 중 -->
+  <g filter="url(#soft)">
+    <rect x="300" y="446" width="200" height="72" rx="10" fill="#FFF6DF" stroke="#E8B84B" stroke-width="4"/>
+    <rect x="300" y="446" width="200" height="12" rx="6" fill="#FFE9AE"/>
+    <!-- 기사님 미니 -->
+    <g>
+      <circle cx="345" cy="480" r="12" fill="#F7C6A0"/>
+      <path d="M332 476 a13 13 0 0 1 26 0 z" fill="#E86A50"/>
+      <rect x="355" y="472" width="10" height="5" rx="2.5" fill="#E86A50"/>
+      <circle cx="341" cy="481" r="1.8" fill="#333333"/><circle cx="349" cy="481" r="1.8" fill="#333333"/>
+      <circle cx="340.4" cy="480.3" r="0.8" fill="#FFFFFF" opacity="0.9"/><circle cx="348.4" cy="480.3" r="0.8" fill="#FFFFFF" opacity="0.9"/>
+      <path d="M342 487 q3 3 6 0" stroke="#B3541E" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+      <rect x="334" y="492" width="22" height="24" rx="6" fill="#F5A623"/>
+      <rect x="339" y="492" width="12" height="24" fill="#FFF1D4"/>
+    </g>
+    <!-- 카트 + 큐 상자 2개 -->
+    <g>
+      <rect x="372" y="488" width="60" height="8" rx="3" fill="#8A97A3"/>
+      <path d="M372 492 v14 m60 -14 v14" stroke="#8A97A3" stroke-width="4"/>
+      <circle cx="378" cy="510" r="6" fill="#5B6472"/><circle cx="426" cy="510" r="6" fill="#5B6472"/>
+      <rect x="376" y="454" width="52" height="36" rx="5" fill="#E8B368" stroke="#C98F3F" stroke-width="3"/>
+      <rect x="382" y="462" width="40" height="20" rx="3" fill="#FFFDF6" stroke="#D9CDB2" stroke-width="2"/>
+      <text x="402" y="477" text-anchor="middle" font-size="14" font-weight="800" fill="#4A5560">502호</text>
+      <rect x="430" y="462" width="44" height="30" rx="5" fill="#DDA75A" stroke="#C98F3F" stroke-width="3"/>
+      <rect x="435" y="468" width="34" height="17" rx="3" fill="#FFFDF6" stroke="#D9CDB2" stroke-width="2"/>
+      <text x="452" y="481" text-anchor="middle" font-size="12" font-weight="800" fill="#4A5560">701호</text>
+    </g>
+  </g>
+  <!-- 상행 화살표 3단 -->
+  <g fill="#7FB6A4">
+    <path d="M528 472 l12 -14 12 14 z"/>
+    <path d="M528 444 l12 -14 12 14 z" opacity="0.55"/>
+    <path d="M528 416 l12 -14 12 14 z" opacity="0.3"/>
+  </g>
+
+  <!-- 큐 안내 말풍선 (2줄, 상단 빈 밴드) -->
+  <g filter="url(#tiny)">
+    <path d="M266 166 q0 -16 16 -16 h236 q16 0 16 16 v58 q0 16 -16 16 h-96 l-16 20 -6 -20 h-118 q-16 0 -16 -16 z" fill="#FFFFFF"/>
+  </g>
+  <text x="400" y="194" text-anchor="middle" font-size="22" font-weight="800" fill="#4A7A6A">버튼 두 개!</text>
+  <text x="400" y="224" text-anchor="middle" font-size="22" font-weight="800" fill="#4A7A6A">작은 수 층부터 가요!</text>
+
+  <!-- ===== 우 42%: 버튼 패널 ===== -->
+  <g filter="url(#soft)">
+    <rect x="775" y="60" width="470" height="616" rx="26" fill="#F9F4E7" stroke="#DCCFAF" stroke-width="4"/>
+  </g>
+  <rect x="795" y="80" width="430" height="576" rx="18" fill="#EFE8D8"/>
+
+  <!-- 층 표시기: 3, 상행 점등 -->
+  <g filter="url(#tiny)"><rect x="835" y="102" width="350" height="86" rx="16" fill="#3B4450"/></g>
+  <path d="M878 158 h40 l-20 -26 z" fill="#8FE08A"/>
+  <path d="M1102 132 h40 l-20 26 z" fill="#57626E"/>
+  <text x="1010" y="168" text-anchor="middle" font-size="62" font-weight="800" fill="#8FE08A" style="font-variant-numeric:tabular-nums">3</text>
+
+  <!-- 라벨 카드 2장 (큐: 502호 먼저, 701호 다음) -->
+  <g filter="url(#tiny)" transform="rotate(-2 1010 237)">
+    <rect x="914" y="206" width="192" height="62" rx="14" fill="#FFFDF6" stroke="#D9CDB2" stroke-width="3"/>
+    <rect x="988" y="196" width="44" height="20" rx="4" fill="#BFE3EE" opacity="0.85"/>
+    <circle cx="952" cy="237" r="20" fill="#FFE1D6"/>
+    <text x="952" y="248" text-anchor="middle" font-size="30" font-weight="800" fill="#E86A50">5</text>
+    <text x="1022" y="248" text-anchor="middle" font-size="30" font-weight="800" fill="#8A94A0">02호</text>
+    <circle cx="922" cy="212" r="12" fill="#F4F1E8" stroke="#BEB6A4" stroke-width="2"/>
+    <text x="922" y="218" text-anchor="middle" font-size="16" font-weight="800" fill="#3E5A68">1</text>
+  </g>
+  <g filter="url(#tiny)" transform="rotate(2 1010 315)">
+    <rect x="914" y="284" width="192" height="62" rx="14" fill="#FFFDF6" stroke="#D9CDB2" stroke-width="3"/>
+    <rect x="988" y="274" width="44" height="20" rx="4" fill="#BFE3EE" opacity="0.85"/>
+    <circle cx="952" cy="315" r="20" fill="#FFE1D6"/>
+    <text x="952" y="326" text-anchor="middle" font-size="30" font-weight="800" fill="#E86A50">7</text>
+    <text x="1022" y="326" text-anchor="middle" font-size="30" font-weight="800" fill="#8A94A0">01호</text>
+    <circle cx="922" cy="290" r="12" fill="#F4F1E8" stroke="#BEB6A4" stroke-width="2"/>
+    <text x="922" y="296" text-anchor="middle" font-size="16" font-weight="800" fill="#3E5A68">2</text>
+  </g>
+
+  <!-- 버튼 그리드: [6 7] [4 5] [2 3] [1 ·], 5·7 점등 -->
+  <g font-weight="800" text-anchor="middle">
+    <circle cx="950" cy="392" r="32" fill="#FFFFFF" stroke="#C9BFA8" stroke-width="4"/>
+    <text x="950" y="404" font-size="30" fill="#6B7684">6</text>
+    <circle cx="1074" cy="392" r="52" fill="url(#btnGlow)"/>
+    <circle cx="1074" cy="392" r="32" fill="#FFE08A" stroke="#F5A623" stroke-width="5"/>
+    <text x="1074" y="404" font-size="30" fill="#B3541E">7</text>
+    <circle cx="950" cy="470" r="32" fill="#FFFFFF" stroke="#C9BFA8" stroke-width="4"/>
+    <text x="950" y="482" font-size="30" fill="#6B7684">4</text>
+    <circle cx="1074" cy="470" r="52" fill="url(#btnGlow)"/>
+    <circle cx="1074" cy="470" r="32" fill="#FFE08A" stroke="#F5A623" stroke-width="5"/>
+    <text x="1074" y="482" font-size="30" fill="#B3541E">5</text>
+    <circle cx="950" cy="548" r="32" fill="#FFFFFF" stroke="#C9BFA8" stroke-width="4"/>
+    <text x="950" y="560" font-size="30" fill="#6B7684">2</text>
+    <circle cx="1074" cy="548" r="32" fill="#FFFFFF" stroke="#C9BFA8" stroke-width="4"/>
+    <text x="1074" y="560" font-size="30" fill="#6B7684">3</text>
+    <circle cx="950" cy="626" r="32" fill="#FFFFFF" stroke="#C9BFA8" stroke-width="4"/>
+    <text x="950" y="638" font-size="30" fill="#6B7684">1</text>
+    <g opacity="0.45">
+      <circle cx="1046" cy="626" r="22" fill="#FFFFFF" stroke="#C9BFA8" stroke-width="3"/>
+      <path d="M1040 618 l-6 8 6 8 M1052 618 l6 8 -6 8" stroke="#8A94A0" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+      <circle cx="1102" cy="626" r="22" fill="#FFFFFF" stroke="#C9BFA8" stroke-width="3"/>
+      <path d="M1099 618 l-6 8 6 8 M1103 618 l6 8 -6 8" stroke="#8A94A0" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+    </g>
+  </g>
+  <!-- 점등음 표시 (5번 버튼) -->
+  <g stroke="#F5A623" stroke-width="3" fill="none" stroke-linecap="round">
+    <path d="M1116 442 q8 -8 4 -18"/><path d="M1128 452 q14 -14 8 -30"/>
+  </g>
+  <text x="1156" y="420" font-size="18" font-weight="800" fill="#E8A61E">삐!</text>
+
+  <!-- ===== HUD ===== -->
+  <g filter="url(#tiny)"><rect x="24" y="22" width="252" height="56" rx="18" fill="#FFFFFF" opacity="0.97"/></g>
+  <text x="44" y="58" font-size="19" font-weight="700" fill="#3E5A68">남은 상자</text>
+  <g>
+    <g transform="translate(140 36)" opacity="0.35"><rect width="26" height="26" rx="5" fill="#D9D2C2" stroke="#B8B09C" stroke-width="2.5"/><path d="M5 13 l7 7 9 -11" stroke="#69A05B" stroke-width="4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <g transform="translate(172 36)"><rect width="26" height="26" rx="5" fill="#E8B368" stroke="#C98F3F" stroke-width="2.5"/><path d="M0 10 h26 M13 0 v10" stroke="#C98F3F" stroke-width="2"/></g>
+    <g transform="translate(204 36)"><rect width="26" height="26" rx="5" fill="#DDA75A" stroke="#C98F3F" stroke-width="2.5"/><path d="M0 10 h26 M13 0 v10" stroke="#C98F3F" stroke-width="2"/></g>
+    <g transform="translate(236 36)"><rect width="26" height="26" rx="5" fill="#E8B368" stroke="#C98F3F" stroke-width="2.5"/><path d="M0 10 h26 M13 0 v10" stroke="#C98F3F" stroke-width="2"/></g>
+  </g>
+
+  <!-- 우하단 키 힌트: 5·7 = 층 버튼 / 0 꾹 = 홈 -->
+  <g filter="url(#tiny)"><rect x="976" y="666" width="284" height="44" rx="12" fill="#FFFFFF" opacity="0.97"/></g>
+  <g>
+    <rect x="988" y="672" width="32" height="32" rx="8" fill="#FFF3C9" stroke="#F5A623" stroke-width="2.5"/>
+    <text x="1004" y="696" text-anchor="middle" font-size="19" font-weight="800" fill="#B3541E">5</text>
+    <rect x="1026" y="672" width="32" height="32" rx="8" fill="#FFF3C9" stroke="#F5A623" stroke-width="2.5"/>
+    <text x="1042" y="696" text-anchor="middle" font-size="19" font-weight="800" fill="#B3541E">7</text>
+    <!-- 손가락이 버튼 누르는 그림 -->
+    <circle cx="1084" cy="688" r="11" fill="#FFE08A" stroke="#F5A623" stroke-width="2.5"/>
+    <path d="M1084 668 v10" stroke="#C88A4A" stroke-width="4" stroke-linecap="round"/>
+    <path d="M1101 676 q5 -5 2 -11 M1108 682 q8 -8 4 -17" stroke="#F5A623" stroke-width="2.6" fill="none" stroke-linecap="round"/>
+    <path d="M1128 674 v28" stroke="#E4DCCA" stroke-width="2"/>
+    <rect x="1142" y="672" width="32" height="32" rx="8" fill="#F4F1E8" stroke="#BEB6A4" stroke-width="2"/>
+    <text x="1158" y="696" text-anchor="middle" font-size="19" font-weight="800" fill="#5B6472">0</text>
+    <circle cx="1158" cy="688" r="20" fill="none" stroke="#9AB6C6" stroke-width="3" stroke-dasharray="6 6" opacity="0.8"/>
+    <path d="M1192 694 v-9 l10 -8 10 8 v9 h-7 v-6 h-6 v6 z" fill="#8FA8B8"/>
+  </g>
+
+  <!-- 목업 캡션 -->
+  <g><rect x="16" y="688" width="700" height="26" rx="8" fill="#FFFFFF" opacity="0.78"/></g>
+  <text x="28" y="706" font-size="14" fill="#7B8A96">목업 v3 · 씬 ③ 엘리베이터(202동 큐 과제: 5·7층 점등, 작은 수 층부터) · 캐릭터는 실제 에셋으로 교체 예정</text>
+</svg>

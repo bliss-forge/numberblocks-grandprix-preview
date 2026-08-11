@@ -1,366 +1,590 @@
-// STEP 2·3·4 건물 안 그림 — 디자인 정본 락 §5 의 구현.
-//   · 샤프트 단면 + 승강기 안  (§5 STEP 2)
-//   · 복도와 문 세 짝           (§5 STEP 3)
-//   · 열린 문과 컨베이어        (§5 STEP 4)
-// 승강기에 타는 것은 시트 §5 레이아웃대로 택배 트럭이다(디자인 락 §10 참고).
-// 그 판단만 ELEVATOR_RIDER 한 줄에 모아 두어 뒤집기 쉽게 했다.
+// STEP 2·3·4 건물 안 그림 — 목업 v3 씬 ③·④·⑤ 를 옮겼다.
+//   · 샤프트 단면 + 승강기 안        (mockup-v3-3-elevator.html)
+//   · 복도·초인종·호 확인            (mockup-v3-4-doorbell.html)
+//   · 열린 문과 선물 3택             (mockup-v3-5-gift.html)
+//
+// v1 은 승강기에 트럭이 탔지만, v3 은 기사님이 카트를 밀고 탄다 — 사람이 타는 편이
+// 층 버튼을 누르는 아이의 시점과 맞아 ELEVATOR_RIDER 를 courier 로 뒤집었다.
+// 기사님은 목업의 오리지널 아바타라 넘버블럭스로 바꾸지 않는다. 문이 열리고 나면
+// 그 자리에 서는 수령인만 저장소의 실제 넘버블럭스 에셋을 쓴다.
 
-import { truckSprite } from "./delivery-truck-art.mjs";
+export const ELEVATOR_RIDER = "courier"; // "truck" | "courier"
 
-export const ELEVATOR_RIDER = "truck"; // "truck" | "courier"
+// 수령인은 호수의 앞자리(=층) 번호를 가진 넘버블럭스다 — 502호에는 5번이 산다.
+// "앞자리를 읽는다"는 이 게임의 학습 훅을 캐릭터가 한 번 더 말해 준다.
+export function friendImageFor(unit) {
+  const floor = Math.max(1, Math.min(9, Math.floor(unit / 100)));
+  return `assets/characters/number-00${floor}.png`;
+}
 
-export const COURIER_IMAGE = "assets/characters/nine.png";
+const SHAFT_VIEW_BOX = "0 0 260 620";
+const CABIN_VIEW_BOX = "0 0 1040 560";
+const HALL_VIEW_BOX = "0 0 1280 620";
 
-const SHAFT_VIEW_BOX = "0 0 200 520";
-const CABIN_VIEW_BOX = "0 0 1040 510";
-const HALL_VIEW_BOX = "0 0 1100 460";
+// 그림이 무대보다 납작할 때 남는 자리를 채울 색 — 각 장면의 벽과 같은 톤.
+export const SHAFT_BACKDROP = "#EAE0CC";
+export const CABIN_BACKDROP = "#EFE8D8";
+export const HALL_BACKDROP = "#F1E6CF";
 
-// 그림은 무대 안에서 통째로 보이도록 meet 로 맞춘다(잘리는 집·상자가 없다).
-// 남는 위아래는 각 장면의 바탕색으로 메워 테두리가 생기지 않게 한다.
-export const SHAFT_BACKDROP = "#ccd5dd";
-export const CABIN_BACKDROP = "#8f9ba7";
-export const HALL_BACKDROP = "#d8c096";
+/* ── 팔레트 ───────────────────────────────────────────────────────── */
+
+const P = Object.freeze({
+  wall: "#F3EDE0",
+  panel: "#F9F4E7",
+  panelEdge: "#DCCFAF",
+  hallTop: "#F8F1E2",
+  hallBottom: "#F1E6CF",
+  ceiling: "#EFE4CC",
+  ceilEdge: "#DDCFB0",
+  lamp: "#FFF6D9",
+  lampEdge: "#E8D9AE",
+  skirt: "#E2D2AE",
+  floor: "#D9C094",
+  floorLine: "#CBB183",
+  plate: "#FFFDF6",
+  plateEdge: "#D9CDB2",
+  gold: "#F5C531",
+  goldSoft: "#FFF3C9",
+  goldEdge: "#F5A623",
+  goldInk: "#B3541E",
+  goldWarm: "#E8A61E",
+  coral: "#E86A50",
+  coralDoor: "#EE9678",
+  coralDoorEdge: "#D67C5E",
+  mint: "#8FBFB7",
+  mintEdge: "#74A79E",
+  mintGlass: "#A8D0C8",
+  blue: "#93B7E0",
+  blueEdge: "#7A9FC9",
+  blueGlass: "#ACC9E8",
+  teal: "#7FB6A4",
+  shaft: "#DEE7EE",
+  shaftEdge: "#C4D2DC",
+  slab: "#E2D5B8",
+  floorInk: "#AEB9C4",
+  floorInkOn: "#8FA3B8",
+  landing: "#CBD8E2",
+  landingEdge: "#B4C4D0",
+  cab: "#FFF6DF",
+  cabTop: "#FFE9AE",
+  cabEdge: "#E8B84B",
+  display: "#3B4450",
+  displayOn: "#8FE08A",
+  displayOff: "#57626E",
+  cartonA: "#E8B368",
+  cartonB: "#DDA75A",
+  cartonEdge: "#C98F3F",
+  metal: "#8A97A3",
+  metalDark: "#39434C",
+  hub: "#C9D2DA",
+  ink: "#4A5560",
+  inkSoft: "#8A94A0",
+  inkText: "#3E5A68",
+  skin: "#F7C6A0",
+  vest: "#F5A623",
+  shirt: "#FFF1D4",
+  cuff: "#E8CFA0",
+  cap: "#E86A50",
+  boot: "#5B6472",
+  star: "#FFD34D",
+  halo: "#FFE1D6",
+  goldDeep: "#D98A2B",
+  mutter: "#7B8A96",
+});
+
+const SHADOWS =
+  `<filter id="dv-soft" x="-20%" y="-20%" width="140%" height="140%">` +
+  `<feDropShadow dx="0" dy="5" stdDeviation="7" flood-color="#26424E" flood-opacity="0.16"/></filter>` +
+  `<filter id="dv-tiny" x="-30%" y="-30%" width="160%" height="160%">` +
+  `<feDropShadow dx="0" dy="2" stdDeviation="2.5" flood-color="#26424E" flood-opacity="0.18"/></filter>`;
+
+const GLOW_DEFS =
+  `<radialGradient id="dv-btnglow" cx="0.5" cy="0.5" r="0.5">` +
+  `<stop offset="0.5" stop-color="#FFD34D" stop-opacity="0.7"/>` +
+  `<stop offset="1" stop-color="#FFD34D" stop-opacity="0"/></radialGradient>` +
+  `<radialGradient id="dv-doorglow" cx="0.5" cy="0.5" r="0.5">` +
+  `<stop offset="0.5" stop-color="#FFDF8E" stop-opacity="0.5"/>` +
+  `<stop offset="1" stop-color="#FFDF8E" stop-opacity="0"/></radialGradient>` +
+  `<filter id="dv-goldglow" x="-35%" y="-35%" width="170%" height="170%">` +
+  `<feDropShadow dx="0" dy="0" stdDeviation="10" flood-color="#F5C531" flood-opacity="0.95"/></filter>` +
+  `<filter id="dv-pickglow" x="-35%" y="-35%" width="170%" height="170%">` +
+  `<feDropShadow dx="0" dy="0" stdDeviation="9" flood-color="#F5A623" flood-opacity="0.9"/></filter>`;
 
 /* ── 공통 조각 ────────────────────────────────────────────────────── */
 
-function parcelBox(x, y, width, height) {
-  const seam = height * 0.17;
-  return `<g transform="translate(${x} ${y})">` +
-    `<rect x="0" y="0" width="${width}" height="${height}" rx="9" fill="url(#dv-carton)" ` +
-    `stroke="#a56f3c" stroke-width="4"/>` +
-    `<rect x="0" y="${height / 2 - seam / 2}" width="${width}" height="${seam}" fill="#dba76a" opacity=".85"/>` +
-    `<rect x="${width / 2 - width * 0.07}" y="0" width="${width * 0.14}" height="${height}" ` +
-    `fill="#dba76a" opacity=".85"/></g>`;
+function star(cx, cy, size = 1) {
+  return `<path transform="translate(${cx} ${cy}) scale(${size})" ` +
+    `d="M0 -13 l4 9 9 4 -9 4 -4 9 -4 -9 -9 -4 9 -4 z" fill="${P.star}"/>`;
 }
 
-const CARTON_DEF =
-  `<linearGradient id="dv-carton" x1="0" y1="0" x2="0" y2="1">` +
-  `<stop offset="0" stop-color="#e6b57e"/><stop offset="1" stop-color="#c68b4f"/></linearGradient>`;
+// 택배 상자 + 문패 라벨. 라벨이 없으면 테이프만 있는 민 상자다.
+function parcelBox(x, y, width, height, label = null, tone = P.cartonA) {
+  const seam = height * 0.42;
+  const plateWidth = width * 0.66;
+  const plateHeight = height * 0.36;
+  const parts = [
+    `<rect x="0" y="0" width="${width}" height="${height}" rx="7" fill="${tone}" ` +
+      `stroke="${P.cartonEdge}" stroke-width="3.5"/>`,
+    `<path d="M0 ${seam} h${width} M${width / 2} 0 v${seam}" stroke="${P.cartonEdge}" stroke-width="3"/>`,
+  ];
+  if (label !== null) {
+    parts.push(
+      `<rect x="${(width - plateWidth) / 2}" y="${seam + 4}" width="${plateWidth}" ` +
+        `height="${plateHeight}" rx="4" fill="${P.plate}" stroke="${P.plateEdge}" stroke-width="2"/>`,
+      `<text x="${width / 2}" y="${seam + 4 + plateHeight * 0.74}" text-anchor="middle" ` +
+        `font-size="${plateHeight * 0.72}" font-weight="800" fill="${P.ink}">${label}</text>`
+    );
+  }
+  return `<g transform="translate(${x} ${y})">${parts.join("")}</g>`;
+}
 
-function star(cx, cy, scale = 1.15) {
-  return `<path transform="translate(${cx} ${cy}) scale(${scale})" ` +
-    `d="M0 -19 L5.6 -6.2 L19.5 -4.6 L9.2 4.6 L12 18.4 L0 11.5 L-12 18.4 L-9.2 4.6 ` +
-    `L-19.5 -4.6 L-5.6 -6.2 Z" fill="#ffd23f" stroke="#e0a80f" stroke-width="3" stroke-linejoin="round"/>`;
+// 손수레 — 기사님이 미는 카트.
+function cart(x, y, width) {
+  const wheel = width * 0.06;
+  return `<g transform="translate(${x} ${y})">` +
+    `<path d="M6 4 q-22 -16 -26 -42" stroke="${P.metal}" stroke-width="5" fill="none" stroke-linecap="round"/>` +
+    `<rect x="0" y="0" width="${width}" height="10" rx="4" fill="${P.metal}"/>` +
+    `<path d="M14 10 v16 m${width - 28} -16 v16" stroke="${P.metal}" stroke-width="5"/>` +
+    `<circle cx="20" cy="32" r="${wheel}" fill="${P.metalDark}"/>` +
+    `<circle cx="20" cy="32" r="${wheel * 0.4}" fill="${P.hub}"/>` +
+    `<circle cx="${width - 20}" cy="32" r="${wheel}" fill="${P.metalDark}"/>` +
+    `<circle cx="${width - 20}" cy="32" r="${wheel * 0.4}" fill="${P.hub}"/></g>`;
+}
+
+// 기사님 아바타 — 목업 v3 의 오리지널 캐릭터. 팔 모양만 자세에 따라 달라진다.
+const COURIER_ARMS = {
+  idle:
+    `<path d="M28 8 q26 16 52 28" stroke="${P.vest}" stroke-width="13" fill="none" stroke-linecap="round"/>` +
+    `<path d="M-28 8 q-14 16 -10 34" stroke="${P.vest}" stroke-width="13" fill="none" stroke-linecap="round"/>`,
+  bell:
+    `<path d="M26 -2 q40 -34 72 -72" stroke="${P.vest}" stroke-width="13" fill="none" stroke-linecap="round"/>` +
+    `<path d="M-28 8 q-14 16 -10 34" stroke="${P.vest}" stroke-width="13" fill="none" stroke-linecap="round"/>`,
+  "bell-left":
+    `<path d="M-26 -2 q-40 -34 -72 -72" stroke="${P.vest}" stroke-width="13" fill="none" stroke-linecap="round"/>` +
+    `<path d="M28 8 q14 16 10 34" stroke="${P.vest}" stroke-width="13" fill="none" stroke-linecap="round"/>`,
+  cheer:
+    `<path d="M28 4 q22 -26 40 -44" stroke="${P.vest}" stroke-width="13" fill="none" stroke-linecap="round"/>` +
+    `<path d="M-28 4 q-22 -26 -40 -44" stroke="${P.vest}" stroke-width="13" fill="none" stroke-linecap="round"/>`,
+};
+
+function courier(x, y, scale = 1, pose = "idle") {
+  return `<g class="dv-courier" filter="url(#dv-tiny)">` +
+    `<g transform="translate(${x} ${y}) scale(${scale})">` +
+    `<rect x="-34" y="-8" width="68" height="86" rx="18" fill="${P.vest}"/>` +
+    `<rect x="-15" y="-8" width="30" height="86" fill="${P.shirt}"/>` +
+    `<path d="M-15 22 h30" stroke="${P.cuff}" stroke-width="3"/>` +
+    `<circle cx="0" cy="-38" r="27" fill="${P.skin}"/>` +
+    `<path d="M-28 -46 a28 28 0 0 1 56 0 z" fill="${P.cap}"/>` +
+    `<rect x="24" y="-52" width="22" height="10" rx="5" fill="${P.cap}"/>` +
+    `<circle cx="-8" cy="-36" r="3.6" fill="#333333"/><circle cx="10" cy="-36" r="3.6" fill="#333333"/>` +
+    `<circle cx="-9.4" cy="-37.4" r="1.4" fill="#FFFFFF" opacity="0.9"/>` +
+    `<circle cx="8.6" cy="-37.4" r="1.4" fill="#FFFFFF" opacity="0.9"/>` +
+    `<path d="M-6 -25 q7 6 14 0" stroke="${P.goldInk}" stroke-width="3" fill="none" stroke-linecap="round"/>` +
+    `<circle cx="-17" cy="-29" r="4.5" fill="#FF9E8A" opacity="0.6"/>` +
+    (COURIER_ARMS[pose] ?? COURIER_ARMS.idle) +
+    `<rect x="-24" y="78" width="18" height="26" rx="8" fill="${P.boot}"/>` +
+    `<rect x="6" y="78" width="18" height="26" rx="8" fill="${P.boot}"/>` +
+    `</g></g>`;
+}
+
+function clamp(value, low, high) {
+  return Math.min(Math.max(value, low), high);
+}
+
+// 말풍선 — 둥근 상자에 꼬리 하나. 좌표는 상자의 좌상단이고, 화면 밖으로 밀려나면
+// 안으로 당겨 앉힌다. 말이 잘려 보이는 것보다 위치가 조금 어긋나는 편이 낫다.
+function speech(rawX, y, width, height, textAt, { edge = null, tail = "left", limit = 1280 } = {}) {
+  const x = clamp(rawX, 12, limit - width - 12);
+  const stroke = edge ? ` stroke="${edge}" stroke-width="3.5"` : "";
+  const anchor = { left: 0.28, center: 0.5, right: 0.72 }[tail] ?? 0.28;
+  const tailX = x + width * anchor;
+  const textMarkup = textAt(x + width / 2);
+  return `<g filter="url(#dv-tiny)">` +
+    `<rect x="${x}" y="${y}" width="${width}" height="${height}" rx="${Math.min(20, height / 2)}" ` +
+      `fill="#FFFFFF"${stroke}/>` +
+    `<path d="M${tailX - 12} ${y + height - 2} L${tailX + 14} ${y + height - 2} ` +
+      `L${tailX - 4} ${y + height + 20} Z" fill="#FFFFFF"${stroke} stroke-linejoin="round"/>` +
+    `<rect x="${tailX - 12}" y="${y + height - 7}" width="26" height="8" fill="#FFFFFF"/></g>` +
+    textMarkup;
+}
+
+// 소리가 퍼지는 표시 — 초인종·버튼음에 공통으로 붙는다.
+function chirp(x, y, color = P.goldWarm) {
+  return `<g stroke="${color}" stroke-width="3" fill="none" stroke-linecap="round" ` +
+    `transform="translate(${x} ${y})">` +
+    `<path d="M0 0 q6 -8 2 -16"/><path d="M14 -4 q8 -10 3 -22"/></g>`;
 }
 
 /* ── STEP 2 · 샤프트 단면 ─────────────────────────────────────────── */
 
-const SHAFT_TOP = 44;
-const SHAFT_STEP = 68;
+const SHAFT_TOP = 34;
+const SHAFT_BOTTOM = 596;
 
-function floorY(floor, topFloor) {
-  return SHAFT_TOP + (topFloor - floor) * SHAFT_STEP;
+function floorBand(floor, topFloor) {
+  const step = (SHAFT_BOTTOM - SHAFT_TOP) / topFloor;
+  const bottom = SHAFT_BOTTOM - (floor - 1) * step;
+  return { top: bottom - step, bottom, center: bottom - step / 2, step };
 }
 
 export function elevatorShaftSvg({ topFloor = 7, current = 1, target = 7 }) {
   const numbers = [];
-  for (let floor = topFloor; floor >= 1; floor -= 1) {
-    const y = floorY(floor, topFloor);
-    numbers.push(`<text x="30" y="${y + 9}" text-anchor="middle" font-size="25" ` +
-      `font-weight="800" fill="#5a6878">${floor}</text>`);
+  const slabs = [];
+  const landings = [];
+
+  for (let floor = 1; floor <= topFloor; floor += 1) {
+    const band = floorBand(floor, topFloor);
+    const goal = floor === target;
+    const size = goal ? 46 : 40;
+
+    if (floor > 1) {
+      slabs.push(`<path d="M12 ${band.bottom} h236"/>`);
+    }
+    if (goal) {
+      numbers.push(`<circle cx="40" cy="${band.center}" r="30" fill="${P.halo}"/>`);
+    }
+    numbers.push(
+      `<text x="40" y="${band.center + size * 0.35}" text-anchor="middle" font-size="${size}" ` +
+      `font-weight="800" fill="${goal ? P.coral : floor === current ? P.floorInkOn : P.floorInk}">${floor}</text>`
+    );
+
+    // 승강장 문 — 목표 층만 금빛으로 물든다.
+    const doorY = band.center - 22;
+    landings.push(
+      `<rect x="196" y="${doorY}" width="48" height="44" rx="4" ` +
+        `fill="${goal ? P.goldSoft : P.landing}" stroke="${goal ? P.gold : P.landingEdge}" ` +
+        `stroke-width="${goal ? 4 : 3}"/>` +
+      `<path d="M220 ${doorY} v44" stroke="${goal ? P.gold : P.landingEdge}" stroke-width="2.5"/>`
+    );
   }
 
-  const targetY = floorY(target, topFloor);
-  const carY = floorY(current, topFloor);
-
-  const dots = [];
-  for (let y = SHAFT_TOP + 24; y <= floorY(1, topFloor) + 24; y += 26) {
-    dots.push(`<circle cx="173" cy="${y}" r="5"/>`);
-  }
-
-  const rider = ELEVATOR_RIDER === "truck"
-    ? truckSprite("down", { x: 78, y: carY - 26, width: 48 })
-    : `<image href="${COURIER_IMAGE}" x="80" y="${carY - 28}" width="44" height="56" ` +
-      `preserveAspectRatio="xMidYMid meet"/>`;
+  const carBand = floorBand(current, topFloor);
+  const carY = Math.round(carBand.center - 30);
+  const rising = current < target;
+  const arrows = [0, 1, 2]
+    .map(index => {
+      const y = carY - 20 - index * 24;
+      const opacity = [1, 0.55, 0.3][index];
+      return `<path d="M172 ${y} l10 -13 10 13 z" fill="${P.teal}" opacity="${opacity}"/>`;
+    })
+    .join("");
 
   return `<svg class="dv-shaft" viewBox="${SHAFT_VIEW_BOX}" preserveAspectRatio="xMidYMid meet" ` +
     `xmlns="http://www.w3.org/2000/svg" role="img" ` +
     `aria-label="엘리베이터 통로. 지금 ${current}층, 목표는 ${target}층이에요.">` +
-    `<defs>` +
-    `<linearGradient id="dv-shaftwall" x1="0" y1="0" x2="1" y2="0">` +
-    `<stop offset="0" stop-color="#4a545e"/><stop offset=".45" stop-color="#6d7a86"/>` +
-    `<stop offset="1" stop-color="#414b55"/></linearGradient>` +
-    `<linearGradient id="dv-car" x1="0" y1="0" x2="0" y2="1">` +
-    `<stop offset="0" stop-color="#e6edf3"/><stop offset="1" stop-color="#b8c5d0"/></linearGradient>` +
-    `</defs>` +
-    `<rect width="200" height="520" fill="#ccd5dd"/>` +
-    `<rect x="6" y="8" width="48" height="504" rx="14" fill="#eef3f7" stroke="#c3ced8" stroke-width="3"/>` +
+    `<defs>${SHADOWS}</defs>` +
+    `<rect width="260" height="620" fill="${P.wall}"/>` +
+    `<g filter="url(#dv-soft)">` +
+      `<rect x="10" y="${SHAFT_TOP - 10}" width="240" height="${SHAFT_BOTTOM - SHAFT_TOP + 20}" rx="12" ` +
+      `fill="${P.panel}" stroke="${P.panelEdge}" stroke-width="4"/></g>` +
+    `<g stroke="${P.slab}" stroke-width="4" fill="none">${slabs.join("")}</g>` +
+    // 샤프트 통로
+    `<rect x="82" y="${SHAFT_TOP - 4}" width="104" height="${SHAFT_BOTTOM - SHAFT_TOP + 8}" ` +
+      `fill="${P.shaft}" stroke="${P.shaftEdge}" stroke-width="4"/>` +
+    `<g stroke="${P.shaftEdge}" stroke-width="3" stroke-dasharray="4 10">` +
+      `<path d="M100 ${SHAFT_TOP} v${SHAFT_BOTTOM - SHAFT_TOP}"/>` +
+      `<path d="M168 ${SHAFT_TOP} v${SHAFT_BOTTOM - SHAFT_TOP}"/></g>` +
     numbers.join("") +
-    `<rect x="9" y="${targetY - 22}" width="42" height="44" rx="11" fill="none" stroke="#f0b323" stroke-width="4"/>` +
-    `<rect x="62" y="8" width="80" height="504" rx="10" fill="url(#dv-shaftwall)"/>` +
-    `<g stroke="#8c98a4" stroke-width="3" opacity=".55">` +
-    `<line x1="76" y1="14" x2="76" y2="506"/><line x1="128" y1="14" x2="128" y2="506"/></g>` +
-    `<circle cx="102" cy="24" r="9" fill="#aab6c1" stroke="#79848f" stroke-width="3"/>` +
-    `<line x1="102" y1="33" x2="102" y2="${carY - 36}" stroke="#8f9aa5" stroke-width="3"/>` +
-    `<rect x="66" y="${carY - 36}" width="72" height="72" rx="9" fill="url(#dv-car)" ` +
-    `stroke="#7d8b98" stroke-width="3"/>` +
-    rider +
-    `<rect x="62" y="${carY - 40}" width="80" height="80" rx="13" fill="none" stroke="#f0b323" stroke-width="5"/>` +
-    `<rect x="152" y="8" width="42" height="504" rx="14" fill="#eef3f7" stroke="#c3ced8" stroke-width="3"/>` +
-    `<g fill="#c3ced8">${dots.join("")}</g>` +
-    `<circle cx="173" cy="${targetY}" r="9" fill="#4fc45a" stroke="#2f9c3d" stroke-width="3"/>` +
-    `<circle cx="173" cy="${carY}" r="9" fill="#ff9130" stroke="#dd7212" stroke-width="3"/>` +
+    landings.join("") +
+    // 케이블 + 도르래
+    `<circle cx="134" cy="${SHAFT_TOP + 4}" r="9" fill="${P.metal}"/>` +
+    `<path d="M134 ${SHAFT_TOP + 4} V${carY}" stroke="${P.metal}" stroke-width="4"/>` +
+    (rising ? arrows : "") +
+    // 칸 — 여기서는 "지금 몇 층인지"만 읽히면 된다. 기사님은 옆 무대에서 크게 보인다.
+    `<g filter="url(#dv-soft)">` +
+      `<rect class="dv-car" x="86" y="${carY}" width="96" height="60" rx="10" fill="${P.cab}" ` +
+      `stroke="${P.cabEdge}" stroke-width="4"/>` +
+      `<rect x="86" y="${carY}" width="96" height="11" rx="5.5" fill="${P.cabTop}"/>` +
+      parcelBox(100, carY + 20, 68, 34, null, P.cartonA) +
+    `</g>` +
     `</svg>`;
 }
 
 /* ── STEP 2 · 승강기 안 ───────────────────────────────────────────── */
 
 export function elevatorCabinSvg({ current = 1, doorsOpen = false } = {}) {
-  const rider = ELEVATOR_RIDER === "truck"
-    ? truckSprite("down", { x: 355, y: 100, width: 330 })
-    : `<image href="${COURIER_IMAGE}" x="426" y="98" width="188" height="302" ` +
-      `preserveAspectRatio="xMidYMax meet"/>` +
-      parcelBox(440, 330, 160, 92);
-
-  const doorGap = doorsOpen ? 120 : 0;
+  const doorGap = doorsOpen ? 110 : 0;
 
   return `<svg class="dv-cabin" viewBox="${CABIN_VIEW_BOX}" preserveAspectRatio="xMidYMid meet" ` +
-    `xmlns="http://www.w3.org/2000/svg" role="img" aria-label="엘리베이터 안.">` +
-    `<defs>${CARTON_DEF}` +
+    `xmlns="http://www.w3.org/2000/svg" role="img" aria-label="엘리베이터 안. 지금 ${current}층.">` +
+    `<defs>${SHADOWS}` +
     `<linearGradient id="dv-cabwall" x1="0" y1="0" x2="0" y2="1">` +
-    `<stop offset="0" stop-color="#dde5ec"/><stop offset=".5" stop-color="#c2ccd6"/>` +
-    `<stop offset="1" stop-color="#a7b3bf"/></linearGradient>` +
-    `<linearGradient id="dv-cabL" x1="0" y1="0" x2="1" y2="0">` +
-    `<stop offset="0" stop-color="#8b97a4"/><stop offset="1" stop-color="#c6d0d9"/></linearGradient>` +
-    `<linearGradient id="dv-cabR" x1="0" y1="0" x2="1" y2="0">` +
-    `<stop offset="0" stop-color="#c6d0d9"/><stop offset="1" stop-color="#8b97a4"/></linearGradient>` +
-    `<linearGradient id="dv-mirror" x1="0" y1="0" x2="1" y2="1">` +
-    `<stop offset="0" stop-color="#d3e8f4"/><stop offset=".5" stop-color="#a6cde3"/>` +
-    `<stop offset="1" stop-color="#dcedf7"/></linearGradient>` +
-    `<linearGradient id="dv-cabfloor" x1="0" y1="0" x2="0" y2="1">` +
-    `<stop offset="0" stop-color="#9ba7b3"/><stop offset="1" stop-color="#74808c"/></linearGradient>` +
-    `<radialGradient id="dv-lamp" cx="50%" cy="50%" r="50%">` +
-    `<stop offset="0" stop-color="#fffdf0"/><stop offset="1" stop-color="#ffeeb8"/></radialGradient>` +
+    `<stop offset="0" stop-color="${P.panel}"/><stop offset="1" stop-color="#EFE8D8"/></linearGradient>` +
+    `<linearGradient id="dv-cabdoor" x1="0" y1="0" x2="1" y2="0">` +
+    `<stop offset="0" stop-color="#D7E2EA"/><stop offset="1" stop-color="${P.landing}"/></linearGradient>` +
     `</defs>` +
-    `<rect width="1040" height="510" fill="#8f9ba7"/>` +
-    `<polygon points="0,0 1040,0 880,84 160,84" fill="#ccd6df" stroke="#aeb9c4" stroke-width="3"/>` +
-    `<rect x="300" y="26" width="150" height="28" rx="10" fill="url(#dv-lamp)" stroke="#e6d9a8" stroke-width="3"/>` +
-    `<rect x="590" y="26" width="150" height="28" rx="10" fill="url(#dv-lamp)" stroke="#e6d9a8" stroke-width="3"/>` +
-    `<polygon points="300,54 450,54 484,124 266,124" fill="#fff6d8" opacity=".42"/>` +
-    `<polygon points="590,54 740,54 774,124 556,124" fill="#fff6d8" opacity=".42"/>` +
-    `<polygon points="0,0 160,84 160,400 0,510" fill="url(#dv-cabL)"/>` +
-    `<polygon points="1040,0 880,84 880,400 1040,510" fill="url(#dv-cabR)"/>` +
-    `<rect x="160" y="84" width="720" height="316" fill="url(#dv-cabwall)" stroke="#9dabb8" stroke-width="3"/>` +
-    `<rect x="${215 - doorGap}" y="120" width="240" height="132" rx="8" fill="url(#dv-mirror)" ` +
-    `stroke="#8fa8b8" stroke-width="4"/>` +
-    `<rect x="${585 + doorGap}" y="120" width="240" height="132" rx="8" fill="url(#dv-mirror)" ` +
-    `stroke="#8fa8b8" stroke-width="4"/>` +
-    `<rect x="185" y="276" width="670" height="13" rx="6.5" fill="#ccd6df" stroke="#8b98a5" stroke-width="3"/>` +
-    `<path d="M34 300 L158 280" stroke="#ccd6df" stroke-width="12" stroke-linecap="round"/>` +
-    `<path d="M1006 300 L882 280" stroke="#ccd6df" stroke-width="12" stroke-linecap="round"/>` +
-    `<rect x="898" y="148" width="76" height="188" rx="13" fill="#e8eef4" stroke="#98a5b2" stroke-width="3"/>` +
-    `<rect x="910" y="160" width="52" height="30" rx="7" fill="#2b3540"/>` +
-    `<text x="936" y="182" text-anchor="middle" font-size="18" font-weight="800" fill="#ffcf4a">▲${current}</text>` +
-    `<g fill="#8e9aa6"><circle cx="922" cy="214" r="9"/><circle cx="950" cy="214" r="9"/>` +
-    `<circle cx="922" cy="242" r="9"/><circle cx="950" cy="242" r="9"/>` +
-    `<circle cx="922" cy="270" r="9"/><circle cx="950" cy="270" r="9"/>` +
-    `<circle cx="922" cy="298" r="9"/><circle cx="950" cy="298" r="9"/></g>` +
-    `<circle cx="922" cy="214" r="9" fill="#4fc45a"/>` +
-    `<polygon points="0,510 160,400 880,400 1040,510" fill="url(#dv-cabfloor)"/>` +
-    `<ellipse cx="520" cy="436" rx="150" ry="26" fill="#5f6b77" opacity=".35"/>` +
-    rider +
+    `<rect width="1040" height="560" fill="${P.panel}"/>` +
+    // 천장 · 조명
+    `<rect x="0" y="0" width="1040" height="66" fill="${P.ceiling}"/>` +
+    `<path d="M0 66 h1040" stroke="${P.ceilEdge}" stroke-width="4"/>` +
+    `<ellipse cx="330" cy="40" rx="72" ry="17" fill="${P.lamp}" stroke="${P.lampEdge}" stroke-width="3"/>` +
+    `<ellipse cx="710" cy="40" rx="72" ry="17" fill="${P.lamp}" stroke="${P.lampEdge}" stroke-width="3"/>` +
+    // 벽 · 문
+    `<rect x="60" y="66" width="920" height="404" fill="url(#dv-cabwall)" ` +
+      `stroke="${P.panelEdge}" stroke-width="4"/>` +
+    `<rect x="${300 - doorGap}" y="120" width="220" height="330" rx="6" fill="url(#dv-cabdoor)" ` +
+      `stroke="${P.landingEdge}" stroke-width="4"/>` +
+    `<rect x="${520 + doorGap}" y="120" width="220" height="330" rx="6" fill="url(#dv-cabdoor)" ` +
+      `stroke="${P.landingEdge}" stroke-width="4"/>` +
+    `<path d="M${520 + doorGap} 120 v330" stroke="${P.landingEdge}" stroke-width="3"/>` +
+    // 층 표시기 — 목업 v3 의 검은 패널 + 초록 숫자
+    `<g filter="url(#dv-tiny)"><rect x="392" y="88" width="256" height="76" rx="16" fill="${P.display}"/></g>` +
+    `<path d="M432 140 h36 l-18 -24 z" fill="${P.displayOn}"/>` +
+    `<path d="M572 116 h36 l-18 24 z" fill="${P.displayOff}"/>` +
+    `<text class="dv-floor-readout" x="520" y="148" text-anchor="middle" font-size="56" ` +
+      `font-weight="800" fill="${P.displayOn}" ` +
+      `style="font-variant-numeric:tabular-nums">${current}</text>` +
+    // 손잡이 봉
+    `<rect x="96" y="330" width="180" height="12" rx="6" fill="${P.landing}" ` +
+      `stroke="${P.landingEdge}" stroke-width="3"/>` +
+    `<rect x="764" y="330" width="180" height="12" rx="6" fill="${P.landing}" ` +
+      `stroke="${P.landingEdge}" stroke-width="3"/>` +
+    // 바닥
+    `<rect x="0" y="470" width="1040" height="90" fill="${P.skirt}"/>` +
+    `<path d="M0 470 h1040" stroke="${P.floorLine}" stroke-width="4"/>` +
+    `<ellipse cx="470" cy="512" rx="200" ry="24" fill="#B9A882" opacity="0.35"/>` +
+    // 기사님 + 카트 + 상자
+    cart(470, 470, 250) +
+    parcelBox(492, 372, 104, 96, null, P.cartonA) +
+    parcelBox(608, 396, 92, 72, null, P.cartonB) +
+    courier(360, 366, 1.1, "idle") +
     `</svg>`;
 }
 
 /* ── STEP 3 · 복도 ────────────────────────────────────────────────── */
 
+// 문 세 짝. 가운데가 목표일 때 가장 보기 좋게 배치를 목업에서 그대로 가져왔다.
 const DOOR_SLOTS = [
-  { frame: 222, slab: 232, plate: 272, handle: 374, center: 310 },
-  { frame: 462, slab: 472, plate: 512, handle: 614, center: 550 },
-  { frame: 702, slab: 712, plate: 752, handle: 854, center: 790 },
+  { x: 130, tone: { slab: P.mint, edge: P.mintEdge, glass: P.mintGlass, knob: "#5E8A82" }, knobRight: true },
+  { x: 542, tone: { slab: P.coralDoor, edge: P.coralDoorEdge, glass: null, knob: "#B35F44" }, knobRight: false },
+  { x: 954, tone: { slab: P.blue, edge: P.blueEdge, glass: P.blueGlass, knob: "#5F82AB" }, knobRight: false },
 ];
 
-function corridorDoor(slot, unit, goal) {
-  const fill = goal ? "url(#dv-doorgold)" : "url(#dv-door)";
-  const plateFill = goal ? "#fffaea" : "#fdf6e6";
-  const plateEdge = goal ? "#e0b45c" : "#c3ab84";
-  const ink = goal ? "#c8791b" : "#4a4034";
-  const handle = goal ? "#ffd45c" : "#e8bb4f";
+const DOOR_WIDTH = 196;
+const DOOR_TOP = 130;
+const DOOR_HEIGHT = 322;
 
-  return (goal
-    ? `<rect x="${slot.frame - 10}" y="94" width="196" height="248" rx="15" fill="none" ` +
-      `stroke="#ffc93d" stroke-width="7" filter="url(#dv-goldglow)"/>`
-    : "") +
-    `<rect x="${slot.frame}" y="104" width="176" height="228" rx="8" fill="#68401f"/>` +
-    `<rect x="${slot.slab}" y="112" width="156" height="220" rx="5" fill="${fill}"/>` +
-    `<rect x="${slot.slab + 16}" y="180" width="124" height="60" rx="5" fill="none" stroke="#63401e" stroke-width="4"/>` +
-    `<rect x="${slot.slab + 16}" y="254" width="124" height="60" rx="5" fill="none" stroke="#63401e" stroke-width="4"/>` +
-    `<rect x="${slot.slab + 4}" y="116" width="9" height="212" fill="#fff" opacity=".1"/>` +
-    `<rect x="${slot.plate}" y="126" width="76" height="36" rx="8" fill="${plateFill}" ` +
-    `stroke="${plateEdge}" stroke-width="3.5"/>` +
-    `<text x="${slot.plate + 38}" y="153" text-anchor="middle" font-size="24" font-weight="800" ` +
-    `fill="${ink}">${unit}</text>` +
-    `<circle cx="${slot.handle}" cy="228" r="9" fill="${handle}" stroke="#b8892a" stroke-width="3"/>` +
-    (goal ? star(slot.center, 66) : "");
+// 복도 벽·천장·바닥 — 초인종 화면과 선물 화면이 같은 복도를 쓴다.
+const HALL_BASE =
+  `<rect width="1280" height="620" fill="url(#dv-hallwall)"/>` +
+  `<rect x="0" y="0" width="1280" height="48" fill="${P.ceiling}"/>` +
+  `<path d="M0 48 h1280" stroke="${P.ceilEdge}" stroke-width="4"/>` +
+  `<ellipse cx="380" cy="38" rx="46" ry="13" fill="${P.lamp}" stroke="${P.lampEdge}" stroke-width="3"/>` +
+  `<ellipse cx="900" cy="38" rx="46" ry="13" fill="${P.lamp}" stroke="${P.lampEdge}" stroke-width="3"/>` +
+  `<rect x="0" y="470" width="1280" height="24" fill="${P.skirt}"/>` +
+  `<rect x="0" y="494" width="1280" height="126" fill="${P.floor}"/>` +
+  `<g stroke="${P.floorLine}" stroke-width="3" fill="none">` +
+  `<path d="M0 538 h1280"/><path d="M0 584 h1280"/>` +
+  `<path d="M160 494 v44 M480 494 v44 M800 494 v44 M1120 494 v44"/>` +
+  `<path d="M320 538 v46 M640 538 v46 M960 538 v46"/></g>`;
+
+const HALL_DEFS =
+  `<defs>${SHADOWS}${GLOW_DEFS}` +
+  `<linearGradient id="dv-hallwall" x1="0" y1="0" x2="0" y2="1">` +
+  `<stop offset="0" stop-color="${P.hallTop}"/><stop offset="1" stop-color="${P.hallBottom}"/></linearGradient>` +
+  `<linearGradient id="dv-doorlight" x1="0" y1="0" x2="0" y2="1">` +
+  `<stop offset="0" stop-color="#FFF2C8"/><stop offset="1" stop-color="#FFE3A0"/></linearGradient>` +
+  `</defs>`;
+
+function closedDoor(slot, unit, goal) {
+  const { x, tone } = slot;
+  const knobX = slot.knobRight ? x + DOOR_WIDTH - 22 : x + 20;
+  const plate =
+    `<g${goal ? ` filter="url(#dv-goldglow)"` : ""}>` +
+    `<rect x="${x + 46}" y="${DOOR_TOP - 62}" width="104" height="42" rx="10" fill="${goal ? "#FFF9E6" : P.plate}" ` +
+      `stroke="${goal ? P.gold : P.plateEdge}" stroke-width="${goal ? 4 : 3}"/></g>` +
+    `<text x="${x + DOOR_WIDTH / 2}" y="${DOOR_TOP - 31}" text-anchor="middle" font-size="26" ` +
+      `font-weight="800" fill="${goal ? P.goldDeep : P.mutter}">${unit}</text>`;
+
+  const panels = tone.glass
+    ? `<rect x="${x + 22}" y="${DOOR_TOP + 28}" width="152" height="120" rx="8" fill="${tone.glass}" opacity="0.6"/>`
+    : `<rect x="${x + 24}" y="${DOOR_TOP + 32}" width="148" height="108" rx="8" fill="none" ` +
+        `stroke="${tone.edge}" stroke-width="3" opacity="0.8"/>` +
+      `<rect x="${x + 24}" y="${DOOR_TOP + 168}" width="148" height="122" rx="8" fill="none" ` +
+        `stroke="${tone.edge}" stroke-width="3" opacity="0.8"/>`;
+
+  return `<g>` +
+    `<rect x="${x}" y="${DOOR_TOP}" width="${DOOR_WIDTH}" height="${DOOR_HEIGHT}" rx="8" ` +
+      `fill="${tone.slab}" stroke="${tone.edge}" stroke-width="5"/>` +
+    panels +
+    `<circle cx="${knobX}" cy="${DOOR_TOP + 176}" r="9" fill="${tone.knob}"/>` +
+    plate +
+    `</g>`;
 }
 
-export function corridorSvg({ units, focus = 0, targetUnit }) {
+// 호 확인 연출 — 라벨의 숫자와 문패의 숫자가 같다는 것을 반짝임으로 짚어 준다.
+// 말풍선은 문패 바로 위에 세운다: 옆에 두면 이웃 문패를 덮는다.
+function unitMatched(slot) {
+  const cx = slot.x + DOOR_WIDTH / 2;
+  const y = DOOR_TOP - 62;
+  return `<g>` +
+      star(slot.x + 10, y - 8, 1) + star(slot.x + DOOR_WIDTH - 10, y + 4, 0.75) + `</g>` +
+    `<g stroke="${P.star}" stroke-width="3" stroke-linecap="round">` +
+      `<path d="M${slot.x - 8} ${y + 21} h-16 M${slot.x + DOOR_WIDTH + 8} ${y + 21} h16"/></g>` +
+    speech(
+      cx - 116, 2, 232, 44,
+      textX => `<text x="${textX}" y="${32}" text-anchor="middle" font-size="24" font-weight="800" ` +
+        `fill="${P.coral}">숫자가 딱 같네!</text>`,
+      { tail: "center" }
+    );
+}
+
+export function corridorSvg({ units = [], focus = 0, targetUnit = 0 }) {
+  const index = Math.max(0, Math.min(DOOR_SLOTS.length - 1, focus));
+  const slot = DOOR_SLOTS[index];
+  const targetIndex = units.indexOf(targetUnit);
+  const matched = targetIndex >= 0 && targetIndex === index;
+
   const doors = units
-    .map((unit, index) => corridorDoor(DOOR_SLOTS[index] ?? DOOR_SLOTS[0], unit, unit === targetUnit))
+    .map((unit, position) => {
+      const at = DOOR_SLOTS[position];
+      return at ? closedDoor(at, unit, unit === targetUnit) : "";
+    })
     .join("");
 
-  const stand = DOOR_SLOTS[Math.min(focus, DOOR_SLOTS.length - 1)].center;
-  // 조명은 목표 문 위를 비춘다(정본 §5 STEP 3: 금빛 링 + 별 + 문 위 조명).
-  const targetIndex = Math.max(0, units.indexOf(targetUnit));
-  const lampX = DOOR_SLOTS[Math.min(targetIndex, DOOR_SLOTS.length - 1)].center;
+  // 기사님은 고른 문 앞으로 옮겨 선다 — 어느 문을 고르는 중인지 그림이 말한다.
+  // 맨 왼쪽 문에서는 오른쪽에 서고 왼팔을 뻗는다: 왼쪽에 서면 화면 밖으로 밀린다.
+  const doorCenter = slot.x + DOOR_WIDTH / 2;
+  const side = index === 0 ? 1 : -1;
+  const standX = doorCenter + side * 124;
+  const bellX = doorCenter + side * (DOOR_WIDTH / 2 + 16) - 15;
+  const pose = side === 1 ? "bell-left" : "bell";
 
   return `<svg class="dv-corridor" viewBox="${HALL_VIEW_BOX}" preserveAspectRatio="xMidYMid meet" ` +
     `xmlns="http://www.w3.org/2000/svg" role="img" ` +
-    `aria-label="아파트 복도. 지금 ${units[Math.min(focus, units.length - 1)]}호 문 앞이에요. ` +
-    `찾는 곳은 ${targetUnit}호예요.">` +
-    `<defs>${CARTON_DEF}` +
-    `<linearGradient id="dv-hallwall" x1="0" y1="0" x2="0" y2="1">` +
-    `<stop offset="0" stop-color="#f0dcb6"/><stop offset="1" stop-color="#e0c99e"/></linearGradient>` +
-    `<linearGradient id="dv-hallceil" x1="0" y1="0" x2="0" y2="1">` +
-    `<stop offset="0" stop-color="#fbf1dc"/><stop offset="1" stop-color="#ecdcba"/></linearGradient>` +
-    `<linearGradient id="dv-hallfloor" x1="0" y1="0" x2="0" y2="1">` +
-    `<stop offset="0" stop-color="#dcc6a0"/><stop offset="1" stop-color="#c0a67c"/></linearGradient>` +
-    `<linearGradient id="dv-door" x1="0" y1="0" x2="1" y2="0">` +
-    `<stop offset="0" stop-color="#9c6634"/><stop offset=".42" stop-color="#8a5628"/>` +
-    `<stop offset="1" stop-color="#71441f"/></linearGradient>` +
-    `<linearGradient id="dv-doorgold" x1="0" y1="0" x2="1" y2="0">` +
-    `<stop offset="0" stop-color="#ad7439"/><stop offset=".42" stop-color="#99632d"/>` +
-    `<stop offset="1" stop-color="#7e4e22"/></linearGradient>` +
-    `<radialGradient id="dv-halllamp" cx="50%" cy="50%" r="50%">` +
-    `<stop offset="0" stop-color="#fffdf2"/><stop offset="1" stop-color="#ffedbe"/></radialGradient>` +
-    `<filter id="dv-goldglow" x="-45%" y="-45%" width="190%" height="190%">` +
-    `<feDropShadow dx="0" dy="0" stdDeviation="11" flood-color="#ffcc3d" flood-opacity="1"/></filter>` +
-    `</defs>` +
-    `<rect width="1100" height="460" fill="#d8c096"/>` +
-    `<polygon points="0,0 1100,0 960,62 140,62" fill="url(#dv-hallceil)"/>` +
-    `<rect x="${lampX - 80}" y="12" width="160" height="22" rx="9" fill="url(#dv-halllamp)" ` +
-    `stroke="#e8d5a4" stroke-width="3"/>` +
-    `<polygon points="${lampX - 80},34 ${lampX + 80},34 ${lampX + 170},150 ${lampX - 170},150" ` +
-    `fill="#fff6da" opacity=".42"/>` +
-    `<polygon points="0,0 140,62 140,332 0,460" fill="#c9ad81"/>` +
-    `<polygon points="1100,0 960,62 960,332 1100,460" fill="#c9ad81"/>` +
-    `<rect x="140" y="62" width="820" height="270" fill="url(#dv-hallwall)"/>` +
-    `<rect x="140" y="276" width="820" height="56" fill="#b98a56"/>` +
-    `<rect x="140" y="272" width="820" height="9" rx="4" fill="#d0a574"/>` +
-    `<polygon points="0,460 140,332 960,332 1100,460" fill="url(#dv-hallfloor)"/>` +
-    `<g stroke="#b09668" stroke-width="2.5" opacity=".7">` +
-    `<line x1="140" y1="332" x2="0" y2="460"/><line x1="304" y1="332" x2="230" y2="460"/>` +
-    `<line x1="468" y1="332" x2="460" y2="460"/><line x1="632" y1="332" x2="690" y2="460"/>` +
-    `<line x1="796" y1="332" x2="920" y2="460"/><line x1="960" y1="332" x2="1100" y2="460"/>` +
-    `<line x1="112" y1="372" x2="988" y2="372"/><line x1="66" y1="418" x2="1034" y2="418"/></g>` +
+    `aria-label="복도의 문 세 개. ${targetUnit}호를 찾고 있어요.">` +
+    HALL_DEFS +
+    HALL_BASE +
     doors +
-    // 택배 기사는 고른 문 앞에 선다.
-    `<ellipse cx="${stand}" cy="424" rx="86" ry="17" fill="#8a7047" opacity=".35"/>` +
-    `<image href="${COURIER_IMAGE}" x="${stand - 78}" y="230" width="156" height="194" ` +
-    `preserveAspectRatio="xMidYMax meet"/>` +
-    parcelBox(stand + 62, 344, 108, 72) +
+    (matched ? unitMatched(slot) : "") +
+    // 초인종
+    `<g filter="url(#dv-tiny)">` +
+      `<rect x="${bellX}" y="${DOOR_TOP + 140}" width="30" height="44" rx="8" fill="${P.plate}" ` +
+      `stroke="${P.plateEdge}" stroke-width="3"/>` +
+      `<circle cx="${bellX + 15}" cy="${DOOR_TOP + 162}" r="8" fill="${P.goldEdge}"/>` +
+      `<circle cx="${bellX + 15}" cy="${DOOR_TOP + 162}" r="12" fill="none" stroke="${P.goldEdge}" ` +
+      `stroke-width="2.5" opacity="0.6"/></g>` +
+    chirp(bellX + 4, DOOR_TOP + 128) +
+    `<text x="${bellX + 15}" y="${DOOR_TOP + 112}" text-anchor="middle" font-size="20" ` +
+      `font-weight="800" fill="${P.goldWarm}">딩동!</text>` +
+    courier(standX, DOOR_TOP + 262, 0.94, pose) +
+    // 말풍선은 초인종보다 위에 띄운다 — 아래로 내리면 누르는 손과 벨을 가린다.
+    speech(
+      standX - 125, DOOR_TOP + 20, 250, 52,
+      textX => `<text x="${textX}" y="${DOOR_TOP + 55}" text-anchor="middle" font-size="24" ` +
+        `font-weight="800" fill="${P.inkText}">택배 왔어요~!</text>`,
+      { tail: "center" }
+    ) +
+    // 카트 + 남은 상자
+    cart(150, 560, 190) +
+    parcelBox(258, 500, 76, 56, null, P.cartonB) +
+    parcelBox(160, 486, 92, 70, `${targetUnit}호`, P.cartonA) +
     `</svg>`;
 }
 
-/* ── STEP 4 · 전달 순간 ───────────────────────────────────────────── */
+/* ── STEP 4 · 선물 선택 ───────────────────────────────────────────── */
 
-const CRATE_SLOTS = [304, 466, 628];
-const CRATE_WIDTH = 146;
+const TRAY_SLOTS = [436, 580, 724];
+const TRAY_SIZE = 120;
+const TRAY_TOP = 452;
 
-function crate(centerX, base, item, picked) {
-  const half = CRATE_WIDTH / 2;
-  const lift = picked ? 8 : 0;
-  const y = base - lift;
-  return (picked
-    ? `<rect x="${centerX - half - 9}" y="${y - 150}" width="${CRATE_WIDTH + 18}" height="148" rx="17" ` +
-      `fill="none" stroke="#ffc93d" stroke-width="7" filter="url(#dv-pickglow)"/>`
-    : "") +
-    `<g transform="translate(${centerX} ${y})">` +
-    `<rect x="${-half}" y="-142" width="${CRATE_WIDTH}" height="134" rx="12" fill="url(#dv-crate)" ` +
-    `stroke="#c49b62" stroke-width="4"/>` +
-    `<rect x="-61" y="-132" width="122" height="76" rx="10" fill="#fffaee" stroke="#dcbd8c" stroke-width="3"/>` +
-    `<text x="0" y="-74" text-anchor="middle" font-size="46">${item.emoji}</text>` +
-    `<rect x="-63" y="-48" width="126" height="32" rx="10" fill="#fff6e2" stroke="#dcbd8c" stroke-width="3"/>` +
-    `<text x="0" y="-24" text-anchor="middle" font-size="19" font-weight="800" fill="#7a5f34">${item.label}</text>` +
+function traySlot(x, item, position, picked) {
+  const cx = x + TRAY_SIZE / 2;
+  const badgeY = TRAY_TOP;
+  const scale = picked ? 1.06 : 1;
+
+  return (picked ? `<circle cx="${cx}" cy="${TRAY_TOP + 62}" r="94" fill="url(#dv-btnglow)"/>` : "") +
+    `<g transform="translate(${cx} ${TRAY_TOP + 60}) scale(${scale}) translate(${-cx} ${-(TRAY_TOP + 60)})">` +
+      `<g${picked ? ` filter="url(#dv-pickglow)"` : ` filter="url(#dv-tiny)"`}>` +
+        `<rect x="${x}" y="${TRAY_TOP}" width="${TRAY_SIZE}" height="${TRAY_SIZE}" rx="14" ` +
+        `fill="#FFFFFF" stroke="${picked ? P.gold : P.plateEdge}" stroke-width="${picked ? 4 : 3}"/></g>` +
+      `<text x="${cx}" y="${TRAY_TOP + 78}" text-anchor="middle" font-size="58">${item.emoji}</text>` +
+      `<text x="${cx}" y="${TRAY_TOP + 106}" text-anchor="middle" font-size="15" font-weight="800" ` +
+        `fill="${P.ink}">${item.label}</text>` +
+      `<circle cx="${cx}" cy="${badgeY}" r="18" fill="${picked ? P.goldSoft : "#F4F1E8"}" ` +
+        `stroke="${picked ? P.goldEdge : "#BEB6A4"}" stroke-width="2.5"/>` +
+      `<text x="${cx}" y="${badgeY + 9}" text-anchor="middle" font-size="24" font-weight="800" ` +
+        `fill="${picked ? P.goldInk : P.inkText}">${position + 1}</text>` +
     `</g>`;
 }
 
-function receivingFriend(cx, baseY, friend) {
-  // 넘버블록이라 몸이 정사각 블록을 쌓은 모양이다. 몇 칸을 쌓을지는 데이터가 정한다.
-  const blocks = Math.max(1, Math.min(3, friend.blocks ?? 2));
-  const unitHeight = 172 / blocks;
-  const stack = Array.from({ length: blocks }, (unused, index) =>
-    `<rect x="-46" y="${-26 - unitHeight * (index + 1)}" width="92" height="${unitHeight}" ` +
-    `rx="11" fill="${friend.color}" stroke="${friend.edge}" stroke-width="4"/>`
-  ).join("");
-
-  return `<g transform="translate(${cx} ${baseY})">` +
-    `<ellipse cx="0" cy="6" rx="62" ry="13" fill="#8a7047" opacity=".4"/>` +
-    `<rect x="-24" y="-30" width="14" height="34" rx="7" fill="#3f4a5a"/>` +
-    `<rect x="10" y="-30" width="14" height="34" rx="7" fill="#3f4a5a"/>` +
-    stack +
-    `<path d="M46 -172 q38 -8 48 -46" stroke="#3f4a5a" stroke-width="13" fill="none" stroke-linecap="round"/>` +
-    `<path d="M-46 -160 q-30 10 -32 38" stroke="#3f4a5a" stroke-width="13" fill="none" stroke-linecap="round"/>` +
-    `<ellipse cx="-17" cy="-162" rx="15" ry="17" fill="#fff" stroke="#3f4a5a" stroke-width="4"/>` +
-    `<ellipse cx="17" cy="-162" rx="15" ry="17" fill="#fff" stroke="#3f4a5a" stroke-width="4"/>` +
-    `<circle cx="-14" cy="-160" r="6.5" fill="#1f2733"/><circle cx="20" cy="-160" r="6.5" fill="#1f2733"/>` +
-    `<circle cx="-11.8" cy="-163" r="2.2" fill="#fff"/><circle cx="22.2" cy="-163" r="2.2" fill="#fff"/>` +
-    `<path d="M-16 -132 q16 19 32 0 z" fill="#2b1416" stroke="#3f4a5a" stroke-width="4" stroke-linejoin="round"/>` +
-    `</g>`;
-}
-
-function speechBubble(text) {
-  const [first, second] = text;
+// 수취인의 생각 말풍선 — 구름 네 덩이 위에 기다리는 물건이 뜬다.
+function thoughtBubble(cx, cy, emoji, tint) {
   return `<g>` +
-    `<rect x="576" y="14" width="440" height="112" rx="26" fill="#fffdf4" stroke="#e2d4b4" stroke-width="5"/>` +
-    `<path d="M812 122 L858 122 L830 164 Z" fill="#fffdf4" stroke="#e2d4b4" stroke-width="5" stroke-linejoin="round"/>` +
-    `<rect x="808" y="114" width="56" height="14" fill="#fffdf4"/>` +
-    `<text x="796" y="60" text-anchor="middle" font-size="27" font-weight="800" fill="#4a4034">${first}</text>` +
-    `<text x="796" y="99" text-anchor="middle" font-size="27" font-weight="800" fill="#4a4034">${second}</text>` +
-    `</g>`;
+    `<circle cx="${cx - 96}" cy="${cy + 94}" r="10" fill="#FFFFFF" stroke="${tint}" stroke-width="2.5"/>` +
+    `<circle cx="${cx - 118}" cy="${cy + 120}" r="6" fill="#FFFFFF" stroke="${tint}" stroke-width="2.5"/>` +
+    `<g filter="url(#dv-tiny)">` +
+      `<g stroke="${tint}" stroke-width="3" fill="#FFFFFF">` +
+        `<ellipse cx="${cx}" cy="${cy}" rx="88" ry="62"/>` +
+        `<circle cx="${cx - 58}" cy="${cy - 40}" r="30"/>` +
+        `<circle cx="${cx + 6}" cy="${cy - 56}" r="34"/>` +
+        `<circle cx="${cx + 66}" cy="${cy - 32}" r="28"/></g>` +
+      `<g fill="#FFFFFF">` +
+        `<ellipse cx="${cx}" cy="${cy}" rx="85" ry="59"/>` +
+        `<circle cx="${cx - 58}" cy="${cy - 40}" r="27"/>` +
+        `<circle cx="${cx + 6}" cy="${cy - 56}" r="31"/>` +
+        `<circle cx="${cx + 66}" cy="${cy - 32}" r="25"/></g></g>` +
+    `<circle cx="${cx}" cy="${cy - 6}" r="46" fill="${P.halo}"/>` +
+    `<text x="${cx}" y="${cy + 16}" text-anchor="middle" font-size="56">${emoji}</text></g>`;
 }
 
-export function handoverSvg({ tray, focus = 0, wanted, unit, friend }) {
-  const crates = tray
-    .map((item, index) => crate(CRATE_SLOTS[index] ?? CRATE_SLOTS[0], 374, item, index === focus))
-    .join("");
+export function handoverSvg({ tray = [], focus = 0, wanted = null, unit = 0, friend = null }) {
+  const index = Math.max(0, Math.min(tray.length - 1, focus));
+  const tint = friend?.color ?? P.mutter;
+  const item = wanted ?? tray[0] ?? { label: "선물", emoji: "🎁" };
 
-  const rollers = [];
-  for (let x = 186; x <= 748; x += 52) rollers.push(`<circle cx="${x}" cy="398" r="11"/>`);
+  const doorX = 530;
+  const doorY = 120;
+  const doorWidth = 220;
+  const doorHeight = 344;
+
+  const floor = Math.floor(unit / 100);
+  const neighbours = [1, 2, 3].map(room => floor * 100 + room).filter(other => other !== unit);
+
+  const slots = tray
+    .map((entry, position) => traySlot(TRAY_SLOTS[position] ?? TRAY_SLOTS[0], entry, position, position === index))
+    .join("");
 
   return `<svg class="dv-handover" viewBox="${HALL_VIEW_BOX}" preserveAspectRatio="xMidYMid meet" ` +
     `xmlns="http://www.w3.org/2000/svg" role="img" ` +
-    `aria-label="${unit}호 친구가 ${wanted.label}를 기다려요. ` +
-    `지금 고른 것은 ${(tray[focus] ?? tray[0]).label}예요.">` +
-    `<defs>` +
-    `<linearGradient id="dv-hwall" x1="0" y1="0" x2="0" y2="1">` +
-    `<stop offset="0" stop-color="#f0dcb6"/><stop offset="1" stop-color="#ddc59a"/></linearGradient>` +
-    `<linearGradient id="dv-hfloor" x1="0" y1="0" x2="0" y2="1">` +
-    `<stop offset="0" stop-color="#d7c098"/><stop offset="1" stop-color="#bda379"/></linearGradient>` +
-    `<linearGradient id="dv-room" x1="0" y1="0" x2="0" y2="1">` +
-    `<stop offset="0" stop-color="#f8e2b2"/><stop offset="1" stop-color="#c99a63"/></linearGradient>` +
-    `<linearGradient id="dv-opendoor" x1="0" y1="0" x2="1" y2="0">` +
-    `<stop offset="0" stop-color="#a06a34"/><stop offset="1" stop-color="#78471f"/></linearGradient>` +
-    `<linearGradient id="dv-crate" x1="0" y1="0" x2="0" y2="1">` +
-    `<stop offset="0" stop-color="#f2dfb8"/><stop offset="1" stop-color="#d8ba86"/></linearGradient>` +
-    `<linearGradient id="dv-belt" x1="0" y1="0" x2="0" y2="1">` +
-    `<stop offset="0" stop-color="#8d98a4"/><stop offset="1" stop-color="#5b6672"/></linearGradient>` +
-    `<filter id="dv-pickglow" x="-45%" y="-45%" width="190%" height="190%">` +
-    `<feDropShadow dx="0" dy="0" stdDeviation="12" flood-color="#ffcc3d" flood-opacity="1"/></filter>` +
-    `</defs>` +
-    `<rect width="1100" height="460" fill="url(#dv-hwall)"/>` +
-    `<rect x="0" y="0" width="1100" height="14" fill="#e2cba2"/>` +
-    `<line x1="0" y1="104" x2="1100" y2="104" stroke="#dcc59c" stroke-width="3" opacity=".8"/>` +
-    `<rect x="0" y="338" width="1100" height="122" fill="url(#dv-hfloor)"/>` +
-    `<g stroke="#ab9268" stroke-width="2.5" opacity=".55">` +
-    `<line x1="0" y1="386" x2="1100" y2="386"/><line x1="0" y1="428" x2="1100" y2="428"/></g>` +
-    `<rect x="100" y="52" width="252" height="286" rx="8" fill="#68401f"/>` +
-    `<rect x="112" y="62" width="228" height="276" fill="url(#dv-room)"/>` +
-    `<polygon points="112,62 340,62 296,128 158,128" fill="#fff2cf" opacity=".55"/>` +
-    `<polygon points="112,338 340,338 402,460 50,460" fill="#ffeec4" opacity=".36"/>` +
-    `<polygon points="100,52 12,84 12,372 100,338" fill="url(#dv-opendoor)" stroke="#5f3d1c" ` +
-    `stroke-width="4" stroke-linejoin="round"/>` +
-    `<polygon points="28,118 86,98 86,200 28,214" fill="none" stroke="#5f3d1c" stroke-width="4"/>` +
-    `<polygon points="28,240 86,228 86,322 28,332" fill="none" stroke="#5f3d1c" stroke-width="4"/>` +
-    `<circle cx="92" cy="226" r="8" fill="#e8bb4f" stroke="#b8892a" stroke-width="3"/>` +
-    `<rect x="248" y="12" width="106" height="34" rx="9" fill="#fffaea" stroke="#e0b45c" stroke-width="3.5"/>` +
-    `<text x="301" y="38" text-anchor="middle" font-size="23" font-weight="800" fill="#c8791b">${unit}</text>` +
-    receivingFriend(890, 338, friend) +
-    speechBubble([`나는 ${wanted.label}를`, "기다리고 있었어!"]) +
-    `<rect x="158" y="374" width="616" height="48" rx="17" fill="url(#dv-belt)" stroke="#4c5661" stroke-width="4"/>` +
-    `<g fill="#aeb8c3">${rollers.join("")}</g>` +
-    `<rect x="186" y="422" width="17" height="28" rx="7" fill="#4c5661"/>` +
-    `<rect x="728" y="422" width="17" height="28" rx="7" fill="#4c5661"/>` +
-    crates +
+    `aria-label="${unit}호 문이 열렸어요. 친구가 기다리는 선물을 고르세요.">` +
+    HALL_DEFS +
+    HALL_BASE +
+    // 이웃 문 둘 — 같은 층의 나머지 두 호수다.
+    closedDoor(DOOR_SLOTS[0], neighbours[0], false) +
+    closedDoor(DOOR_SLOTS[2], neighbours[1], false) +
+    // 열린 문
+    `<ellipse cx="640" cy="330" rx="330" ry="280" fill="url(#dv-doorglow)"/>` +
+    `<rect x="${doorX}" y="${doorY}" width="${doorWidth}" height="${doorHeight}" rx="8" ` +
+      `fill="#E8D9B6" stroke="#D2BE92" stroke-width="5"/>` +
+    `<rect x="${doorX + 14}" y="${doorY + 14}" width="${doorWidth - 28}" height="${doorHeight - 18}" ` +
+      `rx="6" fill="url(#dv-doorlight)"/>` +
+    `<g filter="url(#dv-tiny)">` +
+      `<path d="M${doorX + 206} ${doorY + 14} L${doorX + 290} ${doorY + 44} L${doorX + 290} ${doorY + 374} ` +
+      `L${doorX + 206} ${doorY + 340} Z" fill="${P.coralDoor}" stroke="${P.coralDoorEdge}" ` +
+      `stroke-width="5" stroke-linejoin="round"/>` +
+      `<circle cx="${doorX + 226}" cy="${doorY + 192}" r="8" fill="#B35F44"/></g>` +
+    `<g filter="url(#dv-tiny)"><rect x="576" y="62" width="128" height="48" rx="12" fill="#FFF9E6" ` +
+      `stroke="${P.gold}" stroke-width="4"/></g>` +
+    `<text x="640" y="98" text-anchor="middle" font-size="30" font-weight="800" ` +
+      `fill="${P.goldDeep}">${unit}</text>` +
+    // 수취인 — 저장소의 실제 넘버블럭스 에셋.
+    // 에셋은 정사각 캔버스에 여백을 두고 그려져 있어, 상자를 정사각으로 잡아야
+    // 폭에 눌리지 않고 문간을 제대로 채운다.
+    `<image class="dv-friend" href="${friendImageFor(unit)}" x="548" y="278" width="184" height="192" ` +
+      `preserveAspectRatio="xMidYMax meet"/>` +
+    // 생각 말풍선 + 시선 유도
+    thoughtBubble(870, 118, item.emoji, tint) +
+    `<path d="M900 214 Q930 380 700 452" fill="none" stroke="${tint}" stroke-width="3.5" ` +
+      `stroke-dasharray="1 12" stroke-linecap="round"/>` +
+    speech(
+      146, 232, 320, 54,
+      cx => `<text x="${cx}" y="${267}" text-anchor="middle" font-size="21" font-weight="800" ` +
+        `fill="${P.inkText}">나는 ${item.label}를 기다리고 있었어!</text>`,
+      { edge: tint, tail: "right" }
+    ) +
+    // 카트 트레이 3택
+    cart(428, 572, 424) +
+    slots +
+    courier(300, 400, 0.9, "idle") +
     `</svg>`;
 }

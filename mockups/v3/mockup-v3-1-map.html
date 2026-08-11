@@ -1,0 +1,312 @@
+<!-- 목업 v3-1: 씬 ① 길찾기 — 탑다운 바둑판 그리드, 포장이 탑다운 스프라이트, 안내 화살표, 미니맵, HUD -->
+<meta charset="utf-8">
+<style>
+  html,body{margin:0;padding:0;background:#fff}
+  body{width:1280px;height:720px;overflow:hidden}
+  svg{display:block;font-family:'Noto Sans CJK KR','Noto Sans KR','WenQuanYi Zen Hei',sans-serif}
+  text{user-select:none}
+</style>
+<svg width="1280" height="720" viewBox="0 0 1280 720" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <filter id="soft" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="5" stdDeviation="7" flood-color="#26424E" flood-opacity="0.16"/>
+    </filter>
+    <filter id="tiny" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="2" stdDeviation="2.5" flood-color="#26424E" flood-opacity="0.18"/>
+    </filter>
+    <radialGradient id="doorGlow" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0.5" stop-color="#FFDF8E" stop-opacity="0.5"/>
+      <stop offset="1" stop-color="#FFDF8E" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <!-- ===== 월드 (카메라: 트럭 중심 600,420 → 화면 640,360 / 뷰 원점 월드 -40,60) ===== -->
+  <g transform="translate(40 -60)">
+    <!-- 잔디(에이프런 포함 렌더 필드) -->
+    <rect x="-240" y="-240" width="1680" height="1680" fill="#A9D977"/>
+    <!-- 에이프런 장식 나무 -->
+    <g>
+      <circle cx="-80" cy="150" r="30" fill="#8FCF6B"/><circle cx="-92" cy="138" r="16" fill="#A6DB7E"/>
+      <circle cx="-60" cy="430" r="24" fill="#8FCF6B"/><circle cx="-70" cy="420" r="13" fill="#A6DB7E"/>
+      <circle cx="-96" cy="640" r="32" fill="#8FCF6B"/><circle cx="-108" cy="628" r="17" fill="#A6DB7E"/>
+      <circle cx="-52" cy="760" r="20" fill="#8FCF6B"/>
+    </g>
+
+    <!-- 도로 (가로 4 + 세로 4, 중심선 60/420/780/1140) -->
+    <g fill="#606B78">
+      <rect x="0" y="0" width="1200" height="120"/>
+      <rect x="0" y="360" width="1200" height="120"/>
+      <rect x="0" y="720" width="1200" height="120"/>
+      <rect x="0" y="0" width="120" height="1200"/>
+      <rect x="360" y="0" width="120" height="1200"/>
+      <rect x="720" y="0" width="120" height="1200"/>
+      <rect x="1080" y="0" width="120" height="1200"/>
+    </g>
+    <!-- 차선 파선 -->
+    <g stroke="#F6F1E3" stroke-width="6" stroke-dasharray="30 26" opacity="0.9">
+      <path d="M0 60 h1200"/><path d="M0 420 h1200"/><path d="M0 780 h1200"/>
+      <path d="M60 0 v1200"/><path d="M420 0 v1200"/><path d="M780 0 v1200"/><path d="M1140 0 v1200"/>
+    </g>
+    <!-- 횡단보도 (중앙 교차로 서/동 접근 + 북 접근) -->
+    <g fill="#F6F1E3" opacity="0.92">
+      <rect x="488" y="366" width="48" height="10" rx="2"/><rect x="488" y="386" width="48" height="10" rx="2"/>
+      <rect x="488" y="406" width="48" height="10" rx="2"/><rect x="488" y="426" width="48" height="10" rx="2"/>
+      <rect x="488" y="446" width="48" height="10" rx="2"/><rect x="488" y="466" width="48" height="10" rx="2"/>
+      <rect x="368" y="304" width="10" height="48" rx="2"/><rect x="388" y="304" width="10" height="48" rx="2"/>
+      <rect x="408" y="304" width="10" height="48" rx="2"/><rect x="428" y="304" width="10" height="48" rx="2"/>
+      <rect x="448" y="304" width="10" height="48" rx="2"/><rect x="468" y="304" width="10" height="48" rx="2"/>
+    </g>
+
+    <!-- ===== 블록 6개 (1줄: 101 102 103 / 2줄: 201 202 203) ===== -->
+    <!-- 공통: 인도 240 + 마당 208 + 지붕 208x150 + 캐노피 -->
+
+    <!-- 101동 (목표) : 후광 먼저 -->
+    <g>
+      <rect x="120" y="120" width="240" height="240" fill="#E3DCCA" stroke="#D2C9B2" stroke-width="2"/>
+      <rect x="136" y="136" width="208" height="208" fill="#A9D977" stroke="#D2C9B2" stroke-width="2"/>
+      <ellipse cx="240" cy="230" rx="185" ry="150" fill="url(#doorGlow)"/>
+      <g filter="url(#soft)">
+        <rect x="136" y="136" width="208" height="150" rx="10" fill="#F6EDD9" stroke="#E3D4B4" stroke-width="3.5"/>
+      </g>
+      <path d="M136 146 q0 -10 10 -10 h188 q10 0 10 10 v20 h-208 z" fill="#EE8A6B"/>
+      <text x="240" y="252" text-anchor="middle" font-size="58" font-weight="800" fill="#8AA0B0">101</text>
+      <g fill="#FFD34D">
+        <path d="M150 178 l4 9 9 4 -9 4 -4 9 -4 -9 -9 -4 9 -4 z"/>
+        <path d="M330 168 l3 7 7 3 -7 3 -3 7 -3 -7 -7 -3 7 -3 z"/>
+      </g>
+      <!-- 정문 캐노피 + 배너 + 진입로 -->
+      <rect x="204" y="284" width="72" height="20" rx="6" fill="#EE8A6B" stroke="#E3D4B4" stroke-width="2"/>
+      <rect x="216" y="284" width="12" height="20" fill="#FFFDF6" opacity="0.5"/>
+      <rect x="252" y="284" width="12" height="20" fill="#FFFDF6" opacity="0.5"/>
+      <rect x="224" y="304" width="32" height="40" fill="#E3DCCA"/>
+      <g filter="url(#tiny)"><rect x="190" y="292" width="100" height="32" rx="8" fill="#FFFDF6" stroke="#D9CDB2" stroke-width="2.5"/></g>
+      <text x="240" y="316" text-anchor="middle" font-size="23" font-weight="800" fill="#8AA0B0">101동</text>
+      <circle cx="316" cy="318" r="16" fill="#8FCF6B"/><circle cx="310" cy="312" r="9" fill="#A6DB7E"/>
+    </g>
+
+    <!-- 102동 -->
+    <g>
+      <rect x="480" y="120" width="240" height="240" fill="#E3DCCA" stroke="#D2C9B2" stroke-width="2"/>
+      <rect x="496" y="136" width="208" height="208" fill="#A9D977" stroke="#D2C9B2" stroke-width="2"/>
+      <g filter="url(#soft)">
+        <rect x="496" y="136" width="208" height="150" rx="10" fill="#F6EDD9" stroke="#E3D4B4" stroke-width="3.5"/>
+      </g>
+      <path d="M496 146 q0 -10 10 -10 h188 q10 0 10 10 v20 h-208 z" fill="#EE8A6B"/>
+      <text x="600" y="252" text-anchor="middle" font-size="58" font-weight="800" fill="#8AA0B0">102</text>
+      <rect x="564" y="284" width="72" height="20" rx="6" fill="#EE8A6B" stroke="#E3D4B4" stroke-width="2"/>
+      <rect x="576" y="284" width="12" height="20" fill="#FFFDF6" opacity="0.5"/>
+      <rect x="612" y="284" width="12" height="20" fill="#FFFDF6" opacity="0.5"/>
+      <rect x="584" y="304" width="32" height="40" fill="#E3DCCA"/>
+      <g filter="url(#tiny)"><rect x="550" y="292" width="100" height="32" rx="8" fill="#FFFDF6" stroke="#D9CDB2" stroke-width="2.5"/></g>
+      <text x="600" y="316" text-anchor="middle" font-size="23" font-weight="800" fill="#8AA0B0">102동</text>
+      <circle cx="524" cy="318" r="16" fill="#8FCF6B"/><circle cx="518" cy="312" r="9" fill="#A6DB7E"/>
+    </g>
+
+    <!-- 103동 + 연못 셀 -->
+    <g>
+      <rect x="840" y="120" width="240" height="240" fill="#E3DCCA" stroke="#D2C9B2" stroke-width="2"/>
+      <rect x="856" y="136" width="208" height="208" fill="#A9D977" stroke="#D2C9B2" stroke-width="2"/>
+      <g filter="url(#soft)">
+        <rect x="856" y="136" width="208" height="150" rx="10" fill="#F6EDD9" stroke="#E3D4B4" stroke-width="3.5"/>
+      </g>
+      <path d="M856 146 q0 -10 10 -10 h188 q10 0 10 10 v20 h-208 z" fill="#EE8A6B"/>
+      <text x="960" y="252" text-anchor="middle" font-size="58" font-weight="800" fill="#8AA0B0">103</text>
+      <rect x="924" y="284" width="72" height="20" rx="6" fill="#EE8A6B" stroke="#E3D4B4" stroke-width="2"/>
+      <rect x="936" y="284" width="12" height="20" fill="#FFFDF6" opacity="0.5"/>
+      <rect x="972" y="284" width="12" height="20" fill="#FFFDF6" opacity="0.5"/>
+      <rect x="944" y="304" width="32" height="40" fill="#E3DCCA"/>
+      <g filter="url(#tiny)"><rect x="910" y="292" width="100" height="32" rx="8" fill="#FFFDF6" stroke="#D9CDB2" stroke-width="2.5"/></g>
+      <text x="960" y="316" text-anchor="middle" font-size="23" font-weight="800" fill="#8AA0B0">103동</text>
+      <!-- 연못 (개구리 이벤트 배치처) -->
+      <ellipse cx="1022" cy="322" rx="30" ry="17" fill="#BFDCEA" stroke="#A9C6D6" stroke-width="2.5"/>
+      <ellipse cx="1012" cy="318" rx="8" ry="4" fill="#FFFFFF" opacity="0.45"/>
+    </g>
+
+    <!-- 201동 + 미니 놀이터 -->
+    <g>
+      <rect x="120" y="480" width="240" height="240" fill="#E3DCCA" stroke="#D2C9B2" stroke-width="2"/>
+      <rect x="136" y="496" width="208" height="208" fill="#A9D977" stroke="#D2C9B2" stroke-width="2"/>
+      <g filter="url(#soft)">
+        <rect x="136" y="496" width="208" height="150" rx="10" fill="#EFF4DF" stroke="#D8DFBC" stroke-width="3.5"/>
+      </g>
+      <path d="M136 506 q0 -10 10 -10 h188 q10 0 10 10 v20 h-208 z" fill="#7FB6A4"/>
+      <text x="240" y="612" text-anchor="middle" font-size="58" font-weight="800" fill="#7E967F">201</text>
+      <rect x="204" y="644" width="72" height="20" rx="6" fill="#7FB6A4" stroke="#D8DFBC" stroke-width="2"/>
+      <rect x="216" y="644" width="12" height="20" fill="#FFFDF6" opacity="0.5"/>
+      <rect x="252" y="644" width="12" height="20" fill="#FFFDF6" opacity="0.5"/>
+      <rect x="224" y="664" width="32" height="40" fill="#E3DCCA"/>
+      <g filter="url(#tiny)"><rect x="190" y="652" width="100" height="32" rx="8" fill="#FFFDF6" stroke="#D9CDB2" stroke-width="2.5"/></g>
+      <text x="240" y="676" text-anchor="middle" font-size="23" font-weight="800" fill="#7E967F">201동</text>
+      <!-- 미니 놀이터: 모래밭 + 미끄럼틀 -->
+      <ellipse cx="312" cy="678" rx="26" ry="14" fill="#E3DCCA" stroke="#D2C9B2" stroke-width="2"/>
+      <rect x="296" y="666" width="34" height="10" rx="5" fill="#F5C531" stroke="#E8A61E" stroke-width="2" transform="rotate(24 313 671)"/>
+    </g>
+
+    <!-- 202동 -->
+    <g>
+      <rect x="480" y="480" width="240" height="240" fill="#E3DCCA" stroke="#D2C9B2" stroke-width="2"/>
+      <rect x="496" y="496" width="208" height="208" fill="#A9D977" stroke="#D2C9B2" stroke-width="2"/>
+      <g filter="url(#soft)">
+        <rect x="496" y="496" width="208" height="150" rx="10" fill="#EFF4DF" stroke="#D8DFBC" stroke-width="3.5"/>
+      </g>
+      <path d="M496 506 q0 -10 10 -10 h188 q10 0 10 10 v20 h-208 z" fill="#7FB6A4"/>
+      <text x="600" y="612" text-anchor="middle" font-size="58" font-weight="800" fill="#7E967F">202</text>
+      <rect x="564" y="644" width="72" height="20" rx="6" fill="#7FB6A4" stroke="#D8DFBC" stroke-width="2"/>
+      <rect x="576" y="644" width="12" height="20" fill="#FFFDF6" opacity="0.5"/>
+      <rect x="612" y="644" width="12" height="20" fill="#FFFDF6" opacity="0.5"/>
+      <rect x="584" y="664" width="32" height="40" fill="#E3DCCA"/>
+      <g filter="url(#tiny)"><rect x="550" y="652" width="100" height="32" rx="8" fill="#FFFDF6" stroke="#D9CDB2" stroke-width="2.5"/></g>
+      <text x="600" y="676" text-anchor="middle" font-size="23" font-weight="800" fill="#7E967F">202동</text>
+      <circle cx="672" cy="678" r="16" fill="#8FCF6B"/><circle cx="666" cy="672" r="9" fill="#A6DB7E"/>
+    </g>
+
+    <!-- 203동 -->
+    <g>
+      <rect x="840" y="480" width="240" height="240" fill="#E3DCCA" stroke="#D2C9B2" stroke-width="2"/>
+      <rect x="856" y="496" width="208" height="208" fill="#A9D977" stroke="#D2C9B2" stroke-width="2"/>
+      <g filter="url(#soft)">
+        <rect x="856" y="496" width="208" height="150" rx="10" fill="#EFF4DF" stroke="#D8DFBC" stroke-width="3.5"/>
+      </g>
+      <path d="M856 506 q0 -10 10 -10 h188 q10 0 10 10 v20 h-208 z" fill="#7FB6A4"/>
+      <text x="960" y="612" text-anchor="middle" font-size="58" font-weight="800" fill="#7E967F">203</text>
+      <rect x="924" y="644" width="72" height="20" rx="6" fill="#7FB6A4" stroke="#D8DFBC" stroke-width="2"/>
+      <rect x="936" y="644" width="12" height="20" fill="#FFFDF6" opacity="0.5"/>
+      <rect x="972" y="644" width="12" height="20" fill="#FFFDF6" opacity="0.5"/>
+      <rect x="944" y="664" width="32" height="40" fill="#E3DCCA"/>
+      <g filter="url(#tiny)"><rect x="910" y="652" width="100" height="32" rx="8" fill="#FFFDF6" stroke="#D9CDB2" stroke-width="2.5"/></g>
+      <text x="960" y="676" text-anchor="middle" font-size="23" font-weight="800" fill="#7E967F">203동</text>
+      <circle cx="888" cy="678" r="16" fill="#8FCF6B"/><circle cx="882" cy="672" r="9" fill="#A6DB7E"/>
+    </g>
+
+    <!-- 하역 존 (101동 정문 앞 도로, 길이 260) -->
+    <g>
+      <rect x="110" y="364" width="260" height="112" rx="14" fill="#F5C531" opacity="0.22"/>
+      <rect x="110" y="364" width="260" height="112" rx="14" fill="none" stroke="#F5C531" stroke-width="6" stroke-dasharray="22 14"/>
+      <text x="196" y="436" text-anchor="middle" font-size="44" font-weight="800" fill="#F6F1E3" opacity="0.95">P</text>
+      <g filter="url(#tiny)">
+        <rect x="262" y="398" width="44" height="44" rx="10" fill="#3D7BD9"/>
+      </g>
+      <text x="284" y="429" text-anchor="middle" font-size="26" font-weight="800" fill="#FFFFFF">P</text>
+      <g fill="#FFD34D">
+        <path d="M128 388 l4 9 9 4 -9 4 -4 9 -4 -9 -9 -4 9 -4 z"/>
+        <path d="M348 452 l3 7 7 3 -7 3 -3 7 -3 -7 -7 -3 7 -3 z"/>
+      </g>
+    </g>
+
+    <!-- 경적 응답: 강아지(102동 남쪽 인도) -->
+    <g>
+      <ellipse cx="668" cy="352" rx="14" ry="8" fill="#E8B368" stroke="#C98F3F" stroke-width="2.5"/>
+      <circle cx="684" cy="349" r="7" fill="#E8B368" stroke="#C98F3F" stroke-width="2.5"/>
+      <path d="M680 343 l-3 -6 5 1 z M688 343 l3 -6 -5 1 z" fill="#C98F3F"/>
+      <path d="M654 350 q-7 -3 -6 -10" stroke="#C98F3F" stroke-width="3" fill="none" stroke-linecap="round"/>
+      <circle cx="682" cy="348" r="1.4" fill="#39434C"/><circle cx="687" cy="348" r="1.4" fill="#39434C"/>
+    </g>
+    <!-- 경적 응답: 건널목 미니 친구(중앙 교차로 북측) -->
+    <g>
+      <rect x="482" y="304" width="17" height="17" rx="3.4" fill="#F58B33" stroke="#D0721F" stroke-width="2"/>
+      <rect x="482" y="287" width="17" height="17" rx="3.4" fill="#F8A25C" stroke="#D0721F" stroke-width="2"/>
+      <circle cx="487" cy="293" r="2.4" fill="#FFFFFF"/><circle cx="494" cy="293" r="2.4" fill="#FFFFFF"/>
+      <circle cx="487.5" cy="293.5" r="1.2" fill="#333333"/><circle cx="494.5" cy="293.5" r="1.2" fill="#333333"/>
+      <circle cx="488" cy="292.6" r="0.6" fill="#FFFFFF" opacity="0.9"/><circle cx="495" cy="292.6" r="0.6" fill="#FFFFFF" opacity="0.9"/>
+      <path d="M487.5 298.5 q3.2 2.6 6.5 0" stroke="#B3541E" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+      <path d="M499 296 q7 -5 8 -12" stroke="#D0721F" stroke-width="3.4" fill="none" stroke-linecap="round"/>
+    </g>
+
+    <!-- ===== 트럭 "포장이" 탑다운 (112x64, 서쪽 진행) ===== -->
+    <g transform="translate(600 420) rotate(180)" filter="url(#soft)">
+      <!-- 짐칸 지붕 -->
+      <rect x="-56" y="-28" width="64" height="56" rx="10" fill="#FFC531" stroke="#E8A61E" stroke-width="4"/>
+      <rect x="-56" y="-28" width="64" height="12" rx="6" fill="#FFD766"/>
+      <!-- 지붕 로고 상자 -->
+      <rect x="-40" y="-14" width="28" height="28" rx="6" fill="#FFF6D9" stroke="#E8A61E" stroke-width="2.5"/>
+      <path d="M-40 0 h28 M-26 -14 v14" stroke="#E8A61E" stroke-width="2"/>
+      <circle cx="-31" cy="7" r="2" fill="#6B5433"/><circle cx="-21" cy="7" r="2" fill="#6B5433"/>
+      <path d="M-30 12 q4 3 8 0" stroke="#6B5433" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+      <!-- 캐빈 지붕 -->
+      <rect x="8" y="-24" width="34" height="48" rx="8" fill="#FFC531" stroke="#E8A61E" stroke-width="4"/>
+      <!-- 사이드미러 -->
+      <rect x="10" y="-34" width="12" height="7" rx="3" fill="#5B6472"/>
+      <rect x="10" y="27" width="12" height="7" rx="3" fill="#5B6472"/>
+      <!-- 앞유리 밴드 + 눈 -->
+      <rect x="40" y="-17" width="18" height="34" rx="5" fill="#DDF1FB" stroke="#B9DCEC" stroke-width="3"/>
+      <circle cx="48" cy="-8.5" r="6.5" fill="#FFFFFF"/><circle cx="48" cy="8.5" r="6.5" fill="#FFFFFF"/>
+      <circle cx="49.6" cy="-8.5" r="3.4" fill="#39434C"/><circle cx="49.6" cy="8.5" r="3.4" fill="#39434C"/>
+      <circle cx="48.6" cy="-9.8" r="1.4" fill="#FFFFFF" opacity="0.95"/><circle cx="48.6" cy="7.2" r="1.4" fill="#FFFFFF" opacity="0.95"/>
+      <!-- 보닛 끝 웃는 입 + 치크 -->
+      <path d="M52.5 -6 q4.5 6 0 12" stroke="#B3541E" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+      <circle cx="47" cy="-15" r="2.6" fill="#FF9E8A" opacity="0.75"/><circle cx="47" cy="15" r="2.6" fill="#FF9E8A" opacity="0.75"/>
+    </g>
+
+    <!-- 안내 화살표 (BFS 다음 방향 = 서쪽) -->
+    <g filter="url(#tiny)">
+      <path d="M616 338 v28 l-30 -14 z" fill="#F5C531" stroke="#E8A61E" stroke-width="3" stroke-linejoin="round"/>
+    </g>
+  </g>
+
+  <!-- ===== HUD (화면 고정) ===== -->
+  <!-- 남은 상자 칩 -->
+  <g filter="url(#tiny)"><rect x="24" y="22" width="286" height="62" rx="18" fill="#FFFFFF" opacity="0.97"/></g>
+  <text x="44" y="61" font-size="21" font-weight="700" fill="#3E5A68">남은 상자</text>
+  <g>
+    <g transform="translate(150 39)"><rect width="28" height="28" rx="5" fill="#E8B368" stroke="#C98F3F" stroke-width="2.5"/><path d="M0 11 h28 M14 0 v11" stroke="#C98F3F" stroke-width="2"/></g>
+    <g transform="translate(184 39)"><rect width="28" height="28" rx="5" fill="#DDA75A" stroke="#C98F3F" stroke-width="2.5"/><path d="M0 11 h28 M14 0 v11" stroke="#C98F3F" stroke-width="2"/></g>
+    <g transform="translate(218 39)"><rect width="28" height="28" rx="5" fill="#E8B368" stroke="#C98F3F" stroke-width="2.5"/><path d="M0 11 h28 M14 0 v11" stroke="#C98F3F" stroke-width="2"/></g>
+    <g transform="translate(252 39)"><rect width="28" height="28" rx="5" fill="#DDA75A" stroke="#C98F3F" stroke-width="2.5"/><path d="M0 11 h28 M14 0 v11" stroke="#C98F3F" stroke-width="2"/></g>
+  </g>
+  <!-- 별 카운터 -->
+  <g filter="url(#tiny)"><rect x="24" y="96" width="92" height="42" rx="14" fill="#FFFFFF" opacity="0.97"/></g>
+  <path d="M48 103 l4.2 9 10 1.2 -7.4 6.8 2 9.8 -8.8 -5 -8.8 5 2 -9.8 -7.4 -6.8 10 -1.2 z" fill="#FFC531" stroke="#E8A61E" stroke-width="2" stroke-linejoin="round"/>
+  <text x="86" y="125" text-anchor="middle" font-size="21" font-weight="800" fill="#3E5A68">0</text>
+
+  <!-- 동 번호 카드 -->
+  <g filter="url(#tiny)"><rect x="900" y="22" width="140" height="86" rx="18" fill="#FFF9EC" stroke="#F5C531" stroke-width="4"/></g>
+  <text x="970" y="66" text-anchor="middle" font-size="34" font-weight="800" fill="#5E7A50">101동</text>
+  <text x="970" y="94" text-anchor="middle" font-size="17" font-weight="800" fill="#9AA88E">여기로 가요!</text>
+
+  <!-- 미니맵 (3x3 셀, 목표 셀 맥동 + 트럭 위치) -->
+  <g filter="url(#tiny)"><rect x="1088" y="22" width="168" height="168" rx="14" fill="#FFFFFF" opacity="0.95"/></g>
+  <g stroke="#C4D2DC" stroke-width="3">
+    <path d="M1094 28 h156 M1094 80 h156 M1094 132 h156 M1094 184 h156"/>
+    <path d="M1094 28 v156 M1146 28 v156 M1198 28 v156 M1250 28 v156"/>
+  </g>
+  <g>
+    <!-- 1줄 셀 그림 -->
+    <g transform="translate(1100 34)"><rect width="40" height="40" rx="4" fill="#F6EDD9" stroke="#E3D4B4" stroke-width="2"/><rect width="40" height="9" rx="4" fill="#EE8A6B"/></g>
+    <g transform="translate(1152 34)"><rect width="40" height="40" rx="4" fill="#F6EDD9" stroke="#E3D4B4" stroke-width="2"/><rect width="40" height="9" rx="4" fill="#EE8A6B"/></g>
+    <g transform="translate(1204 34)"><rect width="40" height="40" rx="4" fill="#F6EDD9" stroke="#E3D4B4" stroke-width="2"/><rect width="40" height="9" rx="4" fill="#EE8A6B"/></g>
+    <!-- 2줄 -->
+    <g transform="translate(1100 86)"><rect width="40" height="40" rx="4" fill="#EFF4DF" stroke="#D8DFBC" stroke-width="2"/><rect width="40" height="9" rx="4" fill="#7FB6A4"/></g>
+    <g transform="translate(1152 86)"><rect width="40" height="40" rx="4" fill="#EFF4DF" stroke="#D8DFBC" stroke-width="2"/><rect width="40" height="9" rx="4" fill="#7FB6A4"/></g>
+    <g transform="translate(1204 86)"><rect width="40" height="40" rx="4" fill="#EFF4DF" stroke="#D8DFBC" stroke-width="2"/><rect width="40" height="9" rx="4" fill="#7FB6A4"/></g>
+    <!-- 3줄 -->
+    <g transform="translate(1100 138)"><rect width="40" height="40" rx="4" fill="#EDEBF7" stroke="#D3CFE8" stroke-width="2"/><rect width="40" height="9" rx="4" fill="#8F9FD9"/></g>
+    <g transform="translate(1152 138)"><rect width="40" height="40" rx="4" fill="#EDEBF7" stroke="#D3CFE8" stroke-width="2"/><rect width="40" height="9" rx="4" fill="#8F9FD9"/></g>
+    <g transform="translate(1204 138)"><rect width="40" height="40" rx="4" fill="#EDEBF7" stroke="#D3CFE8" stroke-width="2"/><rect width="40" height="9" rx="4" fill="#8F9FD9"/></g>
+  </g>
+  <!-- 목표 셀(101동) 맥동 + 트럭 점 -->
+  <circle cx="1120" cy="56" r="10" fill="#E86A50" opacity="0.85"/>
+  <circle cx="1120" cy="56" r="15" fill="none" stroke="#E86A50" stroke-width="2.5" opacity="0.45"/>
+  <circle cx="1172" cy="84" r="7" fill="#FFC531" stroke="#E8A61E" stroke-width="2"/>
+
+  <!-- 키 힌트 밴드: 방향키=운전, Space=경적 -->
+  <g filter="url(#tiny)"><rect x="978" y="662" width="282" height="48" rx="12" fill="#FFFFFF" opacity="0.96"/></g>
+  <g>
+    <rect x="990" y="670" width="32" height="32" rx="8" fill="#FFF3C9" stroke="#F5A623" stroke-width="2.5"/>
+    <path d="M1013 686 h-14 m5 -5 l-5 5 5 5" stroke="#B3541E" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+    <rect x="1026" y="670" width="32" height="32" rx="8" fill="#F4F1E8" stroke="#BEB6A4" stroke-width="2"/>
+    <path d="M1042 693 v-14 m-5 5 l5 -5 5 5" stroke="#5B6472" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+    <rect x="1062" y="670" width="32" height="32" rx="8" fill="#F4F1E8" stroke="#BEB6A4" stroke-width="2"/>
+    <path d="M1078 679 v14 m-5 -5 l5 5 5 -5" stroke="#5B6472" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+    <rect x="1098" y="670" width="32" height="32" rx="8" fill="#F4F1E8" stroke="#BEB6A4" stroke-width="2"/>
+    <path d="M1107 686 h14 m-5 -5 l5 5 -5 5" stroke="#5B6472" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M1140 674 v24" stroke="#E4DCCA" stroke-width="2"/>
+    <rect x="1152" y="670" width="64" height="32" rx="8" fill="#F4F1E8" stroke="#BEB6A4" stroke-width="2"/>
+    <rect x="1166" y="684" width="36" height="5" rx="2.5" fill="#5B6472"/>
+    <circle cx="1232" cy="686" r="8" fill="#F5A623"/>
+    <path d="M1244 682 q4 -4 2 -9 M1248 690 q7 -7 4 -15" stroke="#F5A623" stroke-width="2.6" fill="none" stroke-linecap="round"/>
+  </g>
+
+  <!-- 목업 캡션 -->
+  <g><rect x="16" y="688" width="620" height="26" rx="8" fill="#FFFFFF" opacity="0.78"/></g>
+  <text x="28" y="706" font-size="14" fill="#7B8A96">목업 v3 · 씬 ① 길찾기(탑다운 바둑판, 목표 101동, 하역 존 접근) · 캐릭터는 실제 에셋으로 교체 예정</text>
+</svg>

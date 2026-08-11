@@ -8763,9 +8763,18 @@ body[data-mode="delivery"] #stage {
   grid-template-columns: clamp(96px, 11vw, 168px) minmax(0, 1fr) clamp(132px, 15.5vw, 218px);
 }
 
+/* 피날레 한 칸 — 위에 단지 전경, 아래에 마무리 카드. */
 .dv-body[data-cols="1"] {
   grid-template-columns: minmax(0, 1fr);
-  place-items: center;
+  grid-template-rows: minmax(0, 1fr) auto;
+  justify-items: center;
+}
+
+/* 피날레 그림은 제 비율대로 선다 — 무대를 가로로 늘리면 좌우에 빈 띠가 생긴다. */
+.dv-stage-finale {
+  height: 100%;
+  aspect-ratio: 1280 / 560;
+  max-width: 100%;
 }
 
 .dv-side,
@@ -9032,19 +9041,17 @@ body[data-mode="delivery"] #stage {
 
 /* ── 무대 위 조작 · 카드 ─────────────────────────────────────────── */
 
+/* 손가락 조작은 무대 오른쪽 아래 구석에 붙인다 — 가운데에 두면 선물 트레이와
+   복도 카트를 덮어 버린다. 그림은 이 구석을 비워 두고 그려진다. */
 .dv-controls {
   position: absolute;
+  right: 12px;
   bottom: 9px;
-  left: 50%;
   display: flex;
   align-items: center;
   gap: 14px;
   z-index: 2;
-  transform: translateX(-50%);
 }
-
-/* 전달 순간에는 컨베이어 한가운데(무대 폭의 42%)에 맞춘다. */
-.dv-scene[data-phase="handover"] .dv-controls { left: 42%; }
 
 .dv-controls .dv-key { min-width: 54px; }
 
@@ -9227,14 +9234,17 @@ body[data-mode="delivery"] #stage {
 
 /* ── 피날레 ──────────────────────────────────────────────────────── */
 
+/* 단지 전경 아래에 눕는 마무리 줄 — 세로로 쌓으면 그림이 눌려 가로로 편다. */
 .dv-finale {
   display: flex;
-  flex-direction: column;
+  flex-flow: row wrap;
   align-items: center;
-  gap: 10px;
-  padding: 22px 34px 26px;
+  justify-content: center;
+  gap: 6px 18px;
+  margin-top: 8px;
+  padding: 10px 22px 12px;
   border: 5px solid #fff;
-  border-radius: 26px;
+  border-radius: 22px;
   background: rgba(255, 253, 246, .97);
   box-shadow: 0 6px 0 rgba(37, 52, 93, .18);
 }
@@ -9243,7 +9253,7 @@ body[data-mode="delivery"] #stage {
   margin: 0;
   color: #2879df;
   font-family: var(--dv-display);
-  font-size: clamp(20px, 3vw, 38px);
+  font-size: clamp(18px, 2.3vw, 30px);
   font-weight: 800;
 }
 
@@ -9313,7 +9323,7 @@ body[data-mode="delivery"] #stage {
   .dv-foot-extra { display: none; }
 
   /* 좁은 무대에서는 조작 버튼이 그림을 다 덮지 않도록 최소 크기로 줄인다. */
-  .dv-controls { left: 50%; bottom: 5px; gap: 10px; }
+  .dv-controls { right: 6px; bottom: 5px; gap: 10px; }
 
   .dv-controls .dv-key { min-width: 44px; min-height: 44px; font-size: 18px; }
 
@@ -9323,8 +9333,6 @@ body[data-mode="delivery"] #stage {
     min-height: 46px;
     font-size: 19px;
   }
-
-  .dv-scene[data-phase="handover"] .dv-controls { left: 50%; }
 
   .dv-who { top: 5px; left: 5px; padding: 3px 8px 4px; }
 }
