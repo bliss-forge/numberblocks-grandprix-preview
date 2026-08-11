@@ -14,7 +14,10 @@ import {
   pushCommand,
   ringBell,
   runCommands,
+  boardElevator,
+  passRhythmBox,
 } from "../src/delivery-model.mjs";
+import { BEAT_MS, RHYTHM_TARGET } from "../src/delivery-rhythm.mjs";
 import { DELIVERY_STEPS, deliveryCaption, renderDelivery } from "../src/delivery-scene.mjs";
 
 class FakeStyle {
@@ -73,10 +76,21 @@ function driveToTarget(state) {
   runCommands(state);
 }
 
-function atElevator(seed = 31) {
+// 도착 다음은 리듬 하역이다. 하역 자체를 보는 곳이 아니면 정박에 맞춰 끝낸다.
+function unload(state) {
+  for (let index = 1; index <= RHYTHM_TARGET; index += 1) passRhythmBox(state, index * BEAT_MS);
+  boardElevator(state);
+  return state;
+}
+
+function atRhythm(seed = 31) {
   const state = createDelivery("challenge", seed);
   driveToTarget(state);
   return state;
+}
+
+function atElevator(seed = 31) {
+  return unload(atRhythm(seed));
 }
 
 function atCorridor(seed = 31) {
@@ -95,7 +109,7 @@ function atHandover(seed = 31) {
 /* ── 공통 뼈대 ────────────────────────────────────────────────────── */
 
 test("네 단계 모두 헤더 · 본문 · 하단 안내를 갖춘다", () => {
-  const states = [createDelivery("steady", 3), atElevator(), atCorridor(), atHandover()];
+  const states = [createDelivery("steady", 3), atRhythm(), atElevator(), atCorridor(), atHandover()];
   for (const state of states) {
     const root = renderDelivery(document, state);
     const step = DELIVERY_STEPS[state.phase];
@@ -119,11 +133,11 @@ test("마스코트는 기존 캐릭터 자산을 쓴다 — 새 이미지가 없
 });
 
 test("모든 조작 버튼은 button 이고 이름이 붙어 있다", () => {
-  for (const state of [createDelivery("steady", 3), atElevator(), atCorridor(), atHandover()]) {
+  for (const state of [createDelivery("steady", 3), atRhythm(), atElevator(), atCorridor(), atHandover()]) {
     const root = renderDelivery(document, state);
     const actionable = descendants(root).filter(node =>
       node.dataset.dvDir || node.dataset.dvGo || node.dataset.dvFloor ||
-      node.dataset.dvBell || node.dataset.dvMove
+      node.dataset.dvBell || node.dataset.dvMove || node.dataset.dvBeat
     );
     assert.ok(actionable.length > 0, `${state.phase}: 조작 버튼이 없다`);
     for (const node of actionable) {
@@ -179,7 +193,7 @@ test("엘리베이터 화면은 샤프트 · 승강기 안 · 3×3 층 버튼을
   const state = atElevator();
   const root = renderDelivery(document, state);
 
-  assert.equal(root.dataset.step, "2");
+  assert.equal(root.dataset.step, "3");
   assert.equal(byClass(root, "dv-stage").length, 2, "샤프트와 승강기 안 두 무대");
   assert.equal(byClass(root, "dv-goal-num")[0].textContent, `${state.order.floor}층`);
   assert.deepEqual(
@@ -207,7 +221,7 @@ test("복도 화면은 찾는 호수와 힌트 라벨 두 장을 상주시킨다
   const state = atCorridor();
   const root = renderDelivery(document, state);
 
-  assert.equal(root.dataset.step, "3");
+  assert.equal(root.dataset.step, "4");
   assert.deepEqual(text(root, "dv-card-title"), ["내가 찾는 호수", "힌트 라벨"]);
   assert.deepEqual(text(root, "dv-hint"), [`${state.order.unit}호`, `${state.order.unit}호`]);
   assert.ok(markup(root).includes("dv-corridor"));
@@ -233,7 +247,7 @@ test("전달 화면은 받는 친구 카드 · 조작 방법 · 전달한 수를
   const state = atHandover();
   const root = renderDelivery(document, state);
 
-  assert.equal(root.dataset.step, "4");
+  assert.equal(root.dataset.step, "5");
   assert.equal(byClass(root, "dv-who-unit")[0].textContent, `${state.order.unit}호`);
   assert.deepEqual(text(root, "dv-card-title"), ["조작 방법", "전달한 수"]);
   assert.deepEqual(text(root, "dv-howto-label"), ["선택", "전달"]);
@@ -264,6 +278,7 @@ test("다섯 건을 마치면 피날레 화면이 뜬다", () => {
   const state = createDelivery("steady", 41);
   for (let index = 0; index < DELIVERY_TARGET; index += 1) {
     driveToTarget(state);
+    unload(state);
     pressFloor(state, state.order.floor);
     state.corridor.focus = state.corridor.units.indexOf(state.order.unit);
     ringBell(state);
@@ -281,10 +296,10 @@ test("다섯 건을 마치면 피날레 화면이 뜬다", () => {
 
 test("문제 알약 문구가 단계를 알려 준다", () => {
   assert.equal(deliveryCaption(createDelivery("steady", 3)), "1. 단지 운전 — 목표 호수로 택배차를 운전해요!");
-  assert.equal(deliveryCaption(atElevator()), "2. 엘리베이터 — 엘리베이터 버튼을 눌러 목표 층으로!");
-  assert.equal(deliveryCaption(atCorridor()), "3. 문 앞 전달 — 정확한 호수를 찾아 택배를 전달해요!");
+  assert.equal(deliveryCaption(atElevator()), "3. 엘리베이터 — 엘리베이터 버튼을 눌러 목표 층으로!");
+  assert.equal(deliveryCaption(atCorridor()), "4. 문 앞 전달 — 정확한 호수를 찾아 택배를 전달해요!");
   assert.equal(
     deliveryCaption(atHandover()),
-    "4. 문 앞 전달 (전달 순간) — 올바른 물건을 골라 전달해요!"
+    "5. 문 앞 전달 (전달 순간) — 올바른 물건을 골라 전달해요!"
   );
 });

@@ -147,15 +147,18 @@ import {
 } from "./paint-play-data.mjs";
 import {
   clearCommands as clearDeliveryCommands,
+  boardElevator,
   createDelivery,
   deliverParcel,
   moveCorridorFocus,
   moveTrayFocus,
   parcelById,
   pressFloor,
+  passRhythmBox,
   pushCommand as pushDeliveryCommand,
   ringBell as ringDeliveryBell,
-  runCommands as runDeliveryCommands
+  runCommands as runDeliveryCommands,
+  tickRhythm
 } from "./delivery-model.mjs";
 import { deliveryCaption, renderDelivery } from "./delivery-scene.mjs";
 
@@ -2053,7 +2056,7 @@ const DELIVERY_HANDOFF_MS = 1400; // 전달 성공 여운
 
 // 조작할 때마다 씬을 통째로 갈아 끼우므로, 누르고 있던 버튼과 같은 버튼에
 // 포커스를 되돌려 준다. 안 그러면 키보드 사용자의 포커스가 매번 사라진다.
-const DELIVERY_FOCUS_KEYS = ["dvDir", "dvGo", "dvFloor", "dvBell", "dvMove", "dvClear", "dvHome"];
+const DELIVERY_FOCUS_KEYS = ["dvDir", "dvGo", "dvFloor", "dvBell", "dvMove", "dvClear", "dvHome", "dvBeat"];
 
 function deliveryFocusMark() {
   const active = document.activeElement;
@@ -2088,18 +2091,20 @@ function renderDeliveryAs(phase) {
   model.phase = real;
 }
 
-function holdDelivery(delayMs) {
+function holdDelivery(delayMs, onDone = null) {
   const round = state.round;
   state.deliveryBusy = true;
   schedule(() => {
     if (state.round !== round || state.mode !== "delivery" || !state.delivery) return;
     state.deliveryBusy = false;
+    if (onDone) onDone();
     refreshDeliveryScene();
   }, delayMs);
 }
 
 function startDeliveryRun() {
   stopSafetyHold();
+  stopDeliveryBeat();
   clearTimers();
   audio.cancel();
   state.round += 1;
@@ -2163,8 +2168,8 @@ function finishDrive(events) {
   if (arrived) {
     audio.playSfx("win");
     void audio.playPrompt("delivery-arrive");
-    showHint(`${arrived.unit}호에 도착! 이제 ${arrived.floor}층으로 올라가요.`, 2000);
-    holdDelivery(DELIVERY_ARRIVE_MS);
+    showHint(`${arrived.unit}호에 도착! 상자를 내려요.`, 2000);
+    holdDelivery(DELIVERY_ARRIVE_MS, startDeliveryBeat);
     return;
   }
 
@@ -2209,6 +2214,35 @@ function handleDeliveryEvents(events) {
       case "command-empty":
         audio.playSfx("pop");
         showHint("방향 버튼으로 길을 먼저 만들어요!", 1600);
+        break;
+      case "rhythm-pass":
+        audio.playSfx(event.judge === "perfect" ? "jingle" : "key");
+        showHint(
+          event.judge === "perfect"
+            ? `박자 딱! 상자 ${event.loaded}개!`
+            : `좋아요! 상자 ${event.loaded}개!`,
+          1100
+        );
+        break;
+      case "rhythm-miss":
+        // 벌점 없음 — 상자는 그대로 있고 다음 박자에 다시 하면 된다.
+        audio.playSfx("pop");
+        showHint("괜찮아요! 동그라미가 좁아질 때 눌러요.", 1300);
+        break;
+      case "rhythm-done":
+        audio.playSfx("win");
+        stopDeliveryBeat();
+        state.deliveryBusy = true;
+        showHint("상자를 다 실었어요! 엘리베이터로 가요.", 1600);
+        holdDelivery(DELIVERY_ARRIVE_MS, () => {
+          if (state.mode !== "delivery" || !state.delivery) return;
+          handleDeliveryEvents(boardElevator(state.delivery));
+        });
+        break;
+      case "rhythm-boarding":
+        audio.playSfx("door");
+        void audio.playPrompt("delivery-arrive");
+        showHint(`${event.floor}층으로 올라가요!`, 1600);
         break;
       case "floor-wrong":
         audio.playSfx("pop");
@@ -2335,10 +2369,45 @@ function deliveryMove(delta) {
   }
 }
 
+/* 박자 시계 — 리듬 하역 무대에서만 돈다. 모델은 시계를 모르므로
+   "무대가 열린 뒤 흐른 밀리초"를 여기서 재어 넣어 준다. */
+let deliveryBeatTimer = null;
+let deliveryBeatStart = 0;
+
+function stopDeliveryBeat() {
+  if (deliveryBeatTimer === null) return;
+  clearInterval(deliveryBeatTimer);
+  deliveryBeatTimer = null;
+}
+
+function startDeliveryBeat() {
+  stopDeliveryBeat();
+  deliveryBeatStart = performance.now();
+  // 박이 넘어간 것을 늦지 않게 알아채려고 촘촘히 보되, 다시 그리는 것은 박마다 한 번이다.
+  deliveryBeatTimer = setInterval(() => {
+    if (state.mode !== "delivery" || state.delivery?.phase !== "rhythm") {
+      stopDeliveryBeat();
+      return;
+    }
+    if (state.deliveryBusy) return;
+    const events = tickRhythm(state.delivery, performance.now() - deliveryBeatStart);
+    if (events.length === 0) return;
+    audio.playSfx("key");
+    renderDeliveryAs("rhythm");
+  }, 60);
+}
+
+function deliveryBeat() {
+  if (!deliveryActionable() || state.delivery.phase !== "rhythm") return;
+  handleDeliveryEvents(passRhythmBox(state.delivery, performance.now() - deliveryBeatStart));
+}
+
 function deliveryBell() {
   if (!deliveryActionable()) return;
   const model = state.delivery;
-  if (model.phase === "corridor") {
+  if (model.phase === "rhythm") {
+    deliveryBeat();
+  } else if (model.phase === "corridor") {
     handleDeliveryEvents(ringDeliveryBell(model));
   } else if (model.phase === "handover") {
     handleDeliveryEvents(deliverParcel(model));
@@ -2371,6 +2440,7 @@ function startMode(mode) {
   state.delivery = null;
   state.deliveryScene = null;
   state.deliveryBusy = false;
+  stopDeliveryBeat();
   if (mode === "safety") {
     startSafetyRoute();
   } else if (mode === "subway") {
@@ -2503,6 +2573,7 @@ dom.stage.addEventListener("click", event => {
       else if (data.dvFloor) deliveryFloor(Number(data.dvFloor));
       else if (data.dvMove) deliveryMove(Number(data.dvMove));
       else if (data.dvClear) deliveryClear();
+      else if (data.dvBeat) deliveryBeat();
       else if (data.dvHome) goHome();
       else if (data.dvBell) deliveryBell();
       return;
@@ -2677,6 +2748,16 @@ document.addEventListener("keydown", event => {
         event.preventDefault();
         audio.playSfx("pop");
       }
+      return;
+    }
+
+    if (model.phase === "rhythm") {
+      if (isSpace) {
+        event.preventDefault();
+        if (!event.repeat) deliveryBeat();
+        return;
+      }
+      if (isDigit || direction || event.key === "Backspace") event.preventDefault();
       return;
     }
 

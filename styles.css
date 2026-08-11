@@ -9216,6 +9216,28 @@ body[data-mode="delivery"] #stage {
 .dv-star { color: #cfd6de; }
 .dv-star[data-on="true"] { color: #f7b715; }
 
+/* ── 리듬 하역 ───────────────────────────────────────────────────── */
+
+/* 바깥 링이 한 박(80BPM = 750ms)에 걸쳐 안쪽 링으로 좁혀 든다.
+   무대는 박마다 다시 그려지므로 애니메이션도 그때마다 처음부터 돌아 박자에 맞는다. */
+.dv-beat-ring {
+  transform-box: view-box;
+  transform-origin: 600px 558px;
+  animation: dv-beat-close 750ms linear infinite;
+}
+
+@keyframes dv-beat-close {
+  from { transform: scale(2.1); opacity: .25; }
+  to { transform: scale(1); opacity: .95; }
+}
+
+/* 움직임을 줄이겠다고 한 기기에서는 링을 고정한다 — 박자는 비트 칩이 알려 준다. */
+@media (prefers-reduced-motion: reduce) {
+  .dv-beat-ring { animation: none; opacity: .6; }
+}
+
+.dv-key-beat { font-size: clamp(15px, 1.9vw, 22px); }
+
 /* ── 피날레 ──────────────────────────────────────────────────────── */
 
 /* 단지 전경 아래에 눕는 마무리 줄 — 세로로 쌓으면 그림이 눌려 가로로 편다. */

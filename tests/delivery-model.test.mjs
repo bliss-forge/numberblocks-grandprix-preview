@@ -20,11 +20,14 @@ import {
   houseAt,
   moveCorridorFocus,
   moveTrayFocus,
+  boardElevator,
+  passRhythmBox,
   pressFloor,
   pushCommand,
   ringBell,
   runCommands,
 } from "../src/delivery-model.mjs";
+import { BEAT_MS, RHYTHM_TARGET } from "../src/delivery-rhythm.mjs";
 
 const TOP_FLOOR = { easy: 5, steady: 7, challenge: 7 };
 
@@ -71,8 +74,17 @@ function driveToTarget(state) {
   return runCommands(state);
 }
 
+// 도착 다음은 리듬 하역이다. 판정을 시험하는 곳이 아니면 정박에 딱 맞춰 끝낸다.
+function unload(state) {
+  for (let index = 1; index <= RHYTHM_TARGET; index += 1) {
+    passRhythmBox(state, index * BEAT_MS);
+  }
+  return boardElevator(state);
+}
+
 function completeDelivery(state) {
   driveToTarget(state);
+  unload(state);
   pressFloor(state, state.order.floor);
   const wanted = state.corridor.units.indexOf(state.order.unit);
   while (state.corridor.focus < wanted) moveCorridorFocus(state, 1);
@@ -230,12 +242,15 @@ test("한 칸도 못 가면 이미 서 있던 집을 다시 판정하지 않는�
   assert.deepEqual(state.drive.truck, { ...other.cell }, "트럭이 움직이면 안 된다");
 });
 
-test("목표 집에 닿으면 엘리베이터로 넘어간다", () => {
+test("목표 집에 닿으면 하역으로, 상자를 다 내리면 엘리베이터로 넘어간다", () => {
   const state = createDelivery("steady", 21);
   const events = driveToTarget(state);
   assert.ok(typesOf(events).includes("drive-arrived"));
-  assert.equal(state.phase, "elevator");
+  assert.equal(state.phase, "rhythm", "도착 다음은 하역이다");
   assert.deepEqual(state.drive.truck, { ...state.order.cell });
+
+  assert.deepEqual(typesOf(unload(state)), ["rhythm-boarding"]);
+  assert.equal(state.phase, "elevator");
 });
 
 test("출발하면 씬이 굴릴 경로가 나온다", () => {
@@ -264,6 +279,7 @@ test("집 칸에 들어서면 남은 명령을 지나쳐 가지 않는다", () =
 test("다른 층을 눌러도 벌점 없이 다시 누를 수 있다", () => {
   const state = createDelivery("challenge", 8);
   driveToTarget(state);
+  unload(state);
   const wrong = state.order.floor === 9 ? 8 : state.order.floor + 1;
 
   const events = pressFloor(state, wrong);
@@ -279,6 +295,7 @@ test("다른 층을 눌러도 벌점 없이 다시 누를 수 있다", () => {
 test("층 버튼은 1~9만 받는다", () => {
   const state = createDelivery("easy", 9);
   driveToTarget(state);
+  unload(state);
   assert.deepEqual(pressFloor(state, 0), []);
   assert.deepEqual(pressFloor(state, 10), []);
   assert.deepEqual(pressFloor(state, "x"), []);
@@ -290,6 +307,7 @@ test("층 버튼은 1~9만 받는다", () => {
 test("복도 초점은 문 셋 사이에서만 움직인다", () => {
   const state = createDelivery("steady", 12);
   driveToTarget(state);
+  unload(state);
   pressFloor(state, state.order.floor);
 
   assert.deepEqual(typesOf(moveCorridorFocus(state, -1)), ["corridor-edge"]);
@@ -304,6 +322,7 @@ test("복도 초점은 문 셋 사이에서만 움직인다", () => {
 test("틀린 문에서 초인종을 눌러도 벌점이 없다", () => {
   const state = createDelivery("steady", 12);
   driveToTarget(state);
+  unload(state);
   pressFloor(state, state.order.floor);
   const wrongIndex = state.corridor.units.findIndex(unit => unit !== state.order.unit);
   state.corridor.focus = wrongIndex;
@@ -329,6 +348,7 @@ test("트레이 순서는 과일 · 화장품 · 장난감 고정이다", () => 
 test("다른 물건을 건네도 벌점 없이 다시 고를 수 있다", () => {
   const state = createDelivery("steady", 14);
   driveToTarget(state);
+  unload(state);
   pressFloor(state, state.order.floor);
   state.corridor.focus = state.corridor.units.indexOf(state.order.unit);
   ringBell(state);
@@ -363,6 +383,7 @@ test("연속 성공 보너스는 실수 없이 끝낸 건만 센다", () => {
   // 같은 시드로 다시 시작해 층을 한 번 틀려 본다.
   const slipped = createDelivery("steady", 16);
   driveToTarget(slipped);
+  unload(slipped);
   pressFloor(slipped, slipped.order.floor === 9 ? 8 : slipped.order.floor + 1); // 틀린 층
   pressFloor(slipped, slipped.order.floor);
   slipped.corridor.focus = slipped.corridor.units.indexOf(slipped.order.unit);
@@ -406,6 +427,7 @@ test("단계에 맞지 않는 조작은 조용히 무시된다", () => {
   assert.deepEqual(deliverParcel(state), []);
 
   driveToTarget(state);
+  unload(state);
   assert.deepEqual(pushCommand(state, "up"), [], "엘리베이터에서는 명령을 못 쌓는다");
   assert.deepEqual(runCommands(state), []);
 });
@@ -421,6 +443,7 @@ test("어떤 실수도 별과 배송 수를 깎지 않는다", () => {
   pushCommand(state, "left");
   runCommands(state);
   driveToTarget(state);
+  unload(state);
   pressFloor(state, state.order.floor === 9 ? 8 : state.order.floor + 1);
   pressFloor(state, state.order.floor);
   state.corridor.focus = state.corridor.units.findIndex(unit => unit !== state.order.unit);

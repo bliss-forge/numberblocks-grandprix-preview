@@ -25,6 +25,7 @@ import {
   handoverSvg,
 } from "./delivery-building-art.mjs";
 import { FINALE_BACKDROP, finaleSvg } from "./delivery-finale-art.mjs";
+import { RHYTHM_BACKDROP, rhythmStageSvg } from "./delivery-rhythm-art.mjs";
 
 const MASCOT_IMAGE = "assets/characters/nine.png";
 
@@ -37,29 +38,36 @@ export const DELIVERY_STEPS = Object.freeze({
     emoji: "📦",
     tip: ["방향 버튼으로 길을 만들고 출발 버튼을 눌러", "택배 차가 목표 호수에 도착하도록 도와주세요!"],
   },
-  elevator: {
+  rhythm: {
     index: 2,
+    name: "리듬 하역",
+    headline: "박자에 맞춰 상자를 내려요!",
+    emoji: "🎵",
+    tip: ["동그라미가 좁아지는 순간 Space 를 누르세요!", "박자를 놓쳐도 괜찮아요. 다음 박자에 다시 해요."],
+  },
+  elevator: {
+    index: 3,
     name: "엘리베이터",
     headline: "엘리베이터 버튼을 눌러 목표 층으로!",
     emoji: "📦",
     tip: ["엘리베이터에서 목표 층 버튼을 누르세요!", "표시기가 목표 층에 도착하면 문이 열려요."],
   },
   corridor: {
-    index: 3,
+    index: 4,
     name: "문 앞 전달",
     headline: "정확한 호수를 찾아 택배를 전달해요!",
     emoji: "",
     tip: ["라벨과 같은 호수의 문을 찾아 택배를 전달하세요!", "정확히 찾으면 초인종을 누를 수 있어요."],
   },
   handover: {
-    index: 4,
+    index: 5,
     name: "문 앞 전달 (전달 순간)",
     headline: "올바른 물건을 골라 전달해요!",
     emoji: "",
     tip: ["← → 로 상자를 고르고, Space 로 전달하세요!", "친구가 말한 물건을 맞히면 상자가 열려요."],
   },
   finale: {
-    index: 4,
+    index: 5,
     name: "배달 끝!",
     headline: "택배를 모두 전달했어요!",
     emoji: "🎉",
@@ -225,7 +233,62 @@ function drivePanel(document, state) {
   return panel;
 }
 
-/* ── STEP 2 · 엘리베이터 ─────────────────────────────────────────── */
+/* ── STEP 2 · 리듬 하역 ──────────────────────────────────────────── */
+
+function rhythmPanel(document, state) {
+  const panel = el(document, "aside", "dv-panel");
+
+  const goal = card(document, "실은 상자");
+  goal.append(
+    el(document, "span", "dv-goal-num", `${state.rhythm.loaded} / ${state.rhythm.target}`)
+  );
+  const dots = el(document, "div", "dv-dots");
+  for (let index = 0; index < state.rhythm.target; index += 1) {
+    const dot = el(document, "i", "dv-dot");
+    dot.dataset.on = String(index < state.rhythm.loaded);
+    dots.append(dot);
+  }
+  goal.append(dots);
+  panel.append(goal);
+
+  const howCard = card(document, "조작 방법");
+  const how = el(document, "div", "dv-howto");
+  const row = el(document, "div", "dv-howto-row");
+  row.append(el(document, "span", "dv-key dv-key-space", "Space"));
+  row.append(el(document, "em", "dv-howto-label", "박자에 맞춰"));
+  how.append(row);
+  howCard.append(how);
+  panel.append(howCard);
+
+  panel.append(
+    keyButton(document, "dv-key dv-key-go dv-key-beat", "🎵 박자!", { dvBeat: "1" }, "박자에 맞춰 상자 내리기")
+  );
+
+  return panel;
+}
+
+function rhythmBody(document, state) {
+  const body = el(document, "div", "dv-body");
+  body.dataset.cols = "2";
+  body.append(
+    stage(
+      document,
+      "dv-stage",
+      rhythmStageSvg({
+        unit: state.order.unit,
+        loaded: state.rhythm.loaded,
+        target: state.rhythm.target,
+        beat: state.rhythm.beat,
+        judge: state.rhythm.judge,
+      }),
+      RHYTHM_BACKDROP
+    )
+  );
+  body.append(rhythmPanel(document, state));
+  return body;
+}
+
+/* ── STEP 3 · 엘리베이터 ─────────────────────────────────────────── */
 
 const FLOOR_KEYS = [7, 8, 9, 4, 5, 6, 1, 2, 3];
 
@@ -454,6 +517,7 @@ function handoverBody(document, state) {
 
 const BODY_BY_PHASE = {
   drive: driveBody,
+  rhythm: rhythmBody,
   elevator: elevatorBody,
   corridor: corridorBody,
   handover: handoverBody,

@@ -29,7 +29,9 @@
 <script type="module">
 import {
   createDelivery, deliverParcel, pressFloor, pushCommand, ringBell, runCommands,
+  boardElevator, passRhythmBox,
 } from "./src/delivery-model.mjs";
+import { BEAT_MS, RHYTHM_TARGET } from "./src/delivery-rhythm.mjs";
 import { renderDelivery } from "./src/delivery-scene.mjs";
 
 const phase = new URLSearchParams(location.search).get("phase") ?? "drive";
@@ -45,8 +47,14 @@ function driveToTarget() {
   runCommands(state);
 }
 
+function unload() {
+  for (let i = 1; i <= RHYTHM_TARGET; i += 1) passRhythmBox(state, i * BEAT_MS);
+  boardElevator(state);
+}
+
 function oneDelivery() {
   driveToTarget();
+  unload();
   pressFloor(state, state.order.floor);
   state.corridor.focus = state.corridor.units.indexOf(state.order.unit);
   ringBell(state);
@@ -58,14 +66,21 @@ if (phase === "drive") {
   // 명령 두 칸을 쌓아 둔 상태 — 빈 큐보다 화면이 정직하다.
   pushCommand(state, "right");
   pushCommand(state, "up");
+} else if (phase === "rhythm") {
+  // 상자 하나를 실은 직후 — 판정 연출이 뜬 순간을 보여 준다.
+  driveToTarget();
+  passRhythmBox(state, BEAT_MS);
 } else if (phase === "elevator") {
   driveToTarget();
+  unload();
 } else if (phase === "corridor") {
   driveToTarget();
+  unload();
   pressFloor(state, state.order.floor);
   state.corridor.focus = state.corridor.units.indexOf(state.order.unit);
 } else if (phase === "handover") {
   driveToTarget();
+  unload();
   pressFloor(state, state.order.floor);
   state.corridor.focus = state.corridor.units.indexOf(state.order.unit);
   ringBell(state);

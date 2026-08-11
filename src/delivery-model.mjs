@@ -10,6 +10,7 @@
 // DOM 을 모른다. 씬은 여기서 나온 이벤트 배열만 보고 그린다.
 
 import { mulberry } from "./ktx-route-data.mjs";
+import { createRhythm, passBox, rhythmDone, tickBeat } from "./delivery-rhythm.mjs";
 
 export const DELIVERY_TARGET = 5; // 배송 5건이면 하루 끝
 export const COMMAND_SLOTS = 4; // 디자인 락 §5 STEP 1 — 이동 명령 네 칸
@@ -133,6 +134,8 @@ function createOrder(state) {
     queue: [],
     path: null,
   };
+  // 도착하면 트럭 뒤에서 상자를 내린다 — 박자에 맞춰 셋.
+  state.rhythm = createRhythm();
   state.elevator = { current: 1, target: target.floor, pressed: null };
   // 복도 문패는 목표 층의 1·2·3 호다. 목표만 빛난다.
   state.corridor = {
@@ -236,9 +239,30 @@ export function runCommands(state) {
     return events;
   }
 
-  state.phase = "elevator";
+  // 도착 다음은 곧장 엘리베이터가 아니라 하역이다 — 상자를 내려야 실어 올린다.
+  state.phase = "rhythm";
   events.push({ type: "drive-arrived", unit: house.unit, floor: state.order.floor });
   return events;
+}
+
+/* ── ② 리듬 하역 ─────────────────────────────────────────────────── */
+
+// 무대가 열린 뒤 흐른 밀리초를 앱이 넣어 준다. 모델은 시계를 모른다.
+export function passRhythmBox(state, elapsedMs) {
+  if (state.phase !== "rhythm") return [];
+  return passBox(state.rhythm, elapsedMs);
+}
+
+export function tickRhythm(state, elapsedMs) {
+  if (state.phase !== "rhythm") return [];
+  return tickBeat(state.rhythm, elapsedMs);
+}
+
+// 상자를 다 내리면 카트를 밀고 승강기로 간다.
+export function boardElevator(state) {
+  if (state.phase !== "rhythm" || !rhythmDone(state.rhythm)) return [];
+  state.phase = "elevator";
+  return [{ type: "rhythm-boarding", floor: state.order.floor }];
 }
 
 /* ── ② 엘리베이터 ────────────────────────────────────────────────── */
