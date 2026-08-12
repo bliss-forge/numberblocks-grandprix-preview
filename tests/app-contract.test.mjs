@@ -431,3 +431,10 @@ test("물감 ⎵ 실행은 Tab 으로 옮긴 DOM 포커스를 먼저 따른다",
   assert.ok(domFocus >= 0, "DOM 포커스를 보지 않는다");
   assert.ok(domFocus < gameFocus, "DOM 포커스 분기가 게임 포커스보다 앞에 와야 한다");
 });
+
+test("KTX starts in the selected side view", () => {
+  assert.match(
+    app,
+    /state\.ktxView\s*=\s*"side";[\s\S]*?renderKtxScene\(document,\s*state\.ktx,\s*state\.ktxView\);/s
+  );
+});
