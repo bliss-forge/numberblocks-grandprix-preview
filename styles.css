@@ -10849,119 +10849,29 @@ body[data-mode="delivery"] #stage {
   }
 }
 
-/* Modes 6 to 9 experience polish. */
-.subway-mission {
-  display: inline-flex;
-  align-items: center;
-  max-width: min(100%, 720px);
-  padding: 8px 16px;
-  border: 3px solid rgba(255,255,255,.92);
-  border-radius: 18px;
-  background: linear-gradient(135deg, rgba(22,77,145,.96), rgba(42,130,204,.94));
-  box-shadow: 0 8px 18px rgba(23,67,111,.22);
-  color: #fff;
-}
+/* Playtest-guided polish for modes 6-9: preserve the existing visual language. */
 .subway-plan-step[data-current="true"] {
-  box-shadow: 0 0 0 3px rgba(244,197,66,.22), 0 6px 13px rgba(74,52,0,.16);
+  box-shadow: 0 0 0 2px rgba(244, 197, 66, .62);
 }
-.subway-plan-step[data-current="true"]::after {
-  content: "지금";
-  margin-left: 2px;
-  padding: 2px 6px;
-  border-radius: 999px;
-  background: #f4c542;
-  color: #4a3400;
-  font-size: .72em;
+.subway-rail .route-pad button:active,
+.dv-key:active,
+.dv-floorkey:active,
+.dv-bell:active {
+  transform: translateY(2px);
+  filter: brightness(.96);
 }
-.subway-drive-guide {
-  min-height: 38px;
-  border: 2px solid rgba(255,255,255,.82);
-  box-shadow: 0 5px 0 rgba(13,71,143,.24);
+.pp-tube[data-hint="sparkle"] .pp-tube-body {
+  outline: 3px solid rgba(244, 197, 66, .65);
+  outline-offset: 4px;
 }
-.subway-rail .route-pad {
-  padding: 7px;
-  border: 2px solid rgba(24,81,143,.16);
-  border-radius: 20px;
-  background: rgba(255,255,255,.88);
+.dv-beat-marker {
+  filter: drop-shadow(0 1px 0 rgba(255, 255, 255, .85));
 }
-.subway-rail .route-pad button:focus-visible,
-.subway-gate-line:focus-visible,
-.pp-tube:focus-visible,
-.pp-action:focus-visible,
-.dv-key:focus-visible,
-.dv-floorkey:focus-visible,
-.dv-bell:focus-visible {
-  outline: 4px solid #243b53;
-  outline-offset: 3px;
+@media (prefers-reduced-motion: reduce) {
+  .subway-rail .route-pad button:active,
+  .dv-key:active,
+  .dv-floorkey:active,
+  .dv-bell:active {
+    transform: none;
+  }
 }
-.ktx-picker {
-  position: relative;
-  overflow: hidden;
-  padding: clamp(16px,3vw,32px);
-  border-radius: 28px;
-  background: linear-gradient(155deg,#eaf7ff 0%,#f8fcff 54%,#fff4d3 100%);
-  box-shadow: inset 0 0 0 3px rgba(96,161,213,.16);
-}
-.ktx-picker::before {
-  content: "출발 전, 마음에 드는 기차를 골라요";
-  position: absolute;
-  top: 10px;
-  right: 16px;
-  padding: 5px 10px;
-  border-radius: 999px;
-  background: rgba(255,255,255,.88);
-  color: #365570;
-  font-size: clamp(10px,1.1vw,13px);
-  font-weight: 800;
-}
-.ktx-train-card {
-  min-width: min(42vw,290px);
-  border-width: 4px;
-  box-shadow: 0 7px 0 rgba(45,81,115,.12);
-}
-.ktx-train-card[data-selected="true"] {
-  box-shadow: 0 9px 0 #d8a000, 0 16px 22px rgba(122,87,0,.18);
-}
-.ktx-train-card[data-selected="true"] .ktx-train-name::after {
-  content: " 선택됨";
-  margin-left: 7px;
-  padding: 3px 7px;
-  border-radius: 999px;
-  background: #f4c542;
-  color: #4a3400;
-  font-size: .48em;
-}
-.pp-host {
-  padding: clamp(8px,1.2vw,16px);
-  border: 3px solid rgba(255,255,255,.9);
-  border-radius: 24px;
-  background: linear-gradient(145deg,rgba(255,252,241,.96),rgba(238,249,255,.94));
-  box-shadow: 0 10px 22px rgba(70,99,133,.14);
-}
-.pp-bubble {
-  border: 3px solid #f2c765;
-  box-shadow: 0 5px 0 rgba(208,151,36,.2);
-}
-.pp-bubble::before {
-  content: "오늘의 색";
-  display: block;
-  margin-bottom: 4px;
-  color: #9a6811;
-  font-size: .7em;
-  font-weight: 900;
-}
-.pp-tube {
-  min-height: 74px;
-  border-radius: 16px;
-  transition: transform .14s ease, filter .14s ease;
-}
-.pp-tube:hover,
-.pp-tube:focus-visible { transform: translateY(-6px) rotate(-1deg); filter: saturate(1.12); }
-.pp-tube-mine { box-shadow: 0 0 0 3px rgba(244,197,66,.52), 0 7px 12px rgba(92,69,25,.17); }
-.dv-scene { border-radius: 26px; overflow: hidden; box-shadow: 0 12px 26px rgba(39,69,104,.16); }
-.dv-head { border-bottom: 3px solid rgba(255,255,255,.68); background: linear-gradient(100deg,rgba(255,251,232,.96),rgba(231,247,255,.96)); }
-.dv-card { border: 2px solid rgba(92,132,172,.2); box-shadow: 0 6px 15px rgba(37,75,112,.1); }
-.dv-key,.dv-floorkey,.dv-bell { min-height: 48px; border-width: 2px; box-shadow: 0 4px 0 rgba(35,72,105,.18); }
-.dv-tip { border-left: 6px solid #f7b715; background: rgba(255,253,244,.94); }
-@media (max-width:640px) { .subway-mission { padding:6px 10px; border-radius:14px; } .ktx-picker { padding-top:36px; border-radius:20px; } .ktx-picker::before { left:50%; right:auto; transform:translateX(-50%); white-space:nowrap; } .ktx-train-card { min-width:0; padding:14px 10px; } .ktx-train-face svg { width:min(35vw,180px); } .pp-tube { min-height:66px; } .dv-scene { border-radius:18px; } }
-@media (prefers-reduced-motion:reduce) { .pp-tube { transition:none; } .subway-drive-guide[data-alight="true"],.subway-drive-guide[data-soon="true"] { animation:none; } }
