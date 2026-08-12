@@ -589,7 +589,10 @@ export function buildRealisticMotionScene(document, state, onStateChange) {
   cabRig.append(cabWindow, cabFrame);
   Object.assign(controller, { station, stationSign, train, cabFrame });
 
-  scene.append(...plates, stationViewport, stationSign,
+  // 운전실 옆 창의 유리 한 장 — 판(z1) 위, 전면창(z5) 아래에 얹혀 좌우 창에만
+  // 걸린다. 없으면 옆 창이 "유리 없는 구멍"으로 보인다.
+  const glass = el(document, "div", "ktx-motion-glass");
+  scene.append(...plates, glass, stationViewport, stationSign,
     mid, eventSprite, track, oncoming, near, cabRig, trainRig);
   scene.dataset.readiness = "pending";
   applyFrame(scene, state, { sky: state.sky, land: state.land }, controller);

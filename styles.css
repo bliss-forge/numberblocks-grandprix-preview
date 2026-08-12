@@ -10505,7 +10505,14 @@ body[data-mode="delivery"] #stage {
    앞 시야는 그대로다. 플레이트를 숨기던 예전 최적화는 이 결함의 원인이라 뺀다.
    블러는 속도 밴드로 계단화한다: 매 틱 반경이 바뀌면 대형 래스터를 다시 그린다. */
 .ktx-game[data-view="cab"] .ktx-motion-plate {
-  filter: brightness(.93) saturate(.95) blur(1px);
+  /* 유리 한 장 너머로 보는 값 — 속도(블러)와 시간대(밝기·채도·색조)를 변수로
+     나눠 두고 여기서 한 번만 합성한다. 규칙을 나눠 쓰면 밴드×시간대 조합마다
+     filter 전체를 다시 적어야 하고, 한쪽만 고쳐 놓고 다른 쪽을 잊게 된다. */
+  filter:
+    brightness(var(--cab-glass-bright, .93))
+    saturate(var(--cab-glass-sat, .95))
+    sepia(var(--cab-glass-warm, 0))
+    blur(var(--cab-glass-blur, 1px));
   /* 사진 판의 지평선은 판 높이 ~62%에 있어 옆 창(상단 40%)에는 하늘만 걸렸다.
      지평선을 전면창 지평선 높이로 끌어올려 기둥 좌우가 이어져 보이게 한다.
      밀려 올라간 판 아래쪽은 불투명한 계기판 뒤라 드러나지 않는다. */
@@ -10515,16 +10522,73 @@ body[data-mode="delivery"] #stage {
   transform-origin: 50% 30%;
 }
 
-.ktx-game[data-view="cab"] .ktx-motion-scene[data-speed-band="cruise"] .ktx-motion-plate {
-  filter: brightness(.92) saturate(.93) blur(2.5px);
+/* 속도 = 흐름의 양. 밴드로 계단화한다(매 틱 반경이 바뀌면 재래스터). */
+.ktx-game[data-view="cab"] .ktx-motion-scene[data-speed-band="cruise"] {
+  --cab-glass-blur: 2.5px;
 }
 
-.ktx-game[data-view="cab"] .ktx-motion-scene[data-speed-band="fast"] .ktx-motion-plate {
-  filter: brightness(.91) saturate(.92) blur(4px);
+.ktx-game[data-view="cab"] .ktx-motion-scene[data-speed-band="fast"] {
+  --cab-glass-blur: 4px;
 }
 
-.ktx-game[data-view="cab"] .ktx-motion-scene[data-speed-band="very-fast"] .ktx-motion-plate {
-  filter: brightness(.9) saturate(.9) blur(6px);
+.ktx-game[data-view="cab"] .ktx-motion-scene[data-speed-band="very-fast"] {
+  --cab-glass-blur: 6px;
+}
+
+/* 시간대 — 사진 판은 전부 주간 촬영이라, 옆 창이 보이기 시작하자 밤 구간에서
+   전면창은 야간 사진인데 옆 창만 대낮으로 빛났다. 바깥 뷰의 장면 틴트와 같은
+   방향으로 판 자체를 물들인다(틴트 레이어는 z8이라 운전실에 쓰면 계기판까지
+   덮는다 — 그래서 필터로 판에만 건다). */
+/* 값은 전면창 사진과 나란히 놓고 골랐다 — sepia만 올리면 갈색으로 죽어서
+   채도를 함께 올려야 노을·새벽 하늘색과 같은 계열로 읽힌다. */
+.ktx-game[data-view="cab"] .ktx-motion-scene[data-sky="dawn"] {
+  --cab-glass-bright: .64;
+  --cab-glass-sat: .95;
+  --cab-glass-warm: .34;
+}
+
+.ktx-game[data-view="cab"] .ktx-motion-scene[data-sky="sunset"] {
+  --cab-glass-bright: .72;
+  --cab-glass-sat: 1.15;
+  --cab-glass-warm: .5;
+}
+
+/* 밤 값은 바깥 뷰의 야간 틴트(#0d1428 · 0.5)와 같은 어둡기를 목표로 잡았다 —
+   더 내리면 옆 창만 새까매져 전면창 야간 사진과 또 어긋난다. */
+.ktx-game[data-view="cab"] .ktx-motion-scene[data-sky="night"] {
+  --cab-glass-bright: .5;
+  --cab-glass-sat: .55;
+}
+
+/* 유리 자체 — 옆 창은 마스크가 완전 투명이라 유리가 없는 것처럼 보였다.
+   판 위에 얇은 청회색 막과 위에서 아래로 옅어지는 반사를 얹어 "유리 한 장"을
+   만든다. 전면창은 cab-window(z5)가 덮으므로 이 막은 옆 창에만 걸린다.
+   z는 판(1)보다 위, 전면창(5)보다 아래. */
+.ktx-motion-glass {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: none;
+  pointer-events: none;
+  background:
+    linear-gradient(196deg,
+      rgba(255, 255, 255, .16) 0 14%,
+      rgba(255, 255, 255, .05) 22% 38%,
+      transparent 46%),
+    linear-gradient(to bottom,
+      rgba(150, 178, 198, .22), rgba(96, 116, 134, .12) 62%, transparent);
+}
+
+.ktx-game[data-view="cab"] .ktx-motion-glass {
+  display: block;
+}
+
+.ktx-game[data-view="cab"] .ktx-motion-scene[data-sky="night"] .ktx-motion-glass {
+  background:
+    linear-gradient(196deg,
+      rgba(190, 214, 255, .1) 0 14%, transparent 40%),
+    linear-gradient(to bottom,
+      rgba(18, 26, 44, .3), rgba(12, 18, 32, .18) 62%, transparent);
 }
 
 /* ── 시간대 틴트(협회 후반 검수 1) — 사진 자산이 전부 주간이라 야간·노을·
