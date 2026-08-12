@@ -1171,7 +1171,7 @@ function startKtxJourney(trainId) {
   // 밖에서 타고, 안에서 몬다 — 탑승은 바깥 뷰에서 시작한다.
   state.ktxView = "side";
   state.ktxHeld = { up: false, down: false };
-  state.ktxScene = renderKtxScene(document, state.ktx, "cab");
+  state.ktxScene = renderKtxScene(document, state.ktx, state.ktxView);
   dom.stage.replaceChildren(state.ktxScene);
   dom.problem.textContent = "🚄 부산까지 가요!";
   audio.playSfx("win");

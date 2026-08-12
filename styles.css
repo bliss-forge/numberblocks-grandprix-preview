@@ -10848,3 +10848,30 @@ body[data-mode="delivery"] #stage {
     will-change: auto;
   }
 }
+
+/* Playtest-guided polish for modes 6-9: preserve the existing visual language. */
+.subway-plan-step[data-current="true"] {
+  box-shadow: 0 0 0 2px rgba(244, 197, 66, .62);
+}
+.subway-rail .route-pad button:active,
+.dv-key:active,
+.dv-floorkey:active,
+.dv-bell:active {
+  transform: translateY(2px);
+  filter: brightness(.96);
+}
+.pp-tube[data-hint="sparkle"] .pp-tube-body {
+  outline: 3px solid rgba(244, 197, 66, .65);
+  outline-offset: 4px;
+}
+.dv-beat-marker {
+  filter: drop-shadow(0 1px 0 rgba(255, 255, 255, .85));
+}
+@media (prefers-reduced-motion: reduce) {
+  .subway-rail .route-pad button:active,
+  .dv-key:active,
+  .dv-floorkey:active,
+  .dv-bell:active {
+    transform: none;
+  }
+}

@@ -431,3 +431,17 @@ test("물감 ⎵ 실행은 Tab 으로 옮긴 DOM 포커스를 먼저 따른다",
   assert.ok(domFocus >= 0, "DOM 포커스를 보지 않는다");
   assert.ok(domFocus < gameFocus, "DOM 포커스 분기가 게임 포커스보다 앞에 와야 한다");
 });
+
+test("KTX starts in the selected side view", () => {
+  assert.match(
+    app,
+    /state\.ktxView\s*=\s*"side";[\s\S]*?renderKtxScene\(document,\s*state\.ktx,\s*state\.ktxView\);/s
+  );
+});
+
+test("modes 6 to 9 keep playtest-guided feedback without replacing the original UI", () => {
+  assert.match(css, /\.subway-plan-step\[data-current="true"\]\s*\{[^}]*box-shadow:/s);
+  assert.match(css, /\.subway-rail \.route-pad button:active,[\s\S]*?\.dv-bell:active/s);
+  assert.match(css, /\.pp-tube\[data-hint="sparkle"\] \.pp-tube-body\s*\{[^}]*outline:/s);
+  assert.match(css, /\.dv-beat-marker\s*\{[^}]*filter:\s*drop-shadow/s);
+});
