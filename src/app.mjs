@@ -161,8 +161,8 @@ import {
 } from "./delivery-model.mjs";
 import { deliveryCaption, renderDelivery } from "./delivery-scene.mjs";
 
-import { chooseGrandPrixGate, createGrandPrix, finishGrandPrix, startGrandPrix, steerGrandPrix, takeGrandPrixCorrection, tickGrandPrix, useGrandPrixJump } from "./grand-prix-model.mjs?v=20260812-grandprix-v12";
-import { renderGrandPrixScene, updateGrandPrixScene } from "./grand-prix-scene.mjs?v=20260812-grandprix-v12";
+import { chooseGrandPrixGate, createGrandPrix, finishGrandPrix, startGrandPrix, setGrandPrixBrake, setGrandPrixThrottle, steerGrandPrix, takeGrandPrixCorrection, tickGrandPrix, useGrandPrixJump } from "./grand-prix-model.mjs?v=20260812-grandprix-v18";
+import { renderGrandPrixScene, updateGrandPrixScene } from "./grand-prix-scene.mjs?v=20260812-grandprix-v18";
 const WALK_REPEAT_MS = 110;
 const audio = new AudioManager();
 const $ = id => document.getElementById(id);
@@ -2528,13 +2528,9 @@ document.addEventListener("keyup", event => {
 
 dom.stage.addEventListener("click", event => {
   if (state.mode === "grandprix" && state.grandPrix && state.phase === "playing") {
-    const gate = event.target.closest("[data-gp-gate]");
-    const correction = event.target.closest("[data-gp-correction]");
-    const direction = event.target.closest("[data-gp-dir]");
+    const toggle = event.target.closest("[data-gp-toggle]");
     const jump = event.target.closest("[data-gp-jump]");
-    if (gate) { chooseGrandPrixGate(state.grandPrix, gate.dataset.gpGate); audio.playSfx("key"); refreshGrandPrixScene(); return; }
-    if (correction) { takeGrandPrixCorrection(state.grandPrix); audio.playSfx("pop"); refreshGrandPrixScene(); return; }
-    if (direction) { steerGrandPrix(state.grandPrix, direction.dataset.gpDir); audio.playSfx("key"); refreshGrandPrixScene(); return; }
+    if (toggle) { setGrandPrixThrottle(state.grandPrix, !state.grandPrix.drive.throttle); audio.playSfx("key"); refreshGrandPrixScene(); return; }
     if (jump) { useGrandPrixJump(state.grandPrix); audio.playSfx("pop"); refreshGrandPrixScene(); return; }
   }
   // 택배 왔어요! — 방향·출발·층·벨·좌우 버튼을 한자리에서 받는다.
@@ -2615,9 +2611,31 @@ dom.stage.addEventListener("click", event => {
   else if (state.srt) moveSrt(button.dataset.routeDirection);
   else moveSafetyRoute(button.dataset.routeDirection);
 });
-document.addEventListener("pointerup", stopSafetyHold);
-document.addEventListener("pointercancel", stopSafetyHold);
-dom.stage.addEventListener("pointerleave", stopSafetyHold);
+function setGrandPrixHold(kind, active) {
+  if (state.mode !== "grandprix" || state.phase !== "playing" || !state.grandPrix) return;
+  if (kind === "left" || kind === "right") steerGrandPrix(state.grandPrix, kind, active);
+  if (kind === "throttle") setGrandPrixThrottle(state.grandPrix, active);
+  if (kind === "brake") setGrandPrixBrake(state.grandPrix, active);
+}
+function clearGrandPrixHold() {
+  ["left", "right", "throttle", "brake"].forEach(kind => setGrandPrixHold(kind, false));
+}
+dom.stage.addEventListener("pointerdown", event => {
+  const hold = event.target.closest("[data-gp-hold]");
+  if (!hold) return;
+  event.preventDefault();
+  setGrandPrixHold(hold.dataset.gpHold, true);
+});
+document.addEventListener("pointerup", () => { stopSafetyHold(); clearGrandPrixHold(); });
+document.addEventListener("pointercancel", () => { stopSafetyHold(); clearGrandPrixHold(); });
+dom.stage.addEventListener("pointerleave", () => { stopSafetyHold(); clearGrandPrixHold(); });
+document.addEventListener("keyup", event => {
+  if (state.phase !== "playing" || state.mode !== "grandprix" || !state.grandPrix) return;
+  if (event.key === "ArrowLeft") steerGrandPrix(state.grandPrix, "left", false);
+  if (event.key === "ArrowRight") steerGrandPrix(state.grandPrix, "right", false);
+  if (event.key === "ArrowUp" || event.key.toLowerCase() === "w") setGrandPrixThrottle(state.grandPrix, false);
+  if (event.key === "ArrowDown" || event.key.toLowerCase() === "s") setGrandPrixBrake(state.grandPrix, false);
+});
 
 dom.homeButton.addEventListener("click", goHome);
 dom.mute.addEventListener("click", () => {
@@ -2648,17 +2666,22 @@ document.addEventListener("keydown", event => {
   if (state.phase === "playing" && state.mode === "grandprix" && state.grandPrix) {
     if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
       event.preventDefault();
-      if (!event.repeat) { steerGrandPrix(state.grandPrix, event.key === "ArrowLeft" ? "left" : "right"); audio.playSfx("key"); refreshGrandPrixScene(); }
+      steerGrandPrix(state.grandPrix, event.key === "ArrowLeft" ? "left" : "right", true);
+      return;
+    }
+    if (event.key === "ArrowUp" || event.key.toLowerCase() === "w") {
+      event.preventDefault();
+      setGrandPrixThrottle(state.grandPrix, true);
+      return;
+    }
+    if (event.key === "ArrowDown" || event.key.toLowerCase() === "s") {
+      event.preventDefault();
+      setGrandPrixBrake(state.grandPrix, true);
       return;
     }
     if (event.key === " " || event.key === "Spacebar") {
       event.preventDefault();
-      if (!event.repeat) { useGrandPrixJump(state.grandPrix); audio.playSfx("pop"); refreshGrandPrixScene(); }
-      return;
-    }
-    if (event.key === "1" || event.key === "2") {
-      event.preventDefault();
-      if (!event.repeat) { const gates = [["plus-2", "plus-4"], ["plus-1"], ["plus-3"]][state.grandPrix.checkpoint] || []; const gate = gates[Number(event.key) - 1]; if (gate) chooseGrandPrixGate(state.grandPrix, gate); audio.playSfx("key"); refreshGrandPrixScene(); }
+      if (!event.repeat) { useGrandPrixJump(state.grandPrix); audio.playSfx("pop"); }
       return;
     }
   }
@@ -3036,7 +3059,7 @@ function grandPrixFrame(round, nowMs) {
   const elapsed = Math.min(50, Math.max(0, nowMs - state.grandPrixLastFrameAt));
   state.grandPrixLastFrameAt = nowMs;
   tickGrandPrix(state.grandPrix, elapsed);
-  if (state.grandPrix.checkpoint === 3) {
+  if (state.grandPrix.lap > state.grandPrix.totalLaps && state.grandPrix.checkpoint === 3) {
     const events = finishGrandPrix(state.grandPrix);
     if (events.length) audio.playSfx("win");
   }
