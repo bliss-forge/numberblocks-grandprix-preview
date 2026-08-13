@@ -2,112 +2,132 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   GRAND_PRIX_COURSE,
+  GRAND_PRIX_TOTAL_LAPS,
+  GRAND_PRIX_TRACK_LENGTH,
   createGrandPrix,
   finishGrandPrix,
   grandPrixSnapshot,
   setGrandPrixThrottle,
   startGrandPrix,
   steerGrandPrix,
-  tickGrandPrix
+  tickGrandPrix,
+  useGrandPrixJump
 } from "../src/grand-prix-model.mjs";
 
-test("seeded circuit uses stable rivals and two laps", () => {
-  const first = createGrandPrix("easy", 42);
-  const second = createGrandPrix("easy", 42);
+function finishCountdown(state) {
+  state.countdownMs = 0;
+}
+
+function tick(state, frames = 1) {
+  for (let index = 0; index < frames; index += 1) tickGrandPrix(state, 50);
+}
+
+test("arcade circuit is seeded, has four rivals, and runs three laps", () => {
+  const first = createGrandPrix("easy", 99);
+  const second = createGrandPrix("easy", 99);
   assert.equal(first.course, GRAND_PRIX_COURSE);
+  assert.equal(first.totalLaps, GRAND_PRIX_TOTAL_LAPS);
+  assert.equal(first.racers.length, 4);
   assert.deepEqual(first.racers, second.racers);
-  assert.equal(first.totalLaps, 2);
-  assert.equal(first.drive.throttle, false);
 });
 
-test("starting race has a countdown before the karts move", () => {
+test("countdown holds the grid before throttle can move the player", () => {
+  const state = createGrandPrix("easy", 1);
+  startGrandPrix(state);
+  setGrandPrixThrottle(state, true);
+  tick(state, 20);
+  assert.equal(state.countdownMs, 1400);
+  assert.equal(state.progress, 0);
+  tick(state, 28);
+  assert.equal(state.countdownMs, 0);
+  tick(state, 20);
+  assert.ok(state.drive.speed > 0);
+  assert.ok(state.progress > 0);
+});
+
+test("continuous steering changes lateral position and grass slows the kart", () => {
   const state = createGrandPrix("easy", 2);
   startGrandPrix(state);
+  finishCountdown(state);
   setGrandPrixThrottle(state, true);
-  for (let index = 0; index < 20; index += 1) tickGrandPrix(state, 50);
-  assert.equal(state.countdownMs, 800);
-  assert.equal(state.progress, 0);
-  for (let index = 0; index < 16; index += 1) tickGrandPrix(state, 50);
-  assert.equal(state.countdownMs, 0);
-  for (let index = 0; index < 20; index += 1) tickGrandPrix(state, 50);
-  assert.ok(state.progress > 0);
-  assert.ok(state.drive.speed > 0);
+  steerGrandPrix(state, "right", true);
+  tick(state, 80);
+  assert.ok(state.drive.lateral > 0.2);
+  state.drive.lateral = 1.25;
+  const before = state.drive.speed;
+  tick(state, 25);
+  assert.equal(state.drive.offroad, true);
+  assert.ok(state.drive.speed < before);
 });
 
-test("steering changes a moving kart's lane and leaving road triggers drag", () => {
+test("drifting charges and releases a visible speed boost", () => {
   const state = createGrandPrix("easy", 3);
   startGrandPrix(state);
-  state.countdownMs = 0;
+  finishCountdown(state);
   setGrandPrixThrottle(state, true);
-  steerGrandPrix(state, "right", true);
-  for (let index = 0; index < 40; index += 1) tickGrandPrix(state, 50);
-  assert.ok(state.drive.lateral > 0.2);
-  steerGrandPrix(state, "right", true);
-  for (let index = 0; index < 100; index += 1) tickGrandPrix(state, 50);
-  assert.equal(state.drive.offroad, true);
-  assert.ok(state.drive.speed < 74);
-});
-
-test("driving through the correct lane collects the first number booster", () => {
-  const state = createGrandPrix("easy", 4);
-  startGrandPrix(state);
-  state.countdownMs = 0;
-  state.progress = 244.99;
-  state.drive.lateral = -0.58;
-  setGrandPrixThrottle(state, true);
-  tickGrandPrix(state, 50);
-  assert.equal(state.number, 6);
-  assert.equal(state.fuel, 1);
-  assert.equal(state.checkpoint, 1);
+  state.drive.speed = 78;
+  steerGrandPrix(state, "left", true);
+  useGrandPrixJump(state);
+  tick(state, 16);
+  assert.equal(state.drive.drifting, true);
+  assert.ok(state.drive.driftCharge >= 700);
+  useGrandPrixJump(state);
+  assert.equal(state.drive.drifting, false);
   assert.ok(state.drive.boostMs > 0);
 });
 
-test("wrong lane creates a correction route rather than silently advancing", () => {
-  const state = createGrandPrix("easy", 5);
+test("correct lane crossings collect the three physical number gates", () => {
+  const state = createGrandPrix("easy", 4);
   startGrandPrix(state);
-  state.countdownMs = 0;
-  state.progress = 244.99;
-  state.drive.lateral = 0.58;
+  finishCountdown(state);
   setGrandPrixThrottle(state, true);
-  tickGrandPrix(state, 50);
-  assert.equal(state.number, 4);
-  assert.equal(state.checkpoint, 0);
-  assert.equal(state.correction, 2);
-  assert.ok(state.correctionAt > state.progress);
+  state.progress = 389.99;
+  state.drive.lateral = -0.52;
+  tick(state);
+  assert.equal(state.number, 6);
+  assert.equal(state.gateIndex, 1);
+  state.progress = 769.99;
+  state.drive.lateral = 0.42;
+  tick(state);
+  assert.equal(state.number, 7);
+  assert.equal(state.gateIndex, 2);
+  state.progress = 1149.99;
+  state.drive.lateral = 0;
+  tick(state);
+  assert.equal(state.number, 10);
+  assert.equal(state.gateIndex, 3);
+  assert.equal(state.fuel, 3);
 });
 
-test("two-lap route with all boosters opens ranked Star Castle finish", () => {
+test("wrong gate spins the kart and leaves the learning total unchanged", () => {
+  const state = createGrandPrix("easy", 5);
+  startGrandPrix(state);
+  finishCountdown(state);
+  setGrandPrixThrottle(state, true);
+  state.progress = 389.99;
+  state.drive.lateral = 0.48;
+  tick(state);
+  assert.equal(state.number, 4);
+  assert.equal(state.gateIndex, 0);
+  assert.equal(state.wrongGate, "plus-2");
+  assert.ok(state.drive.spinMs > 0);
+});
+
+test("laps require checkpoints and final lap opens a ranked finish", () => {
   const state = createGrandPrix("easy", 6);
   startGrandPrix(state);
-  state.countdownMs = 0;
-  state.lap = 3;
-  state.checkpoint = 3;
+  finishCountdown(state);
+  state.checkpointIndex = 4;
+  state.progress = GRAND_PRIX_TRACK_LENGTH - 0.1;
+  state.drive.speed = 30;
+  tick(state);
+  assert.equal(state.lap, 2);
+  assert.equal(state.checkpointIndex, 0);
+  state.lap = GRAND_PRIX_TOTAL_LAPS + 1;
+  state.gateIndex = 3;
   state.number = 10;
-  state.fuel = 3;
   const snapshot = grandPrixSnapshot(state);
   assert.equal(snapshot.finishOpen, true);
   assert.deepEqual(finishGrandPrix(state).map(event => event.type), ["finish"]);
   assert.equal(state.phase, "finale");
-});
-
-
-test("three correctly steered gates advance in one physical first lap", () => {
-  const state = createGrandPrix("easy", 7);
-  startGrandPrix(state);
-  state.countdownMs = 0;
-  setGrandPrixThrottle(state, true);
-  state.progress = 244.99;
-  state.drive.lateral = -0.58;
-  tickGrandPrix(state, 50);
-  assert.equal(state.checkpoint, 1);
-  assert.equal(state.gateLatched, false);
-  state.progress = 504.99;
-  state.drive.lateral = 0;
-  tickGrandPrix(state, 50);
-  assert.equal(state.checkpoint, 2);
-  state.progress = 759.99;
-  state.drive.lateral = 0.58;
-  tickGrandPrix(state, 50);
-  assert.equal(state.checkpoint, 3);
-  assert.equal(state.number, 10);
 });

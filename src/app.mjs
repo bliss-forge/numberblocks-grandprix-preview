@@ -161,8 +161,8 @@ import {
 } from "./delivery-model.mjs";
 import { deliveryCaption, renderDelivery } from "./delivery-scene.mjs";
 
-import { chooseGrandPrixGate, createGrandPrix, finishGrandPrix, startGrandPrix, setGrandPrixBrake, setGrandPrixThrottle, steerGrandPrix, takeGrandPrixCorrection, tickGrandPrix, useGrandPrixJump } from "./grand-prix-model.mjs?v=20260812-grandprix-v18";
-import { renderGrandPrixScene, updateGrandPrixScene } from "./grand-prix-scene.mjs?v=20260812-grandprix-v18";
+import { chooseGrandPrixGate, createGrandPrix, finishGrandPrix, startGrandPrix, setGrandPrixBrake, setGrandPrixThrottle, steerGrandPrix, takeGrandPrixCorrection, tickGrandPrix, useGrandPrixJump } from "./grand-prix-model.mjs?v=20260812-grandprix-v24";
+import { renderGrandPrixScene, updateGrandPrixScene } from "./grand-prix-scene.mjs?v=20260812-grandprix-v24";
 const WALK_REPEAT_MS = 110;
 const audio = new AudioManager();
 const $ = id => document.getElementById(id);
@@ -3059,7 +3059,7 @@ function grandPrixFrame(round, nowMs) {
   const elapsed = Math.min(50, Math.max(0, nowMs - state.grandPrixLastFrameAt));
   state.grandPrixLastFrameAt = nowMs;
   tickGrandPrix(state.grandPrix, elapsed);
-  if (state.grandPrix.lap > state.grandPrix.totalLaps && state.grandPrix.checkpoint === 3) {
+  if (state.grandPrix.lap > state.grandPrix.totalLaps) {
     const events = finishGrandPrix(state.grandPrix);
     if (events.length) audio.playSfx("win");
   }
@@ -3084,4 +3084,14 @@ function startGrandPrixRun() {
   refreshGrandPrixScene();
   audio.playSfx("win");
   requestAnimationFrame(nowMs => grandPrixFrame(state.round, nowMs));
+}
+
+if (new URLSearchParams(window.location.search).get("demo") === "grandprix") {
+  window.setTimeout(() => {
+    startGrandPrixRun();
+    state.grandPrix.countdownMs = 0;
+    setGrandPrixThrottle(state.grandPrix, true);
+    steerGrandPrix(state.grandPrix, "left", true);
+    window.setTimeout(() => steerGrandPrix(state.grandPrix, "left", false), 1600);
+  }, 80);
 }
