@@ -3,6 +3,12 @@ export const GRAND_PRIX_TRACK_LENGTH = 1800;
 export const GRAND_PRIX_TOTAL_LAPS = 3;
 export const GRAND_PRIX_GATE_POSITIONS = Object.freeze([390, 770, 1150]);
 export const GRAND_PRIX_CHECKPOINTS = Object.freeze([280, 690, 1080, 1450]);
+export const GRAND_PRIX_ITEM_BOXES = Object.freeze([
+  { id: "starbox-1", position: 535, lane: -0.08 },
+  { id: "starbox-2", position: 865, lane: 0.48 },
+  { id: "starbox-3", position: 1240, lane: -0.46 },
+  { id: "starbox-4", position: 1535, lane: 0.24 }
+]);
 
 const RACER_NUMBERS = Object.freeze([1, 2, 3, 5]);
 const GATES = Object.freeze([
@@ -21,6 +27,11 @@ const BRAKE = 112;
 const OFFROAD_DRAG = 76;
 const ROAD_EDGE = 1.02;
 const WORLD_EDGE = 1.62;
+const ITEM_BOX_CAPTURE_WIDTH = 0.4;
+const STARBURST_ITEM = "starburst";
+const STARBURST_MIN_RANGE = 5;
+const STARBURST_MAX_RANGE = 165;
+const STARBURST_TRAVEL_MS = 560;
 
 function clamp(value, min, max) {
   return Math.max(min, Math.min(max, value));
@@ -76,8 +87,10 @@ function updateAi(state, seconds) {
   state.racers.forEach((racer, index) => {
     const gap = playerDistance - racer.distance;
     const chase = gap > 18 ? 1.065 : gap < -35 ? 0.965 : 1;
+    racer.hitMs = Math.max(0, (racer.hitMs || 0) - seconds * 1000);
+    const hitSlow = racer.hitMs > 0 ? 0.46 : 1;
     racer.speed = clamp(racer.speed + (racer.targetSpeed - racer.speed) * Math.min(1, seconds * 1.3), 58, 122);
-    racer.distance += racer.speed * chase * seconds;
+    racer.distance += racer.speed * chase * hitSlow * seconds;
     racer.progress = racer.distance % GRAND_PRIX_TRACK_LENGTH;
     racer.lap = Math.floor(racer.distance / GRAND_PRIX_TRACK_LENGTH) + 1;
     const weave = Math.sin(state.elapsedMs / 850 + index * 2.1) * 0.16;
@@ -136,6 +149,44 @@ function updateGate(state, previousProgress) {
   state.drive.spinMs = Math.max(state.drive.spinMs, 430);
   state.drive.speed *= 0.5;
   return [{ type: "wrong-gate", needed: gate.target - state.number, gateId: gate.id }];
+}
+
+function updateItemBoxes(state, previousProgress) {
+  const drive = state.drive;
+  if (drive.heldItem || state.lap > state.totalLaps) return [];
+  for (const box of GRAND_PRIX_ITEM_BOXES) {
+    if (state.itemBoxes[box.id] === state.lap) continue;
+    if (!crossing(previousProgress, state.progress, box.position)) continue;
+    if (Math.abs(drive.lateral - box.lane) > ITEM_BOX_CAPTURE_WIDTH) continue;
+    state.itemBoxes[box.id] = state.lap;
+    drive.heldItem = STARBURST_ITEM;
+    drive.itemPulseMs = 780;
+    return [{ type: "item-box", item: drive.heldItem, boxId: box.id }];
+  }
+  return [];
+}
+
+function starburstTarget(state) {
+  const player = totalDistance(state);
+  return state.racers
+    .filter(racer => racer.distance - player >= STARBURST_MIN_RANGE && racer.distance - player <= STARBURST_MAX_RANGE)
+    .sort((left, right) => left.distance - right.distance)[0] ?? null;
+}
+
+function updateStarburst(state, delta) {
+  const burst = state.starburst;
+  if (!burst) return [];
+  burst.elapsedMs += delta;
+  if (burst.elapsedMs < burst.durationMs) return [];
+  const target = state.racers.find(racer => racer.number === burst.targetNumber);
+  state.starburst = null;
+  if (!target) return [];
+  target.hitMs = 720;
+  target.speed *= 0.48;
+  target.distance = Math.max(0, target.distance - 11);
+  target.progress = target.distance % GRAND_PRIX_TRACK_LENGTH;
+  target.lap = Math.floor(target.distance / GRAND_PRIX_TRACK_LENGTH) + 1;
+  return [{ type: "starburst-hit", racer: target.number }];
 }
 
 function updateStarDashPass(state) {
@@ -207,6 +258,7 @@ export function createGrandPrix(difficulty = "easy", seed = Date.now()) {
       laneTarget: [-0.62, -0.2, 0.25, 0.67][index],
       raceLine: [-0.54, -0.17, 0.22, 0.57][index],
       packOffset: 0,
+      hitMs: 0,
       targetSpeed: 95 + random() * 12,
       speed: 78 + random() * 8,
       distance,
@@ -233,12 +285,15 @@ export function createGrandPrix(difficulty = "easy", seed = Date.now()) {
     wrongGate: null,
     lastRank: racers.length + 1,
     finishResult: null,
+    itemBoxes: Object.fromEntries(GRAND_PRIX_ITEM_BOXES.map(box => [box.id, 0])),
+    starburst: null,
     racers,
     drive: {
       speed: 0,
       lateral: 0,
       lateralVelocity: 0,
       heading: 0,
+      steer: 0,
       throttle: false,
       brake: false,
       drifting: false,
@@ -259,6 +314,8 @@ export function createGrandPrix(difficulty = "easy", seed = Date.now()) {
       contactMs: 0,
       missedCheckpointMs: 0,
       airborneMs: 0,
+      itemPulseMs: 0,
+      heldItem: null,
       offroad: false
     }
   };
@@ -325,6 +382,21 @@ export function useGrandPrixJump(state) {
   return setGrandPrixDrift(state, !state.drive.drifting);
 }
 
+export function useGrandPrixItem(state) {
+  if (state.phase !== "racing" || state.countdownMs > 0 || state.drive.spinMs > 0) return [];
+  if (state.drive.heldItem !== STARBURST_ITEM) return [{ type: "item-empty" }];
+  const target = starburstTarget(state);
+  if (!target) return [{ type: "item-no-target" }];
+  state.drive.heldItem = null;
+  state.starburst = {
+    targetNumber: target.number,
+    elapsedMs: 0,
+    durationMs: STARBURST_TRAVEL_MS,
+    startLane: state.drive.lateral
+  };
+  return [{ type: "starburst-launch", racer: target.number }];
+}
+
 export function useGrandPrixSkill(state) {
   if (state.phase !== "racing" || state.countdownMs > 0 || state.drive.spinMs > 0) return [];
   const drive = state.drive;
@@ -365,7 +437,7 @@ export function tickGrandPrix(state, elapsedMs) {
   state.elapsedMs += delta;
   const wasCountingDown = state.countdownMs > 0;
   state.countdownMs = Math.max(0, state.countdownMs - delta);
-  ["boostMs", "startSparkMs", "skillMs", "overtakeMs", "rankChangeMs", "pressureMs", "spinMs", "contactMs", "missedCheckpointMs", "airborneMs"].forEach(key => { drive[key] = Math.max(0, drive[key] - delta); });
+  ["boostMs", "startSparkMs", "skillMs", "overtakeMs", "rankChangeMs", "pressureMs", "spinMs", "contactMs", "missedCheckpointMs", "airborneMs", "itemPulseMs"].forEach(key => { drive[key] = Math.max(0, drive[key] - delta); });
   if (wasCountingDown && state.countdownMs === 0 && drive.startSparkArmed) {
     drive.startSparkArmed = false;
     drive.startSparkMs = 820;
@@ -392,9 +464,13 @@ export function tickGrandPrix(state, elapsedMs) {
       drive.driftCharge = Math.max(0, drive.driftCharge - delta * 1.8);
       drive.driftMs = 0;
     }
-    const steerStrength = (drifting ? 4.8 : 2.6) * (0.25 + drive.speed / MAX_SPEED);
-    drive.lateralVelocity += drive.heading * steerStrength * seconds;
-    drive.lateralVelocity *= drifting ? 0.965 : 0.86;
+    const steerResponse = drifting ? 7.2 : 13.5;
+    drive.steer += (drive.heading - drive.steer) * Math.min(1, seconds * steerResponse);
+    const speedRatio = clamp(drive.speed / MAX_SPEED, 0, 1);
+    const grip = 1 - speedRatio * 0.24;
+    const steerStrength = (drifting ? 5.45 : 3.35) * (0.3 + speedRatio) * grip;
+    drive.lateralVelocity += drive.steer * steerStrength * seconds;
+    drive.lateralVelocity *= drifting ? 0.972 : 0.82;
   }
   drive.lateral += drive.lateralVelocity * seconds;
   drive.lateral = clamp(drive.lateral, -WORLD_EDGE, WORLD_EDGE);
@@ -404,11 +480,13 @@ export function tickGrandPrix(state, elapsedMs) {
   state.progress += drive.speed * seconds;
   updateCheckpoints(state, previous);
   events.push(...updateGate(state, previous));
+  events.push(...updateItemBoxes(state, previous));
   while (state.progress >= GRAND_PRIX_TRACK_LENGTH) {
     state.progress -= GRAND_PRIX_TRACK_LENGTH;
     events.push(...advanceLap(state));
   }
   updateAi(state, seconds);
+  events.push(...updateStarburst(state, delta));
   events.push(...updateStarDashPass(state));
   events.push(...updateRaceSignals(state));
   events.push(...updateKartContacts(state));
@@ -454,6 +532,10 @@ export function grandPrixSnapshot(state) {
     rankChange: state.drive.rankChange,
     pressureActive: state.drive.pressureMs > 0,
     pressureNumber: state.drive.pressureNumber,
+    heldItem: state.drive.heldItem,
+    itemPulseActive: state.drive.itemPulseMs > 0,
+    starburstActive: Boolean(state.starburst),
+    starburstTarget: state.starburst?.targetNumber ?? null,
     finishResult: state.finishResult,
     finishOpen: state.lap > state.totalLaps && state.gateIndex === GATES.length && state.number === state.target
   };

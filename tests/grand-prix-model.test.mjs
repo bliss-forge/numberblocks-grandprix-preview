@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   GRAND_PRIX_COURSE,
+  GRAND_PRIX_ITEM_BOXES,
   GRAND_PRIX_TOTAL_LAPS,
   GRAND_PRIX_TRACK_LENGTH,
   createGrandPrix,
@@ -11,6 +12,7 @@ import {
   startGrandPrix,
   steerGrandPrix,
   tickGrandPrix,
+  useGrandPrixItem,
   useGrandPrixJump,
   useGrandPrixSkill
 } from "../src/grand-prix-model.mjs";
@@ -73,6 +75,24 @@ test("continuous steering changes lateral position and grass slows the kart", ()
   assert.ok(state.drive.speed < before);
 });
 
+test("smoothed steering eases into a turn and counter-recovers after release", () => {
+  const state = createGrandPrix("easy", 21);
+  startGrandPrix(state);
+  finishCountdown(state);
+  setGrandPrixThrottle(state, true);
+  state.drive.speed = 116;
+  steerGrandPrix(state, "right", true);
+  tickGrandPrix(state, 50);
+  assert.ok(state.drive.steer > 0 && state.drive.steer < 1);
+  const initialLateral = state.drive.lateral;
+  tick(state, 10);
+  assert.ok(state.drive.lateral > initialLateral);
+  steerGrandPrix(state, "right", false);
+  tick(state, 6);
+  assert.ok(state.drive.steer < 0.2);
+  assert.ok(Math.abs(state.drive.lateralVelocity) < 1.5);
+});
+
 test("drifting charges and releases a visible speed boost", () => {
   const state = createGrandPrix("easy", 3);
   startGrandPrix(state);
@@ -87,6 +107,50 @@ test("drifting charges and releases a visible speed boost", () => {
   useGrandPrixJump(state);
   assert.equal(state.drive.drifting, false);
   assert.ok(state.drive.boostMs > 0);
+});
+
+test("Starbox grants one Starburst and does not overwrite a held tactical item", () => {
+  const state = createGrandPrix("easy", 73);
+  startGrandPrix(state);
+  finishCountdown(state);
+  setGrandPrixThrottle(state, true);
+  const box = GRAND_PRIX_ITEM_BOXES[0];
+  state.progress = box.position - 1;
+  state.drive.lateral = box.lane;
+  state.drive.speed = 40;
+  const events = tickGrandPrix(state, 50);
+  assert.ok(events.some(event => event.type === "item-box"));
+  assert.equal(state.drive.heldItem, "starburst");
+  const snapshot = grandPrixSnapshot(state);
+  assert.equal(snapshot.heldItem, "starburst");
+  assert.equal(snapshot.itemPulseActive, true);
+  state.progress = GRAND_PRIX_ITEM_BOXES[1].position - 1;
+  state.drive.lateral = GRAND_PRIX_ITEM_BOXES[1].lane;
+  tickGrandPrix(state, 50);
+  assert.equal(state.drive.heldItem, "starburst");
+});
+
+test("Starburst only launches forward and briefly spins the locked rival", () => {
+  const state = createGrandPrix("easy", 74);
+  startGrandPrix(state);
+  finishCountdown(state);
+  state.racers.forEach(racer => { racer.distance = -14; racer.progress = 0; racer.lap = 1; });
+  state.drive.heldItem = "starburst";
+  assert.deepEqual(useGrandPrixItem(state).map(event => event.type), ["item-no-target"]);
+  assert.equal(state.drive.heldItem, "starburst");
+  const target = state.racers[0];
+  target.distance = state.progress + 46;
+  target.lane = 0.26;
+  const launch = useGrandPrixItem(state);
+  assert.deepEqual(launch.map(event => event.type), ["starburst-launch"]);
+  assert.equal(state.drive.heldItem, null);
+  assert.equal(state.starburst.targetNumber, target.number);
+  const events = [];
+  for (let index = 0; index < 12; index += 1) events.push(...tickGrandPrix(state, 50));
+  assert.ok(events.some(event => event.type === "starburst-hit"));
+  assert.equal(state.starburst, null);
+  assert.ok(target.hitMs > 0);
+  assert.ok(target.speed < target.targetSpeed);
 });
 
 test("Star Dash requires a full meter and protects a tactical overtake", () => {

@@ -161,8 +161,8 @@ import {
 } from "./delivery-model.mjs";
 import { deliveryCaption, renderDelivery } from "./delivery-scene.mjs";
 
-import { chooseGrandPrixGate, createGrandPrix, finishGrandPrix, startGrandPrix, setGrandPrixBrake, setGrandPrixDrift, setGrandPrixThrottle, steerGrandPrix, takeGrandPrixCorrection, tickGrandPrix, useGrandPrixJump, useGrandPrixSkill } from "./grand-prix-model.mjs?v=20260814-grandprix-v30";
-import { renderGrandPrixScene, updateGrandPrixScene } from "./grand-prix-scene.mjs?v=20260814-grandprix-v30";
+import { chooseGrandPrixGate, createGrandPrix, finishGrandPrix, startGrandPrix, setGrandPrixBrake, setGrandPrixDrift, setGrandPrixThrottle, steerGrandPrix, takeGrandPrixCorrection, tickGrandPrix, useGrandPrixItem, useGrandPrixJump, useGrandPrixSkill } from "./grand-prix-model.mjs?v=20260814-grandprix-v31";
+import { renderGrandPrixScene, updateGrandPrixScene } from "./grand-prix-scene.mjs?v=20260814-grandprix-v31";
 const WALK_REPEAT_MS = 110;
 const audio = new AudioManager();
 const $ = id => document.getElementById(id);
@@ -2531,8 +2531,10 @@ dom.stage.addEventListener("click", event => {
     const toggle = event.target.closest("[data-gp-toggle]");
     const jump = event.target.closest("[data-gp-jump]");
     const skill = event.target.closest("[data-gp-skill]");
+    const item = event.target.closest("[data-gp-item]");
     if (toggle) { setGrandPrixThrottle(state.grandPrix, !state.grandPrix.drive.throttle); audio.playSfx("key"); refreshGrandPrixScene(); return; }
     if (jump) { playGrandPrixEvents(useGrandPrixJump(state.grandPrix)); refreshGrandPrixScene(); return; }
+    if (item) { playGrandPrixEvents(useGrandPrixItem(state.grandPrix)); refreshGrandPrixScene(); return; }
     if (skill) { playGrandPrixEvents(useGrandPrixSkill(state.grandPrix)); refreshGrandPrixScene(); return; }
   }
   // 택배 왔어요! — 방향·출발·층·벨·좌우 버튼을 한자리에서 받는다.
@@ -2686,6 +2688,11 @@ document.addEventListener("keydown", event => {
     if (event.key === "Shift") {
       event.preventDefault();
       if (!event.repeat) playGrandPrixEvents(setGrandPrixDrift(state.grandPrix, true));
+      return;
+    }
+    if (event.key.toLowerCase() === "e") {
+      event.preventDefault();
+      if (!event.repeat) playGrandPrixEvents(useGrandPrixItem(state.grandPrix));
       return;
     }
     if (event.key === " " || event.key === "Spacebar") {
@@ -3057,6 +3064,9 @@ function playGrandPrixEvents(events = []) {
   const types = new Set(events.map(event => event.type));
   if (types.has("start-spark")) { audio.playSfx("bell"); return; }
   if (types.has("wrong-gate") || types.has("kart-contact") || types.has("rank-down")) { audio.playSfx("wrong"); return; }
+  if (types.has("item-box")) { audio.playSfx("pop"); return; }
+  if (types.has("starburst-launch")) { audio.playSfx("jingle"); return; }
+  if (types.has("starburst-hit")) { audio.playSfx("wrong"); return; }
   if (types.has("star-dash")) { audio.playSfx("jingle"); return; }
   if (types.has("star-dash-pass")) { audio.playSfx("key"); return; }
   if (types.has("drift-boost")) {
@@ -3132,6 +3142,20 @@ if (grandPrixDemo === "grandprix") {
       state.grandPrix.checkpointIndex = 4;
       state.grandPrix.progress = 1720;
       finishGrandPrix(state.grandPrix);
+      refreshGrandPrixScene();
+      return;
+    }
+    if (grandPrixDemoScene === "starburst") {
+      state.grandPrix.progress = 520;
+      state.grandPrix.drive.speed = 116;
+      state.grandPrix.drive.heldItem = "starburst";
+      const target = state.grandPrix.racers[0];
+      target.distance = state.grandPrix.progress + 92;
+      target.progress = target.distance;
+      target.lane = 0.25;
+      useGrandPrixItem(state.grandPrix);
+      state.grandPrix.starburst.durationMs = 5000;
+      state.grandPrix.starburst.elapsedMs = 2300;
       refreshGrandPrixScene();
       return;
     }

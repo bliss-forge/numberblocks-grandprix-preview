@@ -83,3 +83,20 @@ The next iteration prioritizes the following original implementation goals.
 | Corner look-ahead | The camera shifts a small amount toward the curve direction calculated ahead of the kart. Higher speed strengthens the look-ahead but stays inside the existing road framing. |
 | Drift apex | While a sufficiently fast drift is held, apply a tiny camera roll and a small lateral view counter-shift. It makes the road feel like it rotates under the kart without moving HUD elements. |
 | Safety | All offsets are capped under the existing world edge, keep 2D perspective, and cannot create obstacle-like blocking behavior. |
+
+## Item lane and depth-response iteration
+
+The next race layer adds a single original tactical object without turning the road into an obstacle field. A glowing **Starbox** appears at a small number of fixed, clearly projected lane positions on every lap. Driving through a box only grants one held item at a time: the **Starburst**, a friendly star-comet projectile. It may be launched with `E` or the ITEM button only when an opponent is ahead. The projectile has a short, legible flight line, finds the nearest forward rival, and applies a brief spin and speed loss. It never targets a racer behind the player, cannot affect the player, and does not hide the driving line.
+
+| Area | Rule | Player-facing result |
+|---|---|---|
+| Starbox placement | Five boxes are placed away from the number gates, with one active collection per box per lap and a generous lane capture width. | The player can choose a tactical line without confusing arithmetic gates. |
+| Held item | A kart holds at most one Starburst. Collecting another box while loaded leaves the existing item unchanged. | The item state is understandable at a glance. |
+| Starburst target | The nearest rival 5 to 165 course units ahead is selected. A short-lived star comet follows that target and then delivers one soft spin. | The attack reads as a forward racing action rather than an unavoidable hazard. |
+| Attack fairness | Launching without a forward target preserves the held item. A hit cannot cause a lap skip or an off-road teleport. | The mechanic creates a passing chance without invalidating driving skill. |
+| Input | `E` launches the held Starburst. `Space` remains reserved for the charged Star Dash. | The two tactical inputs stay distinct. |
+| Sound | Box collection uses `pop`, launch uses `jingle`, and the rival impact uses `wrong` once. | New feedback remains consistent with the existing safe synthesized palette. |
+
+The handling revision introduces a smoothed steering response instead of directly turning lateral velocity from a binary key state. The kart now eases into steering, has more stable high-speed grip, retains deliberate drift slide, and applies a small counter-steer recovery when the key is released. Braking remains strong, while the physical visual lean follows the smoothed input rather than snapping with each keypress.
+
+The depth revision remains strictly 2D canvas art. It widens the high-speed road field subtly, increases near-road expansion, layers curved curb bands and roadside star markers, gives projected boxes and karts grounded shadows, and adds restrained forward motion streaks only at speed. The camera roll stays below the HUD and the player kart remains inside the lower central safe zone.
