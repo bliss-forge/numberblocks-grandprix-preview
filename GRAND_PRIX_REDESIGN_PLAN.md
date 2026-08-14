@@ -25,3 +25,61 @@ The game should feel like an original, child-friendly arcade kart race rather th
 5. Star Dash is readable, has a deliberate input, and cannot be repeatedly activated while empty.
 6. The updated 1440×900 deterministic demo shows a large player kart, readable gates, racing telemetry, and no blank or stalled canvas.
 7. Existing 1 through 9 games continue to pass regression tests.
+
+## Video-informed iteration
+
+The next iteration prioritizes the following original implementation goals.
+
+| Goal | Concrete acceptance criterion |
+|---|---|
+| Camera speed response | Higher speed and Star Dash widen the forward road view slightly without changing the 2D art style or hiding the kart. |
+| Start skill | A successful launch window during the countdown produces a short, clearly labeled Start Spark boost. |
+| Tactical interaction | Star Dash has a visible overtake behavior against nearby racers, not only a speed value and contact protection. |
+| HUD clarity | The race edges show rank, lap, speed, learning objective, drift tier, Dash charge, and a compact route progress indicator without covering the driving line. |
+| Rival feedback | Overtakes are readable through small rank-change callouts and a pack that keeps distinct colored kart silhouettes. |
+| Road energy | Near-road curb cadence, roadside depth, and boost-state screen treatment make forward motion easier to perceive in still and moving views. |
+| Finish reward | The end state acknowledges the final rank and the completed number target as one coherent racing result. |
+
+## Competitive finish iteration
+
+| Loop element | Original Numberblocks Grand Prix design |
+|---|---|
+| Rear pressure | When a rival approaches from behind on a similar lane, show a compact colored warning near the lower road edge. It is information, not an attack item. |
+| Rank transition | Track the last rank in the model. A gain shows `UP!` and a loss shows `CHASE!` briefly without blocking the driving line. |
+| Dash pass | Keep Star Dash's physical overtake and pair it with rank transition feedback when it changes position. |
+| Finish reward | Replace plain final text with a small results card: place, route completion `4 → 10`, completed laps, and a short child-friendly rank line. |
+| Celebration | Use original star confetti, checker ribbon, and a kart spotlight. Keep the scene 2D pastel and avoid any branded podium or copied race presentation. |
+
+## Star Dash information hierarchy
+
+| Element | Rule |
+|---|---|
+| Dash energy core | The Dash chip contains a small circular energy core with a fill ring. The numeric percentage stays available but secondary. |
+| Ready state | At 100%, the core changes to a bright star state and shows `SPACE` as the immediate action cue. |
+| Active state | During Star Dash, the chip reads `DASHING` and the core pulses without adding a separate center overlay. |
+| Learning gates | Correct green number gates retain their number value and add a subtle original star crown; red decoys remain visually quieter and only state `NOT THIS`. |
+| Route continuity | The same warm star accent connects the completed route meter, correct gate, and Dash core, turning arithmetic choices into a visible racing reward loop. |
+
+## Race sound and timing feedback
+
+| Race event | Existing safe feedback |
+|---|---|
+| Grid ready | Start the already available synthesized engine at zero speed. Do not play a win jingle. |
+| Start Spark | Use a short bright `bell` on successful timing and let the engine pitch rise with the boost. |
+| Drift start | Use one soft `pop` only on the initial press. Drift release uses `key` for mini, `bell` for super, and `jingle` for ultra. |
+| Correct number gate | Use `bell`; wrong gate uses `wrong`. |
+| Star Dash | Use `jingle` on a full Dash and a softer `key` for the actual pass. |
+| Contact and rank loss | Use `wrong` once when impact starts; a rank gain uses `bell`. |
+| Finish | Stop the engine before the existing `win` celebration. |
+| Continuous feel | Feed current kart speed into the existing WebAudio engine loop every frame. The engine is stopped by the home transition and finale state. |
+
+## Pack and corner response rules
+
+| Element | Rule |
+|---|---|
+| Rival pack choice | If a racer approaches another racer within a short forward gap, it chooses one of two bounded side offsets based on its number and phase, rather than overlapping the same lane. |
+| Player pressure | When the player is close ahead, the nearest trailing rival shifts to an open side line before contact range. This makes the rear-pressure alert correspond to a visible kart. |
+| Passing lane | A racer slightly behind the player aims for a nearby free line, but never leaves the safe road band. Its lane target eases rather than snaps. |
+| Corner look-ahead | The camera shifts a small amount toward the curve direction calculated ahead of the kart. Higher speed strengthens the look-ahead but stays inside the existing road framing. |
+| Drift apex | While a sufficiently fast drift is held, apply a tiny camera roll and a small lateral view counter-shift. It makes the road feel like it rotates under the kart without moving HUD elements. |
+| Safety | All offsets are capped under the existing world edge, keep 2D perspective, and cannot create obstacle-like blocking behavior. |

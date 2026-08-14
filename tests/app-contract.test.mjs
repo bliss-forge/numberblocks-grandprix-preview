@@ -14,7 +14,7 @@ test("정적 셸이 스타일과 앱 모듈을 로드한다", () => {
 
 test("1~5 모바일 보정 스타일은 기본 스타일 뒤에 로드된다", () => {
   const baseIndex = html.indexOf(
-    'href="styles.css?v=20260814-grandprix-v25"'
+    'href="styles.css?v=20260814-grandprix-v30"'
   );
   const mobileIndex = html.indexOf(
     'href="mobile-games.css?v=20260808-delivery-home"'
@@ -28,7 +28,7 @@ test("스타일 시트는 최신 캐시 주소를 달고 나간다", () => {
   // 배포 후 옛 CSS 가 그대로 쓰이지 않도록, 내용이 바뀌면 이 값을 함께 올린다.
   assert.match(
     html,
-    /<link rel="stylesheet" href="styles\.css\?v=20260814-grandprix-v25">/
+    /<link rel="stylesheet" href="styles\.css\?v=20260814-grandprix-v30">/
   );
   assert.match(
     html,
@@ -470,4 +470,40 @@ test("grand prix redesign keeps race telemetry, tactical skill, and responsive c
   assert.match(grandPrixScene, /dataset\.gpSkill/);
   assert.match(css, /@media \(min-width:741px\)\{\.gp-arcade-race \.gp-arcade-controls\{display:none!important\}\}/);
   assert.match(css, /grid-template-columns:repeat\(3,minmax\(0,1fr\)\)/);
+});
+
+test("grand prix keeps video-informed launch, overtake, and route feedback", () => {
+  assert.match(grandPrixScene, /gp-route-mini/);
+  assert.match(grandPrixScene, /gp-start-spark/);
+  assert.match(grandPrixScene, /gp-overtake-callout/);
+  assert.match(grandPrixScene, /speedEnergy/);
+  assert.match(css, /gp-start-spark/);
+  assert.match(css, /gp-route-mini/);
+});
+
+test("grand prix competition feedback keeps rank, pressure, and finish result UI", () => {
+  assert.match(grandPrixScene, /gp-rank-callout/);
+  assert.match(grandPrixScene, /gp-pressure-alert/);
+  assert.match(grandPrixScene, /gp-finish-place/);
+  assert.match(grandPrixScene, /gp-finish-route/);
+  assert.match(css, /gp-pressure-alert/);
+  assert.match(css, /gp-finish-route/);
+});
+
+test("grand prix Dash core and star route keep their live-race hierarchy", () => {
+  assert.match(grandPrixScene, /gp-skill-core/);
+  assert.match(grandPrixScene, /gp-skill-text/);
+  assert.match(grandPrixScene, /STAR LINE/);
+  assert.match(grandPrixScene, /NOT THIS/);
+  assert.match(css, /gp-skill-core/);
+  assert.match(css, /gp-arcade-finish\[hidden\]\{display:none!important\}/);
+});
+
+test("grand prix uses engine feedback and event-driven race sounds instead of a start win jingle", () => {
+  assert.match(app, /function playGrandPrixEvents\(events = \[\]\)/);
+  assert.match(app, /audio\.startEngine\(\)/);
+  assert.match(app, /audio\.setEngineSpeed\(state\.grandPrix\.drive\.speed \/ 112\)/);
+  assert.match(app, /audio\.stopEngine\(\);\s*audio\.playSfx\("win"\)/);
+  const startBlock = app.slice(app.indexOf("function startGrandPrixRun()"), app.indexOf("const grandPrixDemo"));
+  assert.doesNotMatch(startBlock, /audio\.playSfx\("win"\)/);
 });

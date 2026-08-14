@@ -161,8 +161,8 @@ import {
 } from "./delivery-model.mjs";
 import { deliveryCaption, renderDelivery } from "./delivery-scene.mjs";
 
-import { chooseGrandPrixGate, createGrandPrix, finishGrandPrix, startGrandPrix, setGrandPrixBrake, setGrandPrixDrift, setGrandPrixThrottle, steerGrandPrix, takeGrandPrixCorrection, tickGrandPrix, useGrandPrixJump, useGrandPrixSkill } from "./grand-prix-model.mjs?v=20260814-grandprix-v25";
-import { renderGrandPrixScene, updateGrandPrixScene } from "./grand-prix-scene.mjs?v=20260814-grandprix-v25";
+import { chooseGrandPrixGate, createGrandPrix, finishGrandPrix, startGrandPrix, setGrandPrixBrake, setGrandPrixDrift, setGrandPrixThrottle, steerGrandPrix, takeGrandPrixCorrection, tickGrandPrix, useGrandPrixJump, useGrandPrixSkill } from "./grand-prix-model.mjs?v=20260814-grandprix-v30";
+import { renderGrandPrixScene, updateGrandPrixScene } from "./grand-prix-scene.mjs?v=20260814-grandprix-v30";
 const WALK_REPEAT_MS = 110;
 const audio = new AudioManager();
 const $ = id => document.getElementById(id);
@@ -2532,8 +2532,8 @@ dom.stage.addEventListener("click", event => {
     const jump = event.target.closest("[data-gp-jump]");
     const skill = event.target.closest("[data-gp-skill]");
     if (toggle) { setGrandPrixThrottle(state.grandPrix, !state.grandPrix.drive.throttle); audio.playSfx("key"); refreshGrandPrixScene(); return; }
-    if (jump) { useGrandPrixJump(state.grandPrix); audio.playSfx("pop"); refreshGrandPrixScene(); return; }
-    if (skill) { useGrandPrixSkill(state.grandPrix); audio.playSfx("win"); refreshGrandPrixScene(); return; }
+    if (jump) { playGrandPrixEvents(useGrandPrixJump(state.grandPrix)); refreshGrandPrixScene(); return; }
+    if (skill) { playGrandPrixEvents(useGrandPrixSkill(state.grandPrix)); refreshGrandPrixScene(); return; }
   }
   // 택배 왔어요! — 방향·출발·층·벨·좌우 버튼을 한자리에서 받는다.
   if (state.mode === "delivery" && state.delivery && state.phase === "playing" &&
@@ -2618,7 +2618,7 @@ function setGrandPrixHold(kind, active) {
   if (kind === "left" || kind === "right") steerGrandPrix(state.grandPrix, kind, active);
   if (kind === "throttle") setGrandPrixThrottle(state.grandPrix, active);
   if (kind === "brake") setGrandPrixBrake(state.grandPrix, active);
-  if (kind === "drift") setGrandPrixDrift(state.grandPrix, active);
+  if (kind === "drift") playGrandPrixEvents(setGrandPrixDrift(state.grandPrix, active));
 }
 function clearGrandPrixHold() {
   ["left", "right", "throttle", "brake", "drift"].forEach(kind => setGrandPrixHold(kind, false));
@@ -2638,7 +2638,7 @@ document.addEventListener("keyup", event => {
   if (event.key === "ArrowRight") steerGrandPrix(state.grandPrix, "right", false);
   if (event.key === "ArrowUp" || event.key.toLowerCase() === "w") setGrandPrixThrottle(state.grandPrix, false);
   if (event.key === "ArrowDown" || event.key.toLowerCase() === "s") setGrandPrixBrake(state.grandPrix, false);
-  if (event.key === "Shift") setGrandPrixDrift(state.grandPrix, false);
+  if (event.key === "Shift") playGrandPrixEvents(setGrandPrixDrift(state.grandPrix, false));
 });
 
 dom.homeButton.addEventListener("click", goHome);
@@ -2685,12 +2685,12 @@ document.addEventListener("keydown", event => {
     }
     if (event.key === "Shift") {
       event.preventDefault();
-      if (!event.repeat) { setGrandPrixDrift(state.grandPrix, true); audio.playSfx("pop"); }
+      if (!event.repeat) playGrandPrixEvents(setGrandPrixDrift(state.grandPrix, true));
       return;
     }
     if (event.key === " " || event.key === "Spacebar") {
       event.preventDefault();
-      if (!event.repeat) { useGrandPrixSkill(state.grandPrix); audio.playSfx("win"); }
+      if (!event.repeat) playGrandPrixEvents(useGrandPrixSkill(state.grandPrix));
       return;
     }
   }
@@ -3053,6 +3053,21 @@ preloadCharacters();
 
 
 
+function playGrandPrixEvents(events = []) {
+  const types = new Set(events.map(event => event.type));
+  if (types.has("start-spark")) { audio.playSfx("bell"); return; }
+  if (types.has("wrong-gate") || types.has("kart-contact") || types.has("rank-down")) { audio.playSfx("wrong"); return; }
+  if (types.has("star-dash")) { audio.playSfx("jingle"); return; }
+  if (types.has("star-dash-pass")) { audio.playSfx("key"); return; }
+  if (types.has("drift-boost")) {
+    const tier = events.find(event => event.type === "drift-boost")?.tier;
+    audio.playSfx(tier === "ultra" ? "jingle" : tier === "super" ? "bell" : "key");
+    return;
+  }
+  if (types.has("number-boost") || types.has("rank-up")) { audio.playSfx("bell"); return; }
+  if (types.has("drift-start")) audio.playSfx("pop");
+}
+
 function refreshGrandPrixScene() {
   if (!state.grandPrix) return;
   if (!state.grandPrixScene) {
@@ -3068,10 +3083,15 @@ function grandPrixFrame(round, nowMs) {
   if (state.round !== round || state.mode !== "grandprix" || !state.grandPrix) return;
   const elapsed = Math.min(50, Math.max(0, nowMs - state.grandPrixLastFrameAt));
   state.grandPrixLastFrameAt = nowMs;
-  tickGrandPrix(state.grandPrix, elapsed);
+  const raceEvents = tickGrandPrix(state.grandPrix, elapsed);
+  playGrandPrixEvents(raceEvents);
+  audio.setEngineSpeed(state.grandPrix.drive.speed / 112);
   if (state.grandPrix.lap > state.grandPrix.totalLaps) {
     const events = finishGrandPrix(state.grandPrix);
-    if (events.length) audio.playSfx("win");
+    if (events.length) {
+      audio.stopEngine();
+      audio.playSfx("win");
+    }
   }
   refreshGrandPrixScene();
   requestAnimationFrame(next => grandPrixFrame(round, next));
@@ -3083,6 +3103,7 @@ function startGrandPrixRun() {
   stopDeliveryBeat();
   clearTimers();
   audio.cancel();
+  audio.stopEngine();
   state.round += 1;
   state.problem = null;
   state.buffer = "";
@@ -3093,14 +3114,27 @@ function startGrandPrixRun() {
   setPhase("playing");
   startGrandPrix(state.grandPrix);
   refreshGrandPrixScene();
-  audio.playSfx("win");
+  audio.startEngine();
+  audio.setEngineSpeed(0);
   requestAnimationFrame(nowMs => grandPrixFrame(state.round, nowMs));
 }
 
-if (new URLSearchParams(window.location.search).get("demo") === "grandprix") {
+const grandPrixDemo = new URLSearchParams(window.location.search).get("demo");
+const grandPrixDemoScene = new URLSearchParams(window.location.search).get("scene");
+if (grandPrixDemo === "grandprix") {
   window.setTimeout(() => {
     startGrandPrixRun();
     state.grandPrix.countdownMs = 0;
+    if (grandPrixDemoScene === "finale") {
+      state.grandPrix.lap = state.grandPrix.totalLaps + 1;
+      state.grandPrix.gateIndex = 3;
+      state.grandPrix.number = state.grandPrix.target;
+      state.grandPrix.checkpointIndex = 4;
+      state.grandPrix.progress = 1720;
+      finishGrandPrix(state.grandPrix);
+      refreshGrandPrixScene();
+      return;
+    }
     setGrandPrixThrottle(state.grandPrix, true);
     steerGrandPrix(state.grandPrix, "left", true);
     window.setTimeout(() => steerGrandPrix(state.grandPrix, "left", false), 1600);

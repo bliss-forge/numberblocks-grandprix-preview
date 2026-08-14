@@ -13,6 +13,7 @@ const GATES = Object.freeze([
 const MAX_SPEED = 132;
 const BOOST_SPEED = 167;
 const STAR_DASH_SPEED = 188;
+const START_SPARK_WINDOW_MS = 540;
 const SKILL_MAX = 100;
 const ACCEL = 62;
 const COAST = 16;
@@ -80,8 +81,19 @@ function updateAi(state, seconds) {
     racer.progress = racer.distance % GRAND_PRIX_TRACK_LENGTH;
     racer.lap = Math.floor(racer.distance / GRAND_PRIX_TRACK_LENGTH) + 1;
     const weave = Math.sin(state.elapsedMs / 850 + index * 2.1) * 0.16;
-    racer.laneTarget = clamp(racer.raceLine + weave, -0.78, 0.78);
-    racer.lane += (racer.laneTarget - racer.lane) * Math.min(1, seconds * 2.5);
+    const racerAhead = state.racers
+      .filter(other => other !== racer && other.distance > racer.distance && other.distance - racer.distance < 19)
+      .sort((left, right) => left.distance - right.distance)[0];
+    const packSide = racer.number % 2 ? -1 : 1;
+    const passingOffset = racerAhead && Math.abs(racerAhead.lane - racer.lane) < 0.38 ? packSide * 0.3 : 0;
+    const closeBehindPlayer = gap > 0 && gap < 30;
+    const playerLine = closeBehindPlayer
+      ? clamp(state.drive.lateral + packSide * 0.38, -0.82, 0.82)
+      : racer.raceLine;
+    const playerOffset = closeBehindPlayer ? (playerLine - racer.raceLine) * 0.55 : 0;
+    racer.packOffset = passingOffset + playerOffset;
+    racer.laneTarget = clamp(racer.raceLine + weave + racer.packOffset, -0.82, 0.82);
+    racer.lane += (racer.laneTarget - racer.lane) * Math.min(1, seconds * 2.8);
   });
 }
 
@@ -126,6 +138,44 @@ function updateGate(state, previousProgress) {
   return [{ type: "wrong-gate", needed: gate.target - state.number, gateId: gate.id }];
 }
 
+function updateStarDashPass(state) {
+  const drive = state.drive;
+  if (drive.skillMs <= 0) return [];
+  const player = totalDistance(state);
+  const target = state.racers
+    .filter(racer => racer.distance >= player - 1 && racer.distance <= player + 34)
+    .sort((left, right) => left.distance - right.distance)[0];
+  if (!target) return [];
+  target.distance = Math.max(0, player - 2.4);
+  target.progress = target.distance % GRAND_PRIX_TRACK_LENGTH;
+  target.lap = Math.floor(target.distance / GRAND_PRIX_TRACK_LENGTH) + 1;
+  drive.overtakeMs = 760;
+  drive.overtakeNumber = target.number;
+  return [{ type: "star-dash-pass", racer: target.number }];
+}
+
+function updateRaceSignals(state) {
+  const drive = state.drive;
+  const events = [];
+  const rank = rankFor(state);
+  if (state.lastRank !== rank) {
+    const change = state.lastRank - rank;
+    state.lastRank = rank;
+    drive.rankChange = change;
+    drive.rankChangeMs = 900;
+    events.push({ type: change > 0 ? "rank-up" : "rank-down", rank, change });
+  }
+  const player = totalDistance(state);
+  const chaser = state.racers
+    .filter(racer => racer.distance <= player && player - racer.distance < 26)
+    .sort((left, right) => right.distance - left.distance)[0];
+  if (chaser) {
+    drive.pressureMs = 460;
+    drive.pressureNumber = chaser.number;
+  }
+  return events;
+}
+
 function updateKartContacts(state) {
   if (state.drive.contactMs > 0 || state.drive.spinMs > 0 || state.drive.skillMs > 0) return [];
   const player = totalDistance(state);
@@ -156,6 +206,7 @@ export function createGrandPrix(difficulty = "easy", seed = Date.now()) {
       lane: [-0.62, -0.2, 0.25, 0.67][index],
       laneTarget: [-0.62, -0.2, 0.25, 0.67][index],
       raceLine: [-0.54, -0.17, 0.22, 0.57][index],
+      packOffset: 0,
       targetSpeed: 95 + random() * 12,
       speed: 78 + random() * 8,
       distance,
@@ -180,6 +231,8 @@ export function createGrandPrix(difficulty = "easy", seed = Date.now()) {
     target: 10,
     fuel: 0,
     wrongGate: null,
+    lastRank: racers.length + 1,
+    finishResult: null,
     racers,
     drive: {
       speed: 0,
@@ -192,8 +245,16 @@ export function createGrandPrix(difficulty = "easy", seed = Date.now()) {
       driftCharge: 0,
       driftMs: 0,
       boostMs: 0,
+      startSparkArmed: false,
+      startSparkMs: 0,
       skillCharge: 0,
       skillMs: 0,
+      overtakeMs: 0,
+      overtakeNumber: null,
+      rankChangeMs: 0,
+      rankChange: 0,
+      pressureMs: 0,
+      pressureNumber: null,
       spinMs: 0,
       contactMs: 0,
       missedCheckpointMs: 0,
@@ -212,8 +273,13 @@ export function startGrandPrix(state) {
 
 export function setGrandPrixThrottle(state, active) {
   if (state.phase !== "racing") return [];
-  state.drive.throttle = Boolean(active);
-  return [{ type: state.drive.throttle ? "throttle-on" : "throttle-off" }];
+  const drive = state.drive;
+  drive.throttle = Boolean(active);
+  if (drive.throttle && state.countdownMs > 0 && state.countdownMs <= START_SPARK_WINDOW_MS && !drive.startSparkArmed) {
+    drive.startSparkArmed = true;
+    return [{ type: "start-spark-armed" }];
+  }
+  return [{ type: drive.throttle ? "throttle-on" : "throttle-off" }];
 }
 
 export function setGrandPrixBrake(state, active) {
@@ -265,6 +331,7 @@ export function useGrandPrixSkill(state) {
   if (drive.skillCharge < SKILL_MAX) return [{ type: "skill-empty", skillCharge: drive.skillCharge }];
   drive.skillCharge = 0;
   drive.skillMs = 1320;
+  drive.overtakeNumber = null;
   drive.boostMs = Math.max(drive.boostMs, 1320);
   drive.speed = Math.max(drive.speed, 154);
   drive.lateralVelocity *= 0.38;
@@ -296,8 +363,16 @@ export function tickGrandPrix(state, elapsedMs) {
   const drive = state.drive;
   const events = [];
   state.elapsedMs += delta;
+  const wasCountingDown = state.countdownMs > 0;
   state.countdownMs = Math.max(0, state.countdownMs - delta);
-  ["boostMs", "skillMs", "spinMs", "contactMs", "missedCheckpointMs", "airborneMs"].forEach(key => { drive[key] = Math.max(0, drive[key] - delta); });
+  ["boostMs", "startSparkMs", "skillMs", "overtakeMs", "rankChangeMs", "pressureMs", "spinMs", "contactMs", "missedCheckpointMs", "airborneMs"].forEach(key => { drive[key] = Math.max(0, drive[key] - delta); });
+  if (wasCountingDown && state.countdownMs === 0 && drive.startSparkArmed) {
+    drive.startSparkArmed = false;
+    drive.startSparkMs = 820;
+    drive.boostMs = Math.max(drive.boostMs, 820);
+    drive.speed = Math.max(drive.speed, 104);
+    events.push({ type: "start-spark" });
+  }
   if (state.countdownMs > 0) {
     updateAi(state, seconds * 0.18);
     return events;
@@ -334,6 +409,8 @@ export function tickGrandPrix(state, elapsedMs) {
     events.push(...advanceLap(state));
   }
   updateAi(state, seconds);
+  events.push(...updateStarDashPass(state));
+  events.push(...updateRaceSignals(state));
   events.push(...updateKartContacts(state));
   return events;
 }
@@ -341,7 +418,14 @@ export function tickGrandPrix(state, elapsedMs) {
 export function finishGrandPrix(state) {
   if (state.phase !== "racing" || !grandPrixSnapshot(state).finishOpen) return [];
   state.phase = "finale";
-  return [{ type: "finish", rank: rankFor(state) }];
+  state.finishResult = {
+    rank: rankFor(state),
+    elapsedMs: state.elapsedMs,
+    laps: state.totalLaps,
+    number: state.number,
+    target: state.target
+  };
+  return [{ type: "finish", rank: state.finishResult.rank }];
 }
 
 export function grandPrixSnapshot(state) {
@@ -363,6 +447,14 @@ export function grandPrixSnapshot(state) {
     skillCharge: state.drive.skillCharge,
     skillReady: state.drive.skillCharge >= SKILL_MAX,
     skillActive: state.drive.skillMs > 0,
+    startSparkActive: state.drive.startSparkMs > 0,
+    overtakeActive: state.drive.overtakeMs > 0,
+    overtakeNumber: state.drive.overtakeNumber,
+    rankChangeActive: state.drive.rankChangeMs > 0,
+    rankChange: state.drive.rankChange,
+    pressureActive: state.drive.pressureMs > 0,
+    pressureNumber: state.drive.pressureNumber,
+    finishResult: state.finishResult,
     finishOpen: state.lap > state.totalLaps && state.gateIndex === GATES.length && state.number === state.target
   };
 }

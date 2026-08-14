@@ -46,6 +46,18 @@ test("countdown holds the grid before throttle can move the player", () => {
   assert.ok(state.progress > 0);
 });
 
+test("timed throttle in the final countdown creates a Start Spark launch", () => {
+  const state = createGrandPrix("easy", 72);
+  startGrandPrix(state);
+  state.countdownMs = 50;
+  assert.deepEqual(setGrandPrixThrottle(state, true).map(event => event.type), ["start-spark-armed"]);
+  const events = tickGrandPrix(state, 50);
+  assert.ok(events.some(event => event.type === "start-spark"));
+  assert.ok(state.drive.startSparkMs > 0);
+  assert.ok(state.drive.boostMs > 0);
+  assert.ok(state.drive.speed >= 104);
+});
+
 test("continuous steering changes lateral position and grass slows the kart", () => {
   const state = createGrandPrix("easy", 2);
   startGrandPrix(state);
@@ -90,9 +102,48 @@ test("Star Dash requires a full meter and protects a tactical overtake", () => {
   assert.ok(state.drive.boostMs > 0);
   state.racers[0].distance = state.progress + 1;
   state.racers[0].lane = state.drive.lateral;
-  tick(state);
+  const passEvents = tickGrandPrix(state, 50);
+  assert.ok(passEvents.some(event => event.type === "star-dash-pass"));
   assert.equal(state.drive.contactMs, 0);
   assert.equal(grandPrixSnapshot(state).skillActive, true);
+  assert.equal(grandPrixSnapshot(state).overtakeActive, true);
+  const passedRacer = state.racers.find(racer => racer.number === state.drive.overtakeNumber);
+  assert.ok(passedRacer);
+  assert.ok(passedRacer.distance < state.progress);
+});
+
+test("nearby rivals create pressure and rank transitions announce a pass", () => {
+  const state = createGrandPrix("easy", 44);
+  startGrandPrix(state);
+  finishCountdown(state);
+  state.racers.forEach(racer => { racer.distance = -12; racer.progress = 0; racer.lap = 1; });
+  state.racers[0].distance = -10;
+  const events = tickGrandPrix(state, 50);
+  assert.ok(events.some(event => event.type === "rank-up"));
+  const snapshot = grandPrixSnapshot(state);
+  assert.equal(snapshot.rank, 1);
+  assert.equal(snapshot.pressureActive, true);
+  assert.equal(snapshot.pressureNumber, state.racers[0].number);
+});
+
+test("rival pack chooses bounded passing lanes and shows rear pressure", () => {
+  const state = createGrandPrix("easy", 47);
+  startGrandPrix(state);
+  finishCountdown(state);
+  state.racers[0].distance = 24;
+  state.racers[1].distance = 31;
+  state.racers[0].lane = 0;
+  state.racers[1].lane = 0.04;
+  state.racers[0].raceLine = 0;
+  state.racers[1].raceLine = 0.04;
+  tickGrandPrix(state, 50);
+  assert.ok(Math.abs(state.racers[0].packOffset) > 0);
+  assert.ok(Math.abs(state.racers[0].laneTarget) <= 0.82);
+  state.progress = 72;
+  state.racers[2].distance = 60;
+  tickGrandPrix(state, 50);
+  assert.ok(Math.abs(state.racers[2].packOffset) > 0);
+  assert.ok(Math.abs(state.racers[2].laneTarget) <= 0.82);
 });
 
 test("correct lane crossings collect the three physical number gates", () => {
@@ -149,4 +200,7 @@ test("laps require checkpoints and final lap opens a ranked finish", () => {
   assert.equal(snapshot.finishOpen, true);
   assert.deepEqual(finishGrandPrix(state).map(event => event.type), ["finish"]);
   assert.equal(state.phase, "finale");
+  assert.equal(state.finishResult.number, 10);
+  assert.equal(state.finishResult.target, 10);
+  assert.equal(state.finishResult.laps, GRAND_PRIX_TOTAL_LAPS);
 });

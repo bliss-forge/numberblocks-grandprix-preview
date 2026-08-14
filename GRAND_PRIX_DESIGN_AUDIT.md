@@ -42,3 +42,31 @@ The player camera correction successfully separates the kart from the mobile act
 ## Interaction validation
 
 A real Chromium interaction run completed without page errors. Holding W, Left, and Shift produced the `MINI` drift tier and a visible 27 percent drift meter. Releasing Shift set the boost state and increased the Dash meter from 0 to 12 percent. The interaction capture shows the compact HUD, colored gate choices, visible rival pack, drift particles, and an unobstructed desktop road. The Star Dash model itself is additionally covered by the model test: it requires full charge, starts its active duration, applies boost, and suppresses contact penalties while active.
+
+## Start Spark validation
+
+The real-browser Start Spark scenario now activates reliably when the player begins acceleration during the star timing window. The captured state reports active launch, boost, visible banner, 111 km/h, and no page errors. The initial version used too many speed lines and competed with gates and the driving line. The final scene uses fewer, lighter streaks for Start Spark while reserving the denser presentation for higher-value Star Dash, preserving the player kart and green/red gate readability.
+
+## Next iteration audit
+
+The launch, drift, gates, and tactical Dash now read as a cohesive loop. The remaining weakness is competition resolution: the rank chip does not announce ordinary position changes, trailing rivals do not create pressure before contact, and the finish overlay reports only a placement rather than a memorable racing result. The next iteration should make the pack competitive through rank-change callouts and rear pressure, then reward the final result with a compact rank card that joins the racing result to the completed 4 → 10 route.
+
+## Competitive finish validation
+
+The finale browser scenario renders a coherent original result screen with a readable place card, the completed 10 → 10 route, three-lap summary, confetti, checker ribbon, and a slightly enlarged player kart. The first finish composition used an overly broad translucent circle that reduced road readability. It was replaced with a concentrated warm star glow around the kart, and the inactive desktop control legend is hidden in finale state. The result keeps the kart visible beneath the card without relying on copied podium or brand visuals.
+
+## Star Dash HUD audit
+
+The current HUD proves that Dash is available but still presents it as a generic text chip. The player should be able to see the energy accumulating, recognize the ready state peripherally, and identify the activation key without rereading a label. The number gates are readable as green and red choices, but the correct route can be strengthened by a consistent star-route cue rather than additional text. The next pass will add a compact energy core inside the Dash chip, preserve the `Space` key signal, and give the correct route a light original star cadence while retaining the number-learning contrast.
+
+## Dash core validation
+
+The first Dash core capture exposed a CSS cascade regression: the finish panel's flex display overrode its hidden attribute and covered the live race. A selector-specific hidden rule restored the live road. The final capture shows an original green `STAR LINE` gate with a star crown, quieter red `NOT THIS` decoy, an unobtrusive Dash core, and a shortened desktop input legend. Disabled Dash text was initially too pale, so its contrast was increased without making an unready ability look active.
+
+## Pack and corner audit
+
+Rivals currently weave independently around fixed race lines, so they remain colorful but do not visibly contest a lane. The camera responds to speed, yet uses only the difference between current and upcoming road curve; corner entry lacks a dedicated look-ahead shift and a drift-specific view response. The next iteration will use local pack awareness to create small, bounded lane choices and add a controlled curve-look-ahead offset with a restrained drift apex tilt. The purpose is clearer corner commitment and active rivals, not simulation realism or obstruction.
+
+## Pack and apex validation
+
+The first high-speed drift capture proved the new curve look-ahead and lane competition were visible, but exposed an unacceptable presentation issue: the player kart could leave the left edge under sustained steering. Rendering now clamps the visual lateral translation and reduces its width multiplier so the physical off-road state remains meaningful while the player kart stays in the lower central play zone. The revised capture keeps the purple kart, the green STAR LINE gate, the red NOT THIS gate, rank gain, rear-pressure callout, and multiple rival karts visible at once. The subtle world roll preserves the HUD frame.
