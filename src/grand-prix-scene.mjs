@@ -2,11 +2,11 @@ import { GRAND_PRIX_GATE_POSITIONS, GRAND_PRIX_ITEM_BOXES, GRAND_PRIX_TRACK_LENG
 
 const KART_COLORS = Object.freeze({ 1: "#f06b80", 2: "#f19a4b", 3: "#67ba75", 4: "#805bd1", 5: "#58aee0" });
 const KART_SPRITE_URLS = Object.freeze({
-  1: "../assets/grand-prix/karts/one.png",
-  2: "../assets/grand-prix/karts/two.png",
-  3: "../assets/grand-prix/karts/three.png",
-  4: "../assets/grand-prix/karts/four.png",
-  5: "../assets/grand-prix/karts/five.png"
+  1: "assets/grand-prix/karts/one.png",
+  2: "assets/grand-prix/karts/two.png",
+  3: "assets/grand-prix/karts/three.png",
+  4: "assets/grand-prix/karts/four.png",
+  5: "assets/grand-prix/karts/five.png"
 });
 const kartSprites = new Map();
 
