@@ -449,7 +449,6 @@ export function renderGrandPrixScene(document, state) {
   const finish = element(document, "div", "gp-arcade-finish");
   finish.hidden = true;
   root.append(canvas, buildHud(document), countdown, prompt, controls, finish);
-  updateGrandPrixScene(root, state);
   return root;
 }
 

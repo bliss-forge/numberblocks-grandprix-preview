@@ -5,6 +5,7 @@ import { readFile } from "node:fs/promises";
 const html = await readFile(new URL("../index.html", import.meta.url), "utf8");
 const css = await readFile(new URL("../styles.css", import.meta.url), "utf8");
 const app = await readFile(new URL("../src/app.mjs", import.meta.url), "utf8");
+const grandPrixScene = await readFile(new URL("../src/grand-prix-scene.mjs", import.meta.url), "utf8");
 
 test("정적 셸이 스타일과 앱 모듈을 로드한다", () => {
   assert.match(html, /<link rel="stylesheet" href="styles\.css(?:\?[^"]+)?">/);
@@ -445,4 +446,20 @@ test("modes 6 to 9 keep playtest-guided feedback without replacing the original 
   assert.match(css, /\.subway-rail \.route-pad button:active,[\s\S]*?\.dv-bell:active/s);
   assert.match(css, /\.pp-tube\[data-hint="sparkle"\] \.pp-tube-body\s*\{[^}]*outline:/s);
   assert.match(css, /\.dv-beat-marker\s*\{[^}]*filter:\s*drop-shadow/s);
+});
+test("grand prix launch activates the race mode before mounting the scene", () => {
+  assert.match(
+    app,
+    /function startGrandPrixRun\(\) \{\s*setMode\("grandprix"\);/
+  );
+});
+test("grand prix mounts before its canvas is rendered", () => {
+  assert.match(
+    app,
+    /dom\.stage\.replaceChildren\(state\.grandPrixScene\);\s*updateGrandPrixScene\(state\.grandPrixScene, state\.grandPrix\);/
+  );
+  assert.doesNotMatch(
+    grandPrixScene,
+    /root\.append\([^;]+\);\s*updateGrandPrixScene\(root, state\);/s
+  );
 });

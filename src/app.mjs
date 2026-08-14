@@ -3049,6 +3049,7 @@ function refreshGrandPrixScene() {
   if (!state.grandPrixScene) {
     state.grandPrixScene = renderGrandPrixScene(document, state.grandPrix);
     dom.stage.replaceChildren(state.grandPrixScene);
+    updateGrandPrixScene(state.grandPrixScene, state.grandPrix);
   } else {
     updateGrandPrixScene(state.grandPrixScene, state.grandPrix);
   }
@@ -3068,6 +3069,7 @@ function grandPrixFrame(round, nowMs) {
 }
 
 function startGrandPrixRun() {
+  setMode("grandprix");
   stopSafetyHold();
   stopDeliveryBeat();
   clearTimers();
