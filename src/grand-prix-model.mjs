@@ -12,6 +12,8 @@ const GATES = Object.freeze([
 ]);
 const MAX_SPEED = 132;
 const BOOST_SPEED = 167;
+const STAR_DASH_SPEED = 188;
+const SKILL_MAX = 100;
 const ACCEL = 62;
 const COAST = 16;
 const BRAKE = 112;
@@ -44,7 +46,15 @@ function crossing(previous, current, marker) {
 }
 
 function changeSpeed(state, delta) {
-  state.drive.speed = clamp(state.drive.speed + delta, 0, state.drive.boostMs > 0 ? BOOST_SPEED : MAX_SPEED);
+  const cap = state.drive.skillMs > 0 ? STAR_DASH_SPEED : state.drive.boostMs > 0 ? BOOST_SPEED : MAX_SPEED;
+  state.drive.speed = clamp(state.drive.speed + delta, 0, cap);
+}
+
+function driftTier(charge) {
+  if (charge >= 1050) return "ultra";
+  if (charge >= 620) return "super";
+  if (charge >= 240) return "mini";
+  return "none";
 }
 
 function rankFor(state) {
@@ -107,7 +117,8 @@ function updateGate(state, previousProgress) {
     state.checkpoint = state.gateIndex;
     state.drive.boostMs = Math.max(state.drive.boostMs, 1050);
     state.drive.speed = Math.max(state.drive.speed, 108);
-    return [{ type: "number-boost", value: gate.value, number: state.number, fuel: state.fuel }];
+    state.drive.skillCharge = clamp(state.drive.skillCharge + 36, 0, SKILL_MAX);
+    return [{ type: "number-boost", value: gate.value, number: state.number, fuel: state.fuel, skillCharge: state.drive.skillCharge }];
   }
   state.wrongGate = gate.id;
   state.drive.spinMs = Math.max(state.drive.spinMs, 430);
@@ -116,7 +127,7 @@ function updateGate(state, previousProgress) {
 }
 
 function updateKartContacts(state) {
-  if (state.drive.contactMs > 0 || state.drive.spinMs > 0) return [];
+  if (state.drive.contactMs > 0 || state.drive.spinMs > 0 || state.drive.skillMs > 0) return [];
   const player = totalDistance(state);
   const opponent = state.racers.find(racer => Math.abs(racer.distance - player) < 7 && Math.abs(racer.lane - state.drive.lateral) < 0.25);
   if (!opponent) return [];
@@ -181,6 +192,8 @@ export function createGrandPrix(difficulty = "easy", seed = Date.now()) {
       driftCharge: 0,
       driftMs: 0,
       boostMs: 0,
+      skillCharge: 0,
+      skillMs: 0,
       spinMs: 0,
       contactMs: 0,
       missedCheckpointMs: 0,
@@ -218,17 +231,44 @@ export function steerGrandPrix(state, direction, active = true) {
   return [{ type: "steer", heading: state.drive.heading }];
 }
 
-export function useGrandPrixJump(state) {
+export function setGrandPrixDrift(state, active) {
   if (state.phase !== "racing" || state.countdownMs > 0 || state.drive.spinMs > 0) return [];
-  state.drive.drifting = !state.drive.drifting;
-  if (!state.drive.drifting && state.drive.driftCharge > 280) {
-    state.drive.boostMs = Math.max(state.drive.boostMs, 620 + Math.min(640, state.drive.driftCharge));
-    state.drive.speed = Math.max(state.drive.speed, 112);
-    state.drive.driftCharge = 0;
-    return [{ type: "drift-boost" }];
+  const drive = state.drive;
+  const next = Boolean(active);
+  if (next === drive.drifting) return [];
+  drive.drifting = next;
+  if (next) {
+    drive.driftMs = 1;
+    return [{ type: "drift-start" }];
   }
-  state.drive.driftMs = state.drive.drifting ? 1 : 0;
-  return [{ type: state.drive.drifting ? "drift-start" : "drift-cancel" }];
+  const tier = driftTier(drive.driftCharge);
+  const charge = drive.driftCharge;
+  drive.driftCharge = 0;
+  drive.driftMs = 0;
+  if (tier === "none") return [{ type: "drift-release", tier }];
+  const boostMs = tier === "ultra" ? 1520 : tier === "super" ? 1120 : 720;
+  const launchSpeed = tier === "ultra" ? 147 : tier === "super" ? 132 : 116;
+  const skillGain = tier === "ultra" ? 30 : tier === "super" ? 20 : 12;
+  drive.boostMs = Math.max(drive.boostMs, boostMs);
+  drive.speed = Math.max(drive.speed, launchSpeed);
+  drive.skillCharge = clamp(drive.skillCharge + skillGain, 0, SKILL_MAX);
+  return [{ type: "drift-boost", tier, charge, skillCharge: drive.skillCharge }];
+}
+
+export function useGrandPrixJump(state) {
+  return setGrandPrixDrift(state, !state.drive.drifting);
+}
+
+export function useGrandPrixSkill(state) {
+  if (state.phase !== "racing" || state.countdownMs > 0 || state.drive.spinMs > 0) return [];
+  const drive = state.drive;
+  if (drive.skillCharge < SKILL_MAX) return [{ type: "skill-empty", skillCharge: drive.skillCharge }];
+  drive.skillCharge = 0;
+  drive.skillMs = 1320;
+  drive.boostMs = Math.max(drive.boostMs, 1320);
+  drive.speed = Math.max(drive.speed, 154);
+  drive.lateralVelocity *= 0.38;
+  return [{ type: "star-dash" }];
 }
 
 export function chooseGrandPrixGate(state, gateId) {
@@ -257,7 +297,7 @@ export function tickGrandPrix(state, elapsedMs) {
   const events = [];
   state.elapsedMs += delta;
   state.countdownMs = Math.max(0, state.countdownMs - delta);
-  ["boostMs", "spinMs", "contactMs", "missedCheckpointMs", "airborneMs"].forEach(key => { drive[key] = Math.max(0, drive[key] - delta); });
+  ["boostMs", "skillMs", "spinMs", "contactMs", "missedCheckpointMs", "airborneMs"].forEach(key => { drive[key] = Math.max(0, drive[key] - delta); });
   if (state.countdownMs > 0) {
     updateAi(state, seconds * 0.18);
     return events;
@@ -319,6 +359,10 @@ export function grandPrixSnapshot(state) {
     offroad: state.drive.offroad,
     drifting: state.drive.drifting,
     driftCharge: state.drive.driftCharge,
+    driftTier: driftTier(state.drive.driftCharge),
+    skillCharge: state.drive.skillCharge,
+    skillReady: state.drive.skillCharge >= SKILL_MAX,
+    skillActive: state.drive.skillMs > 0,
     finishOpen: state.lap > state.totalLaps && state.gateIndex === GATES.length && state.number === state.target
   };
 }

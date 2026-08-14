@@ -49,11 +49,11 @@ function horizonPoint(state, width, height, depth) {
   const perspective = Math.pow(proximity, 1.52);
   const currentCurve = grandPrixRoadCurve(state.progress);
   const upcomingCurve = grandPrixRoadCurve(state.progress + clamped);
-  const curveShift = (upcomingCurve - currentCurve) * width * (0.06 + perspective * 0.19);
+  const curveShift = (upcomingCurve - currentCurve) * width * (0.07 + perspective * 0.23);
   return {
     x: width * 0.5 + curveShift,
     y: horizon + perspective * (height - horizon),
-    roadWidth: 28 + perspective * width * 0.54,
+    roadWidth: 28 + perspective * width * 0.49,
     perspective,
     depth: clamped
   };
@@ -256,21 +256,35 @@ function drawKart(context, x, y, scale, number, tilt = 0, effects = {}) {
 function drawGate(context, state, width, height, distance, lane, label, correct) {
   const position = project(state, width, height, distance, lane);
   if (!position) return;
-  const size = 28 * position.scale;
+  const size = 66 * position.scale;
+  const color = correct ? "#48c790" : "#ef715f";
   context.save();
-  context.translate(position.x, position.y - size * 1.92);
-  context.fillStyle = correct ? "#42ae7d" : "#e06d5c";
-  context.strokeStyle = "#fffef0";
-  context.lineWidth = Math.max(1.5, size * 0.11);
+  context.translate(position.x, position.y - size * 1.38);
+  context.shadowColor = color;
+  context.shadowBlur = size * 0.46;
+  context.globalAlpha = 0.36;
+  context.fillStyle = color;
   context.beginPath();
-  context.roundRect(-size, -size, size * 2, size * 1.5, size * 0.25);
+  context.roundRect(-size * 0.94, -size * 1.08, size * 1.88, size * 1.82, size * 0.28);
+  context.fill();
+  context.globalAlpha = 1;
+  context.shadowBlur = 0;
+  context.fillStyle = correct ? "#248d66" : "#c45045";
+  context.strokeStyle = "#fffbe0";
+  context.lineWidth = Math.max(2, size * 0.095);
+  context.beginPath();
+  context.roundRect(-size * 0.78, -size, size * 1.56, size * 1.55, size * 0.22);
   context.fill();
   context.stroke();
+  context.fillStyle = "rgba(255,255,255,.24)";
+  context.fillRect(-size * 0.59, -size * 0.78, size * 1.18, size * 0.16);
   context.fillStyle = "#fff";
-  context.font = `900 ${Math.max(9, size * 0.73)}px Arial`;
+  context.font = `900 ${Math.max(12, size * 0.62)}px Arial`;
   context.textAlign = "center";
   context.textBaseline = "middle";
-  context.fillText(label, 0, -size * 0.28);
+  context.fillText(label, 0, -size * 0.23);
+  context.font = `900 ${Math.max(7, size * 0.2)}px Arial`;
+  context.fillText(correct ? "BOOST LINE" : "SPIN OUT", 0, size * 0.26);
   context.restore();
 }
 
@@ -306,9 +320,9 @@ function drawTrackObjects(context, state, width, height) {
   }
 }
 
-function drawDriveEffects(context, state, width, height, kartX) {
+function drawDriveEffects(context, state, width, height, kartX, playerY) {
   const speedRatio = Math.min(1, state.drive.speed / 132);
-  const baseY = height * 0.82;
+  const baseY = playerY;
   if (state.drive.boostMs > 0) {
     context.save();
     context.globalAlpha = 0.72;
@@ -370,6 +384,12 @@ function drawWorld(canvas, state) {
   const { context, width, height } = resizeCanvas(canvas);
   const impact = Math.max(state.drive.contactMs, state.drive.spinMs);
   context.save();
+  if (state.drive.drifting && state.drive.speed > 42) {
+    const roll = -state.drive.heading * Math.min(0.024, state.drive.driftCharge / 46000);
+    context.translate(width * 0.5, height * 0.75);
+    context.rotate(roll);
+    context.translate(-width * 0.5, -height * 0.75);
+  }
   if (impact > 0) {
     const shake = Math.sin(state.elapsedMs / 24) * Math.min(7, impact / 65);
     context.translate(shake, -Math.abs(shake) * 0.28);
@@ -383,10 +403,13 @@ function drawWorld(canvas, state) {
     let gap = racer.distance - playerDistance;
     if (gap < -15) gap += GRAND_PRIX_TRACK_LENGTH;
     const position = project(state, width, height, state.progress + gap, racer.lane);
-    if (position) drawKart(context, position.x, position.y, position.scale, racer.number, 0);
+    if (position) drawKart(context, position.x, position.y, position.scale * 1.18, racer.number, 0);
   });
   const playerPoint = horizonPoint(state, width, height, 10);
   const kartX = playerPoint.x + state.drive.lateral * playerPoint.roadWidth * 0.67;
+  const portrait = height > width * 1.1;
+  const playerY = height * (portrait ? 0.72 : 0.81);
+  const playerScale = portrait ? 1.35 : 1.54;
   if (state.drive.boostMs > 0) {
     context.strokeStyle = "rgba(255,244,166,.54)";
     context.lineWidth = 2;
@@ -398,8 +421,15 @@ function drawWorld(canvas, state) {
       context.stroke();
     }
   }
-  drawDriveEffects(context, state, width, height, kartX);
-  drawKart(context, kartX, height * 0.83, 1.26, 4, state.drive.heading + (state.drive.spinMs ? Math.sin(state.elapsedMs / 50) * 2.2 : 0), { boost: state.drive.boostMs > 0, drift: state.drive.drifting ? state.drive.driftCharge : 0 });
+  if (state.drive.skillMs > 0) {
+    context.save();
+    context.globalAlpha = 0.2 + 0.12 * Math.sin(state.elapsedMs / 36);
+    context.fillStyle = "#fff4a4";
+    context.fillRect(0, 0, width, height);
+    context.restore();
+  }
+  drawDriveEffects(context, state, width, height, kartX, playerY);
+  drawKart(context, kartX, playerY, playerScale, 4, state.drive.heading + (state.drive.spinMs ? Math.sin(state.elapsedMs / 50) * 2.2 : 0), { boost: state.drive.boostMs > 0 || state.drive.skillMs > 0, drift: state.drive.drifting ? state.drive.driftCharge : 0 });
   if (impact > 0) {
     context.fillStyle = "rgba(234,89,72,.15)";
     context.fillRect(0, 0, width, height);
@@ -414,9 +444,21 @@ function rankSuffix(rank) {
 function buildHud(document) {
   const hud = element(document, "header", "gp-arcade-hud");
   const brand = element(document, "div", "gp-arcade-brand");
-  brand.append(element(document, "small", "gp-arcade-kicker", "NUMBERBLOCKS"), element(document, "strong", "gp-arcade-title", "GRAND PRIX"));
+  brand.append(element(document, "small", "gp-arcade-kicker", "NO.4 DRIVER"), element(document, "strong", "gp-arcade-title", "STAR CANYON"));
   const chips = element(document, "div", "gp-arcade-chips");
-  chips.append(element(document, "span", "gp-lap", "LAP 1/3"), element(document, "span", "gp-speed", "0"), element(document, "span", "gp-rank", "5th"), element(document, "span", "gp-sum", "4 → 10"));
+  const race = element(document, "div", "gp-race-chip");
+  race.append(element(document, "span", "gp-rank", "5th"), element(document, "span", "gp-lap", "LAP 1/3"));
+  const speed = element(document, "span", "gp-speed", "0 km/h");
+  const sum = element(document, "span", "gp-sum", "4 → 10");
+  const drift = element(document, "div", "gp-drift-meter");
+  const driftFill = element(document, "i", "gp-drift-fill");
+  const driftLabel = element(document, "span", "gp-drift-label", "DRIFT");
+  drift.append(driftFill, driftLabel);
+  const skill = element(document, "button", "gp-skill-button", "★ DASH 0%");
+  skill.type = "button";
+  skill.dataset.gpSkill = "true";
+  skill.disabled = true;
+  chips.append(race, speed, sum, drift, skill);
   hud.append(brand, chips);
   return hud;
 }
@@ -444,11 +486,15 @@ export function renderGrandPrixScene(document, state) {
   right.dataset.gpHold = "right";
   const drift = element(document, "button", "gp-arcade-key gp-arcade-drift", "DRIFT");
   drift.type = "button";
-  drift.dataset.gpJump = "true";
-  controls.append(left, brake, go, right, drift);
+  drift.dataset.gpHold = "drift";
+  const skill = element(document, "button", "gp-arcade-key gp-arcade-skill", "★ DASH");
+  skill.type = "button";
+  skill.dataset.gpSkill = "true";
+  controls.append(left, go, right, brake, drift, skill);
+  const guide = element(document, "div", "gp-desktop-guide", "W DRIVE  ·  SHIFT DRIFT  ·  SPACE STAR DASH");
   const finish = element(document, "div", "gp-arcade-finish");
   finish.hidden = true;
-  root.append(canvas, buildHud(document), countdown, prompt, controls, finish);
+  root.append(canvas, buildHud(document), countdown, prompt, controls, guide, finish);
   return root;
 }
 
@@ -458,11 +504,19 @@ export function updateGrandPrixScene(root, state) {
   root.dataset.offroad = String(snapshot.offroad);
   root.dataset.drifting = String(snapshot.drifting);
   root.dataset.boost = String(state.drive.boostMs > 0);
+  root.dataset.skill = String(snapshot.skillActive);
+  root.dataset.driftTier = snapshot.driftTier;
   root.dataset.impact = String(state.drive.contactMs > 0 || state.drive.spinMs > 0);
   root.querySelector(".gp-lap").textContent = `LAP ${Math.min(state.lap, state.totalLaps)}/${state.totalLaps}`;
   root.querySelector(".gp-speed").textContent = `${snapshot.speed} km/h`;
   root.querySelector(".gp-rank").textContent = `${snapshot.rank}${rankSuffix(snapshot.rank)}`;
   root.querySelector(".gp-sum").textContent = `${snapshot.number} → ${snapshot.target}`;
+  root.querySelector(".gp-drift-fill").style.width = `${Math.min(100, Math.round(snapshot.driftCharge / 10.5))}%`;
+  root.querySelector(".gp-drift-label").textContent = snapshot.drifting ? snapshot.driftTier === "none" ? "DRIFT" : snapshot.driftTier.toUpperCase() : "DRIFT";
+  const skill = root.querySelector(".gp-skill-button");
+  skill.disabled = !snapshot.skillReady;
+  skill.dataset.ready = String(snapshot.skillReady);
+  skill.textContent = snapshot.skillActive ? "★ STAR DASH" : `★ DASH ${snapshot.skillCharge}%`;
   const countdown = root.querySelector(".gp-arcade-countdown");
   const count = Math.ceil(state.countdownMs / 800);
   countdown.hidden = count <= 0 || state.phase !== "racing";

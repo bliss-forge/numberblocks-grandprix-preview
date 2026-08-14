@@ -11,7 +11,8 @@ import {
   startGrandPrix,
   steerGrandPrix,
   tickGrandPrix,
-  useGrandPrixJump
+  useGrandPrixJump,
+  useGrandPrixSkill
 } from "../src/grand-prix-model.mjs";
 
 function finishCountdown(state) {
@@ -74,6 +75,24 @@ test("drifting charges and releases a visible speed boost", () => {
   useGrandPrixJump(state);
   assert.equal(state.drive.drifting, false);
   assert.ok(state.drive.boostMs > 0);
+});
+
+test("Star Dash requires a full meter and protects a tactical overtake", () => {
+  const state = createGrandPrix("easy", 33);
+  startGrandPrix(state);
+  finishCountdown(state);
+  setGrandPrixThrottle(state, true);
+  assert.deepEqual(useGrandPrixSkill(state).map(event => event.type), ["skill-empty"]);
+  state.drive.skillCharge = 100;
+  state.drive.speed = 120;
+  assert.deepEqual(useGrandPrixSkill(state).map(event => event.type), ["star-dash"]);
+  assert.ok(state.drive.skillMs > 0);
+  assert.ok(state.drive.boostMs > 0);
+  state.racers[0].distance = state.progress + 1;
+  state.racers[0].lane = state.drive.lateral;
+  tick(state);
+  assert.equal(state.drive.contactMs, 0);
+  assert.equal(grandPrixSnapshot(state).skillActive, true);
 });
 
 test("correct lane crossings collect the three physical number gates", () => {

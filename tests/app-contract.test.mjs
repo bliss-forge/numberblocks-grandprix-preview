@@ -14,7 +14,7 @@ test("정적 셸이 스타일과 앱 모듈을 로드한다", () => {
 
 test("1~5 모바일 보정 스타일은 기본 스타일 뒤에 로드된다", () => {
   const baseIndex = html.indexOf(
-    'href="styles.css?v=20260812-grandprix-v24"'
+    'href="styles.css?v=20260814-grandprix-v25"'
   );
   const mobileIndex = html.indexOf(
     'href="mobile-games.css?v=20260808-delivery-home"'
@@ -28,7 +28,7 @@ test("스타일 시트는 최신 캐시 주소를 달고 나간다", () => {
   // 배포 후 옛 CSS 가 그대로 쓰이지 않도록, 내용이 바뀌면 이 값을 함께 올린다.
   assert.match(
     html,
-    /<link rel="stylesheet" href="styles\.css\?v=20260812-grandprix-v24">/
+    /<link rel="stylesheet" href="styles\.css\?v=20260814-grandprix-v25">/
   );
   assert.match(
     html,
@@ -462,4 +462,12 @@ test("grand prix mounts before its canvas is rendered", () => {
     grandPrixScene,
     /root\.append\([^;]+\);\s*updateGrandPrixScene\(root, state\);/s
   );
+});
+
+test("grand prix redesign keeps race telemetry, tactical skill, and responsive controls", () => {
+  assert.match(grandPrixScene, /gp-drift-meter/);
+  assert.match(grandPrixScene, /gp-skill-button/);
+  assert.match(grandPrixScene, /dataset\.gpSkill/);
+  assert.match(css, /@media \(min-width:741px\)\{\.gp-arcade-race \.gp-arcade-controls\{display:none!important\}\}/);
+  assert.match(css, /grid-template-columns:repeat\(3,minmax\(0,1fr\)\)/);
 });
