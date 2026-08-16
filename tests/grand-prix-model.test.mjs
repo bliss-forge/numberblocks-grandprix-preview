@@ -93,6 +93,46 @@ test("smoothed steering eases into a turn and counter-recovers after release", (
   assert.ok(Math.abs(state.drive.lateralVelocity) < 1.5);
 });
 
+test("fast cornering builds yaw and costs speed without a committed drift", () => {
+  const state = createGrandPrix("easy", 24);
+  startGrandPrix(state);
+  finishCountdown(state);
+  state.progress = 286;
+  state.drive.speed = 132;
+  steerGrandPrix(state, "left", true);
+  const before = state.drive.speed;
+  tick(state, 8);
+  const snapshot = grandPrixSnapshot(state);
+  assert.ok(snapshot.yaw < -0.2);
+  assert.ok(snapshot.cornerLoad > 0.1);
+  assert.ok(state.drive.speed < before);
+});
+
+test("drafting a forward rival turns a line change into a short slingshot", () => {
+  const state = createGrandPrix("easy", 25);
+  startGrandPrix(state);
+  finishCountdown(state);
+  state.drive.speed = 82;
+  state.drive.lateral = -0.25;
+  const target = state.racers[0];
+  target.distance = 29;
+  target.lane = -0.25;
+  target.raceLine = 0.54;
+  target.targetSpeed = 126;
+  target.baseSpeed = 126;
+  state.racers.slice(1).forEach(racer => { racer.distance = -24; });
+  tick(state, 7);
+  let snapshot = grandPrixSnapshot(state);
+  assert.equal(snapshot.draftActive, true);
+  assert.ok(snapshot.draftCharge >= 30);
+  state.drive.lateral = 0.78;
+  const events = tickGrandPrix(state, 50);
+  snapshot = grandPrixSnapshot(state);
+  assert.ok(events.some(event => event.type === "slingshot"));
+  assert.equal(snapshot.slingshotActive, true);
+  assert.ok(state.drive.speed >= 132);
+});
+
 test("drifting charges and releases a visible speed boost", () => {
   const state = createGrandPrix("easy", 3);
   startGrandPrix(state);

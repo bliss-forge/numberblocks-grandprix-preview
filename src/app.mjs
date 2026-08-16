@@ -161,8 +161,8 @@ import {
 } from "./delivery-model.mjs";
 import { deliveryCaption, renderDelivery } from "./delivery-scene.mjs";
 
-import { chooseGrandPrixGate, createGrandPrix, finishGrandPrix, startGrandPrix, setGrandPrixBrake, setGrandPrixDrift, setGrandPrixThrottle, steerGrandPrix, takeGrandPrixCorrection, tickGrandPrix, useGrandPrixItem, useGrandPrixJump, useGrandPrixSkill } from "./grand-prix-model.mjs?v=20260814-grandprix-v32";
-import { renderGrandPrixScene, updateGrandPrixScene } from "./grand-prix-scene.mjs?v=20260814-grandprix-v32";
+import { chooseGrandPrixGate, createGrandPrix, finishGrandPrix, startGrandPrix, setGrandPrixBrake, setGrandPrixDrift, setGrandPrixThrottle, steerGrandPrix, takeGrandPrixCorrection, tickGrandPrix, useGrandPrixItem, useGrandPrixJump, useGrandPrixSkill } from "./grand-prix-model.mjs?v=20260814-grandprix-v34";
+import { renderGrandPrixScene, updateGrandPrixScene } from "./grand-prix-scene.mjs?v=20260814-grandprix-v34";
 const WALK_REPEAT_MS = 110;
 const audio = new AudioManager();
 const $ = id => document.getElementById(id);
@@ -3068,7 +3068,7 @@ function playGrandPrixEvents(events = []) {
   if (types.has("starburst-launch")) { audio.playSfx("jingle"); return; }
   if (types.has("starburst-hit")) { audio.playSfx("wrong"); return; }
   if (types.has("star-dash")) { audio.playSfx("jingle"); return; }
-  if (types.has("star-dash-pass")) { audio.playSfx("key"); return; }
+  if (types.has("star-dash-pass") || types.has("slingshot")) { audio.playSfx("key"); return; }
   if (types.has("drift-boost")) {
     const tier = events.find(event => event.type === "drift-boost")?.tier;
     audio.playSfx(tier === "ultra" ? "jingle" : tier === "super" ? "bell" : "key");
@@ -3143,6 +3143,20 @@ if (grandPrixDemo === "grandprix") {
       state.grandPrix.progress = 1720;
       finishGrandPrix(state.grandPrix);
       refreshGrandPrixScene();
+      return;
+    }
+    if (grandPrixDemoScene === "corner") {
+      state.grandPrix.progress = 286;
+      state.grandPrix.drive.speed = 136;
+      state.grandPrix.drive.throttle = true;
+      state.grandPrix.racers[0].distance = state.grandPrix.progress + 30;
+      state.grandPrix.racers[0].lane = -0.18;
+      state.grandPrix.racers[1].distance = state.grandPrix.progress + 48;
+      state.grandPrix.racers[1].lane = 0.18;
+      steerGrandPrix(state.grandPrix, "left", true);
+      setGrandPrixDrift(state.grandPrix, true);
+      window.setTimeout(() => steerGrandPrix(state.grandPrix, "left", false), 1420);
+      window.setTimeout(() => setGrandPrixDrift(state.grandPrix, false), 1580);
       return;
     }
     if (grandPrixDemoScene === "starburst") {

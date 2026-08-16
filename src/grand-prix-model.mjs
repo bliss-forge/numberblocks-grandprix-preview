@@ -16,15 +16,16 @@ const GATES = Object.freeze([
   { id: "plus-1", value: 1, target: 7, lane: 0.42, decoy: "plus-3", decoyLane: -0.44 },
   { id: "plus-3", value: 3, target: 10, lane: 0, decoy: "plus-2", decoyLane: -0.56 }
 ]);
-const MAX_SPEED = 132;
-const BOOST_SPEED = 167;
-const STAR_DASH_SPEED = 188;
+const MAX_SPEED = 148;
+const BOOST_SPEED = 182;
+const STAR_DASH_SPEED = 205;
+const DRAFT_SPEED = 172;
 const START_SPARK_WINDOW_MS = 540;
 const SKILL_MAX = 100;
-const ACCEL = 62;
-const COAST = 16;
-const BRAKE = 112;
-const OFFROAD_DRAG = 76;
+const ACCEL = 76;
+const COAST = 22;
+const BRAKE = 132;
+const OFFROAD_DRAG = 88;
 const ROAD_EDGE = 1.02;
 const WORLD_EDGE = 1.62;
 const ITEM_BOX_CAPTURE_WIDTH = 0.4;
@@ -32,6 +33,9 @@ const STARBURST_ITEM = "starburst";
 const STARBURST_MIN_RANGE = 5;
 const STARBURST_MAX_RANGE = 165;
 const STARBURST_TRAVEL_MS = 560;
+const DRAFT_MIN_RANGE = 9;
+const DRAFT_MAX_RANGE = 52;
+const DRAFT_LANE_WIDTH = 0.3;
 
 function clamp(value, min, max) {
   return Math.max(min, Math.min(max, value));
@@ -58,8 +62,9 @@ function crossing(previous, current, marker) {
 }
 
 function changeSpeed(state, delta) {
-  const cap = state.drive.skillMs > 0 ? STAR_DASH_SPEED : state.drive.boostMs > 0 ? BOOST_SPEED : MAX_SPEED;
-  state.drive.speed = clamp(state.drive.speed + delta, 0, cap);
+  const drive = state.drive;
+  const cap = drive.skillMs > 0 ? STAR_DASH_SPEED : drive.slingshotMs > 0 ? DRAFT_SPEED : drive.boostMs > 0 ? BOOST_SPEED : MAX_SPEED;
+  drive.speed = clamp(drive.speed + delta, 0, cap);
 }
 
 function driftTier(charge) {
@@ -67,6 +72,47 @@ function driftTier(charge) {
   if (charge >= 620) return "super";
   if (charge >= 240) return "mini";
   return "none";
+}
+
+function cornerProfile(state, distanceAhead = 0) {
+  const current = grandPrixRoadCurve(state.progress + distanceAhead);
+  const future = grandPrixRoadCurve(state.progress + distanceAhead + 135);
+  const delta = future - current;
+  return { direction: Math.sign(delta) || 1, demand: clamp(Math.abs(delta) * 1.35, 0, 1) };
+}
+
+function updateDraft(state, delta) {
+  const drive = state.drive;
+  if (drive.spinMs > 0 || drive.skillMs > 0) {
+    drive.draftActive = false;
+    drive.draftMs = 0;
+    drive.draftTargetNumber = null;
+    return [];
+  }
+  const player = totalDistance(state);
+  const target = state.racers
+    .filter(racer => racer.distance - player >= DRAFT_MIN_RANGE && racer.distance - player <= DRAFT_MAX_RANGE && Math.abs(racer.lane - drive.lateral) <= DRAFT_LANE_WIDTH)
+    .sort((left, right) => left.distance - right.distance)[0] ?? null;
+  const wasDrafting = drive.draftActive;
+  const storedMs = drive.draftMs;
+  if (target && drive.speed >= 64) {
+    drive.draftActive = true;
+    drive.draftTargetNumber = target.number;
+    drive.draftLastTargetNumber = target.number;
+    drive.draftMs = clamp(drive.draftMs + delta, 0, 1000);
+    return [];
+  }
+  drive.draftActive = false;
+  drive.draftTargetNumber = null;
+  if (wasDrafting && storedMs >= 280 && drive.speed > 70) {
+    drive.slingshotMs = Math.max(drive.slingshotMs, 360 + Math.round(storedMs * 0.48));
+    drive.slingshotNumber = drive.draftLastTargetNumber;
+    drive.speed = Math.max(drive.speed, Math.min(163, 132 + storedMs * 0.032));
+    drive.draftMs = 0;
+    return [{ type: "slingshot", racer: drive.slingshotNumber }];
+  }
+  drive.draftMs = Math.max(0, drive.draftMs - delta * 2);
+  return [];
 }
 
 function rankFor(state) {
@@ -86,27 +132,28 @@ function updateAi(state, seconds) {
   const playerDistance = totalDistance(state);
   state.racers.forEach((racer, index) => {
     const gap = playerDistance - racer.distance;
-    const chase = gap > 18 ? 1.065 : gap < -35 ? 0.965 : 1;
+    const profile = cornerProfile(state, racer.progress - state.progress);
+    const chase = gap > 24 ? 1.08 : gap < -48 ? 0.95 : 1;
     racer.hitMs = Math.max(0, (racer.hitMs || 0) - seconds * 1000);
     const hitSlow = racer.hitMs > 0 ? 0.46 : 1;
-    racer.speed = clamp(racer.speed + (racer.targetSpeed - racer.speed) * Math.min(1, seconds * 1.3), 58, 122);
+    const packSide = racer.number % 2 ? -1 : 1;
+    const racerAhead = state.racers
+      .filter(other => other !== racer && other.distance > racer.distance && other.distance - racer.distance < 22)
+      .sort((left, right) => left.distance - right.distance)[0];
+    const playerApproaching = racer.distance > playerDistance && racer.distance - playerDistance < 48;
+    const playerAhead = gap > 0 && gap < 32;
+    const rivalInside = clamp(racer.raceLine - profile.direction * (0.18 + (index % 2) * 0.1), -0.76, 0.76);
+    const defensiveLine = clamp(state.drive.lateral + packSide * 0.34, -0.78, 0.78);
+    const passingLine = racerAhead && Math.abs(racerAhead.lane - racer.lane) < 0.34 ? packSide * 0.32 : 0;
+    racer.packOffset = passingLine + ((playerApproaching || playerAhead) ? (defensiveLine - rivalInside) * 0.72 : 0);
+    racer.laneTarget = clamp(rivalInside + racer.packOffset + Math.sin(state.elapsedMs / 620 + index * 1.8) * 0.035, -0.84, 0.84);
+    const targetSpeed = clamp((racer.baseSpeed ?? racer.targetSpeed) + profile.demand * 6 + (playerApproaching ? 5 : 0), 88, 132);
+    racer.targetSpeed = targetSpeed;
+    racer.speed = clamp(racer.speed + (targetSpeed - racer.speed) * Math.min(1, seconds * 2.25), 64, 134);
     racer.distance += racer.speed * chase * hitSlow * seconds;
     racer.progress = racer.distance % GRAND_PRIX_TRACK_LENGTH;
     racer.lap = Math.floor(racer.distance / GRAND_PRIX_TRACK_LENGTH) + 1;
-    const weave = Math.sin(state.elapsedMs / 850 + index * 2.1) * 0.16;
-    const racerAhead = state.racers
-      .filter(other => other !== racer && other.distance > racer.distance && other.distance - racer.distance < 19)
-      .sort((left, right) => left.distance - right.distance)[0];
-    const packSide = racer.number % 2 ? -1 : 1;
-    const passingOffset = racerAhead && Math.abs(racerAhead.lane - racer.lane) < 0.38 ? packSide * 0.3 : 0;
-    const closeBehindPlayer = gap > 0 && gap < 30;
-    const playerLine = closeBehindPlayer
-      ? clamp(state.drive.lateral + packSide * 0.38, -0.82, 0.82)
-      : racer.raceLine;
-    const playerOffset = closeBehindPlayer ? (playerLine - racer.raceLine) * 0.55 : 0;
-    racer.packOffset = passingOffset + playerOffset;
-    racer.laneTarget = clamp(racer.raceLine + weave + racer.packOffset, -0.82, 0.82);
-    racer.lane += (racer.laneTarget - racer.lane) * Math.min(1, seconds * 2.8);
+    racer.lane += (racer.laneTarget - racer.lane) * Math.min(1, seconds * 4.3);
   });
 }
 
@@ -194,10 +241,10 @@ function updateStarDashPass(state) {
   if (drive.skillMs <= 0) return [];
   const player = totalDistance(state);
   const target = state.racers
-    .filter(racer => racer.distance >= player - 1 && racer.distance <= player + 34)
+    .filter(racer => racer.distance >= player - 9 && racer.distance <= player + 34)
     .sort((left, right) => left.distance - right.distance)[0];
   if (!target) return [];
-  target.distance = Math.max(0, player - 2.4);
+  target.distance = Math.max(0, player - 12);
   target.progress = target.distance % GRAND_PRIX_TRACK_LENGTH;
   target.lap = Math.floor(target.distance / GRAND_PRIX_TRACK_LENGTH) + 1;
   drive.overtakeMs = 760;
@@ -251,16 +298,17 @@ export function grandPrixRoadCurve(distance) {
 export function createGrandPrix(difficulty = "easy", seed = Date.now()) {
   const random = seeded(seed);
   const racers = RACER_NUMBERS.map((number, index) => {
-    const distance = 7 + index * 5 + Math.floor(random() * 3);
+    const distance = 32 + index * 18 + Math.floor(random() * 4);
     return {
       number,
-      lane: [-0.62, -0.2, 0.25, 0.67][index],
-      laneTarget: [-0.62, -0.2, 0.25, 0.67][index],
-      raceLine: [-0.54, -0.17, 0.22, 0.57][index],
+      lane: [-0.42, -0.1, 0.24, 0.54][index],
+      laneTarget: [-0.42, -0.1, 0.24, 0.54][index],
+      raceLine: [-0.42, -0.1, 0.24, 0.54][index],
       packOffset: 0,
       hitMs: 0,
-      targetSpeed: 95 + random() * 12,
-      speed: 78 + random() * 8,
+      baseSpeed: 98 + random() * 12,
+      targetSpeed: 98 + random() * 12,
+      speed: 86 + random() * 8,
       distance,
       progress: distance,
       lap: 1
@@ -294,6 +342,8 @@ export function createGrandPrix(difficulty = "easy", seed = Date.now()) {
       lateralVelocity: 0,
       heading: 0,
       steer: 0,
+      yaw: 0,
+      cornerLoad: 0,
       throttle: false,
       brake: false,
       drifting: false,
@@ -316,6 +366,12 @@ export function createGrandPrix(difficulty = "easy", seed = Date.now()) {
       airborneMs: 0,
       itemPulseMs: 0,
       heldItem: null,
+      draftMs: 0,
+      draftActive: false,
+      draftTargetNumber: null,
+      draftLastTargetNumber: null,
+      slingshotMs: 0,
+      slingshotNumber: null,
       offroad: false
     }
   };
@@ -437,7 +493,8 @@ export function tickGrandPrix(state, elapsedMs) {
   state.elapsedMs += delta;
   const wasCountingDown = state.countdownMs > 0;
   state.countdownMs = Math.max(0, state.countdownMs - delta);
-  ["boostMs", "startSparkMs", "skillMs", "overtakeMs", "rankChangeMs", "pressureMs", "spinMs", "contactMs", "missedCheckpointMs", "airborneMs", "itemPulseMs"].forEach(key => { drive[key] = Math.max(0, drive[key] - delta); });
+  ["boostMs", "startSparkMs", "skillMs", "overtakeMs", "rankChangeMs", "pressureMs", "spinMs", "contactMs", "missedCheckpointMs", "airborneMs", "itemPulseMs", "slingshotMs"].forEach(key => { drive[key] = Math.max(0, drive[key] - delta); });
+  if (drive.slingshotMs === 0) drive.slingshotNumber = null;
   if (wasCountingDown && state.countdownMs === 0 && drive.startSparkArmed) {
     drive.startSparkArmed = false;
     drive.startSparkMs = 820;
@@ -456,21 +513,29 @@ export function tickGrandPrix(state, elapsedMs) {
     if (drive.throttle) changeSpeed(state, ACCEL * seconds);
     else changeSpeed(state, -COAST * seconds);
     if (drive.brake) changeSpeed(state, -BRAKE * seconds);
-    const drifting = drive.drifting && drive.heading !== 0 && drive.speed > 42;
+    const speedRatio = clamp(drive.speed / MAX_SPEED, 0, 1);
+    const profile = cornerProfile(state);
+    const steerResponse = drive.drifting ? 7.8 : 15.5;
+    drive.steer += (drive.heading - drive.steer) * Math.min(1, seconds * steerResponse);
+    drive.yaw += (drive.steer - drive.yaw) * Math.min(1, seconds * (drive.drifting ? 6.2 : 10.5));
+    const turning = Math.abs(drive.steer);
+    const drifting = drive.drifting && turning > 0.16 && drive.speed > 42;
+    drive.cornerLoad += (turning * speedRatio * (0.35 + profile.demand * 0.9) - drive.cornerLoad) * Math.min(1, seconds * 7.5);
     if (drifting) {
-      drive.driftCharge = clamp(drive.driftCharge + delta, 0, 1500);
+      const driftGain = delta * (0.36 + speedRatio * 0.78 + turning * 0.72 + profile.demand * 0.68);
+      drive.driftCharge = clamp(drive.driftCharge + driftGain, 0, 1500);
       drive.driftMs += delta;
-    } else if (!drive.drifting) {
-      drive.driftCharge = Math.max(0, drive.driftCharge - delta * 1.8);
+    } else {
+      drive.driftCharge = Math.max(0, drive.driftCharge - delta * (drive.drifting ? 0.85 : 1.9));
       drive.driftMs = 0;
     }
-    const steerResponse = drifting ? 7.2 : 13.5;
-    drive.steer += (drive.heading - drive.steer) * Math.min(1, seconds * steerResponse);
-    const speedRatio = clamp(drive.speed / MAX_SPEED, 0, 1);
-    const grip = 1 - speedRatio * 0.24;
-    const steerStrength = (drifting ? 5.45 : 3.35) * (0.3 + speedRatio) * grip;
-    drive.lateralVelocity += drive.steer * steerStrength * seconds;
-    drive.lateralVelocity *= drifting ? 0.972 : 0.82;
+    const grip = 1 - speedRatio * (drifting ? 0.46 : 0.18);
+    const steerStrength = (drifting ? 7.35 : 4.65) * (0.28 + speedRatio) * grip;
+    drive.lateralVelocity += drive.yaw * steerStrength * seconds;
+    drive.lateralVelocity *= drifting ? 0.978 : 0.8;
+    if (!drifting && drive.speed > 64 && turning > 0.1) {
+      changeSpeed(state, -(7 + profile.demand * 26) * turning * speedRatio * seconds);
+    }
   }
   drive.lateral += drive.lateralVelocity * seconds;
   drive.lateral = clamp(drive.lateral, -WORLD_EDGE, WORLD_EDGE);
@@ -485,9 +550,10 @@ export function tickGrandPrix(state, elapsedMs) {
     state.progress -= GRAND_PRIX_TRACK_LENGTH;
     events.push(...advanceLap(state));
   }
-  updateAi(state, seconds);
-  events.push(...updateStarburst(state, delta));
   events.push(...updateStarDashPass(state));
+  updateAi(state, seconds);
+  events.push(...updateDraft(state, delta));
+  events.push(...updateStarburst(state, delta));
   events.push(...updateRaceSignals(state));
   events.push(...updateKartContacts(state));
   return events;
@@ -521,6 +587,13 @@ export function grandPrixSnapshot(state) {
     offroad: state.drive.offroad,
     drifting: state.drive.drifting,
     driftCharge: state.drive.driftCharge,
+    yaw: state.drive.yaw,
+    cornerLoad: state.drive.cornerLoad,
+    draftActive: state.drive.draftActive,
+    draftCharge: Math.round(state.drive.draftMs / 10),
+    draftTargetNumber: state.drive.draftTargetNumber,
+    slingshotActive: state.drive.slingshotMs > 0,
+    slingshotNumber: state.drive.slingshotNumber,
     driftTier: driftTier(state.drive.driftCharge),
     skillCharge: state.drive.skillCharge,
     skillReady: state.drive.skillCharge >= SKILL_MAX,
