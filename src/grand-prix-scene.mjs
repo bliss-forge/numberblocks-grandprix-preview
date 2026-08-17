@@ -9,6 +9,8 @@ const KART_SPRITE_URLS = Object.freeze({
   5: "assets/grand-prix/karts/five.png"
 });
 const kartSprites = new Map();
+const MAX_CANVAS_PIXELS = 1250000;
+const projectionCaches = new WeakMap();
 
 function spriteForKart(number) {
   if (kartSprites.has(number)) return kartSprites.get(number);
@@ -29,29 +31,48 @@ function element(document, tag, className, text = "") {
 
 function resizeCanvas(canvas) {
   const rect = canvas.getBoundingClientRect();
-  const ratio = Math.min(2, window.devicePixelRatio || 1);
+  const cssPixels = Math.max(1, rect.width * rect.height);
+  const requestedRatio = Math.min(2, window.devicePixelRatio || 1);
+  const budgetRatio = Math.sqrt(MAX_CANVAS_PIXELS / cssPixels);
+  const ratio = Math.max(1, Math.min(requestedRatio, budgetRatio));
   const width = Math.max(1, Math.round(rect.width * ratio));
   const height = Math.max(1, Math.round(rect.height * ratio));
   if (canvas.width !== width || canvas.height !== height) {
     canvas.width = width;
     canvas.height = height;
   }
-  const context = canvas.getContext("2d");
+  const context = canvas.getContext("2d", { alpha: false });
   context.setTransform(ratio, 0, 0, ratio, 0, 0);
   return { context, width: rect.width, height: rect.height };
 }
 
-function horizonPoint(state, width, height, depth) {
+function projectionFrame(state, width, height) {
+  const cached = projectionCaches.get(state);
+  if (cached?.elapsedMs === state.elapsedMs && cached.width === width && cached.height === height) return cached;
   const speedEnergy = Math.min(1, Math.max(0, (state.drive.speed - 62) / 126) + (state.drive.skillMs > 0 ? 0.3 : 0));
-  const horizon = height * (0.275 - speedEnergy * 0.052);
-  const view = 790 + speedEnergy * 184;
+  const currentCurve = grandPrixRoadCurve(state.progress);
+  const next = {
+    elapsedMs: state.elapsedMs,
+    width,
+    height,
+    speedEnergy,
+    currentCurve,
+    cornerLookAhead: grandPrixRoadCurve(state.progress + 150 + speedEnergy * 260),
+    apexCurve: grandPrixRoadCurve(state.progress + 320 + speedEnergy * 160),
+    horizon: height * (0.275 - speedEnergy * 0.052),
+    view: 790 + speedEnergy * 184
+  };
+  projectionCaches.set(state, next);
+  return next;
+}
+
+function horizonPoint(state, width, height, depth) {
+  const frame = projectionFrame(state, width, height);
+  const { speedEnergy, currentCurve, cornerLookAhead, apexCurve, horizon, view } = frame;
   const clamped = Math.max(0, Math.min(view, depth));
   const proximity = 1 - clamped / view;
   const perspective = Math.pow(proximity, 1.52);
-  const currentCurve = grandPrixRoadCurve(state.progress);
   const upcomingCurve = grandPrixRoadCurve(state.progress + clamped);
-  const cornerLookAhead = grandPrixRoadCurve(state.progress + 150 + speedEnergy * 260);
-  const apexCurve = grandPrixRoadCurve(state.progress + 320 + speedEnergy * 160);
   const curveShift = (upcomingCurve - currentCurve) * width * (0.075 + perspective * 0.265)
     + (cornerLookAhead - currentCurve) * width * (0.03 + speedEnergy * 0.055) * (1 - perspective * 0.42)
     + (apexCurve - cornerLookAhead) * width * 0.012 * (1 - perspective);
@@ -123,7 +144,8 @@ function drawBackground(context, state, width, height) {
 
 function drawRoad(context, state, width, height) {
   const slices = [];
-  for (let depth = 850; depth >= 0; depth -= 9) slices.push(horizonPoint(state, width, height, depth));
+  const depthStep = state.drive.speed > 96 ? 14 : 12;
+  for (let depth = 850; depth >= 0; depth -= depthStep) slices.push(horizonPoint(state, width, height, depth));
   context.fillStyle = "#86bf68";
   context.fillRect(0, height * 0.47, width, height * 0.53);
   context.beginPath();
@@ -158,7 +180,7 @@ function drawRoad(context, state, width, height) {
     }
   }
   const laneFlow = 2.1 + state.drive.speed / 94 + (state.drive.skillMs > 0 ? 0.8 : 0);
-  for (let marker = 0; marker < 850; marker += 45) {
+  for (let marker = 0; marker < 850; marker += 60) {
     const shifted = (marker + state.progress * laneFlow) % 850;
     const from = horizonPoint(state, width, height, shifted);
     const to = horizonPoint(state, width, height, Math.min(850, shifted + 15));
@@ -178,7 +200,7 @@ function drawApexChevrons(context, state, width, height) {
   const futureCurve = grandPrixRoadCurve(state.progress + 205);
   const direction = Math.sign(futureCurve - currentCurve);
   if (!direction) return;
-  for (let depth = 125; depth < 420; depth += 58) {
+  for (let depth = 145; depth < 420; depth += 76) {
     const point = horizonPoint(state, width, height, depth);
     const size = Math.max(4, point.perspective * 16);
     const x = point.x + direction * point.roadWidth * 0.78;
@@ -198,7 +220,7 @@ function drawApexChevrons(context, state, width, height) {
 
 function drawRoadsideDepth(context, state, width, height) {
   const speedEnergy = Math.min(1, state.drive.speed / 150);
-  for (let depth = 108; depth < 900; depth += 92) {
+  for (let depth = 132; depth < 900; depth += 118) {
     const point = horizonPoint(state, width, height, depth);
     const size = Math.max(2, point.perspective * (7 + speedEnergy * 3));
     const blink = Math.sin(state.elapsedMs / 180 + depth) * 0.16;
@@ -351,7 +373,7 @@ function drawGate(context, state, width, height, distance, lane, label, correct)
 
 function drawStarbox(context, state, width, height, box) {
   const position = project(state, width, height, box.position, box.lane);
-  if (!position) return;
+  if (!position || position.scale < 0.26) return;
   const size = Math.max(7, 36 * position.scale);
   const spin = state.elapsedMs / 430 + box.position * 0.01;
   context.save();
@@ -363,13 +385,15 @@ function drawStarbox(context, state, width, height, box) {
   context.fill();
   context.globalAlpha = 1;
   context.rotate(Math.sin(spin) * 0.08);
-  const face = context.createLinearGradient(-size, -size, size, size);
-  face.addColorStop(0, "#85e5df");
-  face.addColorStop(0.48, "#5f8ddb");
-  face.addColorStop(1, "#8a59c6");
+  const face = size > 15 ? context.createLinearGradient(-size, -size, size, size) : null;
+  if (face) {
+    face.addColorStop(0, "#85e5df");
+    face.addColorStop(0.48, "#5f8ddb");
+    face.addColorStop(1, "#8a59c6");
+  }
   context.shadowColor = "rgba(255,240,138,.72)";
-  context.shadowBlur = size * 0.62;
-  context.fillStyle = face;
+  context.shadowBlur = size > 15 ? size * 0.5 : 0;
+  context.fillStyle = face ?? "#5f8ddb";
   context.strokeStyle = "#fff8bc";
   context.lineWidth = Math.max(1.4, size * 0.09);
   context.beginPath();
@@ -474,7 +498,7 @@ function drawDriveEffects(context, state, width, height, kartX, playerY) {
   const speedRatio = Math.min(1, state.drive.speed / 148);
   if (speedRatio > 0.47) {
     context.save();
-    const rush = Math.round(5 + speedRatio * 15 + (state.drive.slingshotMs > 0 ? 8 : 0));
+    const rush = Math.round(4 + speedRatio * 10 + (state.drive.slingshotMs > 0 ? 4 : 0));
     context.globalAlpha = 0.1 + speedRatio * 0.14;
     context.strokeStyle = state.drive.slingshotMs > 0 ? "#bdefff" : "#fff7cb";
     context.lineWidth = 1 + speedRatio * 1.3;
@@ -491,7 +515,7 @@ function drawDriveEffects(context, state, width, height, kartX, playerY) {
   const baseY = playerY;
   if (state.drive.boostMs > 0 || state.drive.skillMs > 0 || state.drive.startSparkMs > 0) {
     const launchSpark = state.drive.startSparkMs > 0 && state.drive.skillMs === 0;
-    const streakCount = state.drive.skillMs > 0 ? 24 : launchSpark ? 10 : 17;
+    const streakCount = state.drive.skillMs > 0 ? 15 : launchSpark ? 7 : 11;
     context.save();
     context.globalAlpha = launchSpark ? 0.44 : 0.7;
     context.strokeStyle = launchSpark ? "#ffe48d" : "#fff3a5";
@@ -512,7 +536,7 @@ function drawDriveEffects(context, state, width, height, kartX, playerY) {
     context.fillStyle = hot ? "#ffc84d" : "#8ed9ff";
     context.shadowColor = hot ? "#ff9d2e" : "#d8f5ff";
     context.shadowBlur = 12;
-    for (let index = 0; index < 14; index += 1) {
+    for (let index = 0; index < 10; index += 1) {
       const side = index % 2 ? -1 : 1;
       const trail = 17 + (index * 11 % 78);
       const wobble = Math.sin(state.elapsedMs / 60 + index) * 7;
@@ -525,7 +549,7 @@ function drawDriveEffects(context, state, width, height, kartX, playerY) {
   if (state.drive.offroad) {
     context.save();
     context.fillStyle = "rgba(126,87,43,.6)";
-    for (let index = 0; index < 16; index += 1) {
+    for (let index = 0; index < 10; index += 1) {
       const side = index % 2 ? -1 : 1;
       const trail = 18 + (index * 13 % 94);
       context.beginPath();
